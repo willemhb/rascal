@@ -50,3 +50,17 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# ignore build and runtime directories
+dumps
+dumps/
+build
+build/
+
+
+# ignore emacs garbage
+*~
+*.el
+
+# don't ignore the emacs mode
+!lisp/rascal-mode.el

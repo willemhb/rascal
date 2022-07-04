@@ -1,0 +1,44 @@
+(defv *syntax* {})
+
+(define (compile-expression x c v e)
+	(cond ((lit? x)
+	       (compile-literal x c v))
+	      ((var? x)
+	       (compile-variable x c v e))
+	      (:else
+	       (compile-s-expression x c v e))))
+
+(define (compile-literal x c v)
+     (case x
+     	   ((nil)
+	    (join :loadn c))
+	   ((true)
+	    (join :loadt c))
+	   ((false)
+	    (join :loadf c))
+	   (:else
+	    (let ((location (add! x v)))
+	    	 (join :loadc location c)))))
+
+(fun compile-variable (x c v e)
+     (do
+	(defv (i . j) (locate x e))
+	(if (= i -1)
+	    :then (do (defv n (add! x v))
+		      (join :loadg n c))
+	    (= i 0)
+	    :then (join :loadl j c)
+	    :else (join :loadv i j c))))
+
+(fun compile-s-expression (sx c v e)
+     (case (car sx)
+     	   quote (compile-literal (quote-value sx) c v)
+	   do    (compile-sequence (do-expressions sx) c v e)
+	   if    (compile-if (if-test sx)
+	   	 	     (if-consequent sx)
+			     (if-alternative sx)
+			     c v e)
+	   lmb   (compile-closure (lmb-args sx)
+	   	 		  (lmb-body sx)
+				  c v e)
+	   _ ...))
