@@ -57,6 +57,8 @@ dumps/
 build
 build/
 
+# ignore api key
+.secret.txt
 
 # ignore emacs garbage
 *~
