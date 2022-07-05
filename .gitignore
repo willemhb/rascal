@@ -66,3 +66,6 @@ build/
 
 # don't ignore the emacs mode
 !lisp/rascal-mode.el
+
+# don't ignore utils??
+!utils/
