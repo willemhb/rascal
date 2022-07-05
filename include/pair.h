@@ -5,9 +5,17 @@
 
 struct pair_t {
   object_t base;
-  value_t len, car, cdr;
+  union {
+    size_t len;
+    hash_t hash;
+  };
+  value_t car, cdr;
 };
 
-
+#define aspair(x) ((pair_t*)ptr(x))
+#define car(x)    (aspair(x)->car)
+#define cdr(x)    (aspair(x)->cdr)
+#define clen(x)   (aspair(x)->len)
+#define phash(x)  (aspair(x)->hash)
 
 #endif

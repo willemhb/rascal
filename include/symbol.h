@@ -9,7 +9,8 @@ struct symbol_t {
   object_t base;
   ulong_t hash, idno;
   value_t bind;
-  object_t *location, *name;
+
+  char_t name[1];
 };
 
 #define assym(x)   ((symbol_t*)ptr(x))
@@ -21,5 +22,6 @@ struct symbol_t {
 
 // api ------------------------------------------------------------------------
 value_t symbol(char_t *name);
+bool_t  symbolp(value_t xv);
 
 #endif

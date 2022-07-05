@@ -15,6 +15,10 @@ struct string_t {
 #define schars(x) (asstr(x)->chars)
 
 // api ------------------------------------------------------------------------
+value_t string(char *chars);
+value_t glstring(char *chars);
+bool_t  stringp(value_t xv);
+
 char_t  sref( object_t *xs, index_t i );
 index_t sset( object_t *xs, index_t i, char_t ch );
 arity_t sput( object_t **xs, char_t ch );

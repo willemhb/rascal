@@ -13,7 +13,9 @@ typedef struct object_t {
 
 typedef struct symbol_t   symbol_t;
 typedef struct pair_t     pair_t;
+typedef struct tuple_t    tuple_t;
 typedef struct string_t   string_t;
+typedef struct binary_t   binary_t;
 typedef struct table_t    table_t;
 typedef struct function_t function_t;
 typedef struct port_t     port_t;
@@ -46,9 +48,11 @@ typedef enum {
   /* literal types */
   type_table     = 0x10 | tag_header,
   type_string    = 0x14 | tag_header,
-  type_function  = 0x18 | tag_header,
-  type_port      = 0x1c | tag_header,
-  type_error     = 0x20 | tag_header,
+  type_binary    = 0x18 | tag_header,
+  type_tuple     = 0x1c | tag_header,
+  type_function  = 0x20 | tag_header,
+  type_port      = 0x24 | tag_header,
+  type_error     = 0x28 | tag_header,
 
   /* immediate types */
   type_boolean   = 0x04 | tag_immediate,
@@ -63,8 +67,10 @@ typedef enum {
   type_idno      = 0x20 | tag_immediate
 } type_t;
 
-#define rnull ((value_t)type_null)
-#define rnone (((value_t)0xffffffff00000000ul)|type_none)
+#define rnull   ((value_t)type_null)
+#define rnone   (((value_t)0xffffffff00000000ul)|type_none)
+#define rtrue   (((value_t)0x0000000100000000ul)|type_boolean)
+#define rfalse  ((value_t)type_boolean)
 
 // globals --------------------------------------------------------------------
 #define N_STACK 8192
@@ -73,17 +79,21 @@ typedef enum {
 extern ulong_t   Symcnt;
 extern object_t *Symbols, *Globals, *Error, *Ins, *Outs, *Errs;
 
-extern value_t Stack[N_STACK], Dump[N_STACK];
+extern value_t Stack[N_STACK], Dump[N_STACK], Function;
 
 extern index_t Sp, Bp, Fp, Dp;
 
 extern uchar_t *Heap, *Reserve, *Free, *HeapMap, *ReserveMap;
-
+extern size_t  NHeap, HeapUsed, NReserve, ReserveUsed;
 extern bool_t  Collecting, Grow, Grew;
 extern float_t Collectf, Resizef, Growf;
 
 extern Cbuiltin_t  Builtins[];
-extern char_t     *BuiltinNames[];
+
+extern char_t     *BuiltinNames[],
+                  *TypeNames[];
+
+extern size_t      TypeSizes[];
 
 // utility macros -------------------------------------------------------------
 #define tag(x)     ((x)&3)
@@ -92,6 +102,17 @@ extern char_t     *BuiltinNames[];
 #define wishift(x) ((x)>>8)
 #define tagv(x,t)  (((value_t)(x))|(t))
 #define ptr(x)     ((void_t*)(((value_t)(x))&~3ul))
-#define obtype(x)  (*((value_t*)ptr(x)))
+#define obhead(x)  (*((value_t*)ptr(x)))
+#define obtype(x)  (obhead(x)&255)
+#define obtag(x)   (obhead(x)&3)
+#define obsize(x)  (obhead(x)>>8)
+#define imtype(x)  (wtag(x))
+
+#define objectp(x)    (tag(x)==tag_object)
+#define immediatep(x) (tag(x)==tag_immediate)
+#define nullp(x)      ((x)==rnull)
+#define nonep(x)      ((x)==rnone)
+#define truep(x)      ((x)==rtrue)
+#define falsep(x)     ((x)==rfalse)
 
 #endif

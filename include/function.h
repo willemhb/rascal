@@ -17,4 +17,9 @@ struct function_t {
   };
 };
 
+#define asfun(x)      ((function_t*)ptr(x))
+#define funenvt(x)    (asfun(x)->envt)
+#define funformals(x) (asfun(x)->formals)
+#define funbody(x)    (asfun(x)->body)
+
 #endif
