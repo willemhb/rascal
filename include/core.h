@@ -2,6 +2,8 @@
 #define rascal_core_h
 
 #include "common.h"
+#include "types.h"
+#include "instructions.h"
 
 // rascal typedefs ------------------------------------------------------------
 typedef uintptr_t value_t;
@@ -21,7 +23,6 @@ typedef struct function_t function_t;
 typedef struct port_t     port_t;
 typedef struct error_t    error_t;
 
-typedef ushort_t builtin_t;
 typedef uint_t   integer_t;
 typedef bool_t   boolean_t;
 typedef char_t   character_t;
@@ -29,43 +30,6 @@ typedef char_t   character_t;
 typedef pair_t   cons_t;
 
 typedef value_t (*Cbuiltin_t)(value_t *args, arity_t nargs);
-
-#define tag_object    0x00
-#define tag_immediate 0x01
-#define tag_moved     0x02
-#define tag_header    0x03
-
-typedef enum {
-  /* fucked up types */
-  type_null      = 0x00 | tag_object,
-  type_none      = 0x00 | tag_immediate,
-
-  /* non-literal types */
-  type_symbol    = 0x04 | tag_header,
-  type_pair      = 0x08 | tag_header,
-  type_cons      = 0x0c | tag_header,
-
-  /* literal types */
-  type_table     = 0x10 | tag_header,
-  type_string    = 0x14 | tag_header,
-  type_binary    = 0x18 | tag_header,
-  type_tuple     = 0x1c | tag_header,
-  type_function  = 0x20 | tag_header,
-  type_port      = 0x24 | tag_header,
-  type_error     = 0x28 | tag_header,
-
-  /* immediate types */
-  type_boolean   = 0x04 | tag_immediate,
-  type_character = 0x08 | tag_immediate,
-  type_builtin   = 0x0c | tag_immediate,
-
-  /* numeric types */
-  type_integer   = 0x10 | tag_immediate,
-  type_fixnum    = 0x14 | tag_immediate,
-  type_arity     = 0x18 | tag_immediate,
-  type_index     = 0x1c | tag_immediate,
-  type_idno      = 0x20 | tag_immediate
-} type_t;
 
 #define rnull   ((value_t)type_null)
 #define rnone   (((value_t)0xffffffff00000000ul)|type_none)
@@ -88,12 +52,30 @@ extern size_t  NHeap, HeapUsed, NReserve, ReserveUsed;
 extern bool_t  Collecting, Grow, Grew;
 extern float_t Collectf, Resizef, Growf;
 
-extern Cbuiltin_t  Builtins[];
+// builtin dispatch tables
+extern Cbuiltin_t    Builtins[form_pad];
+extern bool_t      (*Ensure[form_pad])(value_t *base, size_t nargs);
 
-extern char_t     *BuiltinNames[],
-                  *TypeNames[];
+extern char_t     *InstructionNames[num_instructions];
 
-extern size_t      TypeSizes[];
+// type dispatch tables
+extern void   (*obtracers[N_TYPES])(object_t* ob);
+extern void   (*valtracers[N_TYPES])(value_t val);
+extern void   (*obprinters[N_TYPES])(object_t *ob);
+extern void   (*valprinters[N_TYPES])(value_t val);
+extern void   (*finalizers[N_TYPES])(object_t *ob);
+
+extern char_t  *TypeNames[N_TYPES];
+
+extern size_t   TypeSizes[N_TYPES];
+
+extern bool_t   TypeMembers[N_TYPES][N_TYPES]; // simple
+
+static void initmembers(void) {
+  for (int i=0; i<N_TYPES; i++)
+    for (int j=0; j<N_TYPES; j++) TypeMembers[i][j] = i != type_none && (i == type_any || i == j);
+}
+
 
 // utility macros -------------------------------------------------------------
 #define tag(x)     ((x)&3)

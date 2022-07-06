@@ -14,7 +14,7 @@ static void tracearray( value_t *vals, size_t limit );
 static void tracetable( object_t *ob );
 
 // exports --------------------------------------------------------------------
-static uchar_t *findmap(void_t *ptr) {
+uchar_t *findmap(void_t *ptr) {
   size_t offset;
   uchar_t *map, *uptr = ptr;
   
@@ -31,7 +31,7 @@ static uchar_t *findmap(void_t *ptr) {
   return map+offset;
 }
 
-static inline bool_t overflowp(size_t n) {
+inline bool_t overflowp(size_t n) {
   return NHeap + n >= HeapUsed;
 }
 
@@ -79,12 +79,8 @@ static object_t *relocate( object_t *ob ) {
 
   switch ( type ) {
   case type_tuple:
-    obdata   = tvals(ob);
-    dataloc  = sizeof(value_t) * 3;
-    datasize = tlen(ob) * sizeof(value_t);
-    used   += tlen(ob) * sizeof(value_t);
-    padded += tcap(ob) * sizeof(value_t);
-    
+    obdata = tupledata(ob);
+
     break;
 
   case type_string:

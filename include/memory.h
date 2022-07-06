@@ -16,21 +16,23 @@ typedef enum {
 } memflags_t;
 
 // exports --------------------------------------------------------------------
-bool_t  globalp(void_t *ptr);
-uchar_t getmemfl(void_t *ptr);
-uchar_t setmemfl(void_t *ptr, uchar_t fl);
-uchar_t clearmemfl(void_t *ptr, uchar_t fl);
+bool_t   globalp( void_t *ptr );
+uchar_t *findmap( void_t *ptr );
+bool_t   overflowp( size_t n );
+uchar_t getmemfl( void_t *ptr );
+uchar_t setmemfl( void_t *ptr, uchar_t fl );
+uchar_t clearmemfl( void_t *ptr, uchar_t fl );
 
-void_t   *allocate(size_t nbytes, bool_t global);
+void_t   *allocate( size_t nbytes, bool_t global );
 object_t *construct( type_t type, size_t extra, bool_t global );
 
-void    manage(void); // GC entry point
+void    manage( void ); // GC entry point
 
 // initialization -------------------------------------------------------------
-void    initmemory(void);
+void    initmemory( void );
 
 // utilities ------------------------------------------------------------------
-#define movedp(x) (obtag(x)==tag_moved)
-#define getfp(x)  ((void_t*)(obhead(x)&~2ul))
+#define movedp(x) ( obtag(x)==tag_moved )
+#define getfp(x)  ( (void_t*)(obhead(x)&~2ul) )
 
 #endif

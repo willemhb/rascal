@@ -26,7 +26,7 @@
 #define C_qual_mask    0xf0
 #define C_pointer_mask 0x40
 
-typedef enum C_type_t {
+typedef enum Ctype_t {
   // true unsigned integers
   C_u8  =C_8_bit,
   C_u16 =C_16_bit,
@@ -64,22 +64,22 @@ typedef enum C_type_t {
 
   // void type
   C_void=C_complex|C_character|C_pointer
-} C_type_t;
+} Ctype_t;
 
 // exports --------------------------------------------------------------------
-size_t C_type_size(C_type_t xct);
+size_t Ctype_size(Ctype_t xct);
 
-bool   C_type_signedp(C_type_t xct);
-bool   C_type_intp(C_type_t xct);
-bool   C_type_uintp(C_type_t xct);
-bool   C_type_sintp(C_type_t xct);
-bool   C_type_floatp(C_type_t xct);
-bool   C_type_imagp(C_type_t xct);
-bool   C_type_cplxp(C_type_t xct);
-bool   C_type_charp(C_type_t xct);
-bool   C_type_ptrp(C_type_t xct);
-bool   C_type_voidp(C_type_t xct);
+bool   Ctype_signedp(Ctype_t xct);
+bool   Ctype_intp(Ctype_t xct);
+bool   Ctype_uintp(Ctype_t xct);
+bool   Ctype_sintp(Ctype_t xct);
+bool   Ctype_floatp(Ctype_t xct);
+bool   Ctype_imagp(Ctype_t xct);
+bool   Ctype_cplxp(Ctype_t xct);
+bool   Ctype_charp(Ctype_t xct);
+bool   Ctype_ptrp(Ctype_t xct);
+bool   Ctype_voidp(Ctype_t xct);
 
-C_type_t C_type_common( C_type_t xct, C_type_t yct );
+Ctype_t Ctype_common( Ctype_t xct, Ctype_t yct );
 
 #endif
