@@ -16,7 +16,7 @@ struct table_t {
 };
 
 // table element structure
-struct node_t {
+typedef struct node_t {
   object_t base;
   index_t location : 56;
   index_t rootp    :  1; // table root?
@@ -24,7 +24,7 @@ struct node_t {
   index_t flags    :  6;
 
   object_t *left, *right;
-};
+} node_t;
 
 #define astab(x)     ((table_t*)ptr(x))
 #define asnode(x)    ((node_t*)ptr(x))

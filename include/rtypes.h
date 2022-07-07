@@ -48,6 +48,7 @@ typedef void      (*relocate_t)(value_t *b, uchar_t **s, uchar_t **m, size_t *u 
 typedef void      (*untrace_t)(value_t val);
 typedef size_t    (*print_t)(FILE *ios, value_t val);
 typedef hash_t    (*mk_hash_t)(value_t val);
+typedef int_t     (*order_t)(value_t x, value_t y);
 typedef size_t    (*sizeof_t)(value_t val);
 typedef void      (*finalize_t)(object_t *ob);
 

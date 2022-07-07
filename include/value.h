@@ -61,6 +61,8 @@ hash_t rhash( value_t x );
 size_t vprint( FILE *ios, value_t x    );
 size_t oprint( FILE *ios, object_t *ob );
 
+int_t  order( value_t x, value_t y );
+
 char_t *vtypename( value_t x );
 char_t *otypename( object_t *o );
 char_t *ttypename( type_t t );

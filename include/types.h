@@ -105,6 +105,7 @@ extern print_t     Print[N_TYPES];
 extern finalize_t  Finalize[N_TYPES];
 extern sizeof_t    Sizeof[N_TYPES];
 extern mk_hash_t   Hash[N_TYPES];
+extern order_t     Order[N_TYPES];
 
 extern char_t  *TypeNames[N_TYPES];
 extern size_t   TypeSizes[N_TYPES];
