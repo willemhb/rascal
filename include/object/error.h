@@ -1,7 +1,7 @@
 #ifndef rascal_error_h
 #define rascal_error_h
 
-#include "core.h"
+#include "rascal.h"
 
 struct error_t {
   object_t base;
@@ -10,7 +10,9 @@ struct error_t {
 };
 
 // api ------------------------------------------------------------------------
-void error( value_t irritant, char_t *fmt, ...);
-void require( bool_t test, char_t *fmt, ...);
+value_t trace_error(value_t errval);
+value_t print_error(value_t error);
+
+value_t mk_error( value_t irritant, char_t *message );
 
 #endif

@@ -1,6 +1,12 @@
 #ifndef describe_array_h
 #define describe_array_h
 
+// overallocation code copied from CPython
+// new_allocated = newsize + (newsize >> 2) + (newsize < 8 ? 3 : 6)
+// 
+// if (allocated >= newsize && newsize >= (allocated >> 1))
+// 
+
 #define ArrayType(_dtype, _flags, _min)		  \
   {						  \
     object_t base;				  \

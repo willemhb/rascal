@@ -1,6 +1,8 @@
 #ifndef rascal_instructions_h
 #define rascal_instructions_h
 
+#include "common.h"
+#include "rtypes.h"
 #include "types.h"
 
 /*
@@ -17,7 +19,7 @@
   rascal callable function.
 */
 
-typedef enum {
+enum builtin_t {
   op_boolean       = type_boolean,
   op_character     = type_character,
   // op_builtin    = type_builtin,
@@ -25,12 +27,16 @@ typedef enum {
   op_fixnum        = type_fixnum,
   op_symbol        = type_symbol,
   op_pair          = type_pair,
-  op_cons          = type_cons,
   op_table         = type_table,
   op_string        = type_string,
   op_binary        = type_binary,
   op_tuple         = type_tuple,
   op_error         = type_error,
+
+  // other constructors for now these are pseudo-types
+  op_list          = type_list,
+  op_cons          = 0x08 | tag_moved,
+  op_assc          = 0x0c | tag_moved,
 
   /* other builtins */
   op_idp           = N_TYPES, // id?
@@ -68,7 +74,9 @@ typedef enum {
   op_hasp,                    // has?
   op_fst,                     // fst
   op_rst,                     // rst
-  op_join,                    // join
+  op_join,                    // join - add at front
+  op_append,                  // append - add at back
+  op_conj,                    // conj - add in optimal manner
 
   /* low-level io */
   op_open,                    // open
@@ -101,18 +109,18 @@ typedef enum {
   /* system interaction */
   op_exit,                    // exit
   builtin_pad
-} builtin_t;
+};
 
-typedef enum {
+enum form_t {
   op_quote = builtin_pad,
   op_do,
   op_if,
   op_lambda,
   op_macro,
   form_pad
-} form_t;
+};
 
-typedef enum {
+enum opcode_t {
   /* no-op */
   op_none = form_pad,
 
@@ -152,14 +160,20 @@ typedef enum {
   op_finished,
   
   num_instructions
-} opcode_t;
+};
 
-typedef union {
+union instruction_t {
   opcode_t  opcode;
   form_t    form;
   builtin_t builtin;
   int       bits;
-} instruction_t;
+};
+
+// instructions dispatch tables
+extern Cbuiltin_t    Builtins[form_pad];
+extern ensure_t      Ensure[form_pad];
+extern size_t        InstructionArgC[num_instructions];
+extern char_t       *InstructionNames[num_instructions];
 
 static inline int builtinp(instruction_t x) {
   return x.bits < builtin_pad;

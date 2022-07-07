@@ -1,7 +1,7 @@
 #ifndef rascal_tuple_h
 #define rascal_tuple_h
 
-#include "core.h"
+#include "rascal.h"
 #include "describe/array.h"
 #include "describe/safety.h"
 

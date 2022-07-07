@@ -9,14 +9,21 @@
 // making common C types style compliant
 typedef void void_t;
 typedef bool bool_t;
-typedef char char_t;
+
+typedef char        char_t;
 typedef signed char schar_t;
 typedef unsigned char uchar_t;
-typedef short sshort_t;
+
+typedef short          short_t;
+typedef signed short   sshort_t;
 typedef unsigned short ushort_t;
-typedef int  sint_t;
+
+typedef int          int_t;
+typedef signed int   sint_t;
 typedef unsigned int uint_t;
-typedef long slong_t;
+
+typedef long          long_t;
+typedef signed long   slong_t;
 typedef unsigned long ulong_t;
 typedef float float_t;
 typedef double double_t;

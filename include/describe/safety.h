@@ -1,66 +1,44 @@
 #ifndef rascal_safety_h
 #define rascal_safety_h
 
-#define TagP(_tag)							\
-  bool_t ob##_tag##p( object_t *ob )					\
-  {									\
-    return tag_##_tag == tag_object ||					\
-      tag_##_tag > tag_immediate &&					\
-      ob != NULL &&							\
-      obtag(ob) == tag_##_tag;						\
-  }									\
-  									\
-  bool_t val##_tag##p( value_t val )					\
-  {									\
-    if (tag_##_tag < tag_moved)						\
-      return tag(val) == tag_##_tag;					\
-    return tag(val) != tag_immediate &&					\
-      val != rnull &&							\
-      obtag(val) == tag_##_tag;						\
+#define TypeP(x, type) isap(x, type_##type )
+
+#define ObFlagP( _name, _flag, _linkage )	\
+  _linkage##_ObFlagP( _name, _flag )
+
+#define Static_ObFlagP( _name, _flag )			\
+  static inline bool_t v##_name##p( value_t x )		\
+  {							\
+    return flagp( x, _flag );				\
+  }							\
+  static inline bool_t o##_name##p( object_t *o )	\
+  {							\
+    return flagp( o, _flag );				\
   }
 
-#define DeclareTagP(_tag)			\
-  bool_t ob##_tag##p( object_t *ob );		\
-  bool_t val##_tag##p( value_t val )
-
-#define GenericTagP(_tag, _x)				\
-  _Generic((_x),					\
-	   value_t:val##_tag##p,			\
-	   object_t*:ob##_tag##p)(_x)
-
-#define TypeP(_type)				\
-  bool_t ob##_type##p( object_t *ob )		\
-  {						\
-    if (type_##_type == type_null)		\
-      return ob == NULL;			\
-    if (ob == NULL)				\
-      return false;				\
-    if ((type_##_type && 0x3) == tag_immediate)	\
-      return false;				\
-    return obtype(ob) == type_##_type;		\
-  }						\
-  bool_t val##_type##p( value_t val )		\
-  {						\
-    if (val&1)					\
-      return (val&255) == type_##_type;		\
-    if (val == rnull)				\
-      return type_##_type == type_null;		\
-    return obtype( val ) == type_##_type;	\
+#define Auto_ObFlagP( _name, _flag )			\
+  inline bool_t v##_name##p( value_t x )		\
+  {							\
+    return flagp( x, _flag );				\
+  }							\
+  inline bool_t o##_name##p( object_t *o )		\
+  {							\
+    return flagp( o, _flag );				\
   }
 
-#define DeclareTypeP(_type)			\
-  bool_t ob##_type##p( object_t *ob );		\
-  bool_t val##_type##p( value_t val )
+#define DeclareObFlagP( _name )			\
+  bool_t v##_name##p( value_t x );		\
+  bool_t o##_name##p( object_t *ob )
 
-#define GenericTypeP(_type, _x)			\
-  _Generic((_x),				\
-	   object_t*:ob##_type##p,		\
-	   value_t:val##_type##p)(_x)
+#define GenericObFlagP( x, _name )		\
+  _Generic((x),					\
+	   object_t*:o##_name##p,		\
+	   value_t:v##_name##p)(x)
 
 #define SafeCast(_type, _ctype, _cnvt)					\
   _ctype valto##_type(value_t val)					\
   {									\
-    require(rtypeof(val) == type_##_type,				\
+    require( TypeP( val, _type ),					\
 	    (value_t)val,						\
 	    "expected type %s, got ",					\
 	    #_type );							\
@@ -68,7 +46,7 @@
   }									\
   _ctype obto##_type(object_t *ob)					\
   {									\
-    require(rtypeof(ob) == type_##_type,				\
+    require(TypeP( val, _type ),					\
 	    (value_t)ob,						\
 	    "expected type %s, got ",					\
 	    #_type );							\

@@ -1,9 +1,7 @@
 #ifndef rascal_symbol_h
 #define rascal_symbol_h
 
-#include "core.h"
-#include "table.h"
-#include "string.h"
+#include "rascal.h"
 
 struct symbol_t {
   object_t base;

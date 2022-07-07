@@ -1,8 +1,7 @@
 #ifndef rascal_stack_h
 #define rascal_stack_h
 
-#include "core.h"
-
+#include "rascal.h"
 // exports --------------------------------------------------------------------
 // stack manipulation
 index_t push(value_t x);
