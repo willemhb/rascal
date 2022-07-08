@@ -24,8 +24,6 @@ enum builtin_t {
   op_none          = type_none,
   op_any           = type_any,
 
-  op_value         = type_value,
-  op_list          = type_list,
   // op_mapping       = type_mapping,
   // op_array         = type_array,
   // op_function      = type_function,
@@ -37,24 +35,16 @@ enum builtin_t {
   op_fixnum        = type_fixnum,
 
   op_symbol        = type_symbol,
-
-  op_pair          = type_pair,
-  op_assc          = type_assc,
+  op_cons          = type_cons,
 
   op_table         = type_table,
-  op_dict          = type_dict,
-  op_set           = type_set,
-
   op_string        = type_string,
-  op_binary        = type_binary,
-  op_tuple         = type_tuple,
   op_vector        = type_vector,
-  op_buffer        = type_buffer,
 
   op_error         = type_error,
   op_bytecode      = type_bytecode,
+  op_closure       = type_closure,
   op_port          = type_port,
-  op_envt          = type_envt,
 
   /* other builtins */
   op_idp           = N_TYPES, // id?
@@ -175,7 +165,7 @@ enum opcode_t {
   /* function calls & environment */
   op_call,
   op_return,
-  op_closure,
+  op_Mk_closure,
   op_capture,
 
   /* misc */

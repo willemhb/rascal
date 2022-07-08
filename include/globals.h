@@ -15,19 +15,15 @@ extern ulong_t   Symcnt;
 // global tables
 extern object_t *Symbols, *Syntax, *Characters;
 
-// global arrays
-extern object_t *Globals;
-
 // other object types
-extern object_t *Error, *Ins, *Outs, *Errs;
-extern value_t Function;
+extern object_t *Ins, *Outs, *Errs;
 
 // stacks and stack state
 extern value_t Stack[N_STACK], Dump[N_STACK];
 extern index_t Sp, Bp, Fp, Dp;
 
 // heaps and heap state
-extern uchar_t *Heap, *Reserve, *Free, *MapFree, *HeapMap, *ReserveMap;
+extern uchar_t *Heap, *Reserve, *Free;
 
 extern size_t  NHeap, HeapUsed, HeapSize, NReserve, ReserveUsed, ReserveSize;
 

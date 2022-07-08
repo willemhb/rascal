@@ -10,26 +10,16 @@ typedef uintptr_t value_t;
 typedef struct object_t   object_t;
 
 // s-expression types
-typedef struct symbol_t   symbol_t;
-
-// pair types
-typedef struct pair_t     pair_t;
-typedef struct assc_t     assc_t;
-typedef struct envt_t     envt_t;
+typedef struct symbol_t symbol_t;
+typedef struct cons_t   cons_t;
 
 // array types
 typedef struct vector_t   vector_t;     // mutable, boxed
-typedef struct tuple_t    tuple_t;      // immutable, boxed
-typedef struct binary_t   binary_t;     // immutable, any binary type
 typedef struct string_t   string_t;     // immutable, any character type, encoded
-typedef struct buffer_t   buffer_t;     // mutable, any binary type, maybe encoded
 typedef struct bytecode_t bytecode_t;
 
 // mapping types
-typedef union mapping_t mapping_t;
-typedef union table_t   table_t;
-typedef union dict_t    dict_t;
-typedef union set_t     set_t;
+typedef struct table_t   table_t;
 
 // internal types
 typedef struct closure_t  closure_t;
@@ -59,14 +49,6 @@ typedef union instruction_t instruction_t;
 // function pointer types
 typedef value_t   (*Cbuiltin_t)( value_t *args, arity_t nargs );
 typedef value_t   (*ensure_t)( value_t *args, arity_t nargs );
-
-typedef int_t     (*init_t)( type_t t, flags_t f, size_t n, value_t i, void *spc );
-typedef object_t* (*construct_t)( type_t t, flags_t f, size_t n );
-typedef value_t   (*relocate_t)( value_t xv );
-typedef size_t    (*print_t)( FILE *ios, value_t val );
-typedef hash_t    (*mk_hash_t)( value_t val );
-typedef size_t    (*sizeof_t)( value_t val );
-typedef void      (*finalize_t)( object_t *ob );
 typedef int_t     (*order_t)( value_t x, value_t y );
 
 // called when a value with a primitive key must be added to a table
