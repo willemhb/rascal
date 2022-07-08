@@ -63,7 +63,6 @@ typedef value_t   (*ensure_t)( value_t *args, arity_t nargs );
 typedef int_t     (*init_t)( type_t t, flags_t f, size_t n, value_t i, void *spc );
 typedef object_t* (*construct_t)( type_t t, flags_t f, size_t n );
 typedef value_t   (*relocate_t)( value_t xv );
-typedef value_t   (*trace_t)( value_t xv );
 typedef size_t    (*print_t)( FILE *ios, value_t val );
 typedef hash_t    (*mk_hash_t)( value_t val );
 typedef size_t    (*sizeof_t)( value_t val );

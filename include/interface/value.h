@@ -48,6 +48,8 @@ value_t val_new( type_t t, value_t *args, size_t nargs );
 value_t val_init( type_t t, flags_t fl, size_t n, value_t ini, void *spc );
 int_t   val_order( value_t x, value_t y );
 
+int_t  order( value_t x, value_t y );
+
 char_t *vtypename( value_t x );
 char_t *otypename( object_t *o );
 char_t *ttypename( type_t t );
