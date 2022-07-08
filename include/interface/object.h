@@ -34,8 +34,7 @@ enum obfl_t {
   obfl_global   = 0x0100,
   obfl_unboxed  = 0x0200,
   obfl_sequence = 0x0400,
-  obfl_array    = 0x0800,
-  obfl_shared   = 0x1000
+  obfl_array    = 0x0800
 };
 
 #define initob(x, t, sz, fl) (obhead(x) = (((value_t)(fl))<<56)|((size_t)sz<<8)|(t))
@@ -62,9 +61,11 @@ DeclareObFlagP( finalize );
 #define protectp(x)  GenericObFlagP( x, protect )
 #define finalizep(x) GenericObFlagP( x, finalize )
 
-object_t *construct( uint_t t, uint_t f, size_t c, size_t s );
-void      untrace( value_t val );
-void      finalize( object_t *ob );
-value_t   trace( value_t val );
+// these methods are invriably the fallbacks for object types
+object_t *object_construct( type_t xt, flags_t fl, size_t n );
+int_t     object_init( type_t xt, flags_t fl, size_t n, value_t i, void *spc );
+value_t   object_relocate( value_t v );
+void      object_finalize( object_t *ob );
+size_t    object_sizeof( value_t xv );
 
 #endif

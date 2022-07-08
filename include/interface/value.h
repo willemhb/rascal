@@ -1,5 +1,5 @@
-#ifndef rascal_value_h
-#define rascal_value_h
+#ifndef rascal_interface_value_h
+#define rascal_interface_value_h
 
 #include "common.h"
 #include "rtypes.h"
@@ -34,32 +34,19 @@
 #define falsep(x)     ((x)==rfalse)
 
 // forward declarations -------------------------------------------------------
-bool_t vimmediatep( value_t x );
-bool_t oimmediatep( object_t *o );
-bool_t timmediatep( type_t xt );
+bool_t immediatep( value_t x );
+bool_t objectp( value_t   x );
+bool_t movedp( value_t x );
 
-bool_t vobjectp( value_t   x );
-bool_t oobjectp( object_t *o );
-bool_t tobjectp( type_t xt );
-
-bool_t vheaderp( value_t x );
-bool_t oheaderp( object_t *o );
-
-bool_t vmovedp( value_t x   );
-bool_t omovedp( object_t *o );
-
-type_t vtypeof( value_t   x );
-type_t otypeof( object_t *o );
-
-int_t rinit( type_t t, uint_t f,  size_t c, size_t s, value_t i, void *spc );
-
-size_t vsizeof( value_t x );
-size_t osizeof( object_t *ob );
-
-hash_t rhash( value_t x );
-
-size_t vprint( FILE *ios, value_t x    );
-size_t oprint( FILE *ios, object_t *ob );
+// val_<method> is the toplevel dispatch for these operations - they check for
+// a more specialized method, calling that if available. Otherwise, they resort to a fallback
+type_t  val_typeof( value_t x );
+size_t  val_sizeof( value_t x );
+hash_t  val_hash( value_t x );
+size_t  val_print( FILE *ios, value_t x );
+value_t val_new( type_t t, value_t *args, size_t nargs );
+value_t val_init( type_t t, flags_t fl, size_t n, value_t ini, void *spc );
+int_t   val_order( value_t x, value_t y );
 
 char_t *vtypename( value_t x );
 char_t *otypename( object_t *o );
@@ -69,7 +56,7 @@ bool_t visap( value_t x,   type_t t );
 bool_t oisap( object_t *o, type_t t );
 bool_t tisap( type_t x,    type_t t );
 
-bool_t pglobalp( uchar_t *p );
+bool_t pglobalp( void_t *p );
 bool_t oglobalp( object_t *o );
 bool_t vglobalp( value_t x );
 
@@ -83,24 +70,6 @@ static inline ulong_t uval(value_t x) {
 }
 
 // dispatchers ----------------------------------------------------------------
-#define immediatep( x ) \
-  _Generic((x),							\
-	   value_t:vimmediatep,					\
-	   type_t:timmediatep,					\
-	   object_t*:oimmediatep)( x )
-
-#define objectp( x )						\
-  _Generic((x),							\
-	   value_t:vobjectp,					\
-       	   type_t:tobjectp,					\
-	   object_t*:oobjectp)( x )
-
-#define headerp( x )    _Generic((x), value_t:vheaderp, object_t*:oheaderp)( x )
-#define movedp( x )     _Generic((x), value_t:vmovedp, object_t*:omovedp)( x )
-#define rtypeof(x)      _Generic((x), value_t:vtypeof, object_t*:otypeof)( x )
-#define rsizeof( x )    _Generic((x), value_t:vsizeof, object_t*:osizeof)( x )
-#define rprint( x )     _Generic((x), value_t:vprint, object_t*:oprint)( x )
-
 #define rtypename( x )				\
   _Generic((x),					\
 	   value_t:vtypename,			\

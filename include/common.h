@@ -29,6 +29,8 @@ typedef float float_t;
 typedef double double_t;
 
 // utility typedefs
+typedef uint_t  flags_t;
+
 typedef ulong_t arity_t;
 typedef ulong_t hash_t;
 typedef ulong_t idno_t;

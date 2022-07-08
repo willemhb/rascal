@@ -4,6 +4,6 @@
 #include "rascal.h"
 
 // exports --------------------------------------------------------------------
-value_t rspcomp(value_t xpr);
+value_t rsC_compile(value_t xpr);
 
 #endif

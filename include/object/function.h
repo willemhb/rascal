@@ -1,7 +1,7 @@
 #ifndef rascal_function_h
 #define rascal_function_h
 
-#include "core.h"
+#include "rascal.h"
 
 struct function_t {
   object_t base, *envt;

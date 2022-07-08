@@ -4,6 +4,6 @@
 #include "rascal.h"
 
 // exports --------------------------------------------------------------------
-value_t rspapply(value_t fun, value_t args, size_t nargs);
+value_t rsC_apply(value_t fun, value_t args, size_t nargs);
 
 #endif

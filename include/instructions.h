@@ -20,23 +20,41 @@
 */
 
 enum builtin_t {
+  op_null          = type_null,
+  op_none          = type_none,
+  op_any           = type_any,
+
+  op_value         = type_value,
+  op_list          = type_list,
+  // op_mapping       = type_mapping,
+  // op_array         = type_array,
+  // op_function      = type_function,
+
   op_boolean       = type_boolean,
   op_character     = type_character,
   // op_builtin    = type_builtin,
   op_integer       = type_integer,
   op_fixnum        = type_fixnum,
+
   op_symbol        = type_symbol,
+
   op_pair          = type_pair,
+  op_assc          = type_assc,
+
   op_table         = type_table,
+  op_dict          = type_dict,
+  op_set           = type_set,
+
   op_string        = type_string,
   op_binary        = type_binary,
   op_tuple         = type_tuple,
-  op_error         = type_error,
+  op_vector        = type_vector,
+  op_buffer        = type_buffer,
 
-  // other constructors for now these are pseudo-types
-  op_list          = type_list,
-  op_cons          = 0x08 | tag_moved,
-  op_assc          = 0x0c | tag_moved,
+  op_error         = type_error,
+  op_bytecode      = type_bytecode,
+  op_port          = type_port,
+  op_envt          = type_envt,
 
   /* other builtins */
   op_idp           = N_TYPES, // id?
@@ -58,15 +76,15 @@ enum builtin_t {
   op_eqp,                     // =
   op_ltp,                     // <
 
-  /* accessors */
+  /* accessors (mutators start with an x and are in-place unless a value is protected) */
   op_car,                     // car - car accessor
   op_cdr,                     // cdr - cdr accessor
-  op_xar,                     // xar - car mutator (in-place if value is not protected)
-  op_xdr,                     // xdr - cdr mutator (in-place if value is not protected)
+  op_xar,                     // xar - car mutator
+  op_xdr,                     // xdr - cdr mutator
   op_ref,                     // ref - key accessor
-  op_xef,                     // xef - key mutator (in-place if value is not protected)
-  op_put,                     // put - add to collection (new value)
-  op_xut,                     // xut - add to collection (in-place if value is not protected)
+  op_xef,                     // xef - key mutator
+  op_put,                     // put - returns collection that includes given key or value
+  op_xut,                     // xut - add key or value to collection
 
   /* sequences & collections */
   op_len,                     // len
@@ -74,9 +92,9 @@ enum builtin_t {
   op_hasp,                    // has?
   op_fst,                     // fst
   op_rst,                     // rst
-  op_join,                    // join - add at front
+  op_join,                    // join   - add at front
   op_append,                  // append - add at back
-  op_conj,                    // conj - add in optimal manner
+  op_conj,                    // conj   - add in optimal manner
 
   /* low-level io */
   op_open,                    // open
@@ -98,6 +116,9 @@ enum builtin_t {
   op_comp,                    // comp
   op_exec,                    // exec
 
+  /* error runtime utilities */
+  op_errorb,                  // error! - creates and raises error
+
   /* low-level environment interaction */
   op_lookup,                  // lookup
   op_boundp,                  // bound?
@@ -107,7 +128,8 @@ enum builtin_t {
   op_captureb,                // capture!
 
   /* system interaction */
-  op_exit,                    // exit
+  op_exit,                    // exit - (calls C exit)
+  op_system,                  // system - (calls C system)
   builtin_pad
 };
 
@@ -122,7 +144,7 @@ enum form_t {
 
 enum opcode_t {
   /* no-op */
-  op_none = form_pad,
+  op_noop = form_pad,
 
   /* stack manipulation */
   op_push,
@@ -158,7 +180,7 @@ enum opcode_t {
 
   /* misc */
   op_finished,
-  
+
   num_instructions
 };
 
@@ -172,19 +194,9 @@ union instruction_t {
 // instructions dispatch tables
 extern Cbuiltin_t    Builtins[form_pad];
 extern ensure_t      Ensure[form_pad];
+extern flags_t       BuiltinFlags[form_pad];
+
 extern size_t        InstructionArgC[num_instructions];
 extern char_t       *InstructionNames[num_instructions];
-
-static inline int builtinp(instruction_t x) {
-  return x.bits < builtin_pad;
-}
-
-static inline int formp(instruction_t x) {
-  return x.bits >= builtin_pad && x.bits < form_pad;
-}
-
-static inline int opcodep(instruction_t x) {
-  return x.bits >= form_pad && x.bits < num_instructions;
-}
 
 #endif

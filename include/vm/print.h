@@ -4,6 +4,6 @@
 #include "rascal.h"
 
 // exports --------------------------------------------------------------------
-void rspprint(FILE *ios, value_t xpr);
+size_t rsC_print(FILE *ios, value_t xpr);
 
 #endif

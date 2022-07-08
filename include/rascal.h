@@ -7,9 +7,8 @@
 #include "rtypes.h"
 #include "types.h"
 #include "instructions.h"
-#include "value.h"
-#include "object.h"
+#include "interface/value.h"
+#include "interface/object.h"
 #include "globals.h"
-
 
 #endif

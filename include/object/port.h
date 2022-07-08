@@ -2,7 +2,7 @@
 #define rascal_port_h
 
 #include <stdio.h>
-#include "core.h"
+#include "rascal.h"
 
 struct port_t {
   object_t base;
@@ -16,5 +16,6 @@ struct port_t {
 };
 
 // api ------------------------------------------------------------------------
+
 
 #endif

@@ -66,18 +66,29 @@ inline size_t arr_resize( size_t new ) { // the more conservative Python algorit
   return (new + (new >> 3) + 6) & ~(size_t)3;
 }
 
-uchar_t *findmap(void_t *ptr) {
-  size_t offset;
-  uchar_t *map, *uptr = ptr;
-  
-  if (withinp( uptr, Heap, NHeap ) ) {
-    offset = uptr - Heap;
-    map    = HeapMap;
-  }
+void *getword( void *p ) {              // get the correctly aligned allocated word p is in
+  return ((void*)(((value_t)p)&~7ul));
+}
 
-  else {
-    offset = uptr - Reserve;
+size_t getoff( void *p ) { return p - getword( p ); }
+
+
+
+void *getmap(void *p) {
+  size_t offset;
+  void *wp = getword( p );
+  
+  uchar_t *map, *up = wp;
+
+  if (withinp( up, Heap, NHeap ) ) {
+    offset = up - Heap;
+    map    = HeapMap;
+  } else if ( withinp( up, Reserve, NReserve ) ) {
+    offset = up - Reserve;
     map    = ReserveMap;
+  } else {
+    map    = up;
+    offset = 7;
   }
 
   return map+offset;
@@ -87,46 +98,70 @@ inline bool_t overflowp(size_t n) {
   return NHeap + n >= HeapUsed;
 }
 
-bool_t globalp(void_t *ptr) {
-  if (Collecting)
-    return !withinp(ptr, Reserve, NReserve );
-  return withinp(ptr, Heap, NHeap );
+inline uchar_t getmemfl(void_t *p) {
+  return *(uchar_t*)(getmap(p));
 }
 
-inline uchar_t getmemfl(void_t *ptr) {
-  return *findmap(ptr);
+uchar_t  setmemfl(void_t *p, uchar_t fl) {
+  uchar_t *map = getmap(p), out = *map;
+  *map |= fl;
+  return out;
 }
 
-uchar_t  setmemfl(void_t *ptr, uchar_t fl) {
-  uchar_t *map = findmap(ptr);
-  return (*map |= fl);
+uchar_t clearmemfl(void_t *p, uchar_t fl) {
+  uchar_t *map = getmap(p), out = *map;
+  *map &= ~fl;
+
+  return out;
 }
 
-uchar_t clearmemfl(void_t *ptr, uchar_t fl) {
-  uchar_t *map = findmap(ptr);
-  return (*map &= ~fl);
-}
+void_t *allocate(flags_t fl, size_t n ) {
+  if (flagp( fl, memfl_global ) )
+    return malloc_s( n );
 
-void_t *allocate(size_t nbytes, bool_t global) {
-  if (global) return malloc_s(nbytes);
+  size_t padded = aligned( n, 8 );
+  size_t nwords = padded / 8;
   
-  size_t padded = aligned( nbytes, 8);
-
   if (overflowp(padded)) manage();
 
-  void_t *out  = Free;
+  void_t  *out  = Free;
+  uchar_t *map  = MapFree;
+  
   Free        += padded;
-  memset( out, 0, padded );
+  MapFree     += nwords;
+  HeapUsed    += nwords;
 
+  memset( out, 0, padded );
+  memset( map, (fl&255)|mem_allocated, nwords );
   return out;
 }
 
-object_t *construct(type_t type, size_t extra, bool_t global) {
-  size_t total   = TypeSizes[type] + extra;
-  object_t *out  = allocate( total, global );
-  obtype( out )  = type;
-  obsize( out )  = total;
-  return out;
+object_t *reallocate( object_t *ob, size_t ol, size_t nl, void **p ) {
+  void *op = *p, *np;
+
+  if ( globalp( op ) ) {
+    
+     np = realloc_s( op, nl );
+     *p  = np;
+     return ob;
+  }
+  
+  if ( overflowp( nl ) ) {
+    saven( 1, ob );
+
+    np = allocate( 0, nl );
+    p  = *p;
+    op = *p;
+
+    restoren( 1, &ob );
+  } else {
+    np = allocate( 0, nl );
+  }
+  
+  memcpy( np, op, min( ol, nl ) );
+  *p   = np;
+  
+  return ob;
 }
 
 static void managestart(void) {
@@ -143,7 +178,7 @@ static void managestart(void) {
     Grow = Grew = false;
   }
 
-  // swap spaces
+  // swap opaces
   Free    = Heap;
   Heap    = Reserve;
   Reserve = Free;
@@ -160,94 +195,15 @@ static void managestart(void) {
 static void manageend( void ) {
   Collecting = false;
   Grow       = HeapUsed >= Resizef * NHeap;
-
-  object_t *ob = (object_t*)Reserve, *end = (object_t*)(Reserve+ReserveSize);
-  uchar_t *map = ReserveMap;
-
-  while ( ob < end ) {
-    while ( *map & mem_raw ) {
-      (*map++) = 0;
-      *(value_t*)ob = rnull;
-      ob++;
-
-      if (ob >= end)
-	goto finalize_end;
-    }
-
-    
-    size_t size   = aligned( obsize(ob), 8);
-    size_t nwords = size / 8;
-    
-    if ( obtag( ob ) == tag_moved )
-      obhead( ob ) = obslot( ob, 1 ) = rnull;
-    
-    else if (obfinalizep(ob))
-      Finalize[obtype(ob)](ob);
-    
-    memset( ob, 0, size );
-    memset( map, 0, nwords );
-
-    ob  += nwords;
-    map += nwords;
-  }
-
- finalize_end:
-  // clear the trace flag on anything that was moved
-  for (size_t i=0; i<Sp; i++) untrace(Stack[i]);
-  for (size_t i=0; i<Dp; i++) untrace(Dump[i]);
-
-  // clear the traversal flag for any globals
-  untrace( (value_t)Symbols );
-  untrace( (value_t)Globals );
-  untrace( Function );
-  untrace( (value_t)Error );
-  untrace( (value_t)Ins );
-  untrace( (value_t)Outs );
-  untrace( (value_t)Errs );
 }
 
-void untrace( value_t x ) {
-  if (immediatep(x))
-    return;
-
-  if (obtracep(x)) {
-    obtracep(x) = false;
-
-    type_t xt = obtype( x );
-
-    if ( Untrace[xt] )
-      Untrace[xt]( x );
-  }
-}
-
-value_t trace( value_t val ) {
-  if (immediatep( val )) return val;
-  if (movedp( val )) return car( val );
-  if ( obtracep( val ) ) return val;
-  obtracep( val ) = true;
-
-  if (!globalp(ptr(val)))
-    relocate( &val, &Free, &MapFree, &HeapUsed );
-
-  value_t (*trace_dispatch)(value_t v) = Trace[obtype(val)];
-
-  return trace_dispatch ? trace_dispatch( val ) : val;
-}
-
-static void tracearray(value_t *vals, size_t limit) {
-  for (size_t i=0; i<limit; i++) {
-    value_t val = vals[i];
-    val         = trace( val );
-    vals[i]     = val;
-  }
-}
 
 void manage(void) {
   managestart();
 
-  trace((value_t)Globals);
+  trace_array();
   trace((value_t)Symbols);
-  tracearray(Stack, Sp);
+  tracearray(Stack, Op);
   tracearray(Dump, Dp);
 
   // trace other roots
@@ -260,30 +216,30 @@ void manage(void) {
   manageend();
 }
 
-void relocate( value_t *buf, uchar_t **space, uchar_t **map, size_t *used ) {
+void relocate( value_t *buf, uchar_t **opace, uchar_t **map, size_t *used ) {
   type_t xt = obtype( *buf );
 
   if (Relocate[xt])
-    Relocate[xt](buf, space, map, used );
+    Relocate[xt](buf, opace, map, used );
 
   else {
     uchar_t *oldmap = findmap(ptr(*buf)), *newmap = *map;
-    uchar_t *oldspace = ptr(*buf), *newspace = *space;
+    uchar_t *oldopace = ptr(*buf), *newopace = *opace;
  
     size_t obsz   = obsize(*buf);
     size_t padded = aligned( obsz, 8 );
     size_t nwords = padded / 8;
 
-    *space += padded;
+    *opace += padded;
     *used += padded;
     *map  += nwords;
 
-    memcpy( newspace, oldspace, obsz );
+    memcpy( newopace, oldopace, obsz );
     memcpy( newmap, oldmap, nwords );
     memset( oldmap, 0, nwords );
 
-    obslot(oldspace, 0) &= ~1ul;
-    obslot(oldspace, 1) = (value_t)newspace;
+    obslot(oldopace, 0) &= ~1ul;
+    obslot(oldopace, 1) = (value_t)newopace;
   }
 }
 
@@ -296,7 +252,7 @@ void initmemory(void) {
   HeapSize = ReserveSize = NHeap * sizeof(value_t);
   HeapUsed = ReserveUsed = 0;
 
-  // allocate heap and map space
+  // allocate heap and map nace
   Heap       = malloc_s(NHeap);
   Reserve    = malloc_s(NReserve);
   HeapMap    = malloc_s(NHeap);
