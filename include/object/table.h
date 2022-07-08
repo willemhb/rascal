@@ -31,9 +31,6 @@ struct mapping_t {
 
 // api ------------------------------------------------------------------------
 int_t   map_loc(object_t *ob, value_t key, object_t **spc );
-value_t tabref(object_t *tab, value_t key);
-value_t tabset(object_t *tab, value_t key, value_t bind );
-value_t tabput(object_t *tab, value_t key, value_t bind );
-value_t tabpop(object_t *tab, value_t key);
+
 
 #endif
