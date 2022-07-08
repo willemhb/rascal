@@ -63,6 +63,8 @@ build/
 # ignore emacs garbage
 *~
 *.el
+#*#
+.#*
 
 # don't ignore the emacs mode
 !lisp/rascal-mode.el
