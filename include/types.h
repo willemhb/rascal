@@ -9,13 +9,10 @@
 // rascal typedefs ------------------------------------------------------------
 typedef uintptr_t value_t;
 
-// object types
-typedef struct object_t   object_t; // generic object type
-
 typedef struct symbol_t   symbol_t;
 typedef struct cons_t     cons_t;
-typedef struct vector_t   vector_t;
-typedef union  table_t    table_t;
+typedef struct tuple_t    tuple_t;
+typedef union  mapping_t  mapping_t;
 typedef struct binary_t   binary_t;
 typedef struct port_t     port_t;
 typedef struct closure_t  closure_t;
@@ -36,24 +33,26 @@ typedef enum  builtin_t     builtin_t;
 typedef enum  form_t        form_t;
 typedef enum  opcode_t      opcode_t;
 
-// binary typedefs
-typedef binary_t string_t;
-typedef binary_t bytecode_t;
+// aliases
+typedef tuple_t   vector_t;
+typedef binary_t  string_t;
+typedef binary_t  bytecode_t;
+typedef mapping_t table_t;
+typedef mapping_t dict_t;
 
 // function pointer types
-typedef value_t   (*Cbuiltin_t)( value_t *args, arity_t nargs );
-typedef value_t   (*ensure_t)( value_t *args, arity_t nargs );
-
-typedef int       (*getter_t)(value_t ob, void **buf);
-typedef int       (*setter_t)(value_t ob, void *data);
-
+typedef value_t   (*Cbuiltin_t)( value_t *a, int n );
+typedef value_t   (*Cform_t)( value_t *a, int n, value_t *e );
+typedef void      (*ensure_t)( value_t *a, int n );
 
 // tag system - the vector, table, and binary tags are extensible
 #define tag_cons      0x00
 #define tag_symbol    0x01
 #define tag_port      0x02
 #define tag_closure   0x03
+#define tag_tuple     0x04
 #define tag_vector    0x04
+#define tag_mapping   0x05
 #define tag_table     0x05
 #define tag_binary    0x06
 #define tag_immediate 0x07
@@ -61,9 +60,9 @@ typedef int       (*setter_t)(value_t ob, void *data);
 typedef enum {
    type_cons      = tag_cons,
    type_symbol    = tag_symbol,
-   type_array     = tag_vector,
-   type_table     = tag_table,
-   type_binary    = tag_binary,
+   type_vector    = tag_tuple,
+   type_table     = tag_mapping,
+   type_string    = tag_binary,
    type_port      = tag_port,
    type_closure   = tag_closure,
 
@@ -89,9 +88,8 @@ typedef enum {
    type_opcode    = 0xc0 | tag_immediate,
 
    // table types extended (on object)
-   type_dict      = 0x10 | tag_table,
+   type_dict      = 0x10 | tag_mapping,
 
-   type_string    = 0x10 | tag_binary,
    type_bytecode  = 0x20 | tag_binary,
 } type_t;
 
@@ -116,11 +114,10 @@ struct node_t {
 };
 
 struct root_t   collection_type(node_t);
-struct vector_t collection_type(value_t);
-struct binary_t collection_type(void);
-struct object_t collection_type(void);
+struct tuple_t  collection_type(value_t);
+struct binary_t collection_type(uchar);
 
-union table_t {
+union mapping_t {
   root_t root;
   node_t node;
 };
@@ -153,7 +150,9 @@ size_t   TypeSizes[TYPE_PAD];
 Ctype_t  TypeCtypes[TYPE_PAD];
 Ctype_t  TypeEltypes[TYPE_PAD]; // array only
 
-size_t  (*Sizeof[TYPE_PAD])( value_t x );
+int     (*Sizeof[TYPE_PAD])( value_t x );
 value_t (*Relocate[TYPE_PAD])( value_t x );
+int     (*Print[TYPE_PAD])( FILE *ios, value_t x );
+int     (*Order[TYPE_PAD])( value_t x, value_t y );
 
 #endif

@@ -4,9 +4,11 @@
 #define collection_type(eltype)			\
   {						\
     value_t type;				\
-    size_t len, cap;				\
     eltype *data;				\
+    int len, cap;				\
   }
+
+#define get( type, x, field ) (((type##_t*)asptr(x))->field)
 
 #define mk_tag_p(t) inline bool t##p( value_t x ) { return x && vtag(x) == tag_##t; }
 
@@ -19,44 +21,46 @@
   }
 
 #define array_ref(type, eltype)			\
-  eltype type##_ref(object_t *x, int n )	\
+  eltype type##_ref(value_t x, int n )		\
   {						\
+    int l = get( type, x, len );		\
     if ( n < 0 )				\
-      n += x->len;				\
-    assert( n > 0 && (size_t)n < x->len );	\
-    return x->data[n];				\
+      n += l;					\
+    assert( n > 0 && n < l );			\
+    return ((eltype*)get( type, x, data ))[n];	\
   }
 
-#define array_set(type, eltype)				\
-  object_t *type##_set(object_t *x, int n, eltype v )	\
-  {							\
-    if ( n < 0 )					\
-      n += x->len;					\
-    assert( n > 0 && (size_t)n < x->len );		\
-    ((eltype*)x->data)[n] = v;				\
-    return x;						\
+#define array_set(type, eltype)						\
+  value_t type##_set(value_t x, int n, eltype v )			\
+  {									\
+    if ( n < 0 )							\
+      n += get( type, x, len );						\
+    assert( n > 0 && n < get( type, x, len ) );				\
+    ((eltype*)get( type, x, data ))[n] = v;				\
+    return x;								\
   }
 
 #define array_resize(type, eltype, strp)		\
-  object_t *type##_resize( object_t *x, int n )		\
+  value_t type##_resize( value_t x, int n )		\
   {							\
-    int o   = x->cap;					\
+    static const int _e = sizeof(eltype);		\
+    int o   = get( type, x, cap );			\
     n      += strp;					\
     int p   = arr_resize( n );				\
-    x       = reallocate( x, o*eltype, p*eltype );	\
-    x->len  = n;					\
-    x->cap  = p;					\
+    x       = reallocate( x, o*_e, p*_e );		\
+    get( type, x, len )  = n;				\
+    get( type, x, cap )  = p;				\
     							\
     return x;						\
   }
 
-#define array_put(type, eltype)				\
-  object_t *type##_put( object_t *x, eltype v )		\
-  {							\
-    ((eltype*)x->data)[x->len++] = v;			\
-    if (x->len == x->cap)				\
-      x = array_resize( x, x->len+1 );			\
-    return x;						\
+#define array_put(type, eltype)					\
+  value_t type##_put( value_t x, eltype v )			\
+  {								\
+    ((eltype*)get( type, x, data ))[get(type, x, len)++] = v;	\
+    if ( get( type, x, len ) == get( type, x, cap ) )		\
+      x = type##_resize( x, get( type, x, len ) + 1 );		\
+    return x;							\
   }
 
 #endif

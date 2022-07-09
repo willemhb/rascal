@@ -27,17 +27,18 @@
 #define asnode(x)   ((node_t*)asptr(x))
 #define asroot(x)   ((root_t*)asptr(x))
 
-#define maptype(x)  (asroot(x)->type)
-#define mapdata(x)  (asroot(x)->data)
-#define maplen(x)   (asroot(x)->len)
-#define mapcap(x)   (asroot(x)->cap)
+#define mtype(x)  (asroot(x)->type)
+#define mdata(x)  (asroot(x)->data)
+#define mlen(x)   (asroot(x)->len)
+#define mcap(x)   (asroot(x)->cap)
 
-#define mapright(x) (asnode(x)->right)
-#define mapleft(x)  (asnode(x)->left)
-#define mapbind(x)  (asnode(x)->bind)
-#define mapkey(x)   (asnode(x)->key)
-#define mapval(x)   (asnode(x)->val)
-#define mapptr(x)   (asnode(x)->ptr)
+#define mright(x) (asnode(x)->right)
+#define mleft(x)  (asnode(x)->left)
+#define mbind(x)  (asnode(x)->bind)
+#define mkey(x)   (asnode(x)->key)
+#define mval(x)   (asnode(x)->val)
+#define mptr(x)   (asnode(x)->ptr)
+#define mhash(x)    (asnode(x)->hash)
 
 #define assymbol(x) ((symbol_t*)asptr(x))
 #define symname(x)  (&((assymbol(x)->name)[0]))
@@ -45,9 +46,9 @@
 #define symidno(x)  (assymbol(x)->idno)
 
 #define asport(x)     ((port_t*)asptr(x))
-#define portvalue(x)  (asport(x)->value)
-#define portbuffer(x) (asport(x)->buffer)
-#define portname(x)   (&((asport(x)->name)[0]))
+#define pvalue(x)  (asport(x)->value)
+#define pbuffer(x) (asport(x)->buffer)
+#define pname(x)   (&((asport(x)->name)[0]))
 
 // predicates ----------------------------------------------------------------
 bool immediatep( value_t x );
@@ -73,7 +74,9 @@ size_t  sym_sizeof( value_t x );
 size_t  arr_sizeof( value_t x );
 size_t  val_sizeof( value_t x );
 
+int     val_order( value_t x, value_t y );
 hash_t  val_hash( value_t x );
+
 type_t  val_typeof( value_t x );
 char   *val_typename( value_t x );
 Ctype_t val_ctype( value_t x );
@@ -85,18 +88,17 @@ value_t new_symbol( char *s, int n, hash_t h, bool i );
 value_t new_vector( int n );
 value_t new_table( int n );
 value_t new_dict( int n );
-value_t new_binary( int n, Ctype_t e );
 value_t new_string( int n );
 value_t new_bytecode( int n );
 value_t new_port( int n );
 value_t new_closure( void );
+node_t *new_node( void );
 
 // higher-level constructors --------------------------------------------------
 value_t mk_cons( value_t ca, value_t cd );
 value_t get_symbol( char *s, int n );
 value_t mk_symbol( char *s, int n );
 value_t mk_vector( int n, value_t *a );
-value_t mk_binary( int n, Ctype_t e, void *b );
 value_t mk_string( char *s, int n );
 value_t mk_dict( int n, value_t *a );
 value_t mk_table( int n );
@@ -109,16 +111,24 @@ value_t mk_control( char *x );
 value_t mk_instruction( instruction_t i );
 
 // array accessors ------------------------------------------------------------
-value_t   vector_ref( vector_t *x, int n );
-vector_t *vector_set( vector_t *x, int n, value_t v );
-vector_t *vector_put( vector_t *x, value_t v );
+value_t   vector_ref( value_t x, int n );
+value_t   vector_set( value_t x, int n, value_t v );
+value_t   vector_put( value_t x, value_t v );
+value_t   vector_resize( value_t x, int n );
 
-char      string_ref( binary_t *x, int n );
-vector_t *string_set( binary_t *x, int n, char c );
-vector_t *string_put( binary_t *x, char c );
+char      string_ref( value_t x, int n );
+value_t   string_set( value_t x, int n, char c );
+value_t   string_put( value_t x, char c );
+value_t   string_resize( value_t x, int n );
 
-ushort     code_ref( binary_t *x, int n );
-bytecode_t *code_set( binary_t *x, int n, ushort i );
-bytecode_t *code_put( binary_t *x, ushort i );
+ushort    code_ref( value_t x, int n );
+value_t   code_set( value_t x, int n, ushort i );
+value_t   code_put( value_t x, ushort i );
+value_t   code_resize( value_t x, int n );
+
+// table accessors ------------------------------------------------------------
+value_t   dict_ref( value_t x, value_t k );
+value_t   dict_set( value_t x, value_t k, value_t b );
+value_t   dict_put( value_t x, value_t k );
 
 #endif

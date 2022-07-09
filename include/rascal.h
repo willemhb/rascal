@@ -48,6 +48,4 @@ typedef union {
 #define fptrp(x)  ((x)==rfptr)
 #define emptyp(x) ((x)==rempty)
 
-#define obdata(x) (((void**)asptr(x))[3])
-
 #endif

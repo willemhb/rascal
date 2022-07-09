@@ -1,8 +1,9 @@
 #include <assert.h>
 #include <stdarg.h>
 
-#include "stack.h"
-#include "error.h"
+#include "runtime/stack.h"
+#include "runtime/error.h"
+#include "runtime/object.h"
 
 index_t push(value_t xv) {
   require( Sp < N_STACK,

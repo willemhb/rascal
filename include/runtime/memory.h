@@ -9,15 +9,15 @@ typedef enum {
 
 // exports --------------------------------------------------------------------
 bool     globalp( void *p );
-bool     overflowp( size_t n );
-size_t   arr_resize( size_t n );
-size_t   pow2_resize( size_t n );
+bool     overflowp( int n );
+int      arr_resize( int n );
+int      pow2_resize( int n );
 void    *getword( void *p );
-size_t   getoff( void *p );
+int      getoff( void *p );
 
 // allocation procedures ------------------------------------------------------
-void     *allocate( flags_t fl , size_t n );
-object_t *reallocate( object_t *x, size_t o, size_t n );
+void     *allocate( flags_t fl , int n );
+value_t   reallocate( value_t x, int o, int n );
 void      manage( void );
 
 #endif

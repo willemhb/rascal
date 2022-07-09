@@ -2,11 +2,13 @@
 #include <assert.h>
 
 #include "ctypes.h"
+#include "numutils.h"
+#include "hashing.h"
 
 #include "runtime/object.h"
 #include "runtime/memory.h"
 #include "describe/utils.h"
-
+#include "describe/sequence.h"
 
 // utilities ------------------------------------------------------------------
 type_t val_typeof( value_t x ) {
@@ -70,6 +72,8 @@ mk_type_p(form)
 mk_type_p(opcode)
 mk_type_p(type)
 
+inline bool listp( value_t x ) { return vtag(x) == tag_cons; }
+
 // constructors ---------------------------------------------------------------
 value_t new_cons( int n ) {
   assert( n >= 1 );
@@ -82,6 +86,68 @@ value_t new_cons( int n ) {
   return tagp( out, tag_cons );
 }
 
-// accessors ------------------------------------------------------------------
-array_ref(vector, value_t)
-array_set(vector, value_t)
+int cons_len( value_t x ) {
+  int l = 0; value_t v;
+
+  for_cons( &x, v ) l++;
+
+  return l;
+}
+
+value_t cons_nrev( value_t x ) {
+  value_t tmp, prev = rnull;
+
+  while ( consp( x ) ) {
+    tmp      = cdr( x );
+    cdr( x ) = prev;
+    prev     = x;
+    x        = tmp;
+  }
+
+  return prev;
+}
+
+value_t cons_ncat( value_t x, value_t y ) {
+  if ( nullp( x ) )
+    return y;
+
+  value_t curr = x, prev = rnull;
+
+  while ( consp( curr ) ) {
+    prev = curr;
+    curr = cdr( curr );
+  }
+
+  cdr( prev ) = y;
+  return x;
+}
+
+// arrays ---------------------------------------------------------------------
+array_ref( vector, value_t )
+array_set( vector, value_t )
+array_resize( vector, value_t, false )
+array_put( vector, value_t )
+
+array_ref( string, char )
+array_set( string, char ) 
+array_resize( string, char, true )
+array_put( string, char )
+
+array_ref( bytecode, ushort )
+array_set( bytecode, ushort )
+array_resize( bytecode, ushort, false )
+array_put( bytecode, ushort )
+
+// mapping types --------------------------------------------------------------
+  int dict_locate( value_t d, value_t k, node_t **buf, hash_t *hb ) {
+  node_t *n = mdata( d ); int o = 0;
+  hash_t  h = val_hash( k );
+
+  *buf = n;
+
+  while ( n ) {
+    o = ord_int( h, mhash( n ) );
+    if ( !o )
+      o = val_order( k, mval( n ) );
+  }
+}
