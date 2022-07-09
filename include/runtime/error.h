@@ -2,14 +2,15 @@
 #define rascal_runtime_error_h
 
 #include "rascal.h"
+
 #define  _cinfo "%s:%s:%d:"
 
 #define efmt(_fmt) (_cinfo			\
 		    _fmt)
 
 // utilities -----------------------------------------------------------------
-void rsc_error( value_t agitant, char_t *fmt, ... );
-void rsc_require( bool_t test, value_t agitant, char_t *fmt, ... );
+void rsc_error( value_t agitant, char *fmt, ... );
+void rsc_require( bool test, value_t agitant, char *fmt, ... );
 
 #define error(agitant, fmt, ...)					\
   rsc_error(agitant,							\

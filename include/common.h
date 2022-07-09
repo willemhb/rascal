@@ -7,33 +7,25 @@
 #include <stddef.h>
 
 // making common C types style compliant
-typedef void void_t;
-typedef bool bool_t;
 
-typedef char        char_t;
-typedef signed char schar_t;
-typedef unsigned char uchar_t;
+typedef signed char schar;
+typedef unsigned char uchar;
 
-typedef short          short_t;
-typedef signed short   sshort_t;
-typedef unsigned short ushort_t;
+typedef signed short   sshort;
+typedef unsigned short ushort;
 
-typedef int          int_t;
-typedef signed int   sint_t;
-typedef unsigned int uint_t;
+typedef signed int   sint;
+typedef unsigned int uint;
 
-typedef long          long_t;
-typedef signed long   slong_t;
-typedef unsigned long ulong_t;
-typedef float float_t;
-typedef double double_t;
+typedef signed long   slong;
+typedef unsigned long ulong;
 
 // utility typedefs
-typedef uint_t  flags_t;
+typedef uint flags_t;
 
-typedef ulong_t arity_t;
-typedef ulong_t hash_t;
-typedef ulong_t idno_t;
-typedef ulong_t index_t;
+typedef ulong arity_t;
+typedef ulong hash_t;
+typedef ulong idno_t;
+typedef ulong index_t;
 
 #endif

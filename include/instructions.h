@@ -2,7 +2,6 @@
 #define rascal_instructions_h
 
 #include "common.h"
-#include "rtypes.h"
 #include "types.h"
 
 /*
@@ -24,100 +23,71 @@ enum builtin_t {
   op_none          = type_none,
   op_any           = type_any,
 
-  // op_mapping       = type_mapping,
-  // op_array         = type_array,
-  // op_function      = type_function,
-
   op_boolean       = type_boolean,
   op_character     = type_character,
-  // op_builtin    = type_builtin,
   op_integer       = type_integer,
   op_fixnum        = type_fixnum,
 
-  op_symbol        = type_symbol,
   op_cons          = type_cons,
+  op_symbol        = type_symbol,
 
-  op_table         = type_table,
-  op_string        = type_string,
   op_vector        = type_vector,
+  op_table         = type_table,
+  op_binary        = type_binary,
 
-  op_error         = type_error,
-  op_bytecode      = type_bytecode,
-  op_closure       = type_closure,
-  op_port          = type_port,
+  op_port          = type_closure,
+  op_closure       = type_port,
 
   /* other builtins */
-  op_idp           = N_TYPES, // id?
-  op_eqlp,                    // =?
-  op_isap,                    // isa?
+  /* utilities */
+  op_idp  = TYPE_PAD, // id?
+  op_eqlp,            // =?
+  op_isap,            // isa?
 
-  op_ord,                     // ord
-  op_sizeof,                  // size
-  op_typeof,                  // type
+  /* arithmetic */
+  op_add,
+  op_sub,
+  op_mul,
+  op_div,
+  op_mod,
+  op_eqp,
+  op_ltp,
 
-  op_setv,                    // :=
-
-  /* arithmetic builtins */
-  op_add,                     // +
-  op_sub,                     // -
-  op_mul,                     // *
-  op_div,                     // /
-  op_mod,                     // mod
-  op_eqp,                     // =
-  op_ltp,                     // <
-
-  /* accessors (mutators start with an x and are in-place unless a value is protected) */
-  op_car,                     // car - car accessor
-  op_cdr,                     // cdr - cdr accessor
-  op_xar,                     // xar - car mutator
-  op_xdr,                     // xdr - cdr mutator
-  op_ref,                     // ref - key accessor
-  op_xef,                     // xef - key mutator
-  op_put,                     // put - returns collection that includes given key or value
-  op_xut,                     // xut - add key or value to collection
-
-  /* sequences & collections */
-  op_len,                     // len
-  op_emptyp,                  // empty?
-  op_hasp,                    // has?
-  op_fst,                     // fst
-  op_rst,                     // rst
-  op_join,                    // join   - add at front
-  op_append,                  // append - add at back
-  op_conj,                    // conj   - add in optimal manner
-
-  /* low-level io */
-  op_open,                    // open
-  op_close,                   // close
-  op_princ,                   // princ
-  op_readc,                   // readc
-  op_peekc,                   // peekc
-
-  /* character and string handling */
-  op_ctypep,                  // char-type?
-  op_upper,                   // upper
-  op_lower,                   // lower
+  /* accessors */
+  op_len,
+  op_ref, op_xef,
+  op_put, op_xut,
+  op_car, op_xar,
+  op_cdr, op_xdr,
 
   /* core */
-  op_read,                    // read
-  op_eval,                    // eval
-  op_prin,                    // prin
-  op_load,                    // load
-  op_comp,                    // comp
-  op_exec,                    // exec
+  op_read,
+  op_eval,
+  op_prin,
+  op_load,
+  op_exec,
+  op_comp,
+  op_apply,
 
-  /* error runtime utilities */
-  op_errorb,                  // error! - creates and raises error
+  /* low-level io & character handling */
+  op_open,
+  op_close,
+  op_princ,
+  op_readc,
+  op_peekc,
+  op_ctypep,
+  op_upper,
+  op_lower,
 
-  /* low-level environment interaction */
-  op_lookup,                  // lookup
-  op_boundp,                  // bound?
-  op_extendb,                 // extend!
-  op_bindb,                   // bind!
-  op_assignb,                 // assign!
-  op_captureb,                // capture!
+  /* system interface */
+  op_boundp,
+  op_lookup,
+  op_assignb,
+  op_extendb,
+  op_captureb,
+  op_errorb,
 
-  /* system interaction */
+  /* os interaction */
   op_exit,                    // exit - (calls C exit)
   op_system,                  // system - (calls C system)
   builtin_pad
@@ -143,7 +113,7 @@ enum opcode_t {
   /* loads */
   op_load_val,
   op_load_global,
-  op_load_locallocal,
+  op_load_local,
   op_load_formal,
   op_load_closure,
 
@@ -187,6 +157,6 @@ extern ensure_t      Ensure[form_pad];
 extern flags_t       BuiltinFlags[form_pad];
 
 extern size_t        InstructionArgC[num_instructions];
-extern char_t       *InstructionNames[num_instructions];
+extern char         *InstructionNames[num_instructions];
 
 #endif

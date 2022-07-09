@@ -4,7 +4,8 @@
 #include "rascal.h"
 
 // exports --------------------------------------------------------------------
-value_t rsC_read(FILE *ios);
-value_t rsC_load(char_t *fname);
+value_t rascal_read(FILE *ios);
+value_t rascal_load(char *fname);
+value_t rascal_prin( FILE *ios, value_t x );
 
 #endif

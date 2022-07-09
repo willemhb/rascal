@@ -4,6 +4,6 @@
 #include "rascal.h"
 
 // exports --------------------------------------------------------------------
-value_t rsC_exec(object_t *code);
+value_t rascal_exec(value_t code);
 
 #endif

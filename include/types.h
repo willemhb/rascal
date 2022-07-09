@@ -1,76 +1,159 @@
-#ifndef rascal_types_h
-#define rascal_types_h
+#ifndef rascal_rtypes_h
+#define rascal_rtypes_h
 
+#include <stdio.h>
+#include "ctypes.h"
 #include "common.h"
-#include "rtypes.h"
+#include "describe/utils.h"
 
-#define tag_object    0x00
-#define tag_immediate 0x01
-#define tag_moved     0x02
-#define tag_header    0x03
+// rascal typedefs ------------------------------------------------------------
+typedef uintptr_t value_t;
 
-enum type_t {
-	     /*
-	       object tag used for singleton types
-	     */
-	     type_null      = 0x00 | tag_object,
+// object types
+typedef struct object_t   object_t; // generic object type
 
-	     /*
-	       lowest part of immediate tag used for abstract types
-	       (not constructable and no concrete instances).
-	     */
-	     
-	     type_none      = 0x00 | tag_immediate,
-	     type_any       = 0x04 | tag_immediate,
-	     
-	     /* non-literal types */
-	     type_symbol    = 0x00 | tag_header,
-	     type_cons      = 0x04 | tag_header,
-	     
-	     /* sequence & collection types */
-	     /* array types */
-	     type_vector    = 0x08 | tag_header,
-	     type_string    = 0x0c | tag_header,
-	     type_bytecode  = 0x10 | tag_header,
-	     
-	     /* mapping types */
-	     type_table     = 0x14 | tag_header,
-	     
-	     /* function object types types */
-	     type_closure   = 0x18 | tag_header,
-	     
-	     /* misc internal types */
-	     type_port      = 0x1c | tag_header,
-	     type_error     = 0x20 | tag_header,
+typedef struct symbol_t   symbol_t;
+typedef struct cons_t     cons_t;
+typedef struct vector_t   vector_t;
+typedef union  table_t    table_t;
+typedef struct binary_t   binary_t;
+typedef struct port_t     port_t;
+typedef struct closure_t  closure_t;
 
-	     /* immediate types */
-	     /* non-numbers with integer representations */
-	     type_boolean   = 0x08 | tag_immediate,
-	     type_character = 0x0c | tag_immediate,
-	     
-	     /* instructions */
-	     type_builtin   = 0x10 | tag_immediate,
-	     type_form      = 0x14 | tag_immediate,
-	     type_opcode    = 0x18 | tag_immediate,
+// table members
+typedef struct node_t     node_t;
+typedef struct root_t     root_t;
 
-	     /* numeric types */
-	     type_integer   = 0x1c | tag_immediate,
-	     type_fixnum    = 0x20 | tag_immediate,
-	     
-	     /* higher order types */
-	     // type_type      = 0xe0 | tag_immediate,
-	     // type_class     = 0xe4 | tag_immediate,
-	     // type_effect    = 0xe8 | tag_immediate,
-	     
-	     /* any user defined primitive that fits 32-bits */
-	     // type_Cprim32   = 0xec | tag_immediate,
+// immediate types
+typedef ulong    fixnum_t;
+typedef uint     integer_t;
+typedef float    float_t;
+typedef bool     boolean_t;
+typedef char     character_t;
+
+typedef union instruction_t instruction_t;
+typedef enum  builtin_t     builtin_t;
+typedef enum  form_t        form_t;
+typedef enum  opcode_t      opcode_t;
+
+// binary typedefs
+typedef binary_t string_t;
+typedef binary_t bytecode_t;
+
+// function pointer types
+typedef value_t   (*Cbuiltin_t)( value_t *args, arity_t nargs );
+typedef value_t   (*ensure_t)( value_t *args, arity_t nargs );
+
+typedef int       (*getter_t)(value_t ob, void **buf);
+typedef int       (*setter_t)(value_t ob, void *data);
+
+
+// tag system - the vector, table, and binary tags are extensible
+#define tag_cons      0x00
+#define tag_symbol    0x01
+#define tag_port      0x02
+#define tag_closure   0x03
+#define tag_vector    0x04
+#define tag_table     0x05
+#define tag_binary    0x06
+#define tag_immediate 0x07
+
+typedef enum {
+   type_cons      = tag_cons,
+   type_symbol    = tag_symbol,
+   type_array     = tag_vector,
+   type_table     = tag_table,
+   type_binary    = tag_binary,
+   type_port      = tag_port,
+   type_closure   = tag_closure,
+
+   // weird types
+   type_none      = 0x00 | tag_immediate,
+   type_any       = 0x10 | tag_immediate,
+   type_null      = 0x20 | tag_immediate,
+   type_type      = 0x30 | tag_immediate,
+
+   // numeric types
+   type_fixnum    = 0x40 | tag_immediate,
+   type_integer   = 0x50 | tag_immediate,
+   type_float     = 0x60 | tag_immediate,
+
+   // other primitives
+   type_character = 0x70 | tag_immediate,
+   type_boolean   = 0x80 | tag_immediate,
+   type_byte      = 0x90 | tag_immediate,
+
+   // numeric representations of builtin functions
+   type_builtin   = 0xa0 | tag_immediate,
+   type_form      = 0xb0 | tag_immediate,
+   type_opcode    = 0xc0 | tag_immediate,
+
+   // table types extended (on object)
+   type_dict      = 0x10 | tag_table,
+
+   type_string    = 0x10 | tag_binary,
+   type_bytecode  = 0x20 | tag_binary,
+} type_t;
+
+#define TYPE_PAD 256
+
+struct cons_t {
+  value_t car, cdr;
 };
 
-#define type_mcons type_pair
-#define N_TYPES    256
+struct node_t {
+  value_t bind;
 
-// global dispatch tables -----------------------------------------------------
-extern char_t  *TypeNames[N_TYPES];
-extern size_t   TypeSizes[N_TYPES];
+  union {
+    void    *ptr;
+    char    *key;
+    value_t  val;
+  };
+
+  hash_t   hash;
+
+  node_t *left, *right;
+};
+
+struct root_t   collection_type(node_t);
+struct vector_t collection_type(value_t);
+struct binary_t collection_type(void);
+struct object_t collection_type(void);
+
+union table_t {
+  root_t root;
+  node_t node;
+};
+
+struct symbol_t {
+  value_t idno, bind;
+  hash_t  hash;
+  char   name[1];
+};
+
+struct port_t {
+  value_t  value, flags;
+  
+  uint line, col, pos, token;
+  FILE     *ios;
+  binary_t *buffer;
+  char     name[1];
+};
+
+struct closure_t {
+  value_t name;
+  value_t envt;
+  value_t values;
+  value_t code;
+};
+
+// type dispatch --------------------------------------------------------------
+char    *TypeNames[TYPE_PAD];
+size_t   TypeSizes[TYPE_PAD];
+Ctype_t  TypeCtypes[TYPE_PAD];
+Ctype_t  TypeEltypes[TYPE_PAD]; // array only
+
+size_t  (*Sizeof[TYPE_PAD])( value_t x );
+value_t (*Relocate[TYPE_PAD])( value_t x );
 
 #endif
