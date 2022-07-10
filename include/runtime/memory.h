@@ -3,9 +3,9 @@
 
 #include "rascal.h"
 
-typedef enum {
+enum memflags_t {
   memfl_global = 0x01
-} memory_flags_t;
+};
 
 // exports --------------------------------------------------------------------
 bool     globalp( void *p );
@@ -13,11 +13,17 @@ bool     overflowp( int n );
 int      arr_resize( int n );
 int      pow2_resize( int n );
 void    *getword( void *p );
-int      getoff( void *p );
+int      getoffset( void *p );
 
 // allocation procedures ------------------------------------------------------
 void     *allocate( flags_t fl , int n );
-value_t   reallocate( value_t x, int o, int n );
-void      manage( void );
+object_t *reallocate( object_t *x, int o, int n );
+value_t   copy( value_t x, int n );
+
+// GC entry points ------------------------------------------------------------
+void manage( void );
+
+value_t relocate( value_t x );
+void    trace( void *p, );
 
 #endif

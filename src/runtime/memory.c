@@ -4,65 +4,16 @@
 #include "memutils.h"
 #include "numutils.h"
 
+#include "describe/sequence.h"
 #include "runtime/object.h"
 #include "runtime/memory.h"
 #include "runtime/stack.h"
 
-/*
-  stolen python algorithm for future use.
-  static int
-  list_resize(PyListObject *self, Py_ssize_t newsize)
-{
-    PyObject **items;
-    size_t new_allocated, num_allocated_bytes;
-    Py_ssize_t allocated = self->allocated;
-
-    // Bypass realloc() when a previous overallocation is large enough
-    // to accommodate the newsize.  If the newsize falls lower than half
-    // the allocated size, then proceed with the realloc() to shrink the list.
-    
-    if (allocated >= newsize && newsize >= (allocated >> 1)) {
-        assert(self->ob_item != NULL || newsize == 0);
-        Py_SET_SIZE(self, newsize);
-        return 0;
-    }
-
-    // This over-allocates proportional to the list size, making room
-    // for additional growth.  The over-allocation is mild, but is
-    // enough to give linear-time amortized behavior over a long
-    // sequence of appends() in the presence of a poorly-performing
-    // system realloc().
-    // Add padding to make the allocated size multiple of 4.
-    // The growth pattern is:  0, 4, 8, 16, 24, 32, 40, 52, 64, 76, ...
-    // Note: new_allocated won't overflow because the largest possible value
-    //      is PY_SSIZE_T_MAX * (9 / 8) + 6 which always fits in a size_t.
-    new_allocated = ((size_t)newsize + (newsize >> 3) + 6) & ~(size_t)3;
-    // Do not overallocate if the new size is closer to overalocated size
-    // than to the old size.
-    
-    if (newsize - Py_SIZE(self) > (Py_ssize_t)(new_allocated - newsize))
-        new_allocated = ((size_t)newsize + 3) & ~(size_t)3;
-
-    if (newsize == 0)
-        new_allocated = 0;
-    num_allocated_bytes = new_allocated * sizeof(PyObject *);
-    items = (PyObject **)PyMem_Realloc(self->ob_item, num_allocated_bytes);
-    if (items == NULL) {
-        PyErr_NoMemory();
-        return -1;
-    }
-    self->ob_item = items;
-    Py_SET_SIZE(self, newsize);
-    self->allocated = new_allocated;
-    return 0;
-}
- */
-
-inline size_t pow2resize( size_t new ) { // common dynamic array resize algorithm
+inline int pow2resize( int new ) { // common dynamic array resize algorithm
   return nextipow2( new );
 }
 
-inline size_t arr_resize( size_t new ) { // the more conservative Python algorithm
+inline int arr_resize( int new ) { // the more conservative Python algorithm
   return (new + (new >> 3) + 6) & ~(size_t)3;
 }
 
@@ -70,23 +21,22 @@ void *getword( void *p ) {              // get the correctly aligned allocated w
   return ((void*)(((value_t)p)&~7ul));
 }
 
-size_t getoff( void *p ) { return p - getword( p ); }
+int getoff( void *p ) { return p - getword( p ); }
 
-inline bool overflowp(size_t n) {
+inline bool overflowp(int n) {
   return Free + n >= Heap + HeapSize;
 }
 
-void *allocate(flags_t fl, size_t n ) {
+void *allocate(flags_t fl, int n ) {
   if (flagp( fl, memfl_global ) )
     return malloc_s( n );
 
-  size_t padded = aligned( n, 8 );
+  int padded = aligned( n, 16 );
 
   if (overflowp(padded)) manage();
 
   void  *out  = Free;
-  
-  
+
   Free        += padded;
   HeapUsed    += padded;
 
@@ -94,306 +44,158 @@ void *allocate(flags_t fl, size_t n ) {
   return out;
 }
 
-value_t reallocate( value_t ob, size_t o, size_t n ) {
-  bool g = globalp( asptr( ob ) );
+object_t *reallocate( object_t *ob, int o, int n ) {
+  void *newspc, *oldspc;
 
-  save( ob );
-  
-  void *newspc = allocate( n, g );
+  if ( Collecting ) {
+    int base = TypeSizes[ob->type];
+    
+    // allocate
+    newspc = Free;
+    Free  += aligned( base + n, 16 );
 
-  restore( &ob );
+    // copy, save object data
+    memcpy( newspc, ob, base );
+    oldspc = ob->data;
 
-  void *oldspc = obdata( ob );
+    // set forward pointer
+    car( ob ) = rfptr;
+    cdr( ob ) = tagp( newspc, ob->type&7 );
 
-  memcpy( newspc, oldspc, min( o, n ));
+    // point object data at correct memory, copy old data
+    ob = newspc;
 
-  obdata( ob ) = newspc;
+    if ( o == n && n == 0 )
+      return ob;
+    
+    newspc = asuptr( ob ) + o;
 
+  } else {
+    save( tagp( ob, ob->type & 7 ) );
+    newspc = allocate( n, globalp( ob ) );
+    restore( (value_t*)&ob );
+    ob = asptr( ob );
+    oldspc = ob->data;
+  }
+
+  memcpy( newspc, oldspc, min( o, n ) );
+  ob->data = newspc;
+  ob->size = n;
   return ob;
 }
 
 // GC -------------------------------------------------------------------------
-static value_t relocate( value_t x );
-
-static void    trace_array( value_t *a, size_t n );
-static void    trace_table( root_t *a );
-static void    trace_table_data( node_t *n );
-static void    trace_symbol( value_t x );
-
-static value_t  move_symbol( value_t x );
-static value_t  move_cons( value_t x );
-static value_t  move_port( value_t x );
-static value_t  move_closure( value_t x );
-static value_t  move_vec( value_t x );
-static value_t  move_table( value_t x );
-static node_t  *move_table_data( node_t *x, void **spc );
-static value_t  move_binary( value_t x );
-
-static value_t relocate( value_t x ) {
-  if ( immediatep( x ) )
-    return x;
-
-  if ( globalp( asptr( x ) ) )
-    return x;
-
-  if ( movedp( x ) )
-    return cdr( x );
-  
-  if ( consp( x ) )
-    return move_cons( x );
-
-  if ( symbolp( x ) )
-    return move_symbol( x );
-
-  if ( portp( x ) )
-    return move_port( x );
-
-  if ( closurep( x ) )
-    return move_closure( x );
-
-  if ( vectorp( x ) )
-    return move_vec( x );
-
-  if ( binaryp( x ) )
-    return move_binary( x );
-
-  if ( tablep( x ) )
-    return move_table( x );
-
-  __builtin_unreachable();
-}
-
-// implement for array types --------------------------------------------------
-static void trace_array( value_t *vals, size_t max ) {
-  for (size_t i=0; i<max; i++) {
-    value_t val = vals[i];
-    val         = relocate( val );
-    vals[i]     = val;
-  }
-}
-
-static value_t move_vec( value_t x ) {  
-  static const size_t base = sizeof(vector_t);
-
-  value_t out       = tagp( Free, tag_vector );
-  size_t xlen       = vlen( x );
-  size_t xpad       = vcap( x );
-  
-  size_t data_used  = sizeof(value_t) * xlen;
-  size_t data_alloc = sizeof(value_t) * xpad;
-  size_t total      = base + data_alloc;
-  size_t padded     = aligned( total, 16 );
-
-  void  *oldspc     = asptr( x ), *newspc  = Free;
-  void  *oldvals    = vdata( x ), *newvals = Free + sizeof(vector_t);
-  
-  Free             += padded;
-  memcpy( newspc, oldspc, base );
-  
-  vdata( newspc )   = newvals;
-  memcpy( newvals, oldvals, data_used );
-  
-  car( oldspc )     = rfptr;
-  cdr( oldspc )     = tagp( newspc, tag_vector );
-
-  trace_array( newvals, xlen );
-
-  return out;
-}
-
-// implement for table types --------------------------------------------------
-static void trace_table( root_t *x ) {
-  trace_table_data( mapdata( x ) );
-}
-
-static void trace_table_data( node_t *x ) {
-  if ( !x ) return;
-
-  value_t bind = mapbind( x );
-  bind         = relocate( bind );
-  mapbind( x ) = bind;
-
-  if ( !globalp( x ) ) {
-    value_t val = mapval( x );
-    val         = relocate( val );
-    mapval( x ) = val;
-  }
-
-  trace_table_data( mapleft( x ) );
-  trace_table_data( mapright( x ) );
-}
-
-static value_t move_table( value_t x ) {
-  static const size_t rootsz = sizeof(root_t);
-  static const size_t nodesz = sizeof(node_t);
-
-  void *oldspc  = asptr( x ), *newspc = Free;
-  size_t nbuf = mapcap( x ), total  = rootsz + nodesz * nbuf;
-
-  value_t out   = tagp( Free, tag_table );
-  Free         += aligned( total, 16 );
-
-  memcpy( newspc, oldspc, rootsz );
-
-  void *newnodes = (uchar*)newspc + rootsz, *oldnodes = mapdata( out );
-
-  car( x ) = rfptr;
-  cdr( x ) = out;
-
-  mapdata( out )  = move_table_data( oldnodes, &newnodes );
-
-  trace_table( newspc );
-
-  return out;
-}
-
-static node_t *move_table_data( node_t *n, void **buf ) {
-  static const size_t nodesz = sizeof(node_t);
-
-  if ( n ) {
-    node_t *out      = *buf, *tmp;
-    *((uchar**)buf) += nodesz;
-
-    memcpy( out, n, nodesz );
-
-    car( n ) = rfptr;
-    cdr( n ) = (value_t)out;
-
-    n             = out;
-    tmp           = mapleft( n );
-    tmp           = move_table_data( tmp, buf );
-    mapleft( n )  = tmp;
-    tmp           = mapright( n );
-    tmp           = move_table_data( tmp, buf );
-    mapright( n ) = tmp;
-  }
-
-  return n;
-}
-
-// implement for symbol types -------------------------------------------------
-static void trace_symbol( value_t x ) {
-  value_t bind = symbind( x );
-
-  bind         = relocate( bind );
-  symbind( x ) = bind;
-}
-
-static value_t move_symbol( value_t x ) {
-  static const size_t sz = sizeof( symbol_t );
-
-  void *oldspc           = asptr( x );
-  void *newspc           = Free;
-  value_t out            = tagp( newspc, tag_symbol );
-  
-  size_t symsz           = sz + strlen( symname( x ));
-  size_t padded          = aligned( symsz, 16 );
-  Free                  += padded;
-  
-  memcpy( oldspc, newspc, symsz );
-  
-  car( x )               = rfptr;
-  cdr( x )               = out;
-  
-  trace_symbol( out );
-
-  return out;
-}
-
-// implement for pair types ---------------------------------------------------
 static value_t move_cons( value_t x ) {
-  static const size_t sz = sizeof( cons_t );
+  uchar** buf = &Free;
+  value_t out = (value_t)Free;
 
-  value_t out = tagp( Free, tag_cons );
-  value_t cx  = x;
+  while ( consp( x ) ) {
+    void *spc  = *buf;
+    *buf      += sizeof(cons_t);
+    memcpy( asptr( x ), spc, sizeof( cons_t ) );
 
-  // compress
-  while ( consp( cx ) ) {
-    void *spc  = Free;
-    Free      += sz;
-    
-    memcpy( spc, asptr( cx ), sz );
+    value_t tmp = cdr( x );
 
-    x          = cdr( cx );
-    car( cx )  = rfptr;
-    cdr( cx )  = tagp( spc, tag_cons );
+    if ( consp( tmp ) )
+      cdr( spc ) = tagp( *buf, tag_cons );
 
-    if ( consp( x ) )
-      cdr( (uchar*)spc ) = tagp( (uchar*)spc + sizeof(cons_t), tag_cons );
-    else
-      cdr( spc ) = x;
-
-    cx         = x;
-  }
-  
-  // trace cars
-  cx = out;
-
-  while ( consp( cx ) ) {
-    x         = car( cx );
-    x         = relocate( x );
-    car( cx ) = x;
+    car( x ) = rfptr;
+    cdr( x ) = tagp( spc, tag_cons );
+ 
+    x = tmp;
   }
 
-  return out;
-}
+  x = out;
+  
+  while ( consp( x ) ) {
+    value_t tmp = car( x );
+    tmp = relocate( tmp );
+    car( x ) = tmp;
 
-// implement for other primitive types ----------------------------------------
-static value_t move_port( value_t x ) {
-  static const size_t base = sizeof(port_t);
+    if ( !consp( cdr( x ) ) ) {
+      tmp = cdr( x );
+      tmp = relocate( tmp );
+      cdr( x ) = tmp;
+    }
 
-  size_t total = base + strlen( portname( x ) );
-  void *spc    = Free, *oldspc = asptr( x );
-  value_t out  = tagp( spc, tag_port );
-  Free        += aligned( total, 16 );
-
-  memcpy( spc, oldspc, total );
-
-  car( x )     = rfptr;
-  cdr( x )     = out;
-
-  trace_array( spc, 2 );
+    x = cdr( x );
+  }
 
   return out;
 }
 
-static value_t move_closure( value_t x ) {
-  static const size_t base = sizeof(closure_t);
-
-  void *oldspc = asptr( x );
-  void *newspc = Free;
-  Free        += base;
-
-  memcpy( newspc, oldspc, base );
-
-  value_t out   = tagp( newspc, tag_closure );
-  
-  car( oldspc ) = rfptr;
-  cdr( oldspc ) = out;
-
-  trace_array( newspc, 4 );
-
-  return out;
+static void trace_array( value_t *arr, int n ) {
+  for (int i=0; i<n; i++) {
+    value_t tmp = arr[i];
+    tmp = relocate( tmp );
+    arr[i] = tmp;
+  }
 }
 
-static value_t move_binary( value_t x ) {
-  static const size_t base = sizeof(binary_t);
+static void trace_table( root_t *x ) {
+  void trace_nodes( node_t *x ) {
+    if ( x ) {
+      x->bind = relocate( x->bind );
+      trace_nodes( x->left );
+      trace_nodes( x->right );
+    }
+  }
+  trace_nodes( x->data );
+}
 
-  void *newspc = Free, *oldspc = asptr( x ), *newd = Free + base, *oldd = bdata( x );
+static value_t move_tup( tuple_t *x ) {
+  x = (tuple_t*)reallocate( (object_t*)x, x->size, x->size );
+  trace_array( x->data, x->len );
+  return tagp( x, x->type & 7 );
+}
 
-  size_t elsize     = Ctype_size( val_eltype( x ) );
-  size_t used       = elsize * blen( x );
-  size_t allocated  = elsize * bcap( x );
-  Free             += aligned( base + allocated, 16 );
-  value_t out       = tagp( Free, tag_binary );
-  
-  memcpy( newspc, oldspc, base );
-  memcpy( newd, oldd, used );
-  
-  car( x )          = rfptr;
-  cdr( x )          = out;
+static value_t move_table( root_t *x ) {
+  node_t *move_node( node_t *x ) {
+    if ( x ) {
+      x = (node_t*)reallocate( (object_t*)x, x->base.size, x->base.size );
+      x->left  = move_node( x->left );
+      x->right = move_node( x->right );
+    }
+    return x;
+  }
 
-  return out;
+  x = (root_t*)reallocate( (object_t*)x, 0, 0 );
+  node_t *tmp = x->data;
+  tmp = move_node( tmp );
+  x->data = tmp;
+  return tagp( x, x->type & 7 );
+}
+
+static value_t move_closure( closure_t *x ) {
+  x = (closure_t*)reallocate( asptr( x ), 0, 0 );
+  trace_array( (value_t*)x, 4 );
+  return tagp( x, tag_closure );
+}
+
+value_t relocate( value_t x ) {
+  if ( immediatep( x ) ) return x;
+  if ( globalp( asptr( x ) ) ) return x;
+  if ( movedp( x ) ) return cdr( x );
+
+  type_t t = val_typeof( x );
+
+  switch ( t&7 ) {
+  case tag_cons: return move_cons( x );
+  case tag_tuple: return move_tup( asptr( x ) );
+  case tag_table: return move_table( asptr( x ) );
+  case tag_closure: return move_closure( asptr( x ) );
+  default: break;
+  }
+
+  // for no particular reason all other object types end up having exactly one field
+  // that needs to be traced at offset 2 from the object head
+  object_t *o = asptr( x );
+  o = reallocate( o, o->size, o->size );
+  x = obslots( o )[2];
+  x = relocate( x );
+  obslots( o )[2] = x;
+
+  return tagp( o, t&7 );
 }
 
 // toplevel helpers for GC ----------------------------------------------------
@@ -444,32 +246,4 @@ void manage(void) {
   Outs  = relocate( Outs );
 
   manageend();
-}
-
-// initialization -------------------------------------------------------------
-void initmemory(void) {
-  // initialize counters and arities
-  Symcnt = Sp = Bp = Fp = Dp = 0;
-
-  HeapSize = RSize = N_STACK*sizeof(cons_t); // number of pairs in heap
-  HeapUsed = RUsed = 0;
-
-  // allocate heap and map nace
-  Heap       = malloc_s(HeapSize);
-  Reserve    = malloc_s(RSize);
-
-  // initialize GC flags
-  Grow = Grew = Collecting = false;
-
-  // initialize GC load factors
-  Collectf = 1.0;
-  Resizef  = 0.685;
-  Growf    = 2.0;
-
-  // set Free
-  Free    = Heap;
-
-  // clean stacks
-  memset(Stack, 0, N_STACK * sizeof(value_t));
-  memset(Dump, 0, N_STACK * sizeof(value_t));
 }

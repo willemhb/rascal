@@ -23,17 +23,20 @@ enum builtin_t {
   op_none          = type_none,
   op_any           = type_any,
 
+  op_fixnum        = type_fixnum,
+  op_integer       = type_integer,
+
   op_boolean       = type_boolean,
   op_character     = type_character,
-  op_integer       = type_integer,
-  op_fixnum        = type_fixnum,
 
   op_cons          = type_cons,
   op_symbol        = type_symbol,
 
   op_vector        = type_vector,
   op_table         = type_table,
-  op_binary        = type_binary,
+  op_dict          = type_dict,
+  op_string        = type_string,
+  op_bytecode      = type_bytecode,
 
   op_port          = type_closure,
   op_closure       = type_port,
@@ -153,8 +156,6 @@ union instruction_t {
 
 // instructions dispatch tables
 extern Cbuiltin_t    Builtins[form_pad];
-extern ensure_t      Ensure[form_pad];
-extern flags_t       BuiltinFlags[form_pad];
 
 extern size_t        InstructionArgC[num_instructions];
 extern char         *InstructionNames[num_instructions];

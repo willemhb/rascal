@@ -7,26 +7,17 @@
 #include "types.h"
 #include "globals.h"
 
-typedef union {
-  value_t word;
-
-  struct {
-    value_t type  :  8;
-    value_t data  : 48;
-    value_t flags :  8;
-  };
-} imparts_t;
-
 // macros for pseudo-objects --------------------------------------------------
-#define rnull   ((value_t)tag_cons)
-#define rnone   ((value_t)((0xffffffff00ul)|type_none))
-#define rtrue   ((value_t)((0x0000000100ul)|type_boolean))
-#define rfalse  ((value_t)((0x0000000000ul)|type_boolean))
+#define rnull   ((value_t)tag_null)
+#define rnone   ((value_t)(0xffffffff00ul|tag_none))
+#define rtrue   ((value_t)(0x100ul|tag_boolean))
+#define rfalse  ((value_t)tag_boolean)
 #define rfptr   ((value_t)tag_symbol)
 #define rempty  ((value_t)tag_table)
 
 // utility macros -------------------------------------------------------------
 #define asptr(x)    ((void*)(((value_t)(x))&~7ul))
+#define asuptr(x)   ((uchar*)asptr(x))
 #define asint(x)    ((int)((x)>>8))
 
 #define vtag(x)     ((x)&7)

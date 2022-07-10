@@ -1,12 +1,29 @@
 #ifndef rascal_describe_utils_h
 #define rascal_describe_utils_h
 
-#define collection_type(eltype)			\
-  {						\
-    value_t type;				\
-    eltype *data;				\
-    int len, cap;				\
+#define object_type(eltype)				\
+  {							\
+    union {						\
+      eltype *data;					\
+      eltype  i_data[8/sizeof(eltype)];			\
+    };							\
+    value_t type  :  8;					\
+    value_t size  : 48; /* */				\
+    value_t flags :  8;					\
   }
+
+#define collection_type(eltype)				\
+  {							\
+    union {						\
+      eltype *data;					\
+      eltype  i_data[8/sizeof(eltype)];			\
+    };							\
+    value_t type  :  8;					\
+    value_t size  : 48; /* */				\
+    value_t flags :  8;					\
+    long len, cap;					\
+  }
+
 
 #define get( type, x, field ) (((type##_t*)asptr(x))->field)
 
@@ -23,43 +40,43 @@
 #define array_ref(type, eltype)			\
   eltype type##_ref(value_t x, int n )		\
   {						\
-    int l = get( type, x, len );		\
+    type##_t *a = asptr( x );			\
     if ( n < 0 )				\
-      n += l;					\
-    assert( n > 0 && n < l );			\
-    return ((eltype*)get( type, x, data ))[n];	\
+      n += a->len;				\
+    assert( n > 0 && n < a->len );		\
+    return a->data[n];				\
   }
 
 #define array_set(type, eltype)						\
   value_t type##_set(value_t x, int n, eltype v )			\
   {									\
+    type##_t *a = asptr( x );						\
     if ( n < 0 )							\
-      n += get( type, x, len );						\
-    assert( n > 0 && n < get( type, x, len ) );				\
-    ((eltype*)get( type, x, data ))[n] = v;				\
+      n += a->len;							\
+    assert( n > 0 && n < a->len );					\
+    a->data[n] = v;							\
     return x;								\
   }
 
-#define array_resize(type, eltype, strp)		\
-  value_t type##_resize( value_t x, int n )		\
-  {							\
-    static const int _e = sizeof(eltype);		\
-    int o   = get( type, x, cap );			\
-    n      += strp;					\
-    int p   = arr_resize( n );				\
-    x       = reallocate( x, o*_e, p*_e );		\
-    get( type, x, len )  = n;				\
-    get( type, x, cap )  = p;				\
-    							\
-    return x;						\
+#define array_resize(type, eltype, strp)				\
+  type##_t *type##_resize( type##_t* a, int n )				\
+  {									\
+    static const int _e = sizeof(eltype);				\
+    int o = a->cap;							\
+    int p = arr_resize( n + strp );					\
+    a = (type##_t*)reallocate( (object_t*)a, p*_e, o*_e );		\
+    a->len = n;								\
+    a->cap = p;								\
+    return a;								\
   }
 
-#define array_put(type, eltype)					\
+#define array_put(type, eltype, strp)				\
   value_t type##_put( value_t x, eltype v )			\
   {								\
-    ((eltype*)get( type, x, data ))[get(type, x, len)++] = v;	\
-    if ( get( type, x, len ) == get( type, x, cap ) )		\
-      x = type##_resize( x, get( type, x, len ) + 1 );		\
+    type##_t* a = asptr( x );					\
+    a->data[a->len++] = v;					\
+    if ( a->len + strp == a->cap )				\
+      a = type##_resize(  a, a->len+strp+1 );			\
     return x;							\
   }
 

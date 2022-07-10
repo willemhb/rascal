@@ -1,5 +1,7 @@
+// standard headers
 #include <string.h>
 
+// core
 #include "rascal.h"
 
 // runtime system
@@ -7,115 +9,96 @@
 #include "runtime/stack.h"
 #include "runtime/init.h"
 #include "runtime/error.h"
-
-// primtives
-#include "object/binary.h"
-#include "object/boolean.h"
-#include "object/character.h"
-#include "object/integer.h"
-
-// objects
-#include "object/error.h"
-#include "object/function.h"
-#include "object/pair.h"
-#include "object/port.h"
-#include "object/string.h"
-#include "object/symbol.h"
-#include "object/table.h"
-#include "object/tuple.h"
-#include "object/type.h"
+#include "runtime/object.h"
 
 // virtual machine
 #include "vm/apply.h"
-#include "vm/builtin.h"
 #include "vm/compile.h"
-#include "vm/eval.h"
 #include "vm/exec.h"
-#include "vm/print.h"
-#include "vm/read.h"
+#include "vm/lisp-io.h"
 
 // declare globals
-ulong_t   Symcnt;
-object_t *Symbols, *Globals, *Error, *Ins, *Outs, *Errs;
+ulong   Symcnt = 0;
 
-value_t Stack[N_STACK], Dump[N_STACK], Function;
+root_t Symbols, Syntax, Characters;
+value_t Error, Ins, Outs, Errs;
 
-index_t Sp, Bp, Fp, Dp;
+value_t Stack[N_STACK], Dump[N_STACK];
+index_t Sp = 0,
+        Bp = 0,
+        Fp = 0,
+        Dp = 0;
 
-uchar_t *Heap, *Reserve, *Free, *MapFree, *HeapMap, *ReserveMap;
+uchar *Heap, *Reserve, *Free;
 
-size_t  NHeap, HeapUsed, HeapSize, NReserve, ReserveUsed, ReserveSize;
+size_t  HeapSize = N_STACK*sizeof(cons_t),
+        HeapUsed = 0,
+        RSize    = N_STACK*sizeof(cons_t),
+        RUsed    = 0;
 
-bool_t  Collecting, Grow, Grew;
+bool  Collecting = false,
+      Grow       = false,
+      Grew       = false;
 
-float_t Collectf, Resizef, Growf;
+float Collectf   = 1.0,
+      Resizef    = 0.685,
+      Growf      = 2.0;
 
-// declare type dispatch tables
-construct_t Construct[N_TYPES];
-init_t      Init[N_TYPES];
-trace_t     Trace[N_TYPES];
-relocate_t  Relocate[N_TYPES];
-untrace_t   Untrace[N_TYPES];
-print_t     Print[N_TYPES];
-finalize_t  Finalize[N_TYPES];
-sizeof_t    Sizeof[N_TYPES];
-mk_hash_t   Hash[N_TYPES];
+// type dispatch --------------------------------------------------------------
+char    *TypeNames[TYPE_PAD]  = {
+  [type_cons]      = "cons",      [type_symbol]   = "symbol",   [type_vector]  = "vector",
+  [type_table]     = "table",     [type_string]   = "string",   [type_port]    = "port",
+  [type_closure]   = "closure",
 
-char_t  *TypeNames[N_TYPES];
-size_t   TypeSizes[N_TYPES];
-uint_t   TypeFlags[N_TYPES];            // default flags for a type
-bool_t   TypeMembers[N_TYPES][N_TYPES]; // simplefied subtyping
+  [type_bytecode] = "bytecode",
 
-// declare instructions dispatch tables
-Cbuiltin_t    Builtins[form_pad];
-ensure_t      Ensure[form_pad];
-size_t        InstructionArgC[num_instructions];
-char_t       *InstructionNames[num_instructions];
+  [type_none]      = "none",      [type_null]     = "null",     [type_type]    = "type",
 
-// static initializers for dispatch tables
-static void dispatch_init( void ) {
-  // ensure all pointers without methods are NULL (no wild pointers)
-  memset( Construct, 0, N_TYPES*sizeof(construct_t) );
-  memset( Init, 0, N_TYPES*sizeof(init_t) );
-  memset( Trace, 0, N_TYPES*sizeof(trace_t) );
-  memset( Relocate, 0, N_TYPES*sizeof(relocate_t) );
-  memset( Untrace, 0, N_TYPES*sizeof(untrace_t) );
-  memset( Print, 0, N_TYPES*sizeof(print_t) );
-  memset( Finalize, 0, N_TYPES*sizeof(finalize_t) );
-  memset( Sizeof, 0, N_TYPES*sizeof(sizeof_t) );
-  memset( Hash, 0, N_TYPES*sizeof(mk_hash_t) );
-  memset( TypeNames, 0, N_TYPES*sizeof(char_t*) );
-  memset( TypeSizes, 0, N_TYPES*sizeof(size_t) );
-  memset( TypeFlags, 0, N_TYPES*sizeof(uint_t) );
-  memset( TypeMembers, 0, N_TYPES*N_TYPES*sizeof(bool_t) );
+  [type_fixnum]    = "fixnum",    [type_integer]  = "int",
 
-  memset( Builtins, 0, form_pad*sizeof(Cbuiltin_t) );
-  memset( Ensure, 0, form_pad*sizeof(ensure_t) );
-  memset( InstructionArgC, 0, num_instructions*sizeof(size_t) );
-  memset( InstructionNames, 0, num_instructions*sizeof(char_t*) );
-}
+  [type_character] = "char",      [type_boolean]  = "bool",
 
-static void fuckedup_types_init( void ) {
-  // initialize the names of the weird types
-  TypeNames[type_any] = "any";
-  TypeSizes[type_any] = 8;       // since 'any' typically means 'any concrete value'
+  [type_builtin]   = "builtin", 
+};
 
-  TypeNames[type_none] = "none";
+size_t TypeSizes[TYPE_PAD]  = {
+  [type_cons]      = sizeof(cons_t),    [type_symbol]   = sizeof(symbol_t),
+  [type_vector]    = sizeof(vector_t),  [type_table]    = sizeof(node_t),
+  [type_string]    = sizeof(string_t),  [type_port]     = sizeof(port_t),
+  [type_closure]   = sizeof(closure_t),
 
-
-  // initialize the trival cells of TypeMembers
-  for (int i=0; i<N_TYPES; i++) {
-    TypeMembers[type_any][i] = true;
-    TypeMembers[i][i] = true;
-    TypeMembers[type_none][i] = false;
-  }
-}
-
-static void rascal_init( void ) {
-  memory_init( );
-  dispatch_init( );
-  fuckedup_types_init( );
+  [type_dict]      = sizeof(dict_t),    [type_bytecode] = sizeof(bytecode_t),
   
+  [type_none]      = 8,                 [type_null]     = 8,
+  [type_any]       = 8,                 [type_type]     = 8,
+
+  [type_fixnum]    = 8,                 [type_integer]  = sizeof(int),
+
+  [type_character] = sizeof(char),      [type_boolean]  = sizeof(bool),
+  [type_builtin]   = sizeof(short),     [type_form]     = sizeof(short),
+  [type_opcode]    = sizeof(short)
+};
+
+type_t TypeEltype[TYPE_PAD] = {
+  [type_vector]   = type_any, [type_string] = type_character,
+  [type_bytecode] = type_opcode,
+};
+
+int     (*Sizeof[TYPE_PAD])( void *p, type_t t )               = { object_sizeof };
+int     (*Relocate[TYPE_PAD])( void *p, type_t t, value_t *b ) = { object_relocate };
+void    (*Trace[TYPE_PAD])( void *p, type_t t, int n )         = { object_trace };
+int     (*Print[TYPE_PAD])( FILE *ios, value_t x )             = { value_print };
+int     (*Order[TYPE_PAD])( value_t x, value_t y )             = { value_order };
+
+// 
+static void rascal_init( void ) {
+  init_memory( );
+  init_tables( );
+  init_dispatch( );
+  init_types( );
+  init_names( );
+  init_builtins( );
+  init_globals( );
 }
 
 int main( int argc, const char **argv ) {

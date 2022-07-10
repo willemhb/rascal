@@ -12,8 +12,10 @@
 // exports --------------------------------------------------------------------
 void init_memory( void );
 void init_tables( void );
+void init_dispatch( void );
+void init_types( void );
 void init_names( void );
 void init_builtins( void );
-void init_reader( void );
+void init_globals( void );
 
 #endif

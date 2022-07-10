@@ -2,7 +2,6 @@
 #include <assert.h>
 #include "hashing.h"
 
-
 #define FNV1A_OFFSET32 0x811c9dc5u
 #define FNV1A_PRIME32  0x01000193u
 
