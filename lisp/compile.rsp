@@ -1,44 +1,91 @@
-(defv *syntax* {})
+(val (literal? [x])
+  "is `x` self evaluating?"
+  (not (or (symbol? x)
+       	   (pair? x))))
 
-(define (compile-expression x c v e)
-	(cond ((lit? x)
-	       (compile-literal x c v))
-	      ((var? x)
-	       (compile-variable x c v e))
-	      (:else
-	       (compile-s-expression x c v e))))
+(val (quote? [x])
+  "is `x` a quote form?"
+  (and (pair? x)
+       (id? (car x)
+       	    'quote)))
 
-(define (compile-literal x c v)
-     (case x
-     	   ((nil)
-	    (join :loadn c))
-	   ((true)
-	    (join :loadt c))
-	   ((false)
-	    (join :loadf c))
-	   (:else
-	    (let ((location (add! x v)))
-	    	 (join :loadc location c)))))
+(val (if? [x])
+  "is `x` an if form?"
+  (and (pair? x)
+       (id? (car x)
+       	    'if)))
 
-(fun compile-variable (x c v e)
-     (do
-	(defv (i . j) (locate x e))
-	(if (= i -1)
-	    :then (do (defv n (add! x v))
-		      (join :loadg n c))
-	    (= i 0)
-	    :then (join :loadl j c)
-	    :else (join :loadv i j c))))
+(val (lambda? [x])
+  "is `x` a lambda form?"
+  (and (pair? x)
+       (id? (car x)
+       	    'lambda)))
 
-(fun compile-s-expression (sx c v e)
-     (case (car sx)
-     	   quote (compile-literal (quote-value sx) c v)
-	   do    (compile-sequence (do-expressions sx) c v e)
-	   if    (compile-if (if-test sx)
-	   	 	     (if-consequent sx)
-			     (if-alternative sx)
-			     c v e)
-	   lmb   (compile-closure (lmb-args sx)
-	   	 		  (lmb-body sx)
-				  c v e)
-	   _ ...))
+(val (do? [x])
+  "is `x` a do form?"
+  (and (pair? x)
+       (id? (car x)
+       	    'do)))
+
+(val (xons [ca cd])
+  "in-place cons?"
+  (if (null? cd)
+        (list ca)
+      (do (xdr cd
+      	       (cons (car cd)
+      	       	     (cdr cd)))
+	  (xar cd ca)
+	  cd)))
+
+(val (put-constant [x state])
+     (val (inner [x vals i])
+       (if (= i 0)
+       	     (do (put vals x)
+	     	 (len vals))
+	   (=? x (ref vals i))
+	     i
+	   else
+	     (inner x vals (1- i))))
+
+     (inner x
+     	    (comp/vals state)
+	    (len (comp/vals state))))
+
+(val (comp [x])
+  "Compiler entry point."
+  (comp-expr x (vector [] '() '() (list *op-done*))))
+
+(val (comp/vals [comp-state])
+  "pseudo-accessor."
+  (nth comp-state 0))
+
+(val (comp/lbls [comp-state])
+  "more pseudo-accessors."
+  (nth comp-state 1))
+
+(val (comp/envt [comp-state])
+  "blah blah"
+  (nth comp-state 2))
+
+(val (comp/code [comp-state])
+  "blah blah blah"
+  (nth comp-state 3))
+
+(val (comp-expr [x state])
+  "Main compiler loop."
+  (if (null? x)
+        state
+      (literal? x)
+        (comp-literal x state)
+      (symbol? x)
+        (comp-variable x state)
+      (quote? x)
+        (comp-quote (ensure-quote x) state)
+      (if? x)
+        (comp-if (ensure-if x) state)
+      (do? x)
+        (comp-do (ensure-do x) state)
+      (lambda? x)
+        (comp-lambda (ensure-lambda x) state)
+      else
+        (comp-apply x state)))

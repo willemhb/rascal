@@ -4,6 +4,7 @@
 #include "memutils.h"
 #include "memory.h"
 #include "globals.h"
+#include "object.h"
 
 // local utilities -
 void manage( void );
@@ -12,6 +13,13 @@ void manage_end( void );
 
 void trace_array( value_t *a, size_t n );
 void trace_symbols( symbols_t *x );
+
+bool movedp( value_t x ) {
+  if (forwardp(car( x )))
+    return withinp( ptrval( car(x) ), Heap, HUsed );
+
+  return false;
+}
 
 bool managedp( value_t x ) {
   return !( withinp( ptrval( x ), Heap, HSize ) ||
@@ -89,7 +97,6 @@ void manage_start( void ) {
   }
 
   // swap spaces
-  Free    = Heap;
   Heap    = Reserve;
   Reserve = Free;
   Free    = Heap;

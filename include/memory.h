@@ -5,6 +5,7 @@
 
 bool managedp( value_t x );
 bool overflowp( int n );
+bool movedp( value_t x );
 
 int  pow2resize( int new );
 int  arr_resize( int new );

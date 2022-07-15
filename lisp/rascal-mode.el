@@ -32,7 +32,7 @@
   '(";")
   '( "quote" "do" "do*" "handle"
      "val" "var" "param" ":="
-     "fun" "mac" "type" "data" "class" "effect"
+     "def" "fun" "mac" "type" "data" "class" "effect"
      "cond" "case" "and" "or" "if"
      "lambda" "let" "let-mac" )
   '(("else" . font-lock-constant-face)

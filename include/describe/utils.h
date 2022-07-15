@@ -28,10 +28,38 @@
 #define for_bytes(b, i, x)				\
   for (i=0; i<alen(*b) && ((x=bdata(*b)[(i)])||1); i++)
 
-#define noop_constructor( type )		\
-  r_argc( #type, 1, argx );			\
-  r_argt( #type, Stack[Sp-1], type_##type );	\
-  goto do_fetch
+#define r_predicate(fname)			\
+  void r_##fname##p( int n )			\
+  {						\
+  argc( #fname"?", n, 1);			\
+  Tos = mk_bool( fname##p( Tos ) );		\
+  }
+
+#define r_getter(fname, obtype, sname)		\
+  void r_##fname( int n )			\
+  {						\
+    argc( #fname, n, 1 );			\
+    require( #fname,				\
+	     obtype##p( Tos ),			\
+	     "# wnated a "#obtype"()" );	\
+    Tos = ((obtype##_t*)ptrval( Tos ))->sname;	\
+  }
+
+
+#define r_setter(fname, obtype, sname)			\
+  void r_##fname( int n )				\
+  {							\
+    argc( #fname, n, 2 );				\
+    require( #fname,					\
+	     obtype##p( Tos ),				\
+	     "# wnated a "#obtype"()" );		\
+    rotate();						\
+    ((obtype##_t*)ptrval( Tos ))->sname = Peek(2);	\
+    pop();						\
+  }
+
+
+
 
 #endif
 

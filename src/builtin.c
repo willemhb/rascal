@@ -1,7 +1,11 @@
+#include <string.h>
+
 #include "error.h"
 #include "stack.h"
+#include "memory.h"
+#include "object.h"
 
-
+// cons builtins --------------------------------------------------------------
 void r_cons( int n ) {
   argc( "cons", n, 2 );
   cons_t *out = allocate( sizeof(cons_t) );
@@ -10,42 +14,48 @@ void r_cons( int n ) {
   Tos        = settag( out, tag_cons );
 }
 
-void r_car( int n ) {
-  argc( "car", n, 1);
-  require( "car",
-	   consp( Tos ),
-	   "# expected a cons(), got something else" );
-  Tos = car( Tos );
+void r_ncat( int n ) {
+  vargc( "ncat", n, 2 );
+
+  value_t out = Unbound;
+
+  for (int i=0; i<n; i++) {
+    value_t tmp = pop();
+
+    if (out == Unbound)
+      out = tmp;
+
+    if ( nilp( tmp ) )
+      continue;
+
+    else if (consp( tmp )) {
+      while (consp( tmp ) && consp( cdr( tmp )))
+	tmp = cdr( tmp );
+
+      cdr( tmp ) = Tos;
+      
+    } else {
+      r_error( "ncat", "# wanted a list()" );
+      
+    }
+  }
+
+  push( out );
 }
 
-void r_cdr( int n ) {
-  argc( "cdr", n, 1);
-  require( "cdr",
-	   consp( Tos ),
-	   "# expected a cons(), got something else" );
-  Tos = car( Tos );
+void r_nrev( int n ) {
+  argc( "nrev", n, 1 );
+  require( "nrev", listp( Tos ), "# wanted a list()" );
+
+  
 }
 
-void r_xar( int n ) {
-  argc( "xar", n, 2 );
-  require( "xar",
-	   consp( Peek(2) ),
-	   "# expected a cons(), got something else" );
-
-  rotate();
-  car( Tos ) = Peek( 2 );
-  pop();
-}
-
-void r_xdr( int n ) {
-  argc( "xdr", n, 2 );
-  require( "xdr",
-	   consp( Peek(2) ),
-	   "# expected a cons(), got something else" );
-  rotate();
-  cdr( Tos ) = Peek( 2 );
-  Sp--;
-}
+r_predicate(cons)
+r_predicate(list)
+r_getter(car, cons, car)
+r_getter(cdr, cons, cdr)
+r_setter(xar, cons, car)
+r_setter(xdr, cons, cdr)
 
 void r_vec( int n ) {
   int arity = arr_resize( n );
@@ -56,6 +66,8 @@ void r_vec( int n ) {
   popn( n );
   push( settag( new, tag_vector ) );
 }
+
+r_predicate(vec)
 
 void r_nth( int n ) {
   argc( "nth", n, 2 );
@@ -81,6 +93,28 @@ void r_nth( int n ) {
   Tos = vdata( Tos )[n];
 }
 
+void r_len( int n ) {
+  argc( "len", n, 1 );
+
+  require( "len",
+	   consp( Tos ) || vecp( Tos ),
+	   "# wanted collection()" );
+
+  if ( vecp( Tos ) )
+    n = alen( Tos );
+
+  else {
+    n = 0;
+    value_t x;
+
+    for_cons( &Tos, x )
+      n++;
+  }
+
+  Tos = mk_fixnum( n );
+}
+
+
 value_t mk_builtin( char *name, builtin_t callback ) {
   value_t out  = symbol( name );
   sbind( out ) = settag( callback, tag_function );
@@ -91,12 +125,19 @@ void mk_builtins( void ) {
   // constructors
   mk_builtin( "cons", r_cons );
   mk_builtin( "cons?", r_consp );
+  mk_builtin( "list?", r_listp );
   mk_builtin( "car", r_car );
   mk_builtin( "cdr", r_cdr );
   mk_builtin( "xar", r_xar );
   mk_builtin( "xdr", r_xdr );
   
-  mk_builtin( "vec", r_vec );
+  mk_builtin( "vector", r_vec );
+  mk_builtin( "vector?", r_vecp );
   mk_builtin( "nth", r_nth );
+  mk_builtin( "xth", r_xth );
+  mk_builtin( "put", r_put );
   mk_builtin( "len", r_len );
+
+  mk_builtin( "symbol?", r_symp );
+  mk_builtin( "gensym?", r_gensymp );
 }

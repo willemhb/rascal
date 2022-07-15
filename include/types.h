@@ -7,47 +7,6 @@
 #include "describe/utils.h"
 
 // tag system -----------------------------------------------------------------
-/*
-  tag_atom      = 0x7ff8000000000000ul // nb: when nonzero
-  tag_gensym    = 0xfff8000000000000ul // nb: when nonzero
-
-  tag_fixnum    = 0x7ff9000000000000ul
-  tag_character = 0xfff9000000000000ul
-
-  tag_pair      = 0x7ffa000000000000ul
-  tag_cons      = 0xfffa000000000000ul
-  tag_Cbuiltin  = 0x7ffb000000000000ul
-  tag_closure   = 0xfffb000000000000ul
-  tag_vector    = 0x7ffc000000000000ul
-  tag_table     = 0xfffc000000000000ul
-  tag_string    = 0x7ffd000000000000ul
-  tag_bytes     = 0xfffd000000000000ul
-  tag_port      = 0x7ffe000000000000ul
-  tag_error     = 0xfffe000000000000ul
-  tag_Cptr      = 0x7fff000000000000ul
-  tag_Cnum      = 0xffff000000000000ul
-
-  val_nil       = 0x7ff8000000000001ul
-  val_true      = 0x7ff8000000000002ul
-  val_false     = 0x7ff8000000000003ul
-  val_none      = 0x7ff8000000000004ul
-  val_any       = 0x7ff8000000000005ul
-
-  struct {
-      size_t len;
-      vector_t *keys;
-      vector_t *nodes;
-      vector_t *cache;
-  } table_t;
-
-  struct {
-    Ctype_t ctype;
-    encoding_t encoding;
-    value_t len;
-    uchar   data[0];
-  } binary_t;
-
- */ 
 #define tag_QNaN      0x7ff8000000000000ul
 #define tag_mQNaN     0xfff8000000000000ul
 
@@ -90,7 +49,7 @@ typedef enum {
 
 typedef double   number_t;
 typedef bool     boolean_t;
-typedef void  ( *builtin_t )( int n );
+typedef void  ( *builtin_t )( value_t args, value_t envt );
 typedef char    *string_t;
 typedef value_t *vector_t;
 
