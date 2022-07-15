@@ -18,9 +18,9 @@
 #define tag_fixnum    0x7ff9000000000000ul
 #define tag_symbol    0x7ffa000000000000ul
 #define tag_cons      0x7ffb000000000000ul
-#define tag_vector    0x7ffc000000000000ul
-#define tag_string    0x7ffd000000000000ul
-#define tag_function  0x7ffe000000000000ul
+#define tag_function  0x7ffc000000000000ul
+#define tag_vector    0x7ffd000000000000ul
+#define tag_string    0x7ffe000000000000ul
 
 // special tags
 #define tag_forward   0x7fff000000000000ul // indicates a forwarding pointer
@@ -81,25 +81,35 @@ typedef enum {
   C_float64
 } Ctype_t;
 
+/* */
+
 typedef enum {
-  op_noop,
+  /* 0-argument codes */
+  op_noop, op_done,
   
-  op_push, op_pop,
-  
+  op_pop, op_dup, op_rot,
+
+  op_loadn, op_loadt, op_loadf,
+
+  /* 1-argument codes */
+  op_push,
+
   op_loadval, op_loadgl, op_loadloc,  op_loadupv,
-  
+
   op_storegl, op_storeloc, op_storeupv,
 
   op_jump, op_jumpt, op_jumpf,
 
+  op_goto, op_gotot, op_gotof,
+
   op_argc, op_vargc,
 
-  op_openupv, op_closeupv,
-  
-  op_call, op_return, op_closure, op_capture,
+  op_uopen, op_uclose,
 
-  op_done,
-  
+  op_call, op_tcall,
+
+  op_return, op_closure, op_capture,
+
   num_instructions
 } opcode_t;
 
