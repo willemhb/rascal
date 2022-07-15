@@ -1,21 +1,21 @@
 #include <assert.h>
 #include <stdarg.h>
 
-#include "runtime/stack.h"
-#include "runtime/error.h"
-#include "runtime/object.h"
+#include "stack.h"
+#include "error.h"
 
-index_t push(value_t xv) {
-  require( Sp < N_STACK,
-	   "stack overflow" );
+int push(value_t xv) {
+  r_require( r_fname(),
+	     Sp < N_STACK,
+	     "stack overflow" );
 
   index_t out = Sp;
   Stack[Sp++] = xv;
   return out;
 }
 
-index_t pushn(arity_t n, ...) {
-  require( Sp + n < N_STACK,
+int pushn(arity_t n, ...) {
+  r_require( Sp + n < N_STACK,
 	   "stack overflow" );
 
   index_t out = Sp;

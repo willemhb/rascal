@@ -2,140 +2,158 @@
 #define rascal_rtypes_h
 
 #include <stdio.h>
-#include "ctypes.h"
+
 #include "common.h"
 #include "describe/utils.h"
+
+// tag system -----------------------------------------------------------------
+/*
+  tag_atom      = 0x7ff8000000000000ul // nb: when nonzero
+  tag_gensym    = 0xfff8000000000000ul // nb: when nonzero
+
+  tag_fixnum    = 0x7ff9000000000000ul
+  tag_character = 0xfff9000000000000ul
+
+  tag_pair      = 0x7ffa000000000000ul
+  tag_cons      = 0xfffa000000000000ul
+  tag_Cbuiltin  = 0x7ffb000000000000ul
+  tag_closure   = 0xfffb000000000000ul
+  tag_vector    = 0x7ffc000000000000ul
+  tag_table     = 0xfffc000000000000ul
+  tag_string    = 0x7ffd000000000000ul
+  tag_bytes     = 0xfffd000000000000ul
+  tag_port      = 0x7ffe000000000000ul
+  tag_error     = 0xfffe000000000000ul
+  tag_Cptr      = 0x7fff000000000000ul
+  tag_Cnum      = 0xffff000000000000ul
+
+  val_nil       = 0x7ff8000000000001ul
+  val_true      = 0x7ff8000000000002ul
+  val_false     = 0x7ff8000000000003ul
+  val_none      = 0x7ff8000000000004ul
+  val_any       = 0x7ff8000000000005ul
+
+  struct {
+      size_t len;
+      vector_t *keys;
+      vector_t *nodes;
+      vector_t *cache;
+  } table_t;
+
+  struct {
+    Ctype_t ctype;
+    encoding_t encoding;
+    value_t len;
+    uchar   data[0];
+  } binary_t;
+
+ */ 
+#define tag_QNaN      0x7ff8000000000000ul
+#define tag_mQNaN     0xfff8000000000000ul
+
+// regular tags
+#define val_nil       0x7ff8000000000001ul
+#define val_true      0x7ff8000000000002ul
+#define val_false     0x7ff8000000000003ul
+
+#define tag_fixnum    0x7ff9000000000000ul
+#define tag_symbol    0x7ffa000000000000ul
+#define tag_cons      0x7ffb000000000000ul
+#define tag_vector    0x7ffc000000000000ul
+#define tag_string    0x7ffd000000000000ul
+#define tag_function  0x7ffe000000000000ul
+
+// special tags
+#define tag_forward   0x7fff000000000000ul // indicates a forwarding pointer
+
+// masks
+#define tag_mask      0x7fff000000000000ul
+#define ptr_mask      0x0000fffffffffffful
 
 // rascal typedefs ------------------------------------------------------------
 typedef uintptr_t value_t;
 
-typedef struct object_t   object_t;
-typedef struct sequence_t sequence_t;
+typedef enum {
+  type_number,
+  type_nil,
+  type_bool,
+  type_fixnum,
 
-typedef struct cons_t     cons_t;
-typedef struct closure_t  closure_t;
-typedef struct symbol_t   symbol_t;
-typedef struct port_t     port_t;
-typedef union  mapping_t  mapping_t;
-typedef struct tuple_t    tuple_t;
-typedef struct binary_t   binary_t;
+  type_symbol,
+  type_cons,
+  type_vector,
+  type_string,
+  type_function
+} type_t;
 
-typedef struct vector_t   vector_t;
+#define type_pad 16
 
-typedef struct string_t   string_t;
-typedef struct bytecode_t bytecode_t;
+typedef double   number_t;
+typedef bool     boolean_t;
+typedef void  ( *builtin_t )( int n );
+typedef char    *string_t;
+typedef value_t *vector_t;
 
+typedef struct {
+  value_t car;
+  value_t cdr;
+} cons_t;
 
-typedef struct node_t node_t;
-typedef struct root_t root_t;
+typedef struct {
+  value_t bind;
+  ulong hash, idno;
+  value_t len;
+  char name[0];
+} symbol_t;
 
-// immediate types
-typedef long integer_t;
-typedef enum builtin_t builtin_t;
-typedef enum type_t type_t;
+typedef struct symbols_t {
+  struct symbols_t *left, *right;
+  symbol_t base;
+} symbols_t;
 
-// function pointer types
-typedef value_t   (*Cbuiltin_t)( value_t *a, int n );
+typedef enum {
+  C_sint8,
+  C_uint8,
+  C_sint16,
+  C_uint16,
+  C_sint32,
+  C_uint32,
+  C_int64,
+  C_float64
+} Ctype_t;
 
-// tag system - the vector, table, and binary tags are extensible
-#define tag_cons      0x00
-#define tag_symbol    0x01
-#define tag_closure   0x02
-#define tag_port      0x03
-#define tag_mapping   0x04
-#define tag_tuple     0x05
-#define tag_binary    0x06
-#define tag_immediate 0x07
-
-#define tag_null      (0x00|tag_immediate)
-
-#define tag_none      (0x10|tag_immediate)
-#define tag_integer   (0x10|tag_immediate)
-#define tag_float     (0x20|tag_immediate)
-#define tag_boolean   (0x30|tag_immediate)
-#define tag_builtin   (0x40|tag_immediate)
-#define tag_character (0x50|tag_immediate)
-#define tag_type      (0xf0|tag_immediate)
-
-#define tag_table     (((type_table)<<8)|tag_type)
-
-#define tag_string    (((type_string)<<8)|tag_type)
-#define tag_bytecode  (((type_bytecode)<<8)|tag_type)
-
-enum type_t {
-  type_cons      = tag_cons,
-  type_symbol    = tag_symbol,
-  type_closure   = tag_closure,
-  type_port      = tag_port,
-
-  type_none      = tag_none,
-  type_null      = tag_null,
+typedef enum {
+  op_noop,
   
-  type_table     = 0x10 | tag_mapping,
+  op_push, op_pop,
+  
+  op_loadval, op_loadgl, op_loadloc,  op_loadupv,
+  
+  op_storegl, op_storeloc, op_storeupv,
 
-  type_vector    = 0x10 | tag_tuple,
+  op_jump, op_jumpt, op_jumpf,
 
-  type_string    = 0x10 | tag_binary,
-  type_bytecode  = 0x20 | tag_binary,
+  op_argc, op_vargc,
 
-  type_integer   = tag_integer,
-  type_character = tag_character,
-  type_boolean   = tag_boolean,
-  type_builtin   = tag_builtin,
-  type_type      = tag_type
-};
+  op_openupv, op_closeupv,
+  
+  op_call, op_return, op_closure, op_capture,
 
-struct closure_t {
-  value_t name;
-  value_t envt;
-  value_t values;
-  value_t code;
-};
+  op_done,
+  
+  num_instructions
+} opcode_t;
 
-struct cons_t {
-  value_t car, cdr;
-};
 
-struct object_t    object_type(void*);
-struct sequence_t  collection_type(void*);
+#define numval(x)     (((ieee64_t)(x)).fp)
+#define uptrval(x)    (((value_t)(x))&ptr_mask)
+#define idxval(x)     uptrval(x)
+#define ptrval(x)     ((void*)uptrval(x))
+#define fixval(x)     (((value_t)(x))&ptr_mask)
+#define longval(x)    ((long)uptrval(x))
 
-struct symbol_t {
-  struct object_type(char) base;
-  value_t bind;
-  hash_t  hash;
-};
-
-struct node_t {
-  struct object_type(char) base;
-  value_t bind;
-  hash_t   hash;
-  node_t *left, *right;
-};
-
-struct root_t     collection_type(node_t);
-struct tuple_t    collection_type(value_t);
-struct binary_t   collection_type(uchar);
-struct string_t   collection_type(char);
-struct bytecode_t collection_type(ushort);
-struct vector_t   collection_type(value_t);
-
-union mapping_t {
-  root_t root;
-  node_t node;
-};
-
-struct port_t {
-  struct collection_type(char) base; // for the buffer
-  int line, col, pos, token;
-  FILE     *ios;
-  char     name[1];
-};
-
-#define TYPE_PAD 256
-
-// type dispatch --------------------------------------------------------------
-extern char    *TypeNames[TYPE_PAD];
-extern size_t   TypeSizes[TYPE_PAD];
-extern size_t   TypeElSize[TYPE_PAD];
+#define gettag(x)     (((value_t)(x))&tag_mask)
+#define settag(x, t)  (uptrval(x)|(t))
+#define movtag(p, x)  settag(p, gettag(x))
 
 #endif

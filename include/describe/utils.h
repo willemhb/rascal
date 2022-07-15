@@ -1,84 +1,37 @@
 #ifndef rascal_describe_utils_h
 #define rascal_describe_utils_h
 
-#define object_type(eltype)				\
-  {							\
-    union {						\
-      eltype *data;					\
-      eltype  i_data[8/sizeof(eltype)];			\
-    };							\
-    value_t type  :  8;					\
-    value_t size  : 48; /* */				\
-    value_t flags :  8;					\
-  }
+#define asa( type, x ) ((type##_t*)asptr(x))
 
-#define collection_type(eltype)				\
-  {							\
-    union {						\
-      eltype *data;					\
-      eltype  i_data[8/sizeof(eltype)];			\
-    };							\
-    value_t type  :  8;					\
-    value_t size  : 48; /* */				\
-    value_t flags :  8;					\
-    long len, cap;					\
-  }
+#define get( type, x, field ) (asa(type, x)->field)
 
+#define mk_tag_p(t, n) inline bool n##p( value_t x ) { return tag( x ) == type_##t; }
+#define mk_val_p(v, n) inline bool n##p( value_t x ) { return x == v; }
 
-#define get( type, x, field ) (((type##_t*)asptr(x))->field)
-
-#define mk_tag_p(t) inline bool t##p( value_t x ) { return x && vtag(x) == tag_##t; }
-
-#define mk_type_p(t) inline bool t##p( value_t x ) { return val_typeof( x ) == type_##t; }
-
-#define mk_type_dispatch(rtype, fname, tableName)			\
-  inline rtype val_##fname( value_t x )					\
-  {									\
-    return tableName[val_typeof(x)];					\
-  }
-
-#define array_ref(type, eltype)			\
-  eltype type##_ref(value_t x, int n )		\
+#define mk_safe_cast(type, ctype, cnvt)		\
+  ctype to##type( char *fname, value_t x )	\
   {						\
-    type##_t *a = asptr( x );			\
-    if ( n < 0 )				\
-      n += a->len;				\
-    assert( n > 0 && n < a->len );		\
-    return a->data[n];				\
+    require( type##p( x ),			\
+	     fname,				\
+	     x,					\
+	     "expected a %s, got ",		\
+	     #type );				\
+    return (ctype)cnvt( x );			\
   }
 
-#define array_set(type, eltype)						\
-  value_t type##_set(value_t x, int n, eltype v )			\
-  {									\
-    type##_t *a = asptr( x );						\
-    if ( n < 0 )							\
-      n += a->len;							\
-    assert( n > 0 && n < a->len );					\
-    a->data[n] = v;							\
-    return x;								\
-  }
+#define for_cons(c, x)					\
+  for (;consp(*c) && ((x=car(*c))||1); *c = cdr(*c))
 
-#define array_resize(type, eltype, strp)				\
-  type##_t *type##_resize( type##_t* a, int n )				\
-  {									\
-    static const int _e = sizeof(eltype);				\
-    int o = a->cap;							\
-    int p = arr_resize( n + strp );					\
-    a = (type##_t*)reallocate( (object_t*)a, p*_e, o*_e );		\
-    a->len = n;								\
-    a->cap = p;								\
-    return a;								\
-  }
+#define for_vec(v, i, x)				\
+  for (i=0;i<alen(*v) && ((x=vdata(*v)[(i)])||1); i++)
 
-#define array_put(type, eltype, strp)				\
-  value_t type##_put( value_t x, eltype v )			\
-  {								\
-    type##_t* a = asptr( x );					\
-    a->data[a->len++] = v;					\
-    if ( a->len + strp == a->cap )				\
-      a = type##_resize(  a, a->len+strp+1 );			\
-    return x;							\
-  }
+#define for_bytes(b, i, x)				\
+  for (i=0; i<alen(*b) && ((x=bdata(*b)[(i)])||1); i++)
+
+#define noop_constructor( type )		\
+  r_argc( #type, 1, argx );			\
+  r_argt( #type, Stack[Sp-1], type_##type );	\
+  goto do_fetch
 
 #endif
 

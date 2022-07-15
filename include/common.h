@@ -22,10 +22,9 @@ typedef unsigned long ulong;
 
 // utility typedefs
 typedef uint flags_t;
+typedef uint arity_t;
 
-typedef ulong arity_t;
 typedef ulong hash_t;
-typedef ulong idno_t;
 typedef ulong index_t;
 
 #endif
