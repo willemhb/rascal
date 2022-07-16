@@ -16,50 +16,15 @@ extern ulong Symcnt;
 extern symbols_t *Symbols;
 
 // stacks and stack state
-
-/*
-  stack layout:
-
-  +-------+-------+-------+-------+-------+-------+-------+
-  |  fun  | arg-n |  env  | savfp | argco | progc | loc-n |
-  +-------+-------+-------+-------+-------+-------+-------+
-                  ^                                       ^
-                  |                                       |
-	         Fp                                      Sp
-
-  argco - offset to function object
-  savfp - frame pointer to restore on exit
-  progc - program counter
-
-*/   
-
 extern value_t Stack[N_STACK];
-extern int Sp, Fp, Bp, Pc;
-extern short *Instr;
-extern value_t *Upval, *Value;
-extern value_t UpvList;
-
-#define Tos      (Stack[Sp-1])
-#define Stk1st   (Stack[Sp-1])
-#define Stk2nd   (Stack[Sp-2])
-#define Stk3rd   (Stack[Sp-3])
-
-#define Peek(n) (Stack[Sp-(n)])
-
-
-#define Func    (Stack[Bp])
-#define Env     (Stack[Fp])
-#define SavFp   (Stack[Fp+1])
-#define Argc    (Stack[Fp+2])
-#define Progc   (Stack[Fp+3])
-
+extern int Sp, Fp, Pc;
 
 #define Unbound ((value_t)tag_symbol)
 
 // heaps and heap state
 extern uchar *Heap, *Reserve;
 
-extern size_t  HSize, HUsed, RSize, RUsed;
+extern size_t  HSize, HUsed, RUsed;
 
 extern bool  Collecting, Grow, Grew;
 

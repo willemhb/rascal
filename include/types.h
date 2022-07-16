@@ -9,55 +9,52 @@
 // rascal typedefs ------------------------------------------------------------
 typedef uintptr_t value_t;
 
-#define tag_fixnum    0x00 // *00
-#define tag_immediate 0x01 // *01
+#define tag_immediate 0x00 // 000
+#define tag_fixnum    0x01 // 001
 #define tag_cons      0x02 // 010
 #define tag_symbol    0x03 // 011
-#define tag_function  0x06 // 110
-#define tag_object    0x07 // 111
+#define tag_function  0x04 // 100
+#define tag_vector    0x05 // 101
+#define tag_string    0x06 // 110
+#define tag_port      0x07 // 111
 
 #define tag_character (0x0a000000|tag_immediate)
 
 // these live above the valid unicode range
-#define val_true      (0x02000000|tag_immediate)
-#define val_false     (0x03000000|tag_immediate)
-#define val_nil       (0x08000000|tag_immediate)
+#define val_true      (0x08000000|tag_immediate)
+#define val_false     (0x08800000|tag_immediate)
+#define val_nil       (0x09000000|tag_immediate)
 
-typedef enum {
-  type_fixnum,
-  type_cons,
-  type_symbol,
-  type_nil,
-  type_builtin,
-  type_vector
+typedef enum
+  {
+   type_fixnum=tag_fixnum,
+   type_cons,
+   type_symbol,
+   type_function,
+   type_vector,
+   type_string,
+   type_port,
+   type_bool,
+   type_nil,
+   type_character
 } type_t;
 
 typedef struct {
-  type_t type;
-
-  ushort offset;        // additional words allocated for the header (before object)
-  uchar  flags;         // discretionary
-  uchar  encoding :  3;
-  uchar  boxed    :  1;
-  uchar  Ctype    :  3;
-  uchar  inlined  :  1;
-  uchar space[0];
-} object_t;
-
-typedef struct {
-  size_t length, size; // size gives the true size (in allocation units). length is abstract
-  object_t base;
-} big_object_t;
-
-typedef struct {
-  big_object_t base;
-  value_t data[0];
+  value_t  flags;
+  value_t *data;
+  size_t length, size;
 } vector_t;
 
 typedef struct {
-  ulong idno, hash;
-  value_t bind, flags;
-  char name[1];
+  value_t flags;
+  char *data;
+  size_t length, size;
+} string_t;
+
+typedef struct {
+  value_t bind;
+  char *name;
+  ulong hash, idno;
 } symbol_t;
 
 #define type_pad 16
@@ -80,16 +77,16 @@ typedef enum {
   op_noop, op_done,
 
   /* 1-argument opcodes */
-  op_loadc
+  op_loadc, op_loadg, 
 } opcode_t;
 
 
-#define uval(x)       ((x)>>2)
+#define uval(x)       ((x)>>3)
 #define ival(x)       ((long)uval(x))
 #define pval(x)       ((void*)(((value_t)(x))&~7ul))
 
-#define gettag(x)     (((value_t)(x))&7)
-#define settag(x, t)  ((((value_t)(x))&~7ul)|(t))
-#define cpytag(p, x)  settag(p, gettag(x))
+#define tag(x)        ((x)&7)
+#define tagp(p, t)    ((((value_t)(p))&~7ul)|(t))
+#define tagl(l, t)    ((((value_t)(l))<<3)|(t))
 
 #endif
