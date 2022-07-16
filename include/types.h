@@ -25,16 +25,11 @@ typedef uintptr_t value_t;
 
 typedef enum {
   type_fixnum,
-  type_bool,
   type_cons,
   type_symbol,
   type_nil,
-  type_character,
   type_builtin,
-  type_closure,
-  type_vector,
-  type_string,
-  type_bytecode
+  type_vector
 } type_t;
 
 typedef struct {
@@ -60,20 +55,6 @@ typedef struct {
 } vector_t;
 
 typedef struct {
-  value_t form, code, envt, vals;
-} closure_t;
-
-typedef struct {
-  big_object_t base;
-  char data[0];
-} string_t;
-
-typedef struct {
-  big_object_t base;
-  short data[0];
-} bytecode_t;
-
-typedef struct {
   ulong idno, hash;
   value_t bind, flags;
   char name[1];
@@ -81,9 +62,7 @@ typedef struct {
 
 #define type_pad 16
 
-typedef bool boolean_t;
 typedef long fixnum_t;
-typedef char character_t;
 typedef void (*builtin_t)( size_t n );
 
 typedef struct {
@@ -96,36 +75,12 @@ typedef struct symbols_t {
   symbol_t base;
 } symbols_t;
 
-/* */
-
 typedef enum {
   /* 0-argument codes */
   op_noop, op_done,
-  
-  op_pop, op_dup, op_rot,
 
-  op_loadn, op_loadt, op_loadf,
-
-  /* 1-argument codes */
-  op_push,
-
-  op_loadval, op_loadgl, op_loadloc,  op_loadupv,
-
-  op_storegl, op_storeloc, op_storeupv,
-
-  op_jump, op_jumpt, op_jumpf,
-
-  op_goto, op_gotot, op_gotof,
-
-  op_argc, op_vargc,
-
-  op_uopen, op_uclose,
-
-  op_call, op_tcall,
-
-  op_return, op_closure,
-
-  num_instructions
+  /* 1-argument opcodes */
+  op_loadc
 } opcode_t;
 
 
