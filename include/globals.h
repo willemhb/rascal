@@ -39,13 +39,20 @@ extern short *Instr;
 extern value_t *Upval, *Value;
 extern value_t UpvList;
 
-#define Tos     (Stack[Sp-1])
+#define Tos      (Stack[Sp-1])
+#define Stk1st   (Stack[Sp-1])
+#define Stk2nd   (Stack[Sp-2])
+#define Stk3rd   (Stack[Sp-3])
+
 #define Peek(n) (Stack[Sp-(n)])
+
+
 #define Func    (Stack[Bp])
 #define Env     (Stack[Fp])
 #define SavFp   (Stack[Fp+1])
 #define Argc    (Stack[Fp+2])
 #define Progc   (Stack[Fp+3])
+
 
 #define Unbound ((value_t)tag_symbol)
 

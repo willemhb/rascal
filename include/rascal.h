@@ -7,6 +7,4 @@
 #include "types.h"
 #include "globals.h"
 
-// utility macros -------------------------------------------------------------
-
 #endif

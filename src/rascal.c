@@ -45,18 +45,6 @@ float Collectf   = 1.0,
 
 // virtual machine ------------------------------------------------------------
 // inline value_t mk_char( int c ) { return tagi( c, type_character ); }
-
-int r_opargc( int op ) {
-  if ( op < op_loadval )
-    return 0;
-
-  else if ( op < op_done )
-    return 1;
-
-  else
-    return 0;
-}
-
 value_t r_exec( int n ) {
   static void *labels[num_instructions] = {
     // misc

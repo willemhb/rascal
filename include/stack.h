@@ -7,6 +7,11 @@
 index_t push(value_t x);
 index_t pushn(int n, ...);
 
+void dup( void );
+
+value_t swop(void);         // combined swap/pop
+value_t swopn( size_t n );  // combined rotaten/popn
+
 value_t pop(void);
 value_t popn(int n);
 

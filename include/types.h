@@ -6,80 +6,95 @@
 #include "common.h"
 #include "describe/utils.h"
 
-// tag system -----------------------------------------------------------------
-#define tag_QNaN      0x7ff8000000000000ul
-#define tag_mQNaN     0xfff8000000000000ul
-
-// regular tags
-#define val_nil       0x7ff8000000000001ul
-#define val_true      0x7ff8000000000002ul
-#define val_false     0x7ff8000000000003ul
-
-#define tag_fixnum    0x7ff9000000000000ul
-#define tag_symbol    0x7ffa000000000000ul
-#define tag_cons      0x7ffb000000000000ul
-#define tag_function  0x7ffc000000000000ul
-#define tag_vector    0x7ffd000000000000ul
-#define tag_string    0x7ffe000000000000ul
-
-// special tags
-#define tag_forward   0x7fff000000000000ul // indicates a forwarding pointer
-
-// masks
-#define tag_mask      0x7fff000000000000ul
-#define ptr_mask      0x0000fffffffffffful
-
 // rascal typedefs ------------------------------------------------------------
 typedef uintptr_t value_t;
 
-typedef enum {
-  type_number,
-  type_nil,
-  type_bool,
-  type_fixnum,
+#define tag_fixnum    0x00 // *00
+#define tag_immediate 0x01 // *01
+#define tag_cons      0x02 // 010
+#define tag_symbol    0x03 // 011
+#define tag_function  0x06 // 110
+#define tag_object    0x07 // 111
 
-  type_symbol,
+#define tag_character (0x0a000000|tag_immediate)
+
+// these live above the valid unicode range
+#define val_true      (0x02000000|tag_immediate)
+#define val_false     (0x03000000|tag_immediate)
+#define val_nil       (0x08000000|tag_immediate)
+
+typedef enum {
+  type_fixnum,
+  type_bool,
   type_cons,
+  type_symbol,
+  type_nil,
+  type_character,
+  type_builtin,
+  type_closure,
   type_vector,
   type_string,
-  type_function
+  type_bytecode
 } type_t;
+
+typedef struct {
+  type_t type;
+
+  ushort offset;        // additional words allocated for the header (before object)
+  uchar  flags;         // discretionary
+  uchar  encoding :  3;
+  uchar  boxed    :  1;
+  uchar  Ctype    :  3;
+  uchar  inlined  :  1;
+  uchar space[0];
+} object_t;
+
+typedef struct {
+  size_t length, size; // size gives the true size (in allocation units). length is abstract
+  object_t base;
+} big_object_t;
+
+typedef struct {
+  big_object_t base;
+  value_t data[0];
+} vector_t;
+
+typedef struct {
+  value_t form, code, envt, vals;
+} closure_t;
+
+typedef struct {
+  big_object_t base;
+  char data[0];
+} string_t;
+
+typedef struct {
+  big_object_t base;
+  short data[0];
+} bytecode_t;
+
+typedef struct {
+  ulong idno, hash;
+  value_t bind, flags;
+  char name[1];
+} symbol_t;
 
 #define type_pad 16
 
-typedef double   number_t;
-typedef bool     boolean_t;
-typedef void  ( *builtin_t )( value_t args, value_t envt );
-typedef char    *string_t;
-typedef value_t *vector_t;
+typedef bool boolean_t;
+typedef long fixnum_t;
+typedef char character_t;
+typedef void (*builtin_t)( size_t n );
 
 typedef struct {
   value_t car;
   value_t cdr;
 } cons_t;
 
-typedef struct {
-  value_t bind;
-  ulong hash, idno;
-  value_t len;
-  char name[0];
-} symbol_t;
-
 typedef struct symbols_t {
   struct symbols_t *left, *right;
   symbol_t base;
 } symbols_t;
-
-typedef enum {
-  C_sint8,
-  C_uint8,
-  C_sint16,
-  C_uint16,
-  C_sint32,
-  C_uint32,
-  C_int64,
-  C_float64
-} Ctype_t;
 
 /* */
 
@@ -108,21 +123,18 @@ typedef enum {
 
   op_call, op_tcall,
 
-  op_return, op_closure, op_capture,
+  op_return, op_closure,
 
   num_instructions
 } opcode_t;
 
 
-#define numval(x)     (((ieee64_t)(x)).fp)
-#define uptrval(x)    (((value_t)(x))&ptr_mask)
-#define idxval(x)     uptrval(x)
-#define ptrval(x)     ((void*)uptrval(x))
-#define fixval(x)     (((value_t)(x))&ptr_mask)
-#define longval(x)    ((long)uptrval(x))
+#define uval(x)       ((x)>>2)
+#define ival(x)       ((long)uval(x))
+#define pval(x)       ((void*)(((value_t)(x))&~7ul))
 
-#define gettag(x)     (((value_t)(x))&tag_mask)
-#define settag(x, t)  (uptrval(x)|(t))
-#define movtag(p, x)  settag(p, gettag(x))
+#define gettag(x)     (((value_t)(x))&7)
+#define settag(x, t)  ((((value_t)(x))&~7ul)|(t))
+#define cpytag(p, x)  settag(p, gettag(x))
 
 #endif
