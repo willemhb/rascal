@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stddef.h>
 
 #define BIT64 0x8000000000000000ul
 #define BIT32 0x80000000u
@@ -27,6 +28,27 @@
     typeof(k) __k = k;				\
     (__x<<__k) | (__x >> 32-__k);		\
   })
+
+typedef enum {
+  C_sint8,
+  C_uint8,
+  C_sint16,
+  C_uint16,
+  C_sint32,
+  C_uint32,
+  C_sint64,
+  C_float64
+} Ctype_t;
+
+// exports --------------------------------------------------------------------
+size_t Ctype_size(Ctype_t xct);
+
+bool   Ctype_sintp(Ctype_t xct);
+bool   Ctype_uintp(Ctype_t xct);
+bool   Ctype_floatp(Ctype_t xct);
+bool   Ctype_floatp(Ctype_t xct);
+
+Ctype_t Ctype_common( Ctype_t xct, Ctype_t yct );
 
 typedef union {
   bool as_bool;
@@ -73,30 +95,5 @@ int  ord_int( int xi, int yi );
 int  ord_uint( uint32_t ux, uint32_t uy );
 int  ord_long( long xi, long yi );
 int  ord_ulong( uintptr_t ux, uintptr_t uy );
-
-/*
-int      fp32sign( float xf );
-uint32_t fp32expt( float xf );
-uint32_t fp32frac( float xf );
-
-int fp64sign( double xd );
-uint32_t fp64expt( double xd );
-uint32_t fp64frac( double xd );
-
-#define fpsign( x )				\
-  _Generic((x),					\
-	   float:fp32sign,			\
-	   double:fp64sign)(x)
-
-#define fpexpt( x )				\
-  _Generic((x),					\
-	   float:fp32expt,			\
-	   double:fp64expt)(x)
-
-#define fpfrac( x )				\
-  _Generic((x),					\
-	   float:fp32frac,			\
-	   double:fp64frac)(x)
-*/
 
 #endif

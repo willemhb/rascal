@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#define mixhash(a, b) int64hash((int64_t)(a) ^ (int64_t)(b))
+
 uint32_t int32hash(uint32_t key);
 uint32_t floathash(float key);
 uint64_t int64hash(uint64_t key);

@@ -17,12 +17,12 @@ extern symbols_t *Symbols;
 
 // stacks and stack state
 extern value_t Stack[N_STACK];
-extern int Sp, Fp, Pc;
+extern index_t Sp, Fp, Pc;
 
 #define Unbound ((value_t)tag_symbol)
 
 // heaps and heap state
-extern uchar *Heap, *Reserve;
+extern uchar *Heap, *Reserve, *Map;
 
 extern size_t  HSize, HUsed, RUsed;
 

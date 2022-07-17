@@ -3,30 +3,99 @@
 
 
 #define get( type, x, field ) (as##type(x)->field)
-
 #define get_s( fname, type, x, field ) (to##type( fname, x )->field)
 
-
-#define mk_tag_p(t) bool t##p( value_t x ) { return gettag( x ) == tag_##t; }
+#define mk_tag_p(t) bool t##p( value_t x ) { return tag( x ) == tag_##t; }
 #define mk_val_p(v) bool v##p( value_t x ) { return x == val_##v; }
 #define mk_type_p(t) bool t##p( value_t x ) { return r_type( x ) == type_##t; }
 
-#define r_builtin(name) __attribute__((aligned(8))) r_##name( int n )
-
+#define r_builtin(name) __attribute__((aligned(8))) r_##name(size_t n)  
 
 #define array_type(eltype)				\
   object_t base;					\
   eltype data[0]
 
-#define mk_safe_cast(type, ctype, cnvt)		\
-  ctype to##type( char *fname, value_t x )	\
-  {						\
-    require( fname,				\
-	     type##p( x ),			\
-	     "# wanted a %s()",			\
-	     #type );				\
-    return (ctype)cnvt( x );			\
+#define mk_safe_cast(type, ctype, cnvt)			\
+  ctype to##type( const char *fname, value_t x )	\
+  {							\
+    require( fname,					\
+	     type##p( x ),				\
+	     "# wanted a %s()",				\
+	     #type );					\
+    return (ctype)cnvt( x );				\
   }
+
+#define array_constructor(type, eltype, is_s)				\
+  type##_t *mk_##type( size_t n )					\
+  {									\
+    static const size_t base   = sizeof(type##_t);			\
+    static const size_t elsize = sizeof(eltype);			\
+    size_t pad     = calc_array_size( n );				\
+    size_t n_bytes = (n + is_s) * elsize;				\
+    type##_t *ob   = allocate( base );					\
+    ob->length     = n;							\
+    ob->size       = pad;						\
+    ob->flags      = tag_##type;					\
+    value_t saved  = tagp( ob, tag_array );				\
+									\
+    push_s( #type, saved );						\
+    									\
+    eltype *data   = allocate( n_bytes );				\
+    saved = pop();							\
+    ob = pval( saved );							\
+    ob->data = data;							\
+    return ob;								\
+  }
+
+
+#define mk_array_realloc(type, eltype, is_s)			\
+  static value_t reallocate_##type( value_t x, size_t n )	\
+  {								\
+    push( x );							\
+    								\
+    size_t n_copy  = min( n, alen( x ) );			\
+    size_t b_copy  = n_copy * sizeof(eltype);			\
+    size_t n_alloc = calc_array_size(n);			\
+    size_t b_alloc = (is_s + n_alloc) * sizeof(eltype);		\
+    eltype *newspc = allocate( b_alloc );			\
+    								\
+    x = pop();							\
+    								\
+    eltype *oldspc = adata( x );				\
+    memcpy( newspc, oldspc,  b_copy );				\
+    adata( x ) = newspc;					\
+    alen( x ) = n;						\
+    asize( x ) = n_alloc;					\
+    return x;							\
+  }
+
+#define mk_static_forward(type)						\
+  static value_t forward_##type( value_t x )				\
+  {									\
+    static const size_t type_size = sizeof(type##_t);			\
+    void *spc = allocate( type_size );					\
+    value_t out = tagp( spc, tag( x ) );				\
+    memcpy( spc, pval( x ), type_size );				\
+    car( x ) = val_fptr;						\
+    cdr( x ) = out;							\
+    return out;								\
+  }
+
+#define mk_array_forward(type, eltype, is_s)				\
+  static value_t forward_##type( value_t x )				\
+  {									\
+    static const size_t type_size = sizeof(type##_t);			\
+    void *obspc = allocate( type_size );				\
+    value_t out = tagp( obspc, tag_array );				\
+    memcpy( obspc, pval( x ), type_size );				\
+    void *dataspc = allocate( (asize( x ) + is_s) * sizeof(eltype));	\
+    memcpy( dataspc, adata( x ), alen( x ) * sizeof(eltype) );		\
+    adata( out ) = dataspc;						\
+    car( x ) = val_fptr;						\
+    cdr( x ) = out;							\
+    return out;								\
+  }
+  
 
 #define for_cons(c, x)					\
   for (;consp(*c) && ((x=car(*c))||1); *c = cdr(*c))
