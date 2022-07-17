@@ -1,0 +1,9 @@
+(def *syntax* {})
+
+
+(mac raise! [agitant message]
+  `(cause! :error ~agitant ~message))
+
+(mac try [& body]
+  `(handle [eff# resume# abort#]
+  	   [:error
