@@ -50,7 +50,15 @@ static const value_t val_nil     = (type_nil<<24)|tag_immediate;
 static const value_t val_true    = (type_boolean<<24)|(1<<3)|tag_immediate;
 static const value_t val_false   = (type_boolean<<24)|tag_immediate;
 static const value_t val_evec    = (type_vector<<24)|tag_immediate;
-static const value_t val_ebin    = (type_binary<<24)|tag_immediate;
+
+static const value_t val_ebin_s8  = (type_binary<<24)|(C_sint8<<3)|tag_immediate;
+static const value_t val_ebin_u8  = (type_binary<<24)|(C_uint8<<3)|tag_immediate;
+static const value_t val_ebin_s16  = (type_binary<<24)|(C_sint16<<3)|tag_immediate;
+static const value_t val_ebin_u16  = (type_binary<<24)|(C_uint16<<3)|tag_immediate;
+static const value_t val_ebin_s32  = (type_binary<<24)|(C_sint32<<3)|tag_immediate;
+static const value_t val_ebin_u32  = (type_binary<<24)|(C_uint32<<3)|tag_immediate;
+static const value_t val_ebin_s64  = (type_binary<<24)|(C_sint64<<3)|tag_immediate;
+static const value_t val_ebin_f64  = (type_binary<<24)|(C_float64<<3)|tag_immediate;
 
 static const value_t val_unbound = (type_symbol<<24)|tag_immediate;
 static const value_t val_forward = (type_builtin<<24)|tag_immediate;

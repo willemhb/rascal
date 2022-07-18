@@ -29,4 +29,6 @@ value_t r_read( FILE *ios );
 value_t r_load( char *fname );
 value_t r_comp_file(char *fname );
 
+void init_io( void );
+
 #endif

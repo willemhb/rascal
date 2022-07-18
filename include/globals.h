@@ -19,6 +19,9 @@ extern symbols_t *Symbols;
 extern value_t Stack[N_STACK];
 extern index_t Sp, Fp, Pc, Bp;
 
+#define Tos     Stack[Sp-1]
+#define Sref(n) Stack[Sp-(n)]
+
 // heaps and heap state
 extern uchar *Heap, *Reserve, *Map;
 

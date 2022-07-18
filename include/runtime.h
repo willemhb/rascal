@@ -37,11 +37,14 @@ value_t popn( size_t n );
 value_t pop_s( const char *fname );
 value_t popn_s( const char *fname, size_t n );
 
-// error handlign -------------------------------------------------------------
+// error handling -------------------------------------------------------------
 void    error(const char *fname, const char *fmt, ...);
 void    require(const char *fname, bool test, const char *fmt, ...);
 size_t  argc( const char *fname, size_t got, size_t expect );
 size_t  vargc( const char *fname, size_t got, size_t expect );
+size_t  oargc( const char *fname, size_t got, size_t n, ...);
+value_t argt( const char *fname, value_t got, type_t expect );
+type_t  oargt( const char *fname, value_t got, size_t n, ...);
 size_t  s_argc( const char *fname, value_t form, size_t expect );
 size_t  s_vargc( const char *fname, value_t form, size_t expect );
 

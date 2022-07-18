@@ -484,6 +484,11 @@ static bool Cbool( value_t x) {
 }
 
 value_t execute( value_t code ) {
+  push_s( "exec", code );
+  return apply( 0 );
+}
+
+value_t apply( size_t nargs ) {
   static void *labels[num_opcodes] = {
     /* 0-argument instructions */
     [op_return] = &&do_return,
@@ -512,15 +517,14 @@ value_t execute( value_t code ) {
 
   
   opcode_t op;
-  short argx = 0, argy = 0;
+  short argx = nargs, // allows 
+    argy = 0;
   value_t x, y, z, f;
-
-  push_s( "exec", code );
 
  do_call:
   f = Stack[Sp-argx-1];
 
-  require( "exec",
+  require( "apply",
 	   is_function(f),
 	   "# wanted a function()" );
 
@@ -733,4 +737,253 @@ value_t execute( value_t code ) {
     return x;
 
   goto do_fetch;
+}
+
+// builtins -------------------------------------------------------------------
+void r_builtin(cons) {
+  argc( "cons", n, 2 );
+  cons_s( &Stack[Sp-2], &Stack[Sp-1] );
+}
+
+r_predicate(cons)
+r_predicate(list)
+r_predicate(nil)
+r_getter(car, cons)
+r_getter(cdr, cons)
+r_setter(car, xar, cons)
+r_setter(cdr, xdr, cons)
+
+r_predicate(vector)
+r_predicate(binary)
+
+void r_builtin(vector) {
+  vector_s( n, &Sref(n) );
+}
+
+void r_builtin(binary) {
+  vargc( "binary", 1, n );
+
+  value_t ctsym = Sref(n);
+  Ctype_t ct = ival( assymbol(ctsym)->bind );
+
+  uchar buf[(n-1)*Ctype_size(ct)];
+  size_t bufi = 0;
+
+  for (size_t i=1; i<n; i++)
+    bufi += fixnum_init("binary", Sref(n-i), ct, &buf[bufi] );
+
+  binary_s( n-1, ct, buf );
+  Stack[Sp-2] = Stack[Sp-1]; Sp--;
+}
+
+void r_builtin(len) {
+  argc( "len", n, 1 );
+  type_t t = oargt( "len", Stack[Sp-1], 4, type_nil, type_cons, type_vector, type_binary );
+  size_t l = 0;
+
+  if ( t == type_nil )
+    l  = 0;
+  
+  else if ( t == type_cons )
+    l = cons_length( Sref(1) );
+  
+  else
+    l = alength(Stack[Sp-1]);
+
+  push( fixnum( l ) );
+}
+
+void r_builtin(nth) {
+  argc( "nth", n, 2 );
+  long i = ival( argt( "nth", pop(), type_fixnum ) );
+  type_t t = oargt( "nth", Stack[Sp-1], 3, type_cons, type_vector, type_binary );
+  value_t v;
+
+  if (t == type_cons)
+    v = cons_nth_s( "nth", Sref(1), i );
+
+  else if (t == type_vector)
+    v = vector_get_s( "nth", &Sref(1), i );
+  
+  else
+    v = binary_get_s( "nth", &Sref(1), i );
+
+  push( v );
+}
+
+void r_builtin(xth) {
+  argc( "xth", n, 3 );
+  value_t x = pop();
+  long i = ival( argt( "xth", pop(), type_fixnum ) );
+  type_t t = oargt( "xth", Stack[Sp-1], 3, type_cons, type_vector, type_binary );
+
+  if ( t == type_cons )
+    x = cons_xth_s( "xth", Sref(1), i, x );
+
+  else if ( t == type_vector )
+    x = vector_set_s( "xth", &Sref(1), i, x );
+
+  else
+    x = binary_set_s( "xth", &Sref(1), i, x );
+  
+  Stack[Sp-1] = x;
+}
+
+void r_builtin(put) {
+  argc( "put", n, 2 );
+
+  value_t x = pop();
+  type_t t = oargt( "put", Stack[Sp-1], 2, type_vector, type_binary );
+
+  if (t == type_vector)
+    vector_put_s( "put", &Sref(1), x );
+    
+  else
+    binary_put_s("put", &Sref(1), x );
+}
+
+r_predicate(symbol)
+r_predicate(gensym)
+r_predicate(keyword)
+r_predicate(bound)
+
+void r_builtin(symbol) {
+  argc( "symbol", n, 0 );
+  gensym_s(NULL);
+}
+
+void r_builtin(comp) {
+  argc( "comp", n, 1 );
+  value_t res = compile( Stack[Sp-1] );
+  Stack[Sp-1] = res;
+}
+
+void r_builtin(exec) {
+  argc( "exec", n, 1 );
+  argt( "exec", Stack[Sp-1], type_closure );
+  value_t res = execute( pop() );
+  push( res );
+}
+
+void r_builtin(apply) {
+  vargc( "apply", n, 2 );
+  require( "apply",
+	   is_function(Sref(2)),
+	   "# wanted a function()" );
+
+  size_t n_apply = n-1;
+  n = 0;
+  value_t buf[n_apply];
+
+  memcpy( buf, &Sref(n_apply), (n_apply) * sizeof(value_t) );
+  popn(n_apply);
+
+  for (size_t i=0; i<n-1; i++) {
+    if (is_list(buf[i]))
+      unpack_cons(&buf[i], n);
+
+    else if (is_vector(buf[i]))
+      unpack_vector(buf[i], n);
+
+    else if (is_binary(buf[i]))
+      unpack_binary(buf[i], n);
+
+    else
+      unpack_atom(buf[i], n);
+  }
+
+  value_t x = apply( n );
+  push( x );
+}
+
+void r_builtin(is_id) {
+  argc( "id?", n, 2 );
+
+  Stack[Sp-2] = boolean( Stack[Sp-2] == Stack[Sp-1] );
+  Sp--;
+}
+
+void r_builtin(is_eql) {
+  argc( "=?", n, 2 );
+
+  Stack[Sp-2] = boolean( r_order(Stack[Sp-2], Stack[Sp-1]) == 0 );
+  Sp--;
+}
+
+void r_builtin(ord) {
+  argc( "ord", n, 2);
+
+  int o = r_order(Stack[Sp-2], Stack[Sp-1]);
+  Stack[(Sp--)-2] = fixnum(o);
+}
+
+void r_builtin(not) {
+  argc( "not", n, 1 );
+  Sref(1) = Cbool( Sref(1) ) ? val_false : val_true;
+}
+
+static value_t u_noop( fixnum_t x ) { return fixnum(x); }
+static value_t u_sub( fixnum_t x ) { return fixnum(-x); }
+static value_t u_div( fixnum_t x ) { return fixnum(1/x); }
+
+r_arithmetic(add, "+", +, false, 1, u_noop, -1)
+r_arithmetic(sub, "-", -, false, 1, u_sub, -1)
+r_arithmetic(mul, "*", *, false, 2, u_noop, 0)
+r_arithmetic(div, "/", /, true, 1, u_div, 0)
+r_arithmetic(mod, "mod", %, true, 2, u_noop, 0)
+
+r_arithmetic_p(is_eqn, "=", == )
+r_arithmetic_p(is_ltn, "<", < )
+
+// initialization -------------------------------------------------------------
+void init_vm( void ) {
+
+  // special forms ------------------------------------------------------------
+  r_quote  = symbol("quote");
+  r_lambda = symbol("lmb");
+  r_define = symbol("def");
+  r_assign = symbol(":=");
+  r_do     = symbol("do");
+  r_if     = symbol("if");
+
+  // builtin functions --------------------------------------------------------
+  mk_builtin_p(cons);
+  mk_builtin_p(list);
+  mk_builtin_p(nil);
+
+  mk_builtin(cons);
+  mk_builtin(car);
+  mk_builtin(cdr);
+  mk_builtin(xar);
+  mk_builtin(xdr);
+
+  mk_builtin_p(vector);
+  mk_builtin(vector);
+  mk_builtin_p(binary);
+  mk_builtin(binary);
+  mk_builtin(len);
+  mk_builtin(nth);
+  mk_builtin(xth);
+  mk_builtin(put);
+
+  mk_builtin_p(symbol);
+  mk_builtin(symbol);
+  mk_builtin_p(gensym);
+  mk_builtin_p(keyword);
+
+  builtin( "id?", builtin_is_id );
+  builtin( "=?", builtin_is_eql );
+  mk_builtin(ord);
+
+  mk_builtin(add);
+  mk_builtin(sub);
+  mk_builtin(mul);
+  mk_builtin(div);
+  mk_builtin(mod);
+  builtin("=", builtin_is_eqn);
+  builtin("<", builtin_is_ltn);
+
+  mk_builtin(apply);
+  mk_builtin(comp);
+  mk_builtin(exec);
 }

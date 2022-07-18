@@ -18,21 +18,42 @@ value_t closure( value_t envt, value_t vals, value_t code );
 index_t closure_s( value_t *envt, value_t *vals, value_t *code );
 
 value_t cons( value_t car, value_t cdr );
+value_t list1( value_t x);
+value_t list2( value_t x, value_t y );
 index_t list_s( size_t n, value_t *args );
 index_t consn_s( size_t n, value_t *args );
 index_t cons_s( value_t *car, value_t *cdr );
-
+value_t cons_nth( value_t ca, size_t n );
+value_t cons_xth( value_t c, size_t n, value_t x );
+value_t cons_nth_s( const char *fname, value_t c, long n );
+value_t cons_xth_s( const char *fname, value_t c, long n, value_t x );
 size_t  cons_length( value_t x );
 
 value_t vector( size_t n, value_t *args );
 index_t vector_s( size_t n, value_t *args );
 value_t resize_vector( value_t vec, size_t n );
+value_t vector_get( value_t vec, size_t n );
+value_t vector_set( value_t vec, size_t n, value_t x );
+value_t vector_put( value_t vec, value_t x );
+value_t vector_get_s( const char *fname, value_t *vec, long n );
+value_t vector_set_s( const char *fname, value_t *vec, long n, value_t x);
+value_t vector_put_s( const char *fname, value_t *vec, value_t x);
 
-value_t binary( size_t n, Ctype_t ctype, void *args );
-index_t binary_s( size_t n, Ctype_t ctype, void *args );
-value_t resize_binary( value_t v, size_t n );
+value_t  binary( size_t n, Ctype_t ctype, void *args );
+index_t  binary_s( size_t n, Ctype_t ctype, void *args );
+value_t  resize_binary( value_t v, size_t n );
+Ctype_t  get_Ctype( value_t x );
+fixnum_t binary_get( value_t bin, size_t n );
+fixnum_t binary_set( value_t bin, size_t n, fixnum_t x );
+value_t  binary_put( value_t bin, value_t x );
+value_t  binary_get_s( const char *fname, value_t *bin, long n );
+value_t  binary_set_s( const char *fname, value_t *bin, long n, value_t f );
+value_t  binary_put_s( const char *fname, value_t *bin, value_t f);
 
 value_t fixnum( fixnum_t x );
+void    fixnum_init( const char *fname, value_t f, Ctype_t c, void *buf );
+bool    fixnum_fits( fixnum_t x, Ctype_t ctype );
+
 value_t boolean( int x );
 
 // predicates -----------------------------------------------------------------
@@ -51,6 +72,8 @@ bool is_closure( value_t x );
 
 bool is_vector( value_t x );
 bool is_binary( value_t x );
+
+bool is_empty( value_t x );
 
 bool is_fixnum( value_t x );
 bool is_boolean( value_t x );
@@ -88,6 +111,15 @@ hash_t r_hash( value_t x, value_t y );
 #define asize(x)   (((size_t*)pval(x))[1])
 #define adata(x)   (((void**)pval(x))[2])
 #define alength(x) (((size_t*)pval(x))[3])
+#define s8data(x)  (((char**)pval(x))[2])
+#define u8data(x)  (((uchar**)pval(x))[2])
+#define s16data(x) (((short**)pval(x))[2])
+#define u16data(x) (((ushort**)pval(x))[2])
+#define s32data(x) (((int**)pval(x))[2])
+#define u32data(x) (((uint**)pval(x))[2])
+#define s64data(x) (((long**)pval(x))[2])
+#define f64data(x) (((double**)pval(x))[2])
+
 
 #define car(x) (ascons(x)->car)
 #define cdr(x) (ascons(x)->cdr)

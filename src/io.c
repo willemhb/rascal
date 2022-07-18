@@ -7,6 +7,7 @@
 #include "io.h"
 #include "object.h"
 #include "runtime.h"
+#include "vm.h"
 
 #define atm_maxlen 8192
 #define buf_inisz  512
@@ -50,7 +51,7 @@ static inline bool symchr(int c);
 
 static int      peekc( FILE *ios );
 static int      takec( FILE *ios );
-static value_t  take( void );
+static value_t  take( FILE *ios );
 static int      accumc( int ch );
 static int      skipc( FILE *ios );
 
@@ -60,10 +61,6 @@ static void    getsymtok( FILE *ios, int ch );
 static value_t readexpr( FILE *ios );
 static value_t read_sexpr( FILE *ios );
 static value_t read_vector( FILE *ios );
-
-static size_t fixnum_fits( value_t f, Ctype_t c );
-
-
 
 static void getsymtok( FILE *ios, int ch ) {
   int c = accumc( ch );
@@ -119,11 +116,19 @@ static void getsymtok( FILE *ios, int ch ) {
   }
 }
 
-void clear_reader( void ) {
+static void clear_reader( void ) {
   memset( token_buffer, 0, bufi );
   bufi        = 0;
   token       = tok_ready;
   token_value = val_nil;
+}
+
+static value_t take( FILE *ios ) {
+  (void)ios;
+  
+  value_t out = token_value;
+  clear_reader();
+  return out;
 }
 
 static token_t get_token( FILE *ios ) {
@@ -170,7 +175,7 @@ static value_t read_sexpr( FILE *ios ) {
   }
 
   if ( tok == tok_dot ) {
-    take( );
+    take( ios );
     tok = get_token( ios );
 
     switch ( tok ) {
@@ -195,9 +200,7 @@ static value_t read_sexpr( FILE *ios ) {
 	   token_names[token] );
 
   constructor( n, &Stack[base]);
-  token_value = pop();
-
-  return token_value;
+  return (token_value = pop());
 }
 
 static value_t read_vector( FILE *ios ) {
@@ -216,11 +219,11 @@ static value_t read_vector( FILE *ios ) {
   }
 
   vector_s( n, &Stack[base]);
-  return pop();
+  return (token_value=pop());
 }
 
 static value_t read_binary( FILE *ios ) {
-  int ch; Ctype_t ctype; size_t n = 0;
+  Ctype_t ctype; size_t n = 0;
   size_t elsize;
   token_t tok;
 
@@ -245,7 +248,7 @@ static value_t read_binary( FILE *ios ) {
 	  "invalid token reading #: '%s'",
 	  token_buffer );
 
-  take();
+  take( ios );
 
   index_t base = Sp;
   
@@ -255,24 +258,19 @@ static value_t read_binary( FILE *ios ) {
 	     "unexpected EOF reading #" );
 
     x = readexpr( ios );
-
-    require( "read",
-	     fixnum_fits( x, ctype ),
-	     "binary literal doesn't match declared type" );
-
     push(x);
     n++;
   }
 
-  take();
+  take( ios );
 
   uchar buf[n*elsize];
 
   index_t b_bufi = 0;
 
   for (size_t i=0; i<n; i++) {
-    fixnum_t fx = ival( Stack[base+i] );
-    memcpy( buf+b_bufi, &fx, elsize );
+    value_t x = Stack[base+i];
+    fixnum_init( "binary", x, ctype, &buf[b_bufi] );
     b_bufi += elsize;
   }
 
@@ -280,232 +278,187 @@ static value_t read_binary( FILE *ios ) {
 
   binary_s(n, ctype, buf);
 
-  return pop();
+  return (token_value = pop());
 }
 
-static value_t read_macro( scanner_t *scn, token_t tok ) {
-  value_t macro_sym = rs_none, out = rs_none;
+static value_t read_macro( FILE *ios, token_t tok ) {
+  value_t macro_sym = val_nil, out = val_nil;
   
-  if (tok == tok_quote) macro_sym = rs_quote;
-  else error( "read",
-	      err_value,
-	      "Unknown macro character '%s'",
-	      rs_none,
-	      toknames[tok] );
+  if (tok == tok_quote) macro_sym = r_quote;
+  else
+    error( "read",
+	   "Unknown macro character '%s'",
+	   token_names[tok] );
 
-  assert( macro_sym != rs_none );
-  take( scn );
-  
-  out = readexpr( scn );
+  assert( macro_sym != val_nil );
+  take( ios );
+
+  out = readexpr( ios );
   out = list2( macro_sym, out );
-  return out;
+  return (token_value = out);
 }
 
-value_t readexpr( scanner_t *scn ) {
+value_t readexpr( FILE *ios ) {
   // assert( scanner.token == tok_ready && "scanner not cleared." );
-  
-  token_t tok = get_token( scn );
+
+  token_t tok = get_token( ios );
 
   assert(tok != tok_ready && "get_token() didn't read anything." );
 
-#ifdef rsc_debug
-  // debug( "token: %s", toknames[tok] );
-  // show_val( scn->value );
-#endif
-
-  value_t out = rs_nil;
+  value_t out = val_nil;
 
   switch (tok) {
   case tok_eof: break;
-  case tok_open:
-    take( scn );
-    read_sexpr( scn );
-    out = take( scn );
+  case tok_lpar:
+    take( ios );
+    read_sexpr( ios );
+    out = take( ios );
+    break;
+
+  case tok_lbrack:
+    take( ios );
+    read_vector( ios );
+    out = take( ios );
+    break;
+
+  case tok_hash:
+    take( ios );
+    read_binary( ios );
+    out = take( ios );
     break;
 
   case tok_quote:
-    out = read_macro( scn, tok );
+    read_macro( ios, tok );
+    out = take( ios );
     break;
 
-  case tok_integer ... tok_string:
-    out = take( scn );
+  case tok_symbol ... tok_nil:
+    out = take( ios );
     break;
 
-  case tok_dot: case tok_close: // syntax error
+  case tok_dot: case tok_rpar: // syntax error
     error( "read",
-	    err_syntax,
 	    "unexpected '%s' token",
-	    rs_none,
-	    toknames[tok] );
+	    token_names[tok] );
     break;
 
   case tok_ready: default:
-    unreachable( );
-    break;
+    __builtin_unreachable( );
   }
 
-#ifdef rsc_debug
-  //  printf( "%s: %d: %s: output: ",
-  //	  __FILE__,
-  //	  __LINE__,
-  //	  __func__ );
-  // print( stdout, out );
-  // printf( ".\n" );
-#endif
+  return out;
+}
+
+value_t r_read( FILE *ios ) { // API for readexpr
+  assert( token == tok_ready );
+
+  clear_reader();
+
+  value_t out = readexpr( ios );
 
   return out;
 }
 
-value_t read( FILE *fl ) { // API for readexpr
-  assert( Scanner.token == tok_ready && "rcread() called while other stream being read." );
+value_t r_load( char *fname ) {
+  assert( token == tok_ready );
 
-  reset_scanner( &Scanner, fl, "<file>" );
-
-  value_t out = readexpr( &Scanner );
-
-  return out;
-}
-
-value_t load( char *fname ) {
-  assert( Scanner.token == tok_ready && "rcload() called while other stream being read." );
-
-  FILE *fl = fopen( fname, "rt" );
-  value_t out = rs_nil;
+  FILE *ios = fopen( fname, "rt" );
+  value_t out = val_nil;
 
   require( "load",
-	   fl != NULL,
-	   strerror( errno ),
-	   rs_none );
+	   ios,
+	   strerror( errno ) );
 
-  reset_scanner( &Scanner, fl, fname );
+  clear_reader();
 
-  int  saveSp;
-  savesp( &saveSp );
+  int saveSp = Sp, saveFp = Fp, savePc = Pc, saveBp = Bp;
 
-  switch( setjmp( toplevel ) ) {
-  case err_okay:
-    while ( get_token( &Scanner ) != tok_eof ) {
-      value_t x  = readexpr( &Scanner );
-
-      out        = eval( x, 0 ); // top level context
-    }
-
-    break;
-
-  case err_exit:
-    break;
-
-  default:
-    fprintf( stderr,
-	     "load() encountered an error near line %d, in %s, exiting.\n",
-	     Scanner.line,
-	     Scanner.fname );
-    out = rs_nil;
-    break;
+  if (setjmp(Toplevel)) {
+    fprintf( stderr, "aborting to toplevel.\n" );
+    out = val_nil;
   }
-  
-  restoresp( &saveSp );
 
-  reset_scanner( &Scanner, NULL, NULL );
-  fclose( fl );
+  else {
+    while ((token = get_token(ios)) != tok_eof) {
+      value_t xpr  = readexpr( ios );
+      value_t code = compile( xpr );
+      out = execute( code );
+    }
+  }
+
+  Sp = saveSp;
+  Fp = saveFp;
+  Pc = savePc;
+  Bp = saveBp;
+
+  clear_reader();
+  fclose( ios );
 
   return out;
 }
 
-void repl(void) {
-  reset_scanner( &Scanner, NULL, NULL );
-  int saveSp;
-  value_t x, v;
-  
-  while (true) {
-    fprintf(stdout, "\n%s", prompt_in);
+static size_t prin_cons( FILE *ios, value_t c) {
+  size_t out = 2;
 
-    savesp( &saveSp );
+  fputc( '(', ios );
 
-    switch ( setjmp( toplevel ) ) {
-    case err_okay: {
-      x = readexpr( &Scanner );
-      
-      if ( x == rs_nil && Scanner.token == tok_eof ) {
-	take( &Scanner );
-	break;
-      }
-      
-      v = eval( x, 0 );
-      
-      fprintf( stdout, "\n%s", prompt_out );
-      print( stdout, v );
-      break;
-    }
-      
-    case err_exit: {
-      return;
+  while (is_cons(c)) {
+    value_t x = car(c);
+    out += r_prin(ios, x);
+
+    if (is_cons(cdr(c))) {
+      out++;
+      fputc( ' ', ios );
     }
 
-    default:    
-      fprintf( stdout, "recovering.\n" );
-      restoresp( &saveSp );
-      clear_scanner( &Scanner );
-      break;
+    c = cdr(c);
+  }
+
+  if (!is_nil(c)) {
+    fputs(" . ", ios );
+    out += 3;
+
+    out += r_prin( ios, c );
+  }
+
+  fputc( ')', ios );
+  return out;
+}
+
+static size_t prin_vector( FILE *ios, value_t v) {
+  size_t out = fprintf( ios, "[" );
+
+  if (!is_empty(v)) {
+    value_t *vals = adata(v);
+    size_t cap = alength(v);
+
+    for (size_t i=0; i<cap; i++) {
+      out += r_prin( ios, vals[i] );
+
+      if (i+1 < cap)
+	out += fprintf( ios, " " );
     }
   }
+
+  return out + fprintf( ios, "]" );
 }
+
+static size_t prin_binary( FILE *ios, value_t b ) {
+  Ctype_t ctype = get_Ctype(b);
+  size_t out = fprintf( ios, "#%s[", Ctype_names[ctype]);
+
+  if (!is_empty(b)) {
+
+  }
+
+  
+}
+
+size_t r_prin( FILE *ios, value_t x ) {
+  
+}
+
+
 
 // initialization -------------------------------------------------------------
-void init_scanner( void ) {
-#ifdef rsc_debug
-  fprintf( stdout, "Initializing scanner.\n" );
-#endif
-
-  scanner_t *scn = &Scanner;
-
-  scn->buf     = malloc_s( buf_inisz );
-  scn->bufsz   = buf_inisz;
-  scn->bufi    = 0;
-
-  reset_scanner( scn, NULL, NULL );
-
-#ifdef rsc_debug
-  fprintf( stdout, "Scanner initialized.\n" );
-#endif
-}
-
-static void init_port_type( void ) {
-  PortType = newtype( "port" );
-
-  init_type_required( PortType, AnyType, type_port, tag_object, sizeof( port_t ) );
-  init_type_valmethods( PortType, print_port, order_port );
-}
-
-static void init_streams( void ) {
-  rs_ins  = port( stdin );
-  rs_outs = port( stdout );
-  rs_errs = port( stderr );
-
-  // bind to rascal names
-  constant( "*ins*", rs_ins );
-  constant( "*outs*", rs_outs );
-  constant( "*errs*", rs_errs );
-}
-
-static void init_reader_macros( void ) {
-  rs_quasiquote = symbol( "quasiquote" );
-  rs_unquote    = symbol( "unquote" );
-  rs_splice     = symbol( "unquote-splice" );
-}
-
-// initialization -------------------------------------------------------------
-void reader_init( void ) {
-#ifdef rsc_debug
-  fprintf( stdout, "Initializing reader.\n" );
-#endif
-
-  init_scanner();
-  init_port_type();
-  init_streams();
-  init_reader_macros();
-
-#ifdef rsc_debug
-  fprintf( stdout, "Reader initialized.\n" );
-#endif
-}
+void init_io( void ) {}
