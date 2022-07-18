@@ -26,5 +26,6 @@ typedef uint arity_t;
 
 typedef ulong hash_t;
 typedef ulong index_t;
+typedef ulong idno_t;
 
 #endif
