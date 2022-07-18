@@ -5,20 +5,17 @@
 ;;; Commentary:
 ;;; elisp doc formatting is extraordinarily fucked up
 
-;;; 
-;;; 
-
 ;;; Code:
 (define-generic-mode
   'rascal-mode
   '(";")
   '("quote" "do" "do*"
     "if" "and" "or" "cond"
-    "def" ":="
-    "lmb" "let" "mac"
+    "def" ":=" "mac" "typ"
+    "lmb" "let" "let-mac"
     "cause!" "handle")
   '(("else" . font-lock-constant-face)
-    ("error" . font-lock-warning-face)
+    ("error!" . font-lock-warning-face)
     ("true" . font-lock-builtin-face)
     ("false" . font-lock-builtin-face)
     ("nil" . font-lock-builtin-face)
