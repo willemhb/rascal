@@ -651,7 +651,58 @@ size_t r_prin( FILE *ios, value_t x ) {
 }
 
 value_t r_comp_file( char *fname ) {
-  
+  assert( token == tok_ready );
+
+  char *ext = strstr(fname, ".rsp" );
+
+  require( "comp-file",
+	   ext && strlen(ext) == 4,
+	   "unrecognized file extension in '%s'",
+	   fname );
+
+  char outfile_name[ext - fname + 7];
+  strncpy( outfile_name, fname, ext - fname );
+  strcpy( outfile_name + (ext-fname), ".rdn.o" );
+
+  FILE *ios = fopen( fname, "rt" );
+  value_t out = val_nil;
+
+  require( "comp-file",
+	   ios,
+	   strerror( errno ) );
+
+  clear_reader();
+
+  int saveSp = Sp, saveFp = Fp, savePc = Pc, saveBp = Bp;
+
+  if (setjmp(Toplevel)) {
+    fprintf( stderr, "aborting to toplevel.\n" );
+    out = val_nil;
+  }
+
+  else {
+    push( r_do ); // compile as a squence expression   
+    while ((token = get_token(ios)) != tok_eof) {
+      value_t xpr  = readexpr( ios );
+      push(xpr);
+    }
+    value_t module = list( Sp - saveSp, &Stack[saveSp] );
+    value_t compiled_module = compile( module );
+
+    FILE *outfile = fopen(outfile_name, "wt+" );
+
+    
+  }
+
+  Sp = saveSp;
+  Fp = saveFp;
+  Pc = savePc;
+  Bp = saveBp;
+
+  clear_reader();
+  fclose( ios );
+
+  return out;
 }
 
 // builtins -------------------------------------------------------------------
@@ -670,7 +721,11 @@ void r_builtin(load) {
   
 }
 
+void r_builtin(comp_file) {
+
+}
+
 // initialization -------------------------------------------------------------
 void init_io( void ) {
-
+  
 }
