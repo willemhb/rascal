@@ -3,6 +3,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <assert.h>
+#include <limits.h>
 
 #include "io.h"
 #include "object.h"
@@ -15,14 +16,6 @@
 #define prompt_in  "<< "
 #define prompt_out ">> "
 
-static char *Ctype_names[] = {
-  [C_sint8]   = "s8",  [C_uint8]   = "u8",
-  [C_sint16]  = "s16", [C_uint16]  = "u16",
-  [C_sint32]  = "s32", [C_uint32]  = "u32",
-  [C_sint64]  = "s64", [C_float64] = "f64"
-};
-
-
 static char *token_names[] = {
   [tok_lpar] = "(",     [tok_rpar] = ")",
   
@@ -32,9 +25,126 @@ static char *token_names[] = {
   
   [tok_symbol] = "symbol", [tok_integer] = "integer",
   [tok_true]   = "true",   [tok_false] = "false",
-  [tok_nil]    = "nil",
+  [tok_nil]    = "nil",    [tok_character] = "character",
+  [tok_string] = "string",
 
   [tok_eof] = "EOF", [tok_ready] = "ready"
+};
+
+static char* chrnames[CHAR_MAX+1] = {
+    ['\0']   = "nul",       ['\x01'] = "soh",
+    ['\x02'] = "stx",       ['\x03'] = "etx",
+    ['\x04'] = "eot",       ['\x05'] = "enq",
+    ['\x06'] = "ack",       ['\a']   = "bel",
+    ['\b']   = "backspace", ['\t']   = "tab",
+    ['\n']   = "newline",   ['\v']   = "vtab",
+    ['\f']   = "formfeed",  ['\r']   = "return",
+    ['\x0e'] = "ss",        ['\x0f'] = "si",
+    ['\x10'] = "dle",       ['\x11'] = "dc1",
+    ['\x12'] = "dc2",       ['\x13'] = "dc3",
+    ['\x14'] = "dc4",       ['\x15'] = "nak",
+    ['\x16'] = "syn",       ['\x17'] = "etb",
+    ['\x18'] = "can",       ['\x19'] = "em",
+    ['\x1a'] = "sub",       ['\e']   = "escape",
+    ['\x1c'] = "fs",        ['\x1d'] = "gs",
+    ['\x1e'] = "rs",        ['\x1f'] = "us",
+    [' ']    = "space",     ['!']    = "!",
+    ['\"']   = "\"",        ['#']    = "#",
+    ['$']    = "$",         ['%']    = "%",
+    ['&']    = "&",         ['\'']   = "'",
+    ['(']    = "(",         [')']    = ")",
+    ['*']    = "*",         ['+']    = "+",
+    [',']    = ",",         ['-']    = "-",
+    ['.']    = ".",         ['/']    = "/",
+    ['0']    = "0",         ['1']    = "1",
+    ['2']    = "2",         ['3']    = "3",
+    ['4']    = "4",         ['5']    = "5",
+    ['6']    = "6",         ['7']    = "7",
+    ['8']    = "8",         ['9']    = "9",
+    [':']    = ":",         [';']    = ";",
+    ['<']    = "<",         ['?']    = "?",
+    ['@']    = "@",         ['A']    = "A",
+    ['B']    = "B",         ['C']    = "C",
+    ['D']    = "D",         ['E']    = "E",
+    ['F']    = "F",         ['G']    = "G",
+    ['H']    = "H",         ['I']    = "I",
+    ['J']    = "J",         ['K']    = "K",
+    ['L']    = "L",         ['M']    = "M",
+    ['N']    = "N",         ['O']    = "O",
+    ['P']    = "P",         ['Q']    = "Q",
+    ['R']    = "R",         ['S']    = "S",
+    ['T']    = "T",         ['U']    = "U",
+    ['V']    = "V",         ['W']    = "W",
+    ['X']    = "X",         ['Y']    = "Y",
+    ['Z']    = "Z",         ['[']    = "[",
+    ['\\']   = "\\",        [']']    = "]",
+    ['^']    = "^",         ['_']    = "_",
+    ['`']    = "`",         ['a']    = "a",
+    ['b']    = "b",         ['c']    = "c",
+    ['d']    = "d",         ['e']    = "e",
+    ['f']    = "f",         ['g']    = "g",
+    ['h']    = "h",         ['i']    = "i",
+    ['j']    = "j",         ['k']    = "k",
+    ['l']    = "l",         ['m']    = "m",
+    ['n']    = "m",         ['o']    = "o",
+    ['p']    = "p",         ['q']    = "q",
+    ['r']    = "r",         ['s']    = "s",
+    ['t']    = "t",         ['u']    = "u",
+    ['v']    = "v",         ['w']    = "w",
+    ['x']    = "x",         ['y']    = "y",
+    ['z']    = "z",         ['{']    = "{",
+    ['}']    = "}",         ['|']    = "|",
+    ['~']    = "~",         ['\x7f'] = "del",
+    ['=']    = "=",         ['>']    = ">",
+};
+
+static struct { char code; char* name; } char_trie['v'+1][7] = {
+  ['a'] = { { '\x06', "ack" } },
+  
+  ['b'] = { { '\b', "backspace" },
+	    { '\a', "bel" } },
+  
+  ['c'] = { { '\x18', "can" } },
+
+  ['d'] = { { '\x10' , "dle" },
+	    { '\x11' , "dc1" },
+	    { '\x12' , "dc2" },
+	    { '\x13' , "dc3" },
+	    { '\x14' , "dc4" },
+	    { '\x7f', "del" } },
+  
+  ['e'] = { { '\x05', "enq" },
+	    { '\x04', "eot" },
+	    { '\x03', "etx" },
+	    { '\x17', "etb" },
+	    { '\x19', "em" },
+	    { '\e',   "escape" } },
+
+  ['f'] = { { '\f', "formfeed" },
+	    { '\x1c', "fs" } },
+
+  ['g'] = { {  '\x1d', "gs" } },
+  
+  ['n'] = { { '\n', "newline" },
+	    { '\0', "nul" },
+	    { '\x15', "nak" } },
+  
+  ['s'] = { { '\x01', "soh" },
+	    { '\x03', "stx" },
+            { '\x0f', "si"  },
+	    { '\x0e', "ss"  },
+	    { '\x16', "syn" },
+	    { '\x1a', "sub" },
+	    { ' ',    "space"  } },
+   
+  ['r'] = { { '\r', "return" },
+	    { '\x1e', "rs" } },
+  
+  ['t'] = { { '\t', "tab" } },
+
+  ['u'] = { { '\x1f', "us" } },
+  
+  ['v'] = { { '\v', "vtab" } },
 };
 
 // static helpers -------------------------------------------------------------
@@ -43,8 +153,8 @@ static char *token_names[] = {
 
 static char token_buffer[bufmax+1];
 static int bufi = 0;
-static token_t token;
-static value_t token_value;
+static token_t token = tok_ready;
+static value_t token_value = val_nil;
 
 static inline bool dlmchr(int c);
 static inline bool symchr(int c);
@@ -58,9 +168,121 @@ static int      skipc( FILE *ios );
 static void clear_reader( void );
 
 static void    getsymtok( FILE *ios, int ch );
+static void    getchrtok( FILE *ios );
+static void    getstrtok( FILE *ios );
 static value_t readexpr( FILE *ios );
 static value_t read_sexpr( FILE *ios );
 static value_t read_vector( FILE *ios );
+
+static int peekc( FILE *ios ) {
+  int ch = fgetc( ios );
+
+  if (ch != EOF)
+    ungetc( ch, ios );
+
+  return ch;
+}
+
+static int takec( FILE *ios ) {
+  return fgetc( ios );
+}
+
+static int accumc( int ch ) {
+  require( "read",
+	   bufi < bufmax+1,
+	   "maximum token length exceeded" );
+
+  token_buffer[bufi++] = ch;
+
+  return ch;
+}
+
+static int skipc( FILE *ios ) {
+    char c;
+    int ch;
+
+    do {
+        ch = takec(ios);
+        if (ch == EOF)
+            return 0;
+        c = (char)ch;
+        if (c == ';') {
+            // single-line comment
+            do {
+                ch = takec(ios);
+                if (ch == EOF)
+                    return 0;
+            } while ((char)ch != '\n');
+            c = (char)ch;
+        }
+    } while (isspace(c));
+    return c;
+}
+
+static void getchrtok( FILE *ios ) {
+  int ch;
+
+  while ((ch=peekc(ios)) != EOF && !(isspace(ch) || dlmchr(ch))) {
+    accumc( ch );
+    takec( ios );
+  }
+
+  if (bufi == 1) {
+    token_value = character( token_buffer[0] );
+    return;
+  }
+
+  int key = token_buffer[0];
+
+  if (key <= 'v')
+    for (size_t i=0; i<7 && char_trie[key][i].name; i++) {
+      if (streql(token_buffer, char_trie[key][i].name)) {
+	token_value = character( char_trie[key][i].code );
+	return;
+      }
+    }
+
+  error( "read",
+	 "unrecognized character '\\%s'",
+	 token_buffer );
+}
+
+static void getstrtok( FILE *ios) {
+  int c;
+  bool escape = false;
+  static char escape_map[CHAR_MAX+1] = {
+    ['b'] = '\b', ['a'] = '\a', ['t'] = '\t',
+    ['n'] = '\n', ['v'] = '\v', ['f'] = '\f',
+    ['0'] = '\0', ['r'] = '\r'
+  };
+
+  while ((c = peekc(ios)) != '"' || escape) {
+    require( "read",
+	     c != EOF,
+	     "unexpected EOF reading #" );
+
+    if (escape) {
+      if (c == '0' || strchr( "batnvfr", c ))
+	accumc( escape_map[c]);
+
+      else
+	accumc(c);
+
+      escape = false;
+      takec( ios );
+    }
+
+    else if (c == '\\')
+      escape = true;
+
+    else
+      accumc( takec(ios) );
+  }
+
+  takec( ios ); // clear the terminating "
+  string_s( bufi, token_buffer );
+  token_value = pop();
+}
 
 static void getsymtok( FILE *ios, int ch ) {
   int c = accumc( ch );
@@ -84,7 +306,7 @@ static void getsymtok( FILE *ios, int ch ) {
 
   else if (streql(token_buffer, "nil"))
     token = tok_nil;
-  
+
   else
     token = tok_symbol;
 
@@ -134,16 +356,18 @@ static value_t take( FILE *ios ) {
 static token_t get_token( FILE *ios ) {
   if ( token == tok_ready ) {
     int c = skipc( ios );
-    
+
     switch (c) {
     case EOF: token  = tok_eof; break;
-    case '(': token  = tok_lpar; takec( ios ); break;
-    case ')': token  = tok_rpar; takec( ios ); break;
-    case '[': token  = tok_lbrack; takec( ios ); break;
-    case ']': token  = tok_rbrack; takec( ios ); break;
-    case '\'': token = tok_quote; takec( ios ); break;
-    case '.': token = tok_dot; takec( ios ); break;
-    case '#': token = tok_hash; takec( ios ); break;
+    case '(': token  = tok_lpar; break;
+    case ')': token  = tok_rpar; break;
+    case '[': token  = tok_lbrack; break;
+    case ']': token  = tok_rbrack; break;
+    case '\'': token = tok_quote; break;
+    case '.': token = tok_dot; break;
+    case '#': token = tok_hash; break;
+    case '"': token = tok_string; getstrtok( ios ); break;
+    case '\\': token = tok_character; getchrtok( ios ); break;
     default: getsymtok( ios, c ); break;
     }
   }
@@ -332,7 +556,7 @@ value_t readexpr( FILE *ios ) {
     out = take( ios );
     break;
 
-  case tok_symbol ... tok_nil:
+  case tok_symbol ... tok_string:
     out = take( ios );
     break;
 
@@ -397,68 +621,63 @@ value_t r_load( char *fname ) {
   return out;
 }
 
-static size_t prin_cons( FILE *ios, value_t c) {
-  size_t out = 2;
-
-  fputc( '(', ios );
-
-  while (is_cons(c)) {
-    value_t x = car(c);
-    out += r_prin(ios, x);
-
-    if (is_cons(cdr(c))) {
-      out++;
-      fputc( ' ', ios );
-    }
-
-    c = cdr(c);
-  }
-
-  if (!is_nil(c)) {
-    fputs(" . ", ios );
-    out += 3;
-
-    out += r_prin( ios, c );
-  }
-
-  fputc( ')', ios );
-  return out;
-}
-
 static size_t prin_vector( FILE *ios, value_t v) {
-  size_t out = fprintf( ios, "[" );
 
-  if (!is_empty(v)) {
-    value_t *vals = adata(v);
-    size_t cap = alength(v);
-
-    for (size_t i=0; i<cap; i++) {
-      out += r_prin( ios, vals[i] );
-
-      if (i+1 < cap)
-	out += fprintf( ios, " " );
-    }
-  }
-
-  return out + fprintf( ios, "]" );
 }
 
 static size_t prin_binary( FILE *ios, value_t b ) {
-  Ctype_t ctype = get_Ctype(b);
-  size_t out = fprintf( ios, "#%s[", Ctype_names[ctype]);
-
-  if (!is_empty(b)) {
-
-  }
-
-  
 }
 
 size_t r_prin( FILE *ios, value_t x ) {
+  type_t xt = r_type(x);
+  
+  switch (xt) {
+  case type_fixnum:
+    return fprintf( ios, "%ld", ival(x) );
+    
+  case type_character:
+    return fprintf( ios, "\\%s", chrnames[cval(x)]);
+    
+  case type_type:
+    return fprintf( ios, "%s()", Typenames[cval(x)]);
+    
+  case type_boolean:
+    return fprintf( ios, (x == val_true ? "true" : "false" ));
+    
+  case type_nil:
+    return fprintf( ios, "()" );
+  
+  case type_vector:
+    return prin_vector( ios, x );
+
+  case type_binary:
+    return prin_binary( ios, x );
+  default:
+    return fprintf( ios, "<%s>", Typenames[xt] );
+  }
+}
+
+value_t r_comp_file( char *fname ) {
   
 }
 
+// builtins -------------------------------------------------------------------
+void r_builtin(read) {
+  argc( "read", n, 0 );
+  value_t out = r_read( stdin );
+  push_s( "read", out );
+}
 
+void r_builtin(prin) {
+  argc( "prin", n, 1 );
+  r_prin( stdout, Stack[Sp-1] );
+}
+
+void r_builtin(load) {
+  
+}
 
 // initialization -------------------------------------------------------------
-void init_io( void ) {}
+void init_io( void ) {
+
+}

@@ -26,6 +26,7 @@ typedef enum
 
     type_type      = 0x00|tag_immediate,
     type_boolean   = 0x08|tag_immediate,
+    type_character = 0x10|tag_immediate,
 
     type_cons      = 0x00|tag_pair,
     type_nil       = 0x08|tag_pair,
@@ -34,11 +35,16 @@ typedef enum
     type_closure   = 0x08|tag_boxed,
     type_symbol    = 0x10|tag_boxed,
     type_vector    = 0x18|tag_boxed,
-    type_binary    = 0x20|tag_boxed
+    type_string    = 0x20|tag_boxed,
+    type_binary    = 0x28|tag_boxed
   } type_t;
 
-static const value_t tag_type     = (type_type<<24)|tag_immediate;
-static const value_t tag_boolean  = (type_boolean<<24)|tag_immediate;
+#define wtag_mask 0xff000003
+#define tag_mask  0x3
+
+static const value_t tag_type      = (type_type<<24)|tag_immediate;
+static const value_t tag_boolean   = (type_boolean<<24)|tag_immediate;
+static const value_t tag_character = (type_character<<24)|tag_immediate;
 
 static const value_t tag_builtin  = (type_builtin<<3)|tag_type;
 static const value_t tag_closure  = (type_closure<<3)|tag_type;
@@ -50,6 +56,7 @@ static const value_t val_nil     = (type_nil<<24)|tag_immediate;
 static const value_t val_true    = (type_boolean<<24)|(1<<3)|tag_immediate;
 static const value_t val_false   = (type_boolean<<24)|tag_immediate;
 static const value_t val_evec    = (type_vector<<24)|tag_immediate;
+static const value_t val_estr    = (type_string<<24)|tag_immediate;
 
 static const value_t val_ebin_s8  = (type_binary<<24)|(C_sint8<<3)|tag_immediate;
 static const value_t val_ebin_u8  = (type_binary<<24)|(C_uint8<<3)|tag_immediate;
@@ -62,6 +69,8 @@ static const value_t val_ebin_f64  = (type_binary<<24)|(C_float64<<3)|tag_immedi
 
 static const value_t val_unbound = (type_symbol<<24)|tag_immediate;
 static const value_t val_forward = (type_builtin<<24)|tag_immediate;
+
+#define type_pad 64
 
 typedef struct {
   type_t  type;
@@ -94,6 +103,13 @@ typedef struct {
 
 typedef struct {
   header_t base;
+  size_t   size;
+  char    *data;
+  size_t   length;
+} string_t;
+
+typedef struct {
+  header_t base;
   void (*callback)( size_t n );
 } builtin_t;
 
@@ -114,6 +130,7 @@ typedef struct {
 
 typedef long fixnum_t;
 typedef bool boolean_t;
+typedef char character_t;
 
 typedef struct {
   value_t car;
@@ -136,5 +153,14 @@ typedef struct symbols_t {
 #define tagi(i, t)    ((((value_t)(i))<<3)|(t))
 
 #define fix_1 8
+
+// global type information tables ---------------------------------------------
+extern char    *Typenames[type_pad];
+
+extern size_t   (*sizeof_dispatch[type_pad])(value_t x);
+extern size_t   (*prin_dispatch[type_pad])(FILE *ios, value_t x);
+extern int      (*order_dispatch[type_pad])(value_t x, value_t y);
+
+extern value_t  empty_bins[C_float64+1];
 
 #endif

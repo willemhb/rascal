@@ -19,11 +19,14 @@ typedef enum {
   tok_true,
   tok_false,
   tok_nil,
+  tok_character,
+  tok_string,
 
   tok_ready,
   tok_eof
 } token_t;
 
+// core -----------------------------------------------------------------------
 size_t  r_prin( FILE *ios, value_t x );
 value_t r_read( FILE *ios );
 value_t r_load( char *fname );

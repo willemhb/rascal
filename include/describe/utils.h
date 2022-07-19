@@ -14,13 +14,20 @@
 #define mk_builtin(name)    builtin( #name, builtin_##name )
 #define mk_builtin_p(name)  builtin( #name"?", builtin_is_##name )
 
-#define mk_safe_cast(type, ctype, cnvt)			\
+#define mk_safe_cast(type, ctype, cnvt, is_ob)		\
   ctype to##type( const char *fname, value_t x )	\
   {							\
     require( fname,					\
 	     is_##type( x ),				\
 	     "# wanted a %s()",				\
 	     #type );					\
+    							\
+    if ( is_ob )					\
+      require( fname,					\
+	       !is_immediate(x),			\
+	       "# wanted a non-empty %s()",		\
+	       #type);					\
+    							\
     return (ctype)cnvt( x );				\
   }
 
@@ -110,11 +117,12 @@
 		 "zero-divison in (%s %dl 0)",				\
 		 #rname,						\
 		 acc );							\
-	acc = acc op tmp;						\
+	  else 								\
+	    acc = acc op tmp;						\
       }									\
     }									\
-    Sref(n) = fixnum( acc );						\
-    Sp -= n-1;								\
+    popn( n );								\
+    push( fixnum( acc ) );						\
   }
 
 #define r_arithmetic_p( name, rname, op )		\

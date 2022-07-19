@@ -40,6 +40,35 @@ typedef enum {
   C_float64
 } Ctype_t;
 
+
+const char *Ctype_names[C_float64+1] = {
+  [C_sint8]   = "s8",  [C_uint8]   = "u8",
+  [C_sint16]  = "s16", [C_uint16]  = "u16",
+  [C_sint32]  = "s32", [C_uint32]  = "u32",
+  [C_sint64]  = "s64", [C_float64] = "f64"
+};
+
+const char *Ctype_fmt[C_float64+1] = {
+  [C_sint8]   = "%.3d",    [C_uint8]     = "%.3du",
+  [C_sint16]  = "%.5d",    [C_uint16]   = "%.5du",
+  [C_sint32]  = "%.8x",    [C_uint32]  = "%.8x",
+  [C_sint64]  = "%.16x",   [C_float64]   = "%al"
+};
+
+const long Ctype_max_int[C_float64+1] = {
+  [C_sint8]  = INT8_MAX,  [C_uint8]  = UINT8_MAX,
+  [C_sint16] = INT16_MAX, [C_uint16] = UINT16_MAX,
+  [C_sint32] = INT32_MAX, [C_uint32]  = UINT32_MAX,
+  [C_sint64] = INT64_MAX, [C_float64] =  (1ul<<52)-1
+};
+
+const long Ctype_min_int[C_float64+1] = {
+  [C_sint8]  = INT8_MIN,  [C_uint8]  = 0,
+  [C_sint16] = INT16_MIN, [C_uint16] = 0,
+  [C_sint32] = INT32_MIN, [C_uint32]  = 0,
+  [C_sint64] = INT64_MIN, [C_float64] =  0 - ((1ul<<52)-1)
+};
+
 // exports --------------------------------------------------------------------
 size_t Ctype_size(Ctype_t xct);
 

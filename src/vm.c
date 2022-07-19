@@ -1,6 +1,10 @@
 #include <string.h>
 
 #include "vm.h"
+#include "function.h"
+#include "list.h"
+#include "symbol.h"
+#include "array.h"
 #include "runtime.h"
 #include "object.h"
 
@@ -31,15 +35,6 @@ static size_t vector_find( value_t vec, value_t x ) {
 	break;
 
     return location;
-}
-
-static size_t vector_put( value_t vec, value_t x ) {
-  elements(vec)[alength(vec)++] = x;
-
-  if (alength(vec) == asize(vec))
-    vec = resize_vector( vec, asize(vec) );
-
-  return alength(vec);
 }
 
 static value_t ensure_quote( value_t x ) {
@@ -740,18 +735,6 @@ value_t apply( size_t nargs ) {
 }
 
 // builtins -------------------------------------------------------------------
-void r_builtin(cons) {
-  argc( "cons", n, 2 );
-  cons_s( &Stack[Sp-2], &Stack[Sp-1] );
-}
-
-r_predicate(cons)
-r_predicate(list)
-r_predicate(nil)
-r_getter(car, cons)
-r_getter(cdr, cons)
-r_setter(car, xar, cons)
-r_setter(cdr, xdr, cons)
 
 r_predicate(vector)
 r_predicate(binary)
@@ -842,16 +825,6 @@ void r_builtin(put) {
     binary_put_s("put", &Sref(1), x );
 }
 
-r_predicate(symbol)
-r_predicate(gensym)
-r_predicate(keyword)
-r_predicate(bound)
-
-void r_builtin(symbol) {
-  argc( "symbol", n, 0 );
-  gensym_s(NULL);
-}
-
 void r_builtin(comp) {
   argc( "comp", n, 1 );
   value_t res = compile( Stack[Sp-1] );
@@ -896,45 +869,6 @@ void r_builtin(apply) {
   push( x );
 }
 
-void r_builtin(is_id) {
-  argc( "id?", n, 2 );
-
-  Stack[Sp-2] = boolean( Stack[Sp-2] == Stack[Sp-1] );
-  Sp--;
-}
-
-void r_builtin(is_eql) {
-  argc( "=?", n, 2 );
-
-  Stack[Sp-2] = boolean( r_order(Stack[Sp-2], Stack[Sp-1]) == 0 );
-  Sp--;
-}
-
-void r_builtin(ord) {
-  argc( "ord", n, 2);
-
-  int o = r_order(Stack[Sp-2], Stack[Sp-1]);
-  Stack[(Sp--)-2] = fixnum(o);
-}
-
-void r_builtin(not) {
-  argc( "not", n, 1 );
-  Sref(1) = Cbool( Sref(1) ) ? val_false : val_true;
-}
-
-static value_t u_noop( fixnum_t x ) { return fixnum(x); }
-static value_t u_sub( fixnum_t x ) { return fixnum(-x); }
-static value_t u_div( fixnum_t x ) { return fixnum(1/x); }
-
-r_arithmetic(add, "+", +, false, 1, u_noop, -1)
-r_arithmetic(sub, "-", -, false, 1, u_sub, -1)
-r_arithmetic(mul, "*", *, false, 2, u_noop, 0)
-r_arithmetic(div, "/", /, true, 1, u_div, 0)
-r_arithmetic(mod, "mod", %, true, 2, u_noop, 0)
-
-r_arithmetic_p(is_eqn, "=", == )
-r_arithmetic_p(is_ltn, "<", < )
-
 // initialization -------------------------------------------------------------
 void init_vm( void ) {
 
@@ -947,16 +881,6 @@ void init_vm( void ) {
   r_if     = symbol("if");
 
   // builtin functions --------------------------------------------------------
-  mk_builtin_p(cons);
-  mk_builtin_p(list);
-  mk_builtin_p(nil);
-
-  mk_builtin(cons);
-  mk_builtin(car);
-  mk_builtin(cdr);
-  mk_builtin(xar);
-  mk_builtin(xdr);
-
   mk_builtin_p(vector);
   mk_builtin(vector);
   mk_builtin_p(binary);
@@ -965,23 +889,6 @@ void init_vm( void ) {
   mk_builtin(nth);
   mk_builtin(xth);
   mk_builtin(put);
-
-  mk_builtin_p(symbol);
-  mk_builtin(symbol);
-  mk_builtin_p(gensym);
-  mk_builtin_p(keyword);
-
-  builtin( "id?", builtin_is_id );
-  builtin( "=?", builtin_is_eql );
-  mk_builtin(ord);
-
-  mk_builtin(add);
-  mk_builtin(sub);
-  mk_builtin(mul);
-  mk_builtin(div);
-  mk_builtin(mod);
-  builtin("=", builtin_is_eqn);
-  builtin("<", builtin_is_ltn);
 
   mk_builtin(apply);
   mk_builtin(comp);
