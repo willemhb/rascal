@@ -40,7 +40,6 @@ typedef enum {
   C_float64
 } Ctype_t;
 
-
 const char *Ctype_names[C_float64+1] = {
   [C_sint8]   = "s8",  [C_uint8]   = "u8",
   [C_sint16]  = "s16", [C_uint16]  = "u16",

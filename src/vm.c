@@ -7,6 +7,7 @@
 #include "array.h"
 #include "runtime.h"
 #include "object.h"
+#include "number.h"
 
 static size_t    comp_expression( value_t *e, value_t *v, value_t *c, value_t x );
 static size_t    emit_instruction( value_t *code, opcode_t op, short argx, short argy );
@@ -315,7 +316,7 @@ static size_t comp_define( value_t *e, value_t *v, value_t *c, value_t form ) {
     emit_instruction( c, op_loadn, 0, 0 ); // ensures the space
     op = op_storel;
     value_t l = car(*e);
-    argx = cons_length( l );
+    argx = list_length( l );
     l = cons( name, l );
     car(*e) = l;
   }
@@ -472,10 +473,6 @@ static size_t comp_expression( value_t *e, value_t *v, value_t *c, value_t x ) {
 
 static bool is_captured( index_t fp ) {
   return ival( Stack[fp-1] ) == -1;
-}
-
-static bool Cbool( value_t x) {
-  return !(x == val_false || x == val_nil);
 }
 
 value_t execute( value_t code ) {
@@ -734,97 +731,6 @@ value_t apply( size_t nargs ) {
   goto do_fetch;
 }
 
-// builtins -------------------------------------------------------------------
-
-r_predicate(vector)
-r_predicate(binary)
-
-void r_builtin(vector) {
-  vector_s( n, &Sref(n) );
-}
-
-void r_builtin(binary) {
-  vargc( "binary", 1, n );
-
-  value_t ctsym = Sref(n);
-  Ctype_t ct = ival( assymbol(ctsym)->bind );
-
-  uchar buf[(n-1)*Ctype_size(ct)];
-  size_t bufi = 0;
-
-  for (size_t i=1; i<n; i++)
-    bufi += fixnum_init("binary", Sref(n-i), ct, &buf[bufi] );
-
-  binary_s( n-1, ct, buf );
-  Stack[Sp-2] = Stack[Sp-1]; Sp--;
-}
-
-void r_builtin(len) {
-  argc( "len", n, 1 );
-  type_t t = oargt( "len", Stack[Sp-1], 4, type_nil, type_cons, type_vector, type_binary );
-  size_t l = 0;
-
-  if ( t == type_nil )
-    l  = 0;
-  
-  else if ( t == type_cons )
-    l = cons_length( Sref(1) );
-  
-  else
-    l = alength(Stack[Sp-1]);
-
-  push( fixnum( l ) );
-}
-
-void r_builtin(nth) {
-  argc( "nth", n, 2 );
-  long i = ival( argt( "nth", pop(), type_fixnum ) );
-  type_t t = oargt( "nth", Stack[Sp-1], 3, type_cons, type_vector, type_binary );
-  value_t v;
-
-  if (t == type_cons)
-    v = cons_nth_s( "nth", Sref(1), i );
-
-  else if (t == type_vector)
-    v = vector_get_s( "nth", &Sref(1), i );
-  
-  else
-    v = binary_get_s( "nth", &Sref(1), i );
-
-  push( v );
-}
-
-void r_builtin(xth) {
-  argc( "xth", n, 3 );
-  value_t x = pop();
-  long i = ival( argt( "xth", pop(), type_fixnum ) );
-  type_t t = oargt( "xth", Stack[Sp-1], 3, type_cons, type_vector, type_binary );
-
-  if ( t == type_cons )
-    x = cons_xth_s( "xth", Sref(1), i, x );
-
-  else if ( t == type_vector )
-    x = vector_set_s( "xth", &Sref(1), i, x );
-
-  else
-    x = binary_set_s( "xth", &Sref(1), i, x );
-  
-  Stack[Sp-1] = x;
-}
-
-void r_builtin(put) {
-  argc( "put", n, 2 );
-
-  value_t x = pop();
-  type_t t = oargt( "put", Stack[Sp-1], 2, type_vector, type_binary );
-
-  if (t == type_vector)
-    vector_put_s( "put", &Sref(1), x );
-    
-  else
-    binary_put_s("put", &Sref(1), x );
-}
-
 void r_builtin(comp) {
   argc( "comp", n, 1 );
   value_t res = compile( Stack[Sp-1] );
@@ -852,6 +758,9 @@ void r_builtin(apply) {
   popn(n_apply);
 
   for (size_t i=0; i<n-1; i++) {
+    if (is_empty(buf[i]))
+      continue;
+    
     if (is_list(buf[i]))
       unpack_cons(&buf[i], n);
 
@@ -860,6 +769,9 @@ void r_builtin(apply) {
 
     else if (is_binary(buf[i]))
       unpack_binary(buf[i], n);
+
+    else if (is_string(buf[i]))
+      unpack_string(buf[i], n);
 
     else
       unpack_atom(buf[i], n);
@@ -881,15 +793,6 @@ void init_vm( void ) {
   r_if     = symbol("if");
 
   // builtin functions --------------------------------------------------------
-  mk_builtin_p(vector);
-  mk_builtin(vector);
-  mk_builtin_p(binary);
-  mk_builtin(binary);
-  mk_builtin(len);
-  mk_builtin(nth);
-  mk_builtin(xth);
-  mk_builtin(put);
-
   mk_builtin(apply);
   mk_builtin(comp);
   mk_builtin(exec);

@@ -53,18 +53,4 @@ void object_init( void );
       ((header_t*)o)->base_size	= b;		\
     } while (0)
 
-#define init_array(o, t, C, e, l, s)			\
-  do {							\
-    init_ob( o, t, C, e, true, sizeof(vector_t));	\
-    asize( o )   = s;					\
-    adata( o )   = (uchar*)o + sizeof(vector_t);	\
-    alength( o ) = l;					\
-  } while (0)
-
-#define init_vector(o, l, s)			\
-  init_array(o, tag_vector, C_sint64, 0, l, s)
-
-#define init_binary(o, C, l, s)			\
-  init_array(o, tag_binary, C, 0, l, s)
-
 #endif

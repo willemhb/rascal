@@ -3,6 +3,9 @@
 
 #include "rascal.h"
 
+// globals --------------------------------------------------------------------
+extern value_t r_kw_s8, r_kw_u8, r_kw_s16, r_kw_u16, r_kw_s32, r_kw_u32, r_kw_s64, r_kw_f64;
+
 // constructors ---------------------------------------------------------------
 value_t vector( size_t n, value_t *args );
 index_t vector_s( size_t n, value_t *args );
@@ -16,7 +19,7 @@ index_t  string_s( size_t n, char *chars );
 value_t  resize_string( value_t s, size_t n );
 
 // accessors & utilities ------------------------------------------------------
-bool    validate_array_index( const char *fname, long *n, value_t array );
+long validate_array_index( const char *fname, long n, value_t array );
 
 value_t resize_vector( value_t vec, size_t n );
 value_t vector_get( value_t vec, size_t n );
@@ -27,16 +30,18 @@ value_t vector_set_s( const char *fname, value_t *vec, long n, value_t x);
 value_t vector_put_s( const char *fname, value_t *vec, value_t x);
 
 Ctype_t  get_Ctype( value_t x );
+value_t  resize_binary( value_t bin, size_t n );
 fixnum_t binary_get( value_t bin, size_t n );
 fixnum_t binary_set( value_t bin, size_t n, fixnum_t x );
-value_t  binary_put( value_t bin, value_t x );
+value_t  binary_put( value_t bin, fixnum_t x );
 value_t  binary_get_s( const char *fname, value_t *bin, long n );
 value_t  binary_set_s( const char *fname, value_t *bin, long n, value_t f );
 value_t  binary_put_s( const char *fname, value_t *bin, value_t f);
 
-char     string_get( value_t s, char *chars );
-char     string_set( value_t s, size_t n, char x );
-value_t  string_put( value_t bin, value_t x );
+value_t  resize_string( value_t str, size_t n );
+char     string_get( value_t str, size_t n );
+char     string_set( value_t str, size_t n, char x );
+value_t  string_put( value_t str, char x );
 value_t  string_get_s( const char *fname, value_t *bin, long n );
 value_t  string_set_s( const char *fname, value_t *bin, long n, value_t f );
 value_t  string_put_s( const char *fname, value_t *bin, value_t f);
@@ -64,6 +69,21 @@ size_t vector_sizeof( value_t x );
 size_t binary_sizeof( value_t x );
 size_t string_sizeof( value_t x );
 
+// builtins -------------------------------------------------------------------
+void r_builtin(vector);
+void r_builtin(binary);
+void r_builtin(string);
+
+void r_builtin(is_vector);
+void r_builtin(is_binary);
+void r_builtin(is_string);
+void r_builtin(is_empty);
+
+void r_builtin(len);
+void r_builtin(nth);
+void r_builtin(xth);
+void r_builtin(put);
+
 // initialization -------------------------------------------------------------
 void array_init( void );
 
@@ -83,5 +103,23 @@ void array_init( void );
 #define u32data(x) (((uint**)pval(x))[2])
 #define s64data(x) (((long**)pval(x))[2])
 #define f64data(x) (((double**)pval(x))[2])
+
+#define init_array(o, t, C, e, l, s)			\
+  do {							\
+    init_ob( o, t, C, e, true, sizeof(vector_t));	\
+    asize( o )   = s;					\
+    adata( o )   = (uchar*)o + sizeof(vector_t);	\
+    alength( o ) = l;					\
+  } while (0)
+
+#define init_vector(o, l, s)			\
+  init_array(o, tag_vector, C_sint64, 0, l, s)
+
+#define init_binary(o, C, l, s)			\
+  init_array(o, tag_binary, C, 0, l, s)
+
+#define init_string(o, l, s)				\
+  init_array(o, tag_string, C_sint8, enc_ascii, l, s+1)
+
 
 #endif

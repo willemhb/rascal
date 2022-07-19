@@ -8,6 +8,11 @@
 #include "io.h"
 #include "object.h"
 #include "runtime.h"
+#include "symbol.h"
+#include "list.h"
+#include "function.h"
+#include "array.h"
+#include "number.h"
 #include "vm.h"
 
 #define atm_maxlen 8192
@@ -314,7 +319,7 @@ static void getsymtok( FILE *ios, int ch ) {
     char *sbuf;
     long l = strtol( token_buffer, &sbuf, 0 );
 
-    assert( *sbuf == '\0' && "integer token failed to read integer" );
+    assert( *sbuf == '\0' );
 
     token_value = fixnum( l );
 
@@ -621,13 +626,6 @@ value_t r_load( char *fname ) {
   return out;
 }
 
-static size_t prin_vector( FILE *ios, value_t v) {
-
-}
-
-static size_t prin_binary( FILE *ios, value_t b ) {
-}
-
 size_t r_prin( FILE *ios, value_t x ) {
   type_t xt = r_type(x);
   
@@ -643,16 +641,11 @@ size_t r_prin( FILE *ios, value_t x ) {
     
   case type_boolean:
     return fprintf( ios, (x == val_true ? "true" : "false" ));
-    
-  case type_nil:
-    return fprintf( ios, "()" );
-  
-  case type_vector:
-    return prin_vector( ios, x );
 
-  case type_binary:
-    return prin_binary( ios, x );
   default:
+    if (prin_dispatch[xt])
+      return prin_dispatch[xt](ios,x);
+
     return fprintf( ios, "<%s>", Typenames[xt] );
   }
 }

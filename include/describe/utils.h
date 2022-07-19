@@ -66,12 +66,23 @@
 	}					\
     } while (0)
 
+
+#define unpack_string(s, n)					\
+  do								\
+    {								\
+      for (size_t _i=0; _i<alength(s); _i++)			\
+	{							\
+	  char _c = string_get( s, _i );			\
+	  push( character( _c ) );				\
+	  n++;							\
+	}							\
+    } while (0)
+
 #define unpack_atom(a, n)			\
   do {						\
     push(a);					\
     n++;					\
   } while (0)
-
 
 #define for_vec(v, i, x)				\
   for (i=0;i<alen(*v) && ((x=vdata(*v)[(i)])||1); i++)
@@ -81,21 +92,21 @@
   for (i=0; i<alen(*b) && ((x=bdata(*b)[(i)])||1); i++)
 
 #define r_predicate(fname)			\
-  void r_aligned builtin_is_##fname( size_t n )	\
+  void builtin_is_##fname( size_t n )	\
   {						\
   argc( #fname"?", n, 1);			\
   Sref(1) = boolean( is_##fname( Sref(1) ) );	\
   }
 
 #define r_getter(sname, obtype)				\
-  void r_aligned builtin_##sname( size_t n )		\
+  void builtin_##sname( size_t n )		\
   {							\
     argc( #sname, n, 1 );				\
     Sref(1) = to##obtype( #sname, Sref(1) )->sname;	\
   }
 
 #define r_setter(sname, fname, obtype)					\
-  void r_aligned builtin_##fname( size_t n )				\
+  void builtin_##fname( size_t n )				\
   {									\
     argc( #fname, n, 2 );						\
     to##obtype( #fname, Sref(2) )->sname = Sref(1);			\

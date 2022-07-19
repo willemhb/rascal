@@ -51,6 +51,7 @@ static const value_t tag_closure  = (type_closure<<3)|tag_type;
 static const value_t tag_symbol   = (type_symbol<<3)|tag_type;
 static const value_t tag_vector   = (type_vector<<3)|tag_type;
 static const value_t tag_binary   = (type_binary<<3)|tag_type;
+static const value_t tag_string   = (type_string<<3)|tag_type;
 
 static const value_t val_nil     = (type_nil<<24)|tag_immediate;
 static const value_t val_true    = (type_boolean<<24)|(1<<3)|tag_immediate;

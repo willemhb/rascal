@@ -9,7 +9,7 @@ value_t boolean( int x );
 value_t character( int ch );
 
 // utilities ------------------------------------------------------------------
-void    fixnum_init( const char *fname, value_t x, Ctype_t c, void *spc );
+size_t  fixnum_init( const char *fname, value_t x, Ctype_t c, void *spc );
 bool    fixnum_fits( fixnum_t x, Ctype_t ctype );
 
 // predicates -----------------------------------------------------------------
