@@ -718,22 +718,17 @@ void r_builtin(put) {
 
  // initialization -------------------------------------------------------------
 void array_init( void ) {
-  Typenames[type_vector] = "vector";
-  Typenames[type_binary] = "binary";
-  Typenames[type_string] = "string";
-
-  prin_dispatch[type_vector] = vector_prin;
-  prin_dispatch[type_binary] = binary_prin;
-  prin_dispatch[type_string] = string_prin;
-
-  order_dispatch[type_vector] = vector_order;
-  order_dispatch[type_binary] = binary_order;
-  order_dispatch[type_string] = string_order;
-
-  sizeof_dispatch[type_vector] = vector_sizeof;
-  sizeof_dispatch[type_binary] = binary_sizeof;
-  sizeof_dispatch[type_string] = string_sizeof;
-
+  // initialize module globals
+  r_kw_s8  = symbol( ":s8" );
+  r_kw_u8  = symbol( ":u8" );
+  r_kw_s16 = symbol( ":s16" );
+  r_kw_u16 = symbol( ":u16" );
+  r_kw_s32 = symbol( ":s32" );
+  r_kw_u32 = symbol( ":u32" );
+  r_kw_s64 = symbol( ":s64" );
+  r_kw_f64 = symbol( ":f64" );
+  
+  // initialize module builtins
   builtin("vector", builtin_vector );
   builtin("binary", builtin_binary );
   builtin("string", builtin_vector );

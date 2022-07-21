@@ -33,6 +33,10 @@ void function_init( void );
 #define asbuiltin(x) ((builtin_t*)pval(x))
 #define asclosure(x) ((closure_t*)pval(x))
 
+#define clenvt(x) get(closure, x, envt)
+#define clvals(x) get(closure, x, vals)
+#define clcode(x) get(closure, x, code)
+
 #define init_builtin(o, s, c)						\
   do									\
     {									\

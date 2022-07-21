@@ -32,16 +32,28 @@ typedef enum {
   num_opcodes
 } opcode_t;
 
+// globals --------------------------------------------------------------------
 extern value_t r_quote, r_if, r_lambda, r_do, r_define, r_assign;
 
 extern value_t r_else;
 
-// builtins -------------------------------------------------------------------
+extern value_t r_envt, r_func;
+
+// core -----------------------------------------------------------------------
 value_t compile( value_t form );
 value_t execute( value_t code );
 value_t apply( size_t nargs  );
+value_t eval( value_t form );
+
+// builtins -------------------------------------------------------------------
+void r_builtin(compile);
+void r_builtin(execute);
+void r_builtin(apply);
+void r_builtin(eval);
+void r_builtin(envt);
+void r_builtin(func);
 
 // initialization -------------------------------------------------------------
-void init_vm( void );
+void vm_init( void );
 
 #endif

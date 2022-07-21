@@ -4,10 +4,11 @@
 #include "memutils.h"
 
 #include "symbol.h"
-#include "array.h"
-#include "function.h"
 #include "object.h"
 #include "runtime.h"
+#include "number.h"
+#include "array.h"
+#include "function.h"
 
 
 static value_t intern( symbols_t **table, char *name ) {
@@ -145,14 +146,11 @@ void r_builtin(symbol) {
 
 // initialization -------------------------------------------------------------
 void symbol_init( void ) {
+  // create module globals
   r_kw_generate = symbol( ":generate" );
   r_kw_intern = symbol( ":intern" );
-  
-  Typenames[type_symbol] = "symbol";
-  
-  prin_dispatch[type_symbol] = symbol_prin;
-  order_dispatch[type_symbol] = symbol_order;
 
+  // create module builtins
   builtin("symbol", builtin_symbol );
   builtin("symbol?", builtin_is_symbol );
   builtin("keyword?", builtin_is_keyword );

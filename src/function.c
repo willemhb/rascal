@@ -6,6 +6,7 @@
 #include "object.h"
 #include "symbol.h"
 #include "runtime.h"
+#include "number.h"
 
 // constructors ---------------------------------------------------------------
 value_t builtin( char *name, void (*callback)( size_t n ) ) {
@@ -61,15 +62,15 @@ int closure_order( value_t x, value_t y ) {
 }
 
 // builtins -------------------------------------------------------------------
-
+r_predicate(builtin)
+r_predicate(closure)
+r_predicate(function)
 
 // initialization -------------------------------------------------------------
 void function_init( void ) {
-  Typenames[type_closure] = "closure";
-  Typenames[type_builtin] = "builtin";
-
-  order_dispatch[type_closure] = closure_order;
-
-  
+  // create module builtins
+  builtin("builtin?", builtin_is_builtin );
+  builtin("closure?", builtin_is_closure );
+  builtin("function?", builtin_is_function );
 }
 

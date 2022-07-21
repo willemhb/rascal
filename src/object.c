@@ -110,7 +110,7 @@ void r_builtin(not) {
 
 // initialization -------------------------------------------------------------
 void object_init( void ) {
-  // initialize builtins
+  // create builtins
   builtin( "sizeof", builtin_size );
   builtin( "ord", builtin_order );
   builtin( "id?", builtin_is_id );

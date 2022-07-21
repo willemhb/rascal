@@ -4,6 +4,9 @@
 #include "rascal.h"
 #include "describe/utils.h"
 
+// globals --------------------------------------------------------------------
+extern value_t r_main, r_args, r_kw_ok;
+
 // memory management ----------------------------------------------------------
 size_t  calc_array_size( size_t n_bytes );
 
@@ -48,6 +51,13 @@ type_t  oargt( const char *fname, value_t got, size_t n, ...);
 size_t  s_argc( const char *fname, value_t form, size_t expect );
 size_t  s_vargc( const char *fname, value_t form, size_t expect );
 
+// builtins -------------------------------------------------------------------
+void r_builtin(exit);
+void r_builtin(getenv);
+void r_builtin(errorb);
+void r_builtin(system);
 
+// initialization -------------------------------------------------------------
+void runtime_init( void );
 
 #endif

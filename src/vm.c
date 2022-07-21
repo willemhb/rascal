@@ -371,7 +371,6 @@ static size_t comp_closure( value_t *e, value_t *v, value_t *c, value_t *f, valu
 
   bool is_toplevel = false;
   
-
   if ((is_toplevel=(e==NULL)))
     e = &Stack[envt_buffer];
 
@@ -385,7 +384,6 @@ static size_t comp_closure( value_t *e, value_t *v, value_t *c, value_t *f, valu
     f = s;
 
   if (is_toplevel) {
-    
     comp_expression( e, v, c, *s );
     emit_instruction( c, op_return, 0, 0 );
 
@@ -401,13 +399,13 @@ static size_t comp_closure( value_t *e, value_t *v, value_t *c, value_t *f, valu
     Stack[envt_buffer] = cons( formals, Stack[envt_buffer] );
 
     emit_instruction( &Stack[code_buffer], (vargs ? op_argc : op_vargc), n_formals, 0 );
-    
+
     comp_sequence( &Stack[envt_buffer], &Stack[vals_buffer], &Stack[code_buffer], s, false );
 
     // save code and constants in calling closure 
     size_t vloc = vector_put( *v, Stack[vals_buffer] );
     size_t cloc = vector_put( *v, Stack[code_buffer] );
-    size_t ncap = cons_length( car(*e) );
+    size_t ncap = list_length( car(*e) );
 
     // arrange for a closure to be created at runtime
     emit_instruction( c, op_capture, ncap, 0 );
@@ -480,6 +478,22 @@ value_t execute( value_t code ) {
   return apply( 0 );
 }
 
+value_t eval( value_t expression ) {
+  if (is_symbol(expression)) {
+    require( "eval",
+	     is_bound(expression),
+	     "unbound symbol '%s",
+	     sname(expression) );
+    return sbind(expression);
+  } else if (is_cons(expression)) {
+    expression = compile(expression);
+    expression = execute(expression);
+    return expression;
+  } else {
+    return expression;
+  }
+}
+
 value_t apply( size_t nargs ) {
   static void *labels[num_opcodes] = {
     /* 0-argument instructions */
@@ -509,7 +523,7 @@ value_t apply( size_t nargs ) {
 
   
   opcode_t op;
-  short argx = nargs, // allows 
+  short argx = nargs,
     argy = 0;
   value_t x, y, z, f;
 
@@ -781,10 +795,14 @@ void r_builtin(apply) {
   push( x );
 }
 
+void r_builtin(eval) {
+  argc( "eval", n, 1 );
+  Tos = eval(Tos);
+}
+
 // initialization -------------------------------------------------------------
 void init_vm( void ) {
-
-  // special forms ------------------------------------------------------------
+  // special forms
   r_quote  = symbol("quote");
   r_lambda = symbol("lmb");
   r_define = symbol("def");
@@ -792,8 +810,9 @@ void init_vm( void ) {
   r_do     = symbol("do");
   r_if     = symbol("if");
 
-  // builtin functions --------------------------------------------------------
-  mk_builtin(apply);
-  mk_builtin(comp);
-  mk_builtin(exec);
+  // builtin functions
+  builtin("apply", builtin_apply);
+  builtin("comp", builtin_comp);
+  builtin("exec", builtin_exec);
+  builtin("eval", builtin_eval);
 }

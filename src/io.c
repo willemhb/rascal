@@ -22,18 +22,19 @@
 #define prompt_out ">> "
 
 static char *token_names[] = {
-  [tok_lpar] = "(",     [tok_rpar] = ")",
-  
-  [tok_lbrack] = "[",     [tok_rbrack] = "]",
-  
-  [tok_hash] = "#", [tok_quote] = "'", [tok_dot] = ".",
-  
-  [tok_symbol] = "symbol", [tok_integer] = "integer",
-  [tok_true]   = "true",   [tok_false] = "false",
-  [tok_nil]    = "nil",    [tok_character] = "character",
-  [tok_string] = "string",
+  [tok_lpar]      = "(",           [tok_rpar]      = ")",
 
-  [tok_eof] = "EOF", [tok_ready] = "ready"
+  [tok_lbrack]    = "[",           [tok_rbrack]    = "]",
+  
+  [tok_quote]     = "'",           [tok_dot]       = ".",
+
+  [tok_binary]    = "binary",
+  [tok_symbol]    = "symbol",      [tok_function]  = "function",
+  [tok_integer]   = "integer",     [tok_true]      = "true",
+  [tok_false]     = "false",       [tok_nil]       = "nil",
+  [tok_character] = "character",   [tok_string]    = "string",
+  
+  [tok_eof]       = "EOF",         [tok_ready]     = "ready"
 };
 
 static char* chrnames[CHAR_MAX+1] = {
@@ -152,14 +153,17 @@ static struct { char code; char* name; } char_trie['v'+1][7] = {
   ['v'] = { { '\v', "vtab" } },
 };
 
-// static helpers -------------------------------------------------------------
+// reader state ---------------------------------------------------------------
 #define bufmax 2048
-#define streql(x,y) (strcmp(x,y)==0)
 
 static char token_buffer[bufmax+1];
 static int bufi = 0;
 static token_t token = tok_ready;
 static value_t token_value = val_nil;
+static Ctype_t token_Ctype = C_sint64; // used by read_binary
+
+// static helpers -------------------------------------------------------------
+#define streql(x,y) (strcmp(x,y)==0)
 
 static inline bool dlmchr(int c);
 static inline bool symchr(int c);
@@ -172,12 +176,39 @@ static int      skipc( FILE *ios );
 
 static void clear_reader( void );
 
-static void    getsymtok( FILE *ios, int ch );
-static void    getchrtok( FILE *ios );
-static void    getstrtok( FILE *ios );
-static value_t readexpr( FILE *ios );
+static void    get_symtok( FILE *ios, int ch );
+static void    get_chrtok( FILE *ios );
+static void    get_strtok( FILE *ios );
+static value_t read_expr( FILE *ios );
+
+static value_t read_function( FILE *ios );
+static value_t read_binary( FILE *ios );
 static value_t read_sexpr( FILE *ios );
 static value_t read_vector( FILE *ios );
+
+bool is_rascal_source_file( const char *fname ) {
+  char *buf = strstr(fname, ".rsp" );
+
+  return buf && buf[4] == '\0';
+}
+
+bool is_rascal_data_file( const char *fname ) {
+  char *buf = strstr(fname, ".rdn" );
+
+  return buf && buf[4] == '\0';
+}
+
+bool is_rascal_object_file( const char *fname ) {
+  char *buf = strstr( fname, ".rdn.o" );
+
+  return buf && buf[6] == '\0';
+}
+
+bool is_rascal_file( const char *fname ) {
+  return is_rascal_source_file( fname ) ||
+    is_rascal_data_file( fname ) ||
+    is_rascal_object_file( fname );
+}
 
 static int peekc( FILE *ios ) {
   int ch = fgetc( ios );
@@ -202,6 +233,15 @@ static int accumc( int ch ) {
   return ch;
 }
 
+static inline bool dlmchr( int c ) {
+  return strchr( "[](){}\"", c );
+}
+
+static inline bool symchr( int c ) {
+  return isalnum(c) ||
+    (isprint(c) && !strchr("[](){}\"\\`~@#;", c));
+}
+
 static int skipc( FILE *ios ) {
     char c;
     int ch;
@@ -224,7 +264,7 @@ static int skipc( FILE *ios ) {
     return c;
 }
 
-static void getchrtok( FILE *ios ) {
+static void get_chrtok( FILE *ios ) {
   int ch;
 
   while ((ch=peekc(ios)) != EOF && !(isspace(ch) || dlmchr(ch))) {
@@ -252,7 +292,7 @@ static void getchrtok( FILE *ios ) {
 	 token_buffer );
 }
 
-static void getstrtok( FILE *ios) {
+static void get_strtok( FILE *ios) {
   int c;
   bool escape = false;
   static char escape_map[CHAR_MAX+1] = {
@@ -289,7 +329,7 @@ static void getstrtok( FILE *ios) {
   token_value = pop();
 }
 
-static void getsymtok( FILE *ios, int ch ) {
+static void get_symtok( FILE *ios, int ch ) {
   int c = accumc( ch );
   bool nump = c != EOF && strchr("+-0123456789", c) != NULL;
 
@@ -370,10 +410,39 @@ static token_t get_token( FILE *ios ) {
     case ']': token  = tok_rbrack; break;
     case '\'': token = tok_quote; break;
     case '.': token = tok_dot; break;
-    case '#': token = tok_hash; break;
-    case '"': token = tok_string; getstrtok( ios ); break;
-    case '\\': token = tok_character; getchrtok( ios ); break;
-    default: getsymtok( ios, c ); break;
+    case '"': token = tok_string; get_strtok( ios ); break;
+    case '\\': token = tok_character; get_chrtok( ios ); break;
+
+    case '#':
+      while (!dlmchr(c)) {
+	c = takec(ios);
+
+	require( "read",
+		 c != EOF,
+		 "unexpected EOF reading #" );
+
+	accumc(c);
+      }
+
+      if ( streql("fun", token_buffer) )
+	token = tok_function;
+
+      else
+	for (size_t i=0; i<C_float64+1; i++)
+	  if ( streql(Ctype_names[i], token_buffer) ) {
+	    token = tok_binary;
+	    token_Ctype = i;
+	    break;
+	  }
+
+      require( "read",
+	       token != tok_ready,
+	       "unrecognized dispatch code '#%s'",
+	       token_buffer );
+
+      break;
+      
+    default: get_symtok( ios, c ); break;
     }
   }
 
@@ -397,7 +466,7 @@ static value_t read_sexpr( FILE *ios ) {
 	     tok != tok_eof,
 	     "unexpected EOF reading #" );
 
-    value_t head = readexpr( ios );
+    value_t head = read_expr( ios );
     n++;
 
     push( head );
@@ -417,7 +486,7 @@ static value_t read_sexpr( FILE *ios ) {
     }
 
     // TODO: more validation
-    value_t tail = readexpr( ios );
+    value_t tail = read_expr( ios );
     push( tail );
     n++;
     constructor = consn_s;
@@ -442,7 +511,7 @@ static value_t read_vector( FILE *ios ) {
 	     tok != tok_eof,
 	     "unexpected EOF reading #" );
 
-    value_t element = readexpr(ios);
+    value_t element = read_expr(ios);
     push( element );
     n++;
   }
@@ -451,34 +520,37 @@ static value_t read_vector( FILE *ios ) {
   return (token_value=pop());
 }
 
+static value_t read_function( FILE *ios ) {
+  value_t x = read_expr(ios);
+  require( "read",
+	   is_list(x),
+	   "invalid closure environment reading #" );
+  push(x);
+  x = read_expr(ios);
+  require("read",
+	  is_vector(x),
+	  "invalid stored values reading #" );
+  push(x);
+  x = read_expr(ios);
+  require("read",
+	  is_binary(x),
+	  "invalid code sequence reading #" );
+  push(x);
+  require("read",
+	  get_token(ios) == tok_rbrack,
+	  "invalid closure literal reading #" );
+  closure_s( &Sref(3), &Sref(2), &Sref(1) );
+
+  return (token_value = pop());
+}
+
 static value_t read_binary( FILE *ios ) {
-  Ctype_t ctype; size_t n = 0;
-  size_t elsize;
+  Ctype_t ctype = token_Ctype; size_t n = 0;
+  value_t x;
+  size_t elsize = Ctype_size(ctype);
   token_t tok;
 
-  tok = get_token( ios );
-
-  require("read",
-	  tok == tok_symbol,
-	  "invalid C type token '%s':'%s'",
-	  token_names[tok],
-	  token_buffer );
-
-  value_t x = readexpr( ios );
-
   /* TODO: validate the symbol name further */
-  ctype = assymbol(x)->bind;
-  elsize = Ctype_size( ctype );
-
-  tok = get_token( ios );
-
-  require("read",
-	  tok == tok_lbrack,
-	  "invalid token reading #: '%s'",
-	  token_buffer );
-
-  take( ios );
-
   index_t base = Sp;
   
   while ((tok = get_token( ios )) != tok_rbrack ) {
@@ -486,12 +558,10 @@ static value_t read_binary( FILE *ios ) {
 	     tok != tok_eof,
 	     "unexpected EOF reading #" );
 
-    x = readexpr( ios );
+    x = read_expr( ios );
     push(x);
     n++;
   }
-
-  take( ios );
 
   uchar buf[n*elsize];
 
@@ -522,12 +592,12 @@ static value_t read_macro( FILE *ios, token_t tok ) {
   assert( macro_sym != val_nil );
   take( ios );
 
-  out = readexpr( ios );
+  out = read_expr( ios );
   out = list2( macro_sym, out );
   return (token_value = out);
 }
 
-value_t readexpr( FILE *ios ) {
+value_t read_expr( FILE *ios ) {
   // assert( scanner.token == tok_ready && "scanner not cleared." );
 
   token_t tok = get_token( ios );
@@ -550,18 +620,24 @@ value_t readexpr( FILE *ios ) {
     out = take( ios );
     break;
 
-  case tok_hash:
-    take( ios );
-    read_binary( ios );
-    out = take( ios );
-    break;
-
   case tok_quote:
     read_macro( ios, tok );
     out = take( ios );
     break;
 
   case tok_symbol ... tok_string:
+    out = take( ios );
+    break;
+    
+  case tok_binary:
+    take( ios );
+    read_binary( ios );
+    out = take( ios );
+    break;
+
+  case tok_function:
+    take( ios );
+    read_function( ios );
     out = take( ios );
     break;
 
@@ -578,18 +654,24 @@ value_t readexpr( FILE *ios ) {
   return out;
 }
 
-value_t r_read( FILE *ios ) { // API for readexpr
+value_t r_read( FILE *ios ) { // API for read_expr
   assert( token == tok_ready );
 
   clear_reader();
 
-  value_t out = readexpr( ios );
+  value_t out = read_expr( ios );
 
   return out;
 }
 
 value_t r_load( char *fname ) {
   assert( token == tok_ready );
+  assert( fname );
+
+  require( "load",
+	   is_rascal_file(fname),
+	   "unrecognized extension in '%s'",
+	   fname );
 
   FILE *ios = fopen( fname, "rt" );
   value_t out = val_nil;
@@ -607,9 +689,34 @@ value_t r_load( char *fname ) {
     out = val_nil;
   }
 
+  else if (is_rascal_data_file(fname)) {
+    size_t n = 0;
+
+    while ((token = get_token(ios)) != tok_eof) {
+      value_t xpr = read_expr(ios);
+      push(xpr);
+      n++;
+    }
+
+    out = vector_s( n, Stack+Sp-n );
+
+  } else if (is_rascal_object_file(fname)) {
+    value_t envt = read_expr(ios);
+    assert(!feof(ios));
+    push(envt);
+    value_t vals = read_expr(ios);
+    assert(!feof(ios));
+    push(vals);
+    value_t code = read_expr(ios);
+    push(code);
+    assert(feof(ios));
+    closure_s(&Sref(3), &Sref(2), &Sref(1));
+    out = pop();
+  }
+
   else {
     while ((token = get_token(ios)) != tok_eof) {
-      value_t xpr  = readexpr( ios );
+      value_t xpr  = read_expr( ios );
       value_t code = compile( xpr );
       out = execute( code );
     }
@@ -632,10 +739,10 @@ size_t r_prin( FILE *ios, value_t x ) {
   switch (xt) {
   case type_fixnum:
     return fprintf( ios, "%ld", ival(x) );
-    
+
   case type_character:
     return fprintf( ios, "\\%s", chrnames[cval(x)]);
-    
+
   case type_type:
     return fprintf( ios, "%s()", Typenames[cval(x)]);
     
@@ -652,13 +759,11 @@ size_t r_prin( FILE *ios, value_t x ) {
 
 value_t r_comp_file( char *fname ) {
   assert( token == tok_ready );
+  require( "comp-file",
+	   is_rascal_source_file(fname),
+	   "unrecognized file extension in '%s'" );
 
   char *ext = strstr(fname, ".rsp" );
-
-  require( "comp-file",
-	   ext && strlen(ext) == 4,
-	   "unrecognized file extension in '%s'",
-	   fname );
 
   char outfile_name[ext - fname + 7];
   strncpy( outfile_name, fname, ext - fname );
@@ -683,15 +788,24 @@ value_t r_comp_file( char *fname ) {
   else {
     push( r_do ); // compile as a squence expression   
     while ((token = get_token(ios)) != tok_eof) {
-      value_t xpr  = readexpr( ios );
+      value_t xpr  = read_expr( ios );
       push(xpr);
     }
     value_t module = list( Sp - saveSp, &Stack[saveSp] );
     value_t compiled_module = compile( module );
 
+    // create object file
     FILE *outfile = fopen(outfile_name, "wt+" );
 
-    
+    fprintf(outfile, ";;; Environment:\n\n" );
+    r_prin( outfile, clenvt(compiled_module) );
+    fprintf(outfile, "\n\n;;; Stored Values:\n\n" );
+    r_prin(outfile, clvals(compiled_module) );
+    fprintf(outfile, "\n\n;;; Code:\n\n" );
+    r_prin(outfile, clcode(compiled_module) );
+
+    fflush( outfile );
+    fclose( outfile );
   }
 
   Sp = saveSp;
@@ -703,6 +817,31 @@ value_t r_comp_file( char *fname ) {
   fclose( ios );
 
   return out;
+}
+
+void r_repl( void ) {
+  for (;;) {
+    index_t saveSp = Sp, saveFp = Fp, savePc = Pc, saveBp = Bp;
+    clear_reader();
+
+    if (setjmp(Toplevel)) {
+      printf( "recovering.\n" );
+      
+    } else {
+      printf( prompt_in );
+      value_t xpr = r_read( stdin );
+      printf( "\n" );
+      xpr = eval( xpr );
+      printf( prompt_out );
+      r_prin( stdin, xpr );
+      printf( "\n" );
+    }
+
+    Sp = saveSp;
+    Fp = saveFp;
+    Pc = savePc;
+    Bp = saveBp;
+  }
 }
 
 // builtins -------------------------------------------------------------------
@@ -718,14 +857,30 @@ void r_builtin(prin) {
 }
 
 void r_builtin(load) {
-  
+  argc( "load", n, 1 );
+  argt( "load", Tos, type_string );
+  value_t val = r_load( adata(Tos) );
+  Tos = val;
 }
 
 void r_builtin(comp_file) {
+  argc("comp-file", n, 1);
+  argt( "load", Tos, type_string );
+  value_t val = r_comp_file( adata(Tos) );
+  Tos = val;
+}
 
+void r_builtin(repl) {
+  argc( "repl", n, 0);
+  r_repl();
 }
 
 // initialization -------------------------------------------------------------
 void init_io( void ) {
-  
+  // create module builtins
+  builtin( "read", builtin_read );
+  builtin( "prin", builtin_prin );
+  builtin( "load", builtin_load );
+  builtin( "comp-file", builtin_comp_file );
+  builtin( "repl", builtin_repl );
 }

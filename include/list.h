@@ -28,7 +28,7 @@ bool is_list( value_t x );
 // methods --------------------------------------------------------------------
 size_t list_prin( FILE *ios, value_t c );
 int    list_order( value_t x, value_t y );
-size_t list_size( value_t x );
+size_t list_sizeof( value_t x );
 
 // safecasts ------------------------------------------------------------------
 cons_t *tocons( const char *fname, value_t x );

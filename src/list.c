@@ -5,6 +5,7 @@
 #include "object.h"
 #include "io.h"
 #include "function.h"
+#include "number.h"
 
 static void init_ncons( cons_t *spc, size_t n, value_t *ini, bool nil_tail ) {
   size_t i;
@@ -236,13 +237,6 @@ r_setter(cdr, xdr, cons)
 
 // initialization -------------------------------------------------------------
 void list_init( void ) {
-  Typenames[type_cons] = "cons";
-  Typenames[type_nil] = "nil";
-
-  sizeof_dispatch[type_cons] = sizeof_dispatch[type_nil] = list_sizeof;
-  prin_dispatch[type_cons] = prin_dispatch[type_nil] = list_prin;
-  order_dispatch[type_cons] = order_dispatch[type_nil] = list_order;
-
   builtin( "cons", builtin_cons );
   builtin( "cons*", builtin_consn );
   builtin( "list", builtin_list );

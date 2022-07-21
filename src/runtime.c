@@ -1,6 +1,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <assert.h>
+#include <stdlib.h>
 
 #include "memutils.h"
 #include "numutils.h"
@@ -8,6 +9,12 @@
 
 #include "runtime.h"
 #include "object.h"
+
+#include "symbol.h"
+#include "list.h"
+#include "function.h"
+#include "array.h"
+#include "number.h"
 
 // memory management ----------------------------------------------------------
 size_t calc_array_size( size_t n_bytes ) { // Python array allocation algorithm
@@ -78,15 +85,15 @@ int collect_garbage( void ) {
 }
 
 value_t forward( value_t x ) {
-  size_t n = is_cons(x) ? sizeof(cons_t) : obhead(x).base_size;
+  size_t n = is_cons(x) ? sizeof(cons_t) : ob_base_size(x);
 
   void *spc = allocate( n );
 
   memcpy( spc, pval( x ), n );
 
-  if (obhead(x).is_array) {
-    size_t elsize  = Ctype_size( obhead(x).Ctype );
-    void *dspc     = allocate( ( asize( x ) + !!obhead(x).encoding) * elsize );
+  if (ob_is_array(x)) {
+    size_t elsize  = Ctype_size( ob_Ctype(x) );
+    void *dspc     = allocate( ( asize( x ) + !!ob_encoding(x)) * elsize );
     memcpy( dspc, adata( x ), alength( x ) * elsize );
     adata( spc ) = dspc;
   }
@@ -167,7 +174,7 @@ value_t popn_s( const char *fname, size_t n ) {
   return popn( n );
 }
 
-// error handlign -------------------------------------------------------------
+// error handling -------------------------------------------------------------
 static void perror_v( const char *fname, const char *fmt, va_list va) {
   fprintf( stderr, "%s: error: ", fname );
   vfprintf( stderr, fmt, va );
@@ -191,4 +198,24 @@ void require(const char *fname, bool test, const char *fmt, ...) {
   perror_v( fname, fmt, va );
   va_end(va);
   longjmp( Toplevel, 1 );
+}
+
+// builtins -------------------------------------------------------------------
+void r_builtin(errorb) {
+  
+}
+
+// initialization -------------------------------------------------------------
+void runtime_init( void ) {
+  // create heaps
+  Heap    = malloc_s( HSize );
+  Reserve = malloc_s( HSize );
+
+  // initialize module globals
+  r_main  = symbol("&main");
+  r_args  = symbol("&args");
+  r_kw_ok = symbol(":okay");
+
+  // initialize builtins
+  builtin( "error!", builtin_errorb );
 }

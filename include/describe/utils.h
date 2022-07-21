@@ -92,7 +92,7 @@
   for (i=0; i<alen(*b) && ((x=bdata(*b)[(i)])||1); i++)
 
 #define r_predicate(fname)			\
-  void builtin_is_##fname( size_t n )	\
+  void builtin_is_##fname( size_t n )		\
   {						\
   argc( #fname"?", n, 1);			\
   Sref(1) = boolean( is_##fname( Sref(1) ) );	\
