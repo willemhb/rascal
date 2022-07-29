@@ -1,17 +1,30 @@
 #include <string.h>
+#include <assert.h>
 
 #include "memutils.h"
 #include "hashing.h"
 
 #include "object.h"
+#include "runtime.h"
+
 #include "number.h"
 #include "list.h"
 #include "array.h"
 #include "function.h"
-#include "runtime.h"
+#include "symbol.h"
 
 // utilities ------------------------------------------------------------------
 bool Cbool( value_t x ) { return x != val_false && x != val_nil; }
+
+void *pval_s( value_t x ) {
+  assert(!is_fixnum(x));
+
+  if (tag(x) > tag_immediate)
+    return pval(x);
+  
+  assert(r_type(x) > type_character);
+  return NULL;
+}
 
 // predicates -----------------------------------------------------------------
 mk_tag_p(immediate)
@@ -19,13 +32,8 @@ mk_tag_p(boxed)
 mk_tag_p(pair)
 
 bool is_empty( value_t x ) {
-  return is_immediate(x) &&
-    (is_list(x)   ||
-     is_vector(x) ||
-     is_binary(x) ||
-     is_string(x) );
+  return is_immediate(x) && (wtag(x)>>24) > type_character;
 }
-
 
 // core -----------------------------------------------------------------------
 type_t r_type( value_t x ) {
@@ -69,11 +77,24 @@ int r_order( value_t x, value_t y ) {
 
   if (xtag == tag_immediate)
     return ord_int( cval(x), cval(y) );
-
+  
   if (order_dispatch[xtype])
     return order_dispatch[xtype](x, y);
 
-  return ord_ulong( x&~(value_t)7, y&~(value_t)7 );
+  else
+    return ord_ulong(x&~(value_t)7, y&~(value_t)7 );
+}
+
+hash_t r_hash( value_t x ) {
+  if (is_fixnum(x) || is_immediate(x))
+    return int64hash(x) & ~15ul;
+
+  type_t xt = r_type(x);
+
+  if (hash_dispatch[xt])
+    return hash_dispatch[xt](x) & ~15ul;
+
+  return pointerhash( pval(x) ) & ~15ul;
 }
 
 // builtins ------------------------------------------------------------------
@@ -96,6 +117,11 @@ void r_builtin(size) {
   Tos = fixnum( r_size(Tos) );
 }
 
+void r_builtin(hash) {
+  argc( "hash", n, 1 );
+  Tos = r_hash( Tos );
+}
+
 void r_builtin(ord) {
   argc( "ord", n, 2);
 
@@ -112,6 +138,7 @@ void r_builtin(not) {
 void object_init( void ) {
   // create builtins
   builtin( "sizeof", builtin_size );
+  builtin( "hash", builtin_hash );
   builtin( "ord", builtin_order );
   builtin( "id?", builtin_is_id );
   builtin( "=?", builtin_is_eq );

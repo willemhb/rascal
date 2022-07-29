@@ -27,16 +27,22 @@ bool check_heap_overflow( size_t n_bytes ) {
 
 void *allocate( size_t n_bytes ) {
   size_t padded = aligned( n_bytes, sizeof(cons_t) );
+
   if ( !Collecting && check_heap_overflow( n_bytes ) )
     collect_garbage();
+
+  size_t nwords = padded / 8;
+  size_t Hwords = HUsed / 8;
   
   void *out  = Heap + HUsed;
+  void *omap = Map  + Hwords;
+
   HUsed     += padded;
 
   memset( out, 0, padded );
+  memset( omap, 0, nwords );
   return out;
 }
-
 
 static void trace_symbols( symbols_t *x ) {
   if ( x ) {
@@ -59,8 +65,10 @@ int collect_garbage( void ) {
   if ( Grow ) {
     HSize *= Growf;
     Reserve = realloc_s(Reserve, HSize );
+    Map     = realloc_s(Map, HSize / 8 );
     Grow = false;
     Grew = true;
+
   } else if ( Grew ) {
     Reserve = realloc_s(Reserve, HSize );
     Grow = Grew = false;
@@ -200,22 +208,241 @@ void require(const char *fname, bool test, const char *fmt, ...) {
   longjmp( Toplevel, 1 );
 }
 
-// builtins -------------------------------------------------------------------
-void r_builtin(errorb) {
+size_t argc(const char *fname, size_t got, size_t expect ) {
+  require(fname,
+	  got == expect,
+	  "# wanted %zu arguments, got %zu",
+	  expect,
+	  got );
+
+  return got;
+}
+
+size_t vargc(const char *fname, size_t got, size_t expect ) {
+    require(fname,
+	  got >= expect,
+	  "# wanted at least %zu arguments, got %zu",
+	  expect,
+	  got );
+
+  return got;
+}
+
+size_t oargc(const char *fname, size_t got, size_t n, ...) {
+  static const char *ofmt = "%zu, ";
+  static const char *lfmt = "or %zu arguments, ";
   
+  assert(n >= 2);
+  va_list va;
+  va_start(va, n);
+  
+  if (n == 2) {
+    const char *fmt = "# wanted %zu or %zu arguments, got %zu";
+    size_t n1 = va_arg(va, size_t);
+    size_t n2 = va_arg(va, size_t);
+    va_end(va);
+    
+    require( fname,
+	     got == n1 || got == n2,
+	     fmt,
+	     n1,
+	     n2,
+	     got );
+
+    return got;
+  }
+
+  FILE *tmp = tmpfile();
+
+  assert(tmp);
+  
+  size_t bufsize = 1 + fprintf( tmp, "# wanted " );
+  bool test = false;
+
+  for (size_t i=0;i<n;i++) {
+    const char *fmt = i+1 == n ? lfmt : ofmt;
+    size_t o        = va_arg(va, size_t);
+    bufsize        += fprintf( tmp, fmt, o );
+    test            = test || got == o;
+  }
+
+  va_end(va);
+  bufsize += fprintf( tmp, "got %zu", got );
+
+  char buf[bufsize];
+
+  fseek( tmp, 0, SEEK_SET );
+  fgets( buf, bufsize, tmp );
+  fclose( tmp );
+
+  require(fname,
+	  test,
+	  buf );
+
+  return got;
+}
+
+type_t argt(const char *fname, value_t got, type_t expect) {
+  type_t out = r_type(got);
+  
+  require( fname,
+	   out == expect,
+	   "# wanted a %s(), got a %s()",
+	   Typenames[expect],
+	   Typenames[out] );
+  
+  return out;
+}
+
+type_t oargt(const char *fname, value_t got, size_t n, ...) {
+  static const char *ofmt = "a %s(), ";
+  static const char *lfmt = "or a %s(), ";
+  
+  assert(n >= 2);
+  va_list va;
+  va_start(va, n);
+
+  type_t tg = r_type(got);
+  
+  if (n == 2) {
+    const char *fmt = "# wanted a %s() or %s(), got a %s()";
+    type_t t1 = va_arg(va, type_t);
+    type_t t2 = va_arg(va, type_t);
+    va_end(va);
+    
+    require( fname,
+	     tg == t1 || tg == t2,
+	     fmt,
+	     Typenames[t1],
+	     Typenames[t2],
+	     Typenames[tg] );
+
+    return tg;
+  }
+
+  FILE *tmp = tmpfile();
+
+  assert(tmp);
+
+  size_t bufsize = 1;
+  bufsize += fprintf( tmp, "# wanted " );
+  bool test = false;
+
+  for (size_t i=0;i<n;i++) {
+    const char *fmt = i+1 == n ? lfmt : ofmt;
+
+    type_t o = va_arg(va, type_t);
+    bufsize += fprintf(tmp, fmt, Typenames[o] );
+    test     = test || tg == o;
+  }
+
+  va_end(va);
+  bufsize += fprintf( tmp, "got a %s()", Typenames[tg] );
+
+  char buf[bufsize];
+
+  fseek( tmp, 0, SEEK_SET );
+  fgets( buf, bufsize, tmp );
+  fclose( tmp );
+
+  require(fname,
+	  test,
+	  buf );
+  
+  return got;
+}
+
+size_t s_argc( const char *fname, value_t form, size_t expect ) {
+  require( fname, is_cons(form), "error: syntax: not a list" );
+  size_t length = list_length(form);
+  require(fname,
+	  length == expect,
+	  "error: syntax: not expected %zu expressions, got %zu",
+	  expect,
+	  length );
+  return length;
+}
+
+size_t s_vargc( const char *fname, value_t form, size_t expect ) {
+  require( fname, is_cons(form), "error: syntax: not a list" );
+  size_t length = list_length(form);
+  require(fname,
+	  length >= expect,
+	  "error: syntax: not expected at least %zu expressions, got %zu",
+	  expect,
+	  length );
+  return length;
+}
+
+// builtins -------------------------------------------------------------------
+void r_builtin(getenv) {
+  argc("sys/getenv", n, 1 );
+  type_t t = oargt("sys/getenv", n, 2, type_string, type_symbol );
+  
+  char *key;
+
+  if (t == type_symbol)
+    key = sname(Tos);
+
+  else
+    key = tostring("sys/getenv", Tos)->data;
+
+  char *value = getenv(key);
+
+  if (value == NULL)
+    Tos = val_nil;
+
+  else
+    Tos = string( value );
+}
+
+void r_builtin(exit) {
+  oargc("sys/exit", n, 2, 0, 1 );
+
+  int status = 0;
+
+  if (n == 1) {
+    value_t arg = pop();
+    status = tofixnum( "sys/exit", arg );
+  }
+
+  exit(status);
+}
+
+void r_builtin(system) {
+  argc("sys/system", n, 1 );
+
+  char *command = tostring("sys/system", Tos )->data;
+  int result = system(command);
+  Tos = fixnum(result);
+}
+
+void r_builtin(errorb) {
+  argc( "error!", n, 1 );
+  argt( "error!", Tos, type_string );
+  value_t arg = pop();
+
+  char *msg = is_empty(arg) ? "" : adata(arg);
+
+  error( "exec", msg );
 }
 
 // initialization -------------------------------------------------------------
 void runtime_init( void ) {
   // create heaps
   Heap    = malloc_s( HSize );
+  Map     = malloc_s( HSize / 8 );
   Reserve = malloc_s( HSize );
 
   // initialize module globals
   r_main  = symbol("&main");
+  r_argc  = symbol("&argc");
   r_args  = symbol("&args");
   r_kw_ok = symbol(":okay");
 
   // initialize builtins
+  builtin( "sys/exit", builtin_exit );
+  builtin( "sys/getenv", builtin_getenv );
+  builtin( "sys/system", builtin_system );
   builtin( "error!", builtin_errorb );
 }

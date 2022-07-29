@@ -6,11 +6,13 @@
 #include "numutils.h"
 
 #include "number.h"
+
 #include "object.h"
+#include "runtime.h"
+
 #include "symbol.h"
 #include "array.h"
 #include "function.h"
-#include "runtime.h"
 
 // constructors ---------------------------------------------------------------
 value_t fixnum( long x )   { return tagi( x, tag_fixnum ); }

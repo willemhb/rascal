@@ -3,6 +3,12 @@
 
 #include "rascal.h"
 
+// flags ----------------------------------------------------------------------
+typedef enum {
+  symfl_constant = 0x001,
+  symfl_syntax   = 0x002
+} symflags_t;
+
 // globals --------------------------------------------------------------------
 extern value_t r_kw_generate, r_kw_intern;
 
@@ -24,6 +30,7 @@ symbol_t *tosymbol( const char *fname, value_t x );
 // methods -------------------------------------------------------------------
 size_t symbol_prin( FILE *ios, value_t x );
 int    symbol_order( value_t x, value_t y );
+hash_t symbol_hash( value_t x );
 
 // builtins ------------------------------------------------------------------
 void builtin_is_symbol( size_t n );
@@ -36,7 +43,7 @@ void symbol_init( void );
 
 #define assymbol(x)  ((symbol_t*)pval(x))
 
-#define sname(x) get(symbol, x, name)
+#define sname(x) (&(get(symbol, x, name)[0]))
 #define sidno(x) get(symbol, x, idno)
 #define sbind(x) get(symbol, x, bind)
 

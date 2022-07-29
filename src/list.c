@@ -1,9 +1,14 @@
 #include <assert.h>
 
+#include "hashing.h"
+
 #include "list.h"
+
 #include "runtime.h"
 #include "object.h"
 #include "io.h"
+
+
 #include "function.h"
 #include "number.h"
 
@@ -174,8 +179,9 @@ mk_safe_cast(cons, cons_t*, pval, true)
 // methods --------------------------------------------------------------------
 int list_order( value_t x, value_t y ) {
   int o;
+
   while (is_cons(x) && is_cons(y)) {
-    if ((o=r_order( car(x), car(y))))
+    if ((o=r_order(car(x), car(y))))
       return o;
     
     x = cdr(x);
@@ -189,7 +195,7 @@ int list_order( value_t x, value_t y ) {
 
 size_t list_prin( FILE *ios, value_t c ) {
   size_t out = fprintf( ios, "(" );
-
+  
   while (is_cons(c)) {
     out += r_prin(ios, car(c));
     c    = cdr(c);
@@ -204,6 +210,17 @@ size_t list_prin( FILE *ios, value_t c ) {
   }
 
   return out + fprintf( ios, ")" );
+}
+
+hash_t list_hash(value_t x) {
+  hash_t out = 0;
+
+  value_t buf = x;
+
+  for_cons(&buf, x)
+    out = mixhash( out, r_hash(x) );
+
+  return mixhash(out, buf);
 }
 
 size_t list_sizeof( value_t x ) {

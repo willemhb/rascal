@@ -33,7 +33,10 @@ typedef enum {
 } opcode_t;
 
 // globals --------------------------------------------------------------------
-extern value_t r_quote, r_if, r_lambda, r_do, r_define, r_assign;
+extern value_t r_quote, r_do;                     // quote, do
+extern value_t r_cond, r_if, r_case, r_and, r_or; // cond, if, case, and, or
+extern value_t r_fun, r_let;                      // fun, let
+extern value_t r_val, r_assign;                   // val, :=
 
 extern value_t r_else;
 

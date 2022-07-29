@@ -22,6 +22,7 @@
 #include "array.h"
 #include "function.h"
 #include "number.h"
+#include "table.h"
 
 /* globals */
 // global meta-info macros
@@ -60,7 +61,8 @@ char    *Typenames[type_pad] = {
   [type_cons]    = "cons",    [type_nil]       = "nil",
   [type_builtin] = "builtin", [type_closure]   = "closure",
   [type_symbol]  = "symbol",  [type_vector]    = "vector",
-  [type_binary]  = "binary",  [type_string]    = "string"
+  [type_binary]  = "binary",  [type_string]    = "string",
+  [type_dict]    = "dict",    [type_set]       = "set"
 };
 
 size_t   (*sizeof_dispatch[type_pad])(value_t x) = {
@@ -72,14 +74,30 @@ size_t   (*sizeof_dispatch[type_pad])(value_t x) = {
 size_t   (*prin_dispatch[type_pad])(FILE *ios, value_t x) = {
   [type_cons]   = list_prin,     [type_nil]    = list_prin,
   [type_symbol] = symbol_prin,   [type_vector] = vector_prin,
-  [type_binary] = binary_prin,   [type_string] = string_prin  
+  [type_binary] = binary_prin,   [type_string] = string_prin,
+  [type_dict]   = dict_prin,     [type_set]    = set_prin
 };
 
 int (*order_dispatch[type_pad])(value_t x, value_t y) = {
   [type_cons]    = list_order,    [type_nil]    = list_order,
+
   [type_closure] = closure_order, [type_symbol] = symbol_order,
+
   [type_vector]  = vector_order,  [type_binary] = binary_order,
-  [type_string]  = string_order
+  [type_string]  = string_order,
+  
+  [type_dict]    = table_order,   [type_set]    = table_order
+};
+
+hash_t (*hash_dispatch[type_pad])( value_t x ) = {
+  [type_cons]    = list_hash,     [type_nil]    = list_hash,
+
+  [type_closure] = closure_hash,  [type_symbol] = symbol_hash,
+
+  [type_vector]  = vector_hash,   [type_binary] = binary_hash,
+  [type_string]  = string_hash,
+
+  [type_dict]    = dict_hash,     [type_set]    = set_hash
 };
 
 value_t  empty_bins[C_float64+1] = {
@@ -89,9 +107,9 @@ value_t  empty_bins[C_float64+1] = {
 };
 
 // global symbols and keywords
-value_t r_main, r_args;
+value_t r_main, r_argc, r_args;
 
-value_t r_kw_generate, r_kw_intern;
+value_t r_kw_ok, r_kw_generate, r_kw_intern;
 
 value_t r_kw_s8, r_kw_u8, r_kw_s16, r_kw_u16, r_kw_s32, r_kw_u32, r_kw_s64, r_kw_f64;
 
@@ -112,6 +130,7 @@ void rascal_init( void ) {
   list_init();
   array_init();
   number_init();
+  table_init();
 }
 
 void welcome_message( void ) {
@@ -127,21 +146,52 @@ void goodbye_message( void ) {
 }
 
 void usage_message( void ) {
+  fprintf( stderr,
+	   "usage: rascal [<FILENAME>.rsp | <FILENAME>.rdn | <FILENAME>.rdn.o]"
+	   " [-l load |-c compile]" );
+}
+
+void help_message( void ) {
   printf( "usage: rascal [<FILENAME>.rsp | <FILENAME>.rdn | <FILENAME>.rdn.o]"
 	  " [-l load |-c compile]" );
 }
 
-int main( int argc, char *argv[] ) {
+int process_options( int argc, char *argv[argc] ) {
   /* command line options */
-  static char short_opts_string[] = "l:c:h";
-  static char long_opts_string[]  = "load:compile:help";
+  static char short_opts_string[] = "hl:c:";
 
- static struct option long_options[] = {
-  { "load",    required_argument, 0, 0 },
-  { "compile", required_argument, 0, 0 },
-  { "help",    no_argument,       0, 0 }
-};
+  static const struct option long_options[] = {
+    { "help",    no_argument,       0, 'h' },
+    { "load",    required_argument, 0, 'l' },
+    { "compile", required_argument, 0, 'c' }
+  };
 
+  int c, idx=0;
+
+  while ((c = getopt_long(argc, argv, short_opts_string, long_options, &idx)) != -1) {
+    switch (idx) {
+    case 'h':
+      help_message();
+      return 0;
+
+    case 'l':
+      r_load( optarg );
+      break;
+
+    case 'c':
+      r_comp_file( optarg );
+      break;
+
+    default:
+      usage_message();
+      return 1;
+    }
+  }
+
+  return 0;
+}
+
+int main( int argc, char *argv[argc] ) {
  /* initialize runtime */
   rascal_init();
 
@@ -150,7 +200,11 @@ int main( int argc, char *argv[] ) {
     welcome_message();
     atexit(goodbye_message);
     r_repl();
-
+    
     return 0;
   }
+
+  int result = process_options( argc, argv );
+
+  return result;
 }

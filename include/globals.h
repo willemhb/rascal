@@ -23,7 +23,7 @@ extern index_t Sp, Fp, Pc, Bp;
 #define Sref(n) Stack[Sp-(n)]
 
 // heaps and heap state
-extern uchar *Heap, *Reserve, *Map;
+extern uchar *Heap, *Reserve;
 
 extern size_t  HSize, HUsed, RUsed;
 

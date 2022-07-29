@@ -69,6 +69,10 @@ size_t vector_sizeof( value_t x );
 size_t binary_sizeof( value_t x );
 size_t string_sizeof( value_t x );
 
+hash_t vector_hash( value_t x );
+hash_t binary_hash( value_t x );
+hash_t string_hash( value_t x );
+
 // builtins -------------------------------------------------------------------
 void r_builtin(vector);
 void r_builtin(binary);
@@ -95,6 +99,7 @@ void array_init( void );
 #define asize(x)   (((size_t*)pval(x))[1])
 #define adata(x)   (((void**)pval(x))[2])
 #define alength(x) (((size_t*)pval(x))[3])
+#define vdata(x)   (((value_t**)pval(x))[2])
 #define s8data(x)  (((char**)pval(x))[2])
 #define u8data(x)  (((uchar**)pval(x))[2])
 #define s16data(x) (((short**)pval(x))[2])

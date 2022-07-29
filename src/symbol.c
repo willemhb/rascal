@@ -98,6 +98,10 @@ size_t symbol_prin( FILE *ios, value_t x ) {
   return fprintf( ios, "%s", sname(x) );
 }
 
+hash_t symbol_hash( value_t x ) {
+  return assymbol(x)->hash;
+}
+
 // builtins ------------------------------------------------------------------
 r_predicate(symbol)
 r_predicate(gensym)

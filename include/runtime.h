@@ -5,7 +5,7 @@
 #include "describe/utils.h"
 
 // globals --------------------------------------------------------------------
-extern value_t r_main, r_args, r_kw_ok;
+extern value_t r_main, r_argc, r_args, r_kw_ok;
 
 // memory management ----------------------------------------------------------
 size_t  calc_array_size( size_t n_bytes );
@@ -22,7 +22,7 @@ void   *allocate_table( size_t base, size_t n, size_t size );
 
 #define allocate_words(n)  allocate_array(n, sizeof(value_t))
 #define allocate_pairs(n)  allocate_array(n, sizeof(cons_t))
-#define allocate_vector(n) allocate_table(sizeof(vector_t),n,sizeof(value_t)) 
+#define allocate_vector(n) allocate_table(sizeof(vector_t),n,sizeof(value_t))
 
 int     collect_garbage( void );
 value_t relocate( value_t x );
@@ -46,7 +46,7 @@ void    require(const char *fname, bool test, const char *fmt, ...);
 size_t  argc( const char *fname, size_t got, size_t expect );
 size_t  vargc( const char *fname, size_t got, size_t expect );
 size_t  oargc( const char *fname, size_t got, size_t n, ...);
-value_t argt( const char *fname, value_t got, type_t expect );
+type_t  argt( const char *fname, value_t got, type_t expect );
 type_t  oargt( const char *fname, value_t got, size_t n, ...);
 size_t  s_argc( const char *fname, value_t form, size_t expect );
 size_t  s_vargc( const char *fname, value_t form, size_t expect );
@@ -54,8 +54,8 @@ size_t  s_vargc( const char *fname, value_t form, size_t expect );
 // builtins -------------------------------------------------------------------
 void r_builtin(exit);
 void r_builtin(getenv);
-void r_builtin(errorb);
 void r_builtin(system);
+void r_builtin(errorb);
 
 // initialization -------------------------------------------------------------
 void runtime_init( void );

@@ -19,7 +19,8 @@ closure_t  *toclosure( const char *fname, value_t x );
 builtin_t  *tobuiltin( const char *fname, value_t x );
 
 // methods --------------------------------------------------------------------
-int closure_order( value_t x, value_t y );
+int    closure_order( value_t x, value_t y );
+hash_t closure_hash( value_t x );
 
 // builtins -------------------------------------------------------------------
 void builtin_is_closure( size_t n );

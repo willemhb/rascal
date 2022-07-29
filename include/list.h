@@ -14,6 +14,7 @@ index_t consn_s( size_t n, value_t *args );
 index_t cons_s( value_t *car, value_t *cdr );
 
 // accessors & utilities ------------------------------------------------------
+value_t cons_assoc(value_t cx, value_t k );
 value_t cons_nth( value_t ca, size_t n );
 value_t cons_xth( value_t c, size_t n, value_t x );
 value_t cons_nth_s( const char *fname, value_t c, long n );
@@ -37,6 +38,7 @@ cons_t *tocons( const char *fname, value_t x );
 int    list_order( value_t x, value_t y );
 size_t list_prin( FILE *ios, value_t x );
 size_t list_size( value_t x );
+hash_t list_hash( value_t x );
 
 // builtins -------------------------------------------------------------------
 void builtin_cons(size_t n);

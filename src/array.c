@@ -2,6 +2,7 @@
 #include <assert.h>
 
 #include "numutils.h"
+#include "hashing.h"
 
 #include "array.h"
 #include "runtime.h"
@@ -12,6 +13,7 @@
 #include "list.h"
 #include "number.h"
 #include "symbol.h"
+#include "table.h"
 
 // constructors ---------------------------------------------------------------
 value_t vector( size_t n, value_t *args ) {
@@ -546,6 +548,30 @@ size_t binary_sizeof( value_t x ) {
   return sizeof(binary_t) + alength(x) * Ctype_size(ob_Ctype(x));
 }
 
+hash_t vector_hash( value_t x ) {
+  hash_t out = 0;
+  
+  value_t *vals = adata(x);
+  size_t n = alength(x);
+
+  for (size_t i=0; i<n;i++)
+    out = mixhash(out, r_hash(vals[n]));
+
+  return out;
+}
+
+hash_t string_hash( value_t x ) {
+  return strhash( adata(x) );
+}
+
+hash_t binary_hash( value_t x ) {
+  Ctype_t ct = ob_Ctype(x);
+
+  size_t total = alength(x) * Ctype_size( ct );
+
+  return mixhash( ct, memhash( adata(x), total ) );
+}
+
 // builtins -------------------------------------------------------------------
 static Ctype_t key_to_Ctype( const char *fname, value_t kw ) {
   require( fname,
@@ -635,13 +661,15 @@ void r_builtin(string) {
 void r_builtin(len) {
   argc( "len", n, 1 );
   type_t t = oargt( "len",
-		    Stack[Sp-1],
-		    5,
+		    Sref(1),
+		    7,
 		    type_nil,
 		    type_cons,
 		    type_vector,
 		    type_binary,
-		    type_string );
+		    type_string,
+		    type_dict,
+		    type_set );
   
   size_t l = 0;
 
@@ -650,6 +678,9 @@ void r_builtin(len) {
   
   else if ( t == type_cons )
     l = list_length( Sref(1) );
+
+  else if ( t == type_dict || t == type_set )
+    l = table_size( Sref(1) );
   
   else
     l = alength(Stack[Sp-1]);
@@ -703,7 +734,14 @@ void r_builtin(put) {
   argc( "put", n, 2 );
 
   value_t x = pop();
-  type_t t = oargt( "put", Stack[Sp-1], 3, type_vector, type_binary, type_string );
+  type_t t = oargt( "put",
+		    Sref(1),
+		    5,
+		    type_vector,
+		    type_binary,
+		    type_string,
+		    type_dict,
+		    type_set );
 
   if (t == type_vector)
     vector_put_s( "put", &Sref(1), x );
@@ -711,8 +749,14 @@ void r_builtin(put) {
   else if (t == type_binary)
     binary_put_s("put", &Sref(1), x );
 
-  else
+  else if (t == type_string)
     string_put_s("put", &Sref(1), x );
+
+  else if (t == type_dict)
+    Sref(1) = table_put( Sref(1), x );
+
+  else
+    Sref(1) = table_put( Sref(1), x );
 }
 
 
