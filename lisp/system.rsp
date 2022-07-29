@@ -1,3 +1,17 @@
 ;;; begin system.rsp
 
+(mac if-let
+  ([lname test then]
+    (if-let lname test then nil))
+  ([lname test then els]
+    `(let [~lname ~test]
+      (if ~lname ~then ~els))))
+
+(mac and
+  ([] true)
+  ([x] x)
+  ([x & more] `(if-let x# ~x (and ~@more) x#)))
+
+(data ascii() <</ascii::>>
+
 ;;; end system.rsp

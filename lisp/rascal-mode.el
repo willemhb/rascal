@@ -9,9 +9,12 @@
 (define-generic-mode
   'rascal-mode
   '(";")
-  '("quote" "do"                  ;; control forms
-    "if" "and" "or" "cond" "case" ;; branching forms
-    "fun" "mac" "let" "val" ":=") ;; binding and capturing forms
+  '("quote" "unquote" "backquote" "splice" ;; quoting forms
+    "do" "do*" "do!" "handle"              ;; control forms
+    "if" "and" "or" "cond" "case"          ;; branching forms
+    "fun" "mac" "let"                      ;; closure forms
+    "data" "class"
+    "val" ":=")                            ;; assignment
   '(("else" . font-lock-constant-face)
     ("error!" . font-lock-warning-face)
     ("true" . font-lock-builtin-face)
