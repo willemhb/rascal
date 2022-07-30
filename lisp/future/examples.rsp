@@ -1,0 +1,71 @@
+;;; begin examples.rsp
+
+;;; during development this file mostly serves as a place to experiment with different syntaxes
+
+;;; function constructs
+;;; general notes:
+;;;   - functions must have at least a tuple of formal parameters and a single body expression
+;;;   - functions can optionally specify a name (this binds the function to that name in the current scope)
+;;;   - functions can optionally include a doc string (where this occurs depends on the full syntactic type of the form)
+;;;   - functions can optionally specify argument signatures and a return type
+;;;   - functions can optionally specify multiple methods (each method must differ in arity, types, or both)
+;;;   - named functions create a new generic function if the name doesn't exist, or add the methods in the function body to an existing generic function
+;;;   - macros generally have the same syntax as functions and are also opaquely generic, but the name is required
+
+(fun [x y]
+  (+ x y))
+
+(fun add
+  "add two numbers."
+  ([x y] (+ x y)))
+
+(fun add "add any number of numbers."
+  ([x] x)
+  ([x y] (+ x y))
+  ([x y & args] (apply add (+ x y) args)))
+
+(fun add "like above but with annotations."
+  ([x: num(A)]: A
+   x)
+  ([x: num(A) y: A]: A
+   (+ x y))
+  ([x: int y: float]: float
+    (+ x.float y))
+  ([x: float y: int]: float
+    (+ x y.float))
+  ([x: num y: num & args]
+    (apply add (+ x y) args)))
+
+(mac when [test then]
+  "variant of if."
+  `(if ~test (do ~@then)))
+
+;;; type constructs
+;;; general notes:
+
+(data num "simple union of existing number types."
+  int
+  float
+  imag
+  cplx)
+
+(class Num :- [Ord]
+  "class for types that can be used with arithmetic operators."
+  (+ "+x or addition." [x] [x & args])
+  (- "-x or subtraction." [x] [x & args])
+  (* "multiplication." [x] [x & args])
+  (/ "1/x or division." [x] [x & args]))
+
+;;; control constructs
+(fun divide [x y] "this is just for demonstrating the usage of handle and cause!"
+  (if (= y 0)
+      (cause! :error/value y "zero-division.")
+      (/ x y)))
+
+(fun average [& args] "here we attempt to use divide."
+  (handle ([:error/value 0 _] 0)
+    (divide args.sum args.len)))
+
+(mac yield! [x] `(cause! :control/yield ~x))
+
+;;; end examples.rsp
