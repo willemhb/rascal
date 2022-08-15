@@ -1,39 +1,22 @@
-#ifndef rascal_number_h
-#define rascal_number_h
+#ifndef rascal_character_h
+#define rascal_character_h
 
 #include "common.h"
 
 // C types --------------------------------------------------------------------
-struct bigint_t {
-  uint_t   length;
-  ushort_t is_signed;
-  ushort_t tag;
-
-  schar_t  digits[0];
-};
-
-struct ratio_t {
-  value_t numer;
-  value_t denom;
-};
-
-struct complex_t {
-  value_t real;
-  value_t imag;
-};
 
 // utilities ------------------------------------------------------------------
-bool_t is_flonum(value_t x);
-bool_t is_integer(value_t x);
-bool_t is_bigint(value_t x);
-bool_t is_ratio(value_t x);
-bool_t is_complex(value_t x);
+static inline value_t character(character_t ch) { return tag_sint(ch, CHARACTER); }
 
 // implementation -------------------------------------------------------------
+size_t character_print(value_t x, port_t *ios);
+sint_t character_order(value_t x, value_t y);
 
 // native functions -----------------------------------------------------------
+value_t native_character(value_t *args, size_t n_args);
+value_t native_ctype_p(value_t *args, size_t n_args);
 
 // initialization -------------------------------------------------------------
-
+void character_init(void);
 
 #endif

@@ -1,58 +1,56 @@
 #ifndef rascal_function_h
 #define rascal_function_h
 
-#include "rascal.h"
+#include "common.h"
+#include "types.h"
 
-// constructors ---------------------------------------------------------------
-value_t builtin( char *name, void (*callback)( size_t n ) );
-value_t closure( value_t envt, value_t vals, value_t code );
+// structure types ------------------------------------------------------------
 
-index_t closure_s( value_t *envt, value_t *vals, value_t *code );
+#define function_head					\
+  uint_t   arity;					\
+  uchar_t  vargs;					\
+  uchar_t  macro;					\
+  ushort_t tag;						\
+  value_t   name;					\
+  value_t   head
 
-// predicates -----------------------------------------------------------------
-bool is_function( value_t x );
-bool is_builtin( value_t x );
-bool is_closure( value_t x );
+struct compiled_t {
+  function_head;
 
-// safecasts ------------------------------------------------------------------
-closure_t  *toclosure( const char *fname, value_t x );
-builtin_t  *tobuiltin( const char *fname, value_t x );
+  value_t envt;
+  value_t vals;
+  value_t code;
+};
 
-// methods --------------------------------------------------------------------
-int    closure_order( value_t x, value_t y );
-hash_t closure_hash( value_t x );
+struct lambda_t {
+  function_head;
 
-// builtins -------------------------------------------------------------------
-void builtin_is_closure( size_t n );
-void builtin_is_builtin( size_t n );
-void builtin_is_function( size_t n );
+  value_t envt;
+  value_t args;
+  value_t body;
+};
 
-// initialization -------------------------------------------------------------
-void function_init( void );
+struct generic_t {
+  function_head;
 
-// convenience macros ---------------------------------------------------------
-#define asbuiltin(x) ((builtin_t*)pval(x))
-#define asclosure(x) ((closure_t*)pval(x))
+  value_t zarg;
+  value_t farg;
+  value_t varg;
+};
 
-#define clenvt(x) get(closure, x, envt)
-#define clvals(x) get(closure, x, vals)
-#define clcode(x) get(closure, x, code)
+struct native_t {
+  function_head;
 
-#define init_builtin(o, s, c)						\
-  do									\
-    {									\
-      init_ob(o, tag_builtin, C_sint64, 0, false, sizeof(builtin_t));	\
-      ((builtin_t*)o)->callback = c;					\
-      assymbol(s)->bind = tagp(o, tag_boxed );				\
-    } while (0)
+  value_t (*handler)(value_t *args, size_t n_args);
+};
 
-#define init_closure(o, e, v, c)					\
-  do									\
-    {									\
-      init_ob(o, tag_closure, C_sint64, 0, false, sizeof(closure_t));	\
-      asclosure(o)->envt = e;						\
-      asclosure(o)->vals = v;						\
-      asclosure(o)->code = c;						\
-    } while(0)
+struct control_t {
+  uint_t    length;
+  ushort_t  captured;
+  ushort_t  tag;
+
+  slong_t   offset; // offset (from end) to frame pointer
+  value_t   *saved;  // saved stack frame slice
+};
 
 #endif
