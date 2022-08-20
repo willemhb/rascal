@@ -1,362 +1,725 @@
 #include <string.h>
 
 #include "hashing.h"
+#include "memutils.h"
+#include "numutils.h"
+#include "strutils.h"
 
 #include "memory.h"
+#include "lispio.h"
 
-#include "value.h"
-#include "list.h"
-#include "environment.h"
-#include "table.h"
-#include "types.h"
+// forward declarations -------------------------------------------------------
+bool_t         check_heap_overflow( heap_t *h, size_t n );
+bool_t         check_heap_resize( heap_t *h );
+bool_t         check_stack_grow( stack_t *s );
+bool_t         check_stack_shrink( stack_t *s );
+void           grow_stack( stack_t *s );
+void           shrink_stack( stack_t *s );
+void           grow_heap(heap_t *h);
+void           swap_heap(heap_t *h);
+void          *allocate_from(heap_t *h, size_t n_bytes);
+value_t        intern_string( symbol_table_t *t, char *s );
+void           collect_garbage( void );
+size_t         calc_vector_size( size_t n_args, size_t *n_nodes );
+value_t        relocate( value_t x );
+bool_t         in_heap( void *p );
+bool_t         in_space( void *p );
+bool_t         in_swap( void *p );
+bool_t         is_allocated( value_t x );
+bool_t         is_moved( value_t x );
 
-// internals ------------------------------------------------------------------
-bool_t heap_grow(value_t h) { return !!(heap_minor(h) & GROW); }
-bool_t heap_grew(value_t h) { return !!(heap_minor(h) & GREW); }
+symbol_node_t *new_symbol_node( size_t l );
+void           init_symbol_node( symbol_node_t *n, symbol_node_t **p, hash_t h );
+void           finalize_symbol_node( symbol_node_t *n );
+void           init_symbol( symbol_t *s, char *f, size_t l, hash_t h, symbol_table_t *st );
 
-size_t swap_cap(value_t h) {
-  size_t limit = heap_cap(h);
+// globals --------------------------------------------------------------------
+// backing objects for globals ------------------------------------------------
+heap_t         HeapObject;
+stack_t        StackObject;
+symbol_table_t SymbolTableObject;
 
-  if (heap_grew(h))
-    limit /= 2;
+// external utilities ---------------------------------------------------------
+// misc -----------------------------------------------------------------------
+size_t Ctype_size(Ctype_t ct)
+{
+  if (ct <= C_utf8)
+    return 1;
 
-  return limit;
+  else if (ct <= C_utf16)
+    return 2;
+
+  else if (ct <= C_float)
+    return 4;
+
+  else
+    return 8;
 }
 
+size_t lisp_size(value_t x)
+{
+  type_t xt = lisp_type( x );
 
-size_t swap_size(value_t h) {
-  size_t out = heap_cap(h);
+  switch (xt)
+    {
+    case type_type:        return sizeof(type_t);
+    case type_none:        return 0;
+    case type_any:         return sizeof(value_t);
+    case type_boolean:     return sizeof(boolean_t);
+    case type_character:   return sizeof(char_t);
+    case type_integer:     return sizeof(integer_t);
+    case type_flonum:      return sizeof(double);
+    case type_builtin:     return sizeof(ushort);
+    case type_closure:     return sizeof(closure_t);
 
-  if (heap_grew(h))
-    out /= 2;
+    case type_vector:
+      if (vec_height(x) == 8)
+	return sizeof(vector_t);
 
-  return out;
+      return
+	sizeof(vector_t) + ceil_log2( vec_length(x) ) * sizeof(value_t);
+
+    case type_binary:      return sizeof(binary_t) + bin_length(x);
+    case type_symbol:      return sizeof(symbol_t) + sym_length(x) + 1; 
+    case type_port:        return 4;
+    case type_environment: return sizeof(environment_t);
+    case type_pointer:     return sizeof(void*);
+    case type_pair:
+    case type_cons:
+      return sizeof(cons_t);
+    default:
+      return sizeof(value_t);
+    }
 }
 
-size_t heap_alloc_size(value_t h) {
-  /* calculate the extra space needed for the heap bitmap */
-  return heap_cap(h) + heap_cap(h) / sizeof(value_t);
+type_t lisp_type( value_t x )
+{
+  if (hitag(x) == IMMEDIATE)
+    return (x>>32)&255;
+
+  if (hitag(x) == OBJECT)
+      return (car(x)>>32)&255;
+
+  if (hitag(x) == FUNCTION)
+    return (x&7) ? type_builtin : type_closure;
+
+  if (hitag(x) == POINTER)
+    return type_pointer;
+
+  if (hitag(x) == PAIR)
+    return type_pair;
+
+  if (hitag(x) == CONS)
+    return type_cons;
+
+  if (hitag(x) == SYMBOL)
+    return type_symbol;
+
+  // invalid, serious error
+  return type_none;
 }
 
-uchar_t *space_map(value_t h) { return heap_space(h) + heap_cap(h); }
-uchar_t *swap_map(value_t h)  { return heap_swap(h) + swap_size(h); }
+Ctype_t type_Ctype(type_t rt)
+{
+  switch (rt)
+    {
+    case type_type:
+      return C_uint32;
 
-bool_t in_space(value_t x) {
-  assert(is_allocated(x));
-  
-  return withinp(opval(x), heap_space(Heap), heap_cap(Heap));
+    case type_boolean:
+      return C_boolean;
+
+    case type_character: case type_integer:
+      return C_sint32;
+
+    case type_flonum:
+      return C_double;
+
+    case type_port:
+      return C_uint32;
+
+    default:
+      return C_pointer;
+    }
 }
 
-bool_t in_swap(value_t x) {
-  assert(is_allocated(x));
-  
-  return withinp(opval(x), heap_swap(Heap), swap_cap(Heap));
+bool_t in_heap( void *p )
+{
+  return in_space(p) || in_swap(p);
 }
 
-uchar_t *get_base(value_t x) {
-  if (in_space(x))
-    return heap_space(Heap);
-
-  return heap_swap(Heap);
+bool_t in_space( void *p )
+{
+  return withinp( p, Heap->space, Heap->available );
 }
 
-size_t get_offset(value_t x) {
-  return (ouval(x) - get_base(Heap)) / sizeof(value_t);
+bool_t in_swap( void *p )
+{
+  size_t size = Heap->available / (1 + Heap->grew);
+
+  return withinp( p, Heap->swap, size);
 }
 
-uchar_t *get_map(value_t x) {
-  return in_space(x) ? space_map(Heap) : swap_map(Heap);
-}
+// stack manipulation ---------------------------------------------------------
+index_t push( value_t x )
+{
+  index_t out        = Stack->sp++;
+  Stack->data[out]   = x;
 
-uchar_t get_mflags(value_t x) {
-  size_t   offset = get_offset(x);
-  uchar_t *map    = get_map(x);
-  offset         /= heap_align(Heap);
-
-  return map[offset];
-}
-
-uchar_t set_mflags(value_t x, uchar_t fl) {
-  size_t   offset = get_offset(x);
-  uchar_t *map    = get_map(x);
-  uchar_t  out    = map[offset];
-  map[offset]    /= fl;
-
-  return out;
-}
-
-uchar_t clear_mflags(value_t x, uchar_t fl) {
-  size_t   offset = get_offset(x);
-  uchar_t *map    = get_map(x);
-  uchar_t  out    = map[offset];
-  map[offset]    &= ~fl;
-
-  return out;
-}
-
-void *next_object(value_t h) { return heap_space(h) + heap_used(h); }
-
-uchar_t *next_map(value_t h) {
-  uchar_t *m = space_map(h);
-  size_t   o = heap_used(h) / sizeof(value_t);
-  
-  return   m+o;
-}
-
-// utilities ------------------------------------------------------------------
-inline bool_t check_heap_overflow(value_t h, size_t n_bytes) {
-  return heap_used(h) + n_bytes >= heap_cap(h);
-}
-
-static inline bool_t grow_stack_p(void) { return stack_sp(Stack) >= stack_cap(Stack); }
-static inline bool_t shrink_stack_p(void) {
-  return stack_cap(Stack) > stack_cap_min(Stack) && (stack_cap(Stack) / stack_sp(Stack) > 1);
-}
-
-void init_map(uchar_t *m, repr_t r, size_t n) {
-  memset(m, DATA, n);
-  m[0] = r;
-}
-
-void *bump(value_t h, size_t n, repr_t r) {
-  void *out     = next_object(h);
-  uchar_t *map  = next_map(h);
-  heap_used(h) += n;
-
-  memset(out, 0, n);
-  init_map(map, r, n / heap_word(h));
-  return out;
-}
-
-void *allocate(size_t n, repr_t r) {
-  if (Allocate[r])
-    return Allocate[r](n);
-
-  size_t base_size = BaseSizes[r];
-  size_t n_alloc = aligned(base_size+n, heap_align(Heap));
-
-  if (check_heap_overflow(Heap, n_alloc))
-    collect_garbage();
-
-  return bump(Heap, n_alloc, r);
-}
-
-inline bool_t is_moved(value_t x)     { return (get_mflags(x) & GCMOVED) == GCMOVED; }
-inline bool_t is_traversed(value_t x) { return  get_mflags(x) & TRAVERSED;           }
-inline bool_t is_black(value_t x)     { return (get_mflags(x) & GCMOVED) == GCBLACK; }
-inline bool_t is_white(value_t x)     { return (get_mflags(x) & GCMOVED) == GCWHITE; }
-inline bool_t is_gray(value_t x)      { return (get_mflags(x) & GCMOVED) == GCGRAY;  }
-
-inline ot_pred(heap, HEAP)
-inline ot_pred(stack, STACK)
-
-static void grow_stack(value_t s) {
-  stack_cap(s) *= 2;
-  stack_data(s) = realloc_s(stack_data(s), stack_cap(s)*sizeof(value_t));
-}
-
-static void shrink_stack(value_t s) {
-  stack_cap(s)  /= 2;
-  stack_data(s)  = realloc_s(stack_data(s), stack_cap(s)*sizeof(value_t));
-}
-
-index_t push(value_t x) {
-  index_t out            = stack_sp(Stack)++;
-  stack_data(Stack)[out] = x;
-
-  if (grow_stack_p())
+  if (check_stack_grow(Stack))
     grow_stack(Stack);
 
   return out;
 }
 
-void dup(void) {
-  index_t tos = stack_sp(Stack)-1;
-  index_t loc = stack_sp(Stack)++;
-  
-  if (grow_stack_p())
-    grow_stack(Stack);
-  
-  stack_data(Stack)[loc] = stack_data(Stack)[tos];
-}
+value_t pop( void )
+{
+  assert(Stack->sp > 0);
 
-index_t pushn(size_t n) {
-  index_t out      = stack_sp(Stack);
-  stack_sp(Stack) += n;
+  value_t out = Stack->data[--Stack->sp];
 
-  if (grow_stack_p())
-    grow_stack(Stack);
-
-  return out;
-}
-
-value_t pop(void) {
-  assert(stack_sp(Stack) > 0);
-  value_t out = stack_data(Stack)[--stack_sp(Stack)];
-
-  if (shrink_stack_p())
+  if (check_stack_shrink(Stack))
     shrink_stack(Stack);
 
   return out;
 }
 
-static void resize_heap(value_t h) {
-  heap_minor(h) |= RESIZING;
+void dup( void )
+{
+  value_t tos              = Stack->data[Stack->sp-1];
+  Stack->data[Stack->sp++] = tos;
+
+  if (check_stack_grow(Stack))
+    grow_stack(Stack);
+}
+
+index_t pushn( size_t n )
+{
+  index_t out = Stack->sp;
+
+  Stack->sp  += n;
+
+  if (check_stack_grow(Stack))
+    grow_stack(Stack);
+
+  return out;
+}
+
+value_t popn( size_t n )
+{
+  value_t out = Stack->data[Stack->sp-1];
+  Stack->sp  -= n;
+
+  if (check_stack_shrink(Stack))
+    shrink_stack(Stack);
+
+  return out;
+}
+
+// predicates -----------------------------------------------------------------
+ht_pred(pair, PAIR)
+ht_pred(cons, CONS)
+ht_pred(symbol, SYMBOL)
+ht_pred(function, FUNCTION)
+ht_pred(immediate, IMMEDIATE)
+ht_pred(object, OBJECT)
+ht_pred(pointer, POINTER)
+wt_pred(boolean, BOOLEAN)
+wt_pred(type, TYPE)
+
+ot_pred(vector, VECTOR)
+ot_pred(string, STRING)
+ot_pred(binary, BINARY)
+
+val_pred(nil, NIL)
+
+ 
+bool_t is_list( value_t x )
+{
+  return is_nil(x) || is_cons(x);
+}
+
+bool_t is_keyword( value_t x )
+{
+  return is_symbol(x) && sym_keyword(x);
+}
+
+bool_t is_gensym( value_t x )
+{
+  return is_symbol(x) && sym_gensym(x);
+}
+
+// internal utilities ---------------------------------------------------------
+size_t calc_vector_size(size_t n, size_t *n_nodes)
+{ 
+  if (n == 0)
+    return 0;
+
+  *n_nodes   = 1;
+  size_t out = sizeof(vector_t);
   
-  if (heap_grow(h)) {
-    heap_cap(h)   *= 2;
-    heap_swap(h)   = realloc_s(heap_swap(h), heap_alloc_size(h));
-    heap_minor(h) &= ~GROW;
-    heap_minor(h) |= GREW;
+  do
+    {
+      size_t n_full  = n / N_VECTOR;
+      size_t n_extra = nextipow2( n % 32 );
+      size_t n_level = n_full + !!(n_extra);
 
-  } else if (heap_grew(h)) {
-    heap_swap(h)   = realloc_s(heap_swap(h), heap_alloc_size(h));
-    heap_minor(h) &= ~(GROW|GREW);
-  }
+      out      += (sizeof(vector_t) + sizeof(value_t)) * n_full + sizeof(vector_t) + n_extra;
+      *n_nodes += (n=n_level);
+    } while (n > N_VECTOR);
 
-  heap_minor(h) &= ~RESIZING;
+  return out;
 }
 
-static void swap_heap(value_t h) {
-  uchar_t *tmp      = heap_space(h);
-  heap_swap(h)      = tmp;
-  heap_used(h)      = 0;
+// memory management ---------------------------------------------------------
+
+void *allocate( size_t n, bool_t global )
+{
+  if (global)
+    return malloc_s( n );
+
+  return allocate_from( Heap, n );
 }
 
-void trace_runtime(void) {
-  Heap         = relocate(Heap);
-  Stack        = relocate(Stack);
-  Module       = relocate(Module);
-  Modules      = relocate(Modules);
-  BuiltinTypes = relocate(BuiltinTypes);
-  Symbols      = relocate(Symbols);
+bool_t is_moved( value_t x )
+{
+  assert(is_allocated(x));
+  assert(in_heap(pval(x)));
+
+  return in_space(pval(car(x)));
 }
 
-void trace_globals(void);
+void trace_array( value_t *x, size_t n )
+{
+  value_t buf[n];
+  memcpy( buf, x, sizeof(value_t) * n);
 
-void trace_gc_frames(void) {
-  gc_frame_t *f = Saved;
+  for (size_t i=n; i>0; i--)
+    {
+      buf[i-1] = relocate(buf[i-1]);
+      x[i-1]   = buf[i-1];
+    }
+}
 
-  while (f) {
-    size_t n        = f->length;
-    value_t **saved = f->saved;
+value_t relocate( value_t x )
+{
+  assert(hitag(x) != HEADER);
 
-    for (size_t i=0; i<n; i++) {
-      value_t tmp = *saved[i];
-      tmp         = relocate(tmp);
-      *saved[i]   = tmp;
+  if (!is_allocated(x))
+    {
+      if (is_port(x))
+	Ports->opened[ival(x)]->refcount++;
+
+      return x;
     }
 
-    f = f->next;
-  }
-}
+  if (!in_heap(pval(x)))
+    return x;
 
-void finalize_swap(void) {}
+  if (is_moved(x))
+    return car(x);
 
-void collect_garbage(void) {
-  heap_stw(Heap)    = true;
-  heap_minor(Heap) |= RUNNING;
+  type_t xt   = lisp_type( x );
+  size_t xs   = lisp_size( x );
+  void *new   = allocate( xs, false );
 
-  resize_heap(Heap);
-  swap_heap(Heap);
-  trace_runtime();
-  trace_globals();
-  trace_gc_frames();
-  finalize_swap();
+  memcpy( new, pval(x), xs );
 
-  heap_minor(Heap) &= ~RUNNING;
-  heap_stw(Heap)    = false;
-}
+  x = car( x ) = tagptr( new, hitag(x) );
 
-// implementation -------------------------------------------------------------
-tag_hash(stack, STACK)
-tag_hash(heap, HEAP)
+  if (xt == type_cons || xt == type_pair)
+      trace_array( pval(x), 2 );
 
-void *heap_allocate(size_t n) {
-  size_t capacity      = n * sizeof(cons_t);
-  size_t map_size      = n * 2;
-  size_t total         = capacity + map_size;
-  uchar_t *space       = malloc_s(total);
-  uchar_t *swap        = malloc_s(total);
-  uchar_t *space_map   = space + capacity;
-  uchar_t *swap_map    = swap + capacity;
+  else if (xt == type_symbol)
+      trace_array( &sym_bind(x), 1 );
 
-  heap_t *h      = (heap_t*)space;
+  else if (xt == type_closure)
+      trace_array( &clo_name(x), 4 );
 
-  h->tag         = 0xffff;
-  h->align       = sizeof(cons_t);
-  h->word        = sizeof(value_t);
-  h->major       = 0;
-  h->minor       = 0;
-  h->stw         = false;
-  h->cap         = capacity;
-  h->used        = sizeof(heap_t);
-  h->space       = space;
-  h->swap        = swap;
+  else if (xt == type_environment)
+      trace_array( &env_names(x), 3 );
 
-  memset(space_map, UNUSED, map_size);
-  memset(swap_map, UNUSED, map_size);
-
-  space_map[0] = REPR_HEAP;
-  memset(space_map+1, DATA, 5);
-
-  return h;
-}
-
-void *stack_allocate(size_t n) {
-  size_t base = aligned(sizeof(stack_t), heap_align(Heap));
+  else if (xt == type_vector)
+    if (vec_height(x) == 8)
+      trace_array( &vec_data(x), 1 );
   
-}
-
-void stack_finalize(value_t x) {
-  free_s(stack_data(x));
-}
-
-void heap_finalize(value_t x) {
-  uchar_t *space = heap_space(x);
-  uchar_t *swap  = heap_swap(x);
-
-  free_s(space);
-  free_s(swap);
-}
-
-value_t stack_relocate(value_t x) {
-  size_t   max  = stack_sp(x);
-  value_t *data = stack_data(x);
-  for (size_t i=0; i < max; i++) {
-    value_t tmp = data[i];
-    tmp         = relocate(tmp);
-    data[i]     = tmp;
-  }
+    else
+      trace_array( &vec_cache(x), 1 + vec_length(x) );
+  else
+    {}
 
   return x;
 }
 
-// initialization -------------------------------------------------------------
-void memory_init_dispatch(void) {
-  BaseSizes[REPR_HEAP]   = sizeof(heap_t);
-  Ctypes[REPR_HEAP]      = C_pointer;
-  MightCycle[REPR_HEAP]  = false;
-  Hash[REPR_HEAP]        = heap_hash;
-  Allocate[REPR_HEAP]    = heap_allocate;
-  Finalize[REPR_HEAP]    = heap_finalize;
+void *allocate_from(heap_t *h, size_t n_bytes)
+{
+  size_t n_alloc = aligned(n_bytes, h->alignment);
 
-  BaseSizes[REPR_STACK]  = sizeof(stack_t);
-  Ctypes[REPR_STACK]     = C_pointer;
-  MightCycle[REPR_STACK] = true;
-  Relocate[REPR_STACK]   = stack_relocate;
-  Hash[REPR_STACK]       = stack_hash;
-  Finalize[REPR_STACK]   = stack_finalize;
+  if (!h->collecting && check_heap_overflow(h, n_alloc))
+    collect_garbage();
+
+  void *out  = h->space;
+  h->used   += n_alloc;
+
+  return out;
 }
 
-void memory_init_globals(void) {
-  heap_t *h = heap_allocate(N_HEAP);
-  Heap      = tag_ptr(h, HEAP);
+void collect_garbage( void )
+{
+  Heap->collecting = true;
+
+  grow_heap( Heap );
+  swap_heap( Heap );
   
+  trace_symbol_table( Symbols );
+  trace_stack( Stack );
+  trace_gc_frames( Saved );
+  trace_ios_map( Ports );
+
+  Heap->grow = check_heap_resize( Heap );
+
+  Heap->collecting = false;
 }
 
-void memory_init(void) {
-  // initialize global objects ------------------------------------------------
+void trace_symbol_node( symbol_node_t *st )
+{
+  if (st)
+    {
+      value_t tmp = st->entry.bind;
+      tmp = relocate( tmp );
+      st->entry.bind = tmp;
 
-  // 
+      trace_symbol_node(st->left);
+      trace_symbol_node(st->right);
+    }
+}
+
+void trace_symbol_table( symbol_table_t *st )
+{
+  trace_symbol_node( st->root );
+}
+
+void trace_stack( stack_t *s )
+{
+  for (size_t i=0; i<s->sp; i++)
+    {
+      value_t tmp = s->data[i];
+      tmp = relocate(tmp);
+      s->data[i] = tmp;
+    }
+}
+
+void grow_heap(heap_t *h)
+{
+  if (h->grow)
+    {
+      h->available *= 2;
+      h->swap       = realloc_s(h->swap, h->available);
+      h->grow       = false;
+      h->grew       = true;
+    }
+
+  else if (h->grew)
+    {
+      h->swap       = realloc_s(h->swap, h->available);
+      h->grow       = false;
+      h->grew       = false;
+    }
+
+  memset(h->swap, 0, h->available);
+}
+
+void swap_heap(heap_t *h)
+{
+  void *tmp = h->space;
+  h->space  = h->swap;
+  h->swap   = tmp;
+  h->used   = 0;
+}
+
+// internal objects -----------------------------------------------------------
+// heap object ----------------------------------------------------------------
+bool_t check_heap_overflow(heap_t *h, size_t n)
+{
+  return !h->collecting && h->used + n >= h->available;
+}
+
+void init_heap(heap_t *h)
+{
+  h->used      = 0;
+  h->alignment = sizeof(cons_t);
+  h->available = N_HEAP*h->alignment;
+  h->grow = h->grew = h->collecting = false;
+  h->space = malloc_s(h->available);
+  h->swap = malloc_s(h->available);
+}
+
+void finalize_heap(heap_t *h)
+{
+  free_s(h->space);
+  free_s(h->swap);
+}
+
+// stack object ---------------------------------------------------------------
+bool_t check_stack_grow( stack_t *s )
+{
+  return s->sp >= s->cap;
+}
+
+bool_t check_stack_shrink( stack_t *s )
+{
+  assert(s->sp > 0);
+  return s->cap > s->cap_min && s->cap / s->sp >= 2;
+}
+
+void grow_stack(stack_t *s)
+{
+  s->cap  *= 2;
+  s->data  = realloc_s(s->data, s->cap*sizeof(value_t));
+}
+
+void shrink_stack(stack_t *s)
+{
+  s->cap  /= 2;
+  s->data  = realloc_s(s->data, s->cap*sizeof(value_t));
+}
+
+void init_stack(stack_t *s)
+{
+  s->sp      = 0;
+  s->fp      = 0;
+  s->cap_min = N_HEAP;
+  s->cap     = N_HEAP;
+  s->data = malloc_s(N_HEAP*sizeof(value_t));
+}
+
+void finalize_stack(stack_t *s)
+{
+  free_s(s->data);
+}
+// symbol table & node --------------------------------------------------------
+symbol_node_t *new_symbol_node( size_t l )
+{
+  return malloc_s( sizeof(symbol_node_t) + l + 1);
+}
+
+void init_symbol_node( symbol_node_t *sn, symbol_node_t **sp, hash_t h )
+{
+  sn->left = sn->right = NULL;
+  sn->name = &sn->entry.name[0];
+  sn->hash = h;
+  *sp = sn;
+}
+
+void free_symbol_node( symbol_node_t *sn )
+{
+  if (sn)
+    {
+      finalize_symbol_node( sn->left );
+      finalize_symbol_node( sn->right );
+      free_s( sn );
+    }
+}
+
+void init_symbol_table( symbol_table_t *st )
+{
+  st->num_symbols = 0;
+  st->root        = NULL;
+}
+
+void finalize_symbol_table( symbol_table_t *st )
+{
+  free_symbol_node( st->root );
+}
+
+value_t intern_string( symbol_table_t *st, char *s )
+{
+  symbol_node_t **node = &st->root;
+  size_t strsz = strlen(s)+1;
+  hash_t h     = strhash( s );
+
+  while (*node)
+    {
+      int o = ord_ulong( h, (*node)->hash ) ? : strcmp( s, (*node)->name );
+
+      if (o < 0)
+	node = &(*node)->left;
+
+      else if (o > 0)
+	node = &(*node)->right;
+
+      else
+	break;
+    }
+
+  if (*node == NULL)
+    {
+      symbol_node_t *n = new_symbol_node( strsz );
+      
+      init_symbol_node( n, node, h );
+      init_symbol( &n->entry, s, strsz, h, st );
+    }
+
+  return tagptr( &(*node)->entry, SYMBOL );
+}
+
+// objects --------------------------------------------------------------------
+// symbol ---------------------------------------------------------------------
+void init_symbol( symbol_t *s, char *f, size_t l, hash_t h, symbol_table_t *st )
+{
+  s->length   = l;
+  s->type     = type_symbol;
+  s->constant = false;
+  s->bound    = false;
+  s->bind     = UNBOUND;
+  s->tag      = LOHEADER;
+  
+  strcpy( s->name, f );
+
+  s->hash     = h;
+  s->idno     = ++st->num_symbols;
+  s->keyword  = f[0] == ':';
+  s->gensym   = in_heap(s);
+}
+
+value_t symbol( char *name, bool_t interned )
+{
+  static const char *gsfmt = "%s#%lu";
+  if (interned)
+    {
+      assert(name);
+      assert(strlen(name));
+      return intern_string( Symbols, name );
+    }
+
+  if (name == NULL)
+    name = "symbol";
+
+  ulong_t sidno = Symbols->num_symbols+1;
+  size_t  strsz = strlen(name)+1;
+  size_t  bufsz = strsz+SAFE_NUMBER_BUFFER_SIZE+1;
+
+  char buf[bufsz];
+  snprintf( buf, bufsz, gsfmt, name, sidno );
+  hash_t h = strhash( buf );
+
+  memset( buf, 0, bufsz );
+
+  snprintf( buf, strsz, "%s", name );
+
+  symbol_t *out = allocate( sizeof(symbol_t)+strsz, false );
+
+  init_symbol( out, buf, strsz, h, Symbols );
+  return tagptr( out, SYMBOL );
+}
+
+// pairs & cons ---------------------------------------------------------------
+void init_cons( cons_t *c, value_t car, value_t cdr )
+{
+  c->car = car;
+  c->cdr = cdr;
+}
+
+value_t cons( value_t car, value_t cdr )
+{
+  preserve( 2, &car, &cdr );
+
+  cons_t *new = allocate( sizeof(cons_t), false );
+  init_cons( new, car, cdr );
+
+  if (is_nil(cdr) || is_cons(cdr))
+    return tagptr(new, CONS);
+
+  else
+    return tagptr(new, PAIR);
+}
+
+// vectors --------------------------------------------------------------------
+void init_vector( vector_t *v, uint_t l, uchar_t h, void *d )
+{
+  v->length = l;
+  v->height = h;
+  v->type   = type_vector;
+  v->tag    = LOHEADER;
+
+  if (h == 8) // root flag
+    {
+      v->data = tagptr( d, OBJECT );
+    }
+
+  else
+    {
+      v->cache  = NIL;
+      memcpy( v->space, d, l * sizeof(value_t) );
+    }
+}
+
+value_t vector( value_t *args, size_t n_args )
+{
+  size_t n_nodes;
+  size_t total_alloc = calc_vector_size( n_args, &n_nodes );
+
+  if (total_alloc == 0)
+    return EMPTYVEC;
+
+  /* NB: assume args is on the stack */
+  vector_t *next_node = allocate( total_alloc, false );
+  vector_t *last_node = NULL;
+
+  value_t   node_buffer[n_nodes];
+  size_t    vec_l  = n_args;
+  size_t    node_i = 0;
+  size_t    height = 0;
+
+  do
+    {
+      size_t n_nodes = 0;
+
+      while (n_args > 0)
+	{
+	  size_t n_local = min(n_args, 32ul);
+	  n_args        -= n_local;
+
+	  init_vector( next_node, n_local, height, args );
+
+	  node_buffer[node_i++] = tagptr(next_node, OBJECT );
+	  n_nodes++;
+
+	  size_t off = sizeof(vector_t) + ceil_log2( n_local ) * sizeof(value_t);
+	  last_node  = next_node;
+	  next_node  = (vector_t*)((uchar*)next_node + off);
+	}
+
+      args   = &node_buffer[node_i-n_nodes];
+      n_args = n_nodes;
+      height++;
+    } while ( n_args > N_VECTOR );
+
+  init_vector( next_node, vec_l, 8, last_node);
+  
+  return tagptr( next_node, OBJECT );
+}
+
+value_t vec_ref(value_t vec, uint_t n)
+{
+  assert( n <= vec_length(vec));
+
+  value_t out = vec_data(vec);
+
+  for (uint_t idx=n&0x1f;n; n >>=5, idx=n&0x1f)
+    out = vec_space(out)[idx];
+
+  return out;
+}
+
+// initialization -------------------------------------------------------------
+void memory_init( void )
+{
+  Stack       = &StackObject;
+  Heap        = &HeapObject;
+  Symbols     = &SymbolTableObject;
+
+  init_stack( Stack );
+  init_heap( Heap );
+  init_symbol_table( Symbols );
 }

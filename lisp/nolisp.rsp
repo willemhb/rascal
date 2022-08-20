@@ -1,0 +1,108 @@
+;;; experiments with non-lisp surface syntax
+
+;;; sketchy grammer
+;;; rascal     ::= <program>
+;;; program    ::= <expression>+
+;;; expression ::= <literal> | <funcall> | <infix> | <compound>
+;;; literal    ::= <atom> | <number> | <collection> | <string>
+;;; atom       ::= <symbol> | <keyword>
+;;; number     ::= <integer> | <flonum> | <complex> | <ratio>
+;;; collection ::= <list> | <vector> | <dict> | <set>
+;;; 
+
+type color {
+  @doc "Example of enum type."
+  :white -> 0
+  :black -> 1
+  :gray  -> 2
+}
+
+type tree {
+  @doc "Example of GADT."
+  empty()
+  node(key: any, left: tree, right: tree)
+}
+
+type list {
+  @doc "More GADT examples."
+  nil()
+  cons(head: any, tail: list)
+}
+
+fun len (xs: list):int
+  @doc "Implementation for lists."
+  case xs
+    nil          -> 0
+    cons(_ rest) -> 1 + len(rest)
+
+fun len (xs: tree):int
+  @doc "Implementation for trees."
+  case xs
+    nil           -> 0
+    node(_ lt rt) -> 1 + len(lt) + len(rt)
+
+mac fun (formals: list, body: expression)
+    @doc "Example of how macros could work."
+    quote lmb $formals $body
+
+mac fun (name: symbol, formals: list, body: expression)
+  @doc "Demonstration of multiple dispatch with macros."
+  quote {
+    val $name fun $formals $expand(expression)
+  } where
+    expand(xpr: atom)  -> xpr
+    expand(xpr: block) -> block(expr.head, ...map(expand, block.exprs))
+    ...
+
+effect generator(A) {
+    start(): control
+    yield(x: A): A|none
+}
+
+@doc "Demonstration of algebraic effect usage."
+hndl c! {
+  return(x)          -> x
+  generator/start()  -> c!
+  generator/yield(x) -> x
+}
+
+fun range(end: int, start: int=0, step: int=1): int
+  cond
+    start >= end -> start
+    otherwise    -> yield(start), range(end, start+step, step)
+
+fun fac(n: int):int
+  @doc "Demonstration of where syntax, common tail call transformation."
+  loop(n, 1) where
+    loop(0, acc)   -> acc,
+    loop(n, acc)   -> loop(n-1, n*acc)
+
+fun fib(n: int):int
+  @doc "More examples of where syntax."
+  loop(n, 1, 1) where
+    loop(1|2, _, curr)  -> curr
+    loop(n, prev, curr) -> loop(n-1, curr, prev+curr)
+
+fun elem? (x: A, coll: Seq{A}) -> bool, where {A}
+  @doc "More examples of where syntax, class syntax."
+
+  cond
+    empty?(coll)  -> false
+    x == coll[0]  -> true
+    otherwise     -> elem?(x, coll[1:])
+
+class Seq A{B} where {B} {
+    fun empty?(xs: A) -> Bool
+    fun fst(xs: A{B}) -> B
+    fun rst(xs: A{B}) -> A{B}
+
+    @default
+    fun len(xs: A{B}): int
+      cond
+        empty?(xs) -> 0
+        otherwise  -> 1 + len(rst(xs))
+}
+
+import {
+  
+}

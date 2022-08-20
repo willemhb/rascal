@@ -1,1 +1,74 @@
-;;; 
+;;; begin system.rsp
+(val *syntax* {})
+
+(fun cddr [xs] (cdr (cdr xs)))
+(fun cdar [xs] (cdr (car xs)))
+(fun cadr [xs] (car (cdr xs)))
+(fun caar [xs] (car (car xs)))
+
+(mac cond [test then & more]
+  (if (id? test 'otherwise)
+      then
+      `(if ~test
+      	   ~then
+	   (cond ~@more))))
+
+(mac case [test & cases]
+  (let [testvar (symbol)]
+       (labl expander [testvar cases]
+       	     (if (nil? cases)
+	     	 ()
+		 (cons 'if
+		       (cons `(id? ~testvar ~(car cases))
+		       	     (cons (cadr cases)
+			     	   (expander (cddr cases))))))
+	     `(let (~testvar ~test)
+	     	   ~(expander testvar cases)))))
+
+(fun map [f xs]
+  (cond
+    (nil? xs) ()
+    otherwise (cons (f (car xs))
+	   	    (map f
+		    	 (cdr xs)))))
+
+(fun filter [p? xs]
+  (cond
+    (nil? xs)     ()
+    (p? (car xs)) (cons (car xs)
+    	     	  	(filter p?
+				(cdr xs)))
+    otherwise     (filter p? (cdr xs))))
+
+;;; math utilities
+(fun zero? [n]
+  (= n 0))
+
+(fun one? [n]
+  (= n 1))
+
+(fun even? [n]
+  (zero? (mod n 2)))
+
+(fun odd? [n]
+  (one? (mod n 2)))
+
+(fun pow [base exp]
+  (labl loop [base exp acc]
+    (cond
+      (= exp 0)   acc
+      (even? exp) (loop (* base base)
+      	     	  	(/ exp 2)
+			acc)
+      otherwise   (loop base
+      		  	(- exp 1)
+			(* base acc)))
+    (loop base exp 1)))
+
+(fun literal? [x]
+  (if (symbol? x)
+      (keyword? x)
+      (not (cons? x))))
+
+(val *ordtable* {})
+;;; end system.rsp

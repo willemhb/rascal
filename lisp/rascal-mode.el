@@ -9,12 +9,16 @@
 (define-generic-mode
   'rascal-mode
   '(";")
-  '(
-    "quote" "do" "cntl" "hndl"             ;; control forms
-    "if" "and" "or" "cond" "case"          ;; branching forms
-    "val" "fun" "mac" "typ" "let" "labl")  ;; closure & binding forms
+  '("quote" "do" "do*" "cntl" "hndl" "with" ;; control forms
+    "if" "and" "or" "cond" "case"           ;; branching forms
+    "val" "fun" "mac" "type" "class"        ;; closure and binding forms
+    "let" "labl"
+
+    "where" "syntax")                       ;; non-lisp syntax
+  
   '(("else" . font-lock-constant-face)
-    ("error!" . font-lock-warning-face)
+    ("otherwise" . font-lock-constant-face)
+    ("error" . font-lock-warning-face)
     ("true" . font-lock-builtin-face)
     ("false" . font-lock-builtin-face)
     ("nil" . font-lock-builtin-face)

@@ -6,6 +6,7 @@
 #include <stddef.h>
 
 #define BIT64 0x8000000000000000ul
+#define BIT60 0x0800000000000000ul
 #define BIT32 0x80000000u
 
 #define min( _x, _y)				\
@@ -65,7 +66,17 @@ typedef union {
 } ieee64_t;
 
 // exports -------------------------------------------------------------------
-uint64_t nextipow2( uint64_t u );
+#define  nextipow2 ceil_log2
+uint64_t ceil_log2( uint64_t u );
+uint64_t ceil_log32( uint64_t u );
+
+uint64_t intceil( uint64_t u, uint64_t div );
+uint64_t intfloor( uint64_t u, uint64_t div );
+size_t   cntlzl( uint64_t u );
+size_t   cnttzl( uint64_t u );
+size_t   popcnt( uint32_t ui );
+size_t   popcntl( uint64_t u );
+
 uint16_t bswap16( uint16_t u );
 uint32_t bswap32( uint32_t u );
 uint64_t bswap64( uint64_t u );
