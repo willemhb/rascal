@@ -2,47 +2,55 @@
 
 (val *syntax* {})
 
-(fun atom? [x]
-  (not (cons? x)))
+;;; type predicates
+(fun port? (x: any)
+  (isa? x port))
 
-(fun lit? [x]
-  "`x` is self-evaluating?" 
-  (if (sym? x)
-      (not (kw? x))
-      (not (cons? x))))
+(fun chr? (x: any)
+  (isa? x chr))
 
-(fun macro-call*? [form]
-  "Supplied form should be macro-expanded?"
-  (and (cons? form)
-       (sym? (car form))
-       (assc *syntax* (car form))))
+(fun nil? (x: any)
+  (isa? x nil))
 
-(fun macro-expand [form]
-  "Expand the supplied form once."
-  (if (atom? form)
-      form
-      (let [result (macro-call*? form)]
-        (if result
-	    (apply (car result)
-	    	   (cdr result))
-	    form))))
+(fun cons? (x)
+  (isa? x cons))
 
-(fun macro-expand* [form]
-  "Expand the supplied form recursively."
-  (cond (atom? form)
-          form
-  	(macro-call*? form) :as result
-	  (macro-expand* (apply (car result)
-	  	 	 	(cdr result)))
-        otherwise
-	  (map macro-expand* form)))
+(fun sym? (x)
+  (isa? x sym))
 
-(fun syntax-put [name expander]
-  "Add a macro-expander to the syntax table."
-  (put *syntax* name expander))
+;;; utilities
+(fun map (f . xss)
+  (labl ((map1 f xss)
+  	   (if (nil? xs)
+	       ()'
+	       (cons (f (car xs))
+		     (map1 f (cdr xs))))
+	 (mapn f xss)
+	   (if (some? empty? xss)
+	       ()'
+	       (cons (apply f
+	                    (map1 car xss))
+		     (mapn f
+		           (map1 cdr xss)))))
+	 (cond (len=? xss 0) (error "Not enough arguments to #")
+	       (len=? xss 1) (map1 f (car xss))
+	       otherwise     (mapn f xss))))
 
-(fun eval [x]
-  "Pass single argument "
-  (eval x (&env)))
+(fun map* (f: function xs: list)
+  (if (atom? xs)
+      (f xs)
+      (cons (map* f (car xs))
+      	    (map* f (cdr xs)))))
+
+(fun zip xss
+  (if (some? empty? xss)
+      ()'
+      (cons (map car xss)
+      	    (zip (map cdr xss)))))
+
+(type list
+      (nil)
+      (cons car: any
+      	    cdr: list))
 
 ;;; end system.rsp

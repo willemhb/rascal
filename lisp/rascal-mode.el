@@ -25,7 +25,8 @@
     ("none" . font-lock-builtin-face)
     (":[-+_a-zA-Z0-9?!/]+" . font-lock-builtin-face)
     ("@[-_a-zA-Z0-9?!/]+" . font-lock-builtin-face)
-    ("[-_a-zA-Z0-9?!]+([-_ a-zA-Z&]*)" . font-lock-keyword-face))
+    ("[-_a-zA-Z0-9?!]+([-_ a-zA-Z&]*)" . font-lock-function-name-face)
+    (":\\s-+\\(\\w+\\)" 1 font-lock-function-name-face))
   '("\\.rsp$" "\\.rdn$" "\\.rdn.o$") ;; source file, serialization format, object file
   '(rainbow-delimiters-mode)
   "A mode for rascal files.")

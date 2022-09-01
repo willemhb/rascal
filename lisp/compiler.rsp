@@ -3,29 +3,4 @@
 (val *opcodes* {})
 (val *syntax* {})
 
-(fun compile [expression]
-  "Toplevel compile."
-  (compile-expression expression [() {} () '<toplevel>]))
-
-(fun compile/state/instr [state]
-  (nth state 0))
-
-(fun compile/state/xnstr [state op & args]
-  (xth state 0 (apply conj op args)))
-
-(fun compile/state/vals [state]
-  (nth state 1))
-
-(fun compile/state/xals [state]
-  ())
-
-(fun compile/state/envt [state]
-  (nth state 2))
-
-(fun compile/state/name [state]
-  (nth state 3))
-
-(fun compile-expression [expression state]
-  (cond (keyword? expression)))
-
 ;;; end compiler.rsp

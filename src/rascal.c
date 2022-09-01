@@ -1,301 +1,351 @@
 // C modules ------------------------------------------------------------------
 #include <string.h>
 #include <assert.h>
+#include <stdarg.h>
+#include <stdlib.h>
 
-#include "common.h"
-#include "memory.h"
-#include "object.h"
-#include "lispio.h"
-#include "runtime.h"
-
-
-// forward declarations -------------------------------------------------------
-value_t eval_sexpr( value_t x, value_t e );
-bool_t  is_macro_call(value_t x);
-void    ensure_var_name( value_t x, const char *n );
-void    ensure_clo_args( value_t a, const char *n, bool_t *is_va, uint_t *argc );
-value_t ensure_clo_body( value_t b, const char *n, value_t *l );
-void    ensure_let_args( value_t a, const char *n, uint_t *argc );
+#include "memutils.h"
+#include "rascal.h"
 
 // globals --------------------------------------------------------------------
-// core VM objects ------------------------------------------------------------
-stack_t        *Stack;
-heap_t         *Heap;
-symbol_table_t *Symbols;
-ios_map_t      *Ports;
+stack_t *Eval, *Cntl;
+heap_t *Heap;
+table_t *Symbols;
 
-gc_frame_t     *Saved;
-jmp_buf         Toplevel;
+gc_frame_t *Saved;
+jmp_buf Toplevel;
 
-// form names -----------------------------------------------------------------
-value_t sym_quote, sym_do;
-value_t sym_if, sym_and, sym_or;
-value_t sym_val, sym_fun, sym_mac, sym_let, sym_labl;
-
-// keywords -------------------------------------------------------------------
-value_t kw_macro, kw_vargs;                        // closure options
-value_t kw_intern;                                 // symbol options
-value_t kw_text, kw_lisp, kw_bin, kw_ins, kw_outs; // io options
-
-// other syntax markers -------------------------------------------------------
-value_t stx_amp;
-
-char *BuiltinNames[NUM_BUILTINS] = {
-  [type_type]="type", [type_port]="port", [type_pointer] ="ptr",
-
-  [F_NONE] ="none",  [F_ANY]      ="any",   [F_NIL]  ="nil",
-  [F_BOOL] ="bool",  [F_CHAR]     ="chr",   [F_INT]  ="int",   [F_FLO]  ="flo",
-  [F_CLO]  ="clo",   [F_PAIR]     ="pair",  [F_CONS] ="cons",  [F_VEC]  ="vec",
-  [F_STR]  ="str",   [F_BIN]      ="bin",   [F_SYM]  ="sym",
-
-  [F_CAR]  ="car",   [F_CDR]      ="cdr",   [F_LEN]  ="len",   [F_NTH]  ="nth",
-  [F_PUT]  ="put",   [F_XUT]      ="xut",   [F_XAR]  ="xar",   [F_XDR]  ="xdr",
-  [F_XTH]  ="xth",   [F_XEF]      ="xef",
-
-  [F_TYPEP]="type?", [F_NONEP]    ="none?", [F_ANYP] ="any?",  [F_NILP] ="nil?",
-  [F_PRIMP]="prim?", [F_CLOP]     ="clo?",    [F_PAIRP]="pair?", [F_CONSP]="cons?",
-  [F_VECP] ="vec?",  [F_STRP]     ="str?",    [F_BINP] ="bin?",  [F_SYMP] ="sym?",
-  [F_PORTP]="port?", [F_PTRP]     ="ptr?",
-
-  [F_FUNCP]="func?", [F_KEYWORDP]="keyword?", [F_GENSYMP]="gensym?",
-
-  [F_CELLP]="cell?",
-
-  [F_ADD]  ="+", [F_SUB]="-", [F_MUL]="*", [F_DIV] ="/", [F_MOD]="mod",
-  [F_EQP]  ="=", [F_LTP]="<",
-
-  [F_IDP]="id?", [F_NOT]="not",
-
-  [F_OPEN]="open", [F_CLOSE]="close", [F_EOFP]="eof?",
-
-  [F_READ]="read", [F_PRIN]="prin", [F_LOAD]="load",
-  [F_EVAL]="eval", [F_APPLY]="apply", [F_LOOKUP]="lookup",
-  [F_ERROR]="error", [F_EXIT]="exit",
-
-  [F_QUOTE]="quote", [F_DO]="do", [F_IF]="if", [F_AND]="and", [F_OR]="or",
-  [F_VAL]="val", [F_FUN]="fun", [F_MAC]="let", [F_LABL]="labl"
-};
-
-// utilities ------------------------------------------------------------------
-bool_t is_literal(value_t x)
+// runtime utilities ----------------------------------------------------------
+void verror(const char *fname, const char *fmt, va_list va)
 {
-  return is_symbol(x) ? is_keyword(x) : !is_cons(x);
+  static const char *errfmt = "%s: error: ";
+  fprintf(stderr, errfmt, fname);
+  vfprintf(stderr, fmt, va); fprintf(stderr, ".\n" );
+  va_end(va);
+  longjmp(Toplevel, 1);
 }
 
-bool_t is_special_form(value_t x)
+void error(const char *fname, const char *fmt, ...)
 {
-  return is_builtin(x) && ival(x) > F_EXIT;
+  static const char *errfmt = "%s: error: ";
+  fprintf(stderr, errfmt, fname);
+
+  va_list va;
+  va_start(va, fmt);
+  vfprintf(stderr, fmt, va); fprintf(stderr, ".\n" );
+  va_end(va);
+  longjmp(Toplevel, 1);
 }
 
-void ensure_var_name( value_t x, const char *n)
+// internal type implementations ----------------------------------------------
+// stack implementation -------------------------------------------------------
+#define N_STACK 4096
+
+#define stack_size(s)   ((s)->cap*sizeof(value_t))
+#define stack_data(s)   ((s)->data)
+#define stack_sp(s)     ((s)->sp)
+#define stack_cap(s)    ((s)->cap)
+#define stack_tos(s)    ((s)->data[(s)->sp-1])
+#define stack_ref(s,n)  ((s)->data[(n)])
+#define stack_peek(s,n) ((s)->data[(s)->sp-1-(n)])
+
+void init_stack(stack_t *s)
 {
-  require( is_symbol(x), x, n, "can't bind non-symbol" );
-  require( !is_keyword(x), x, n, "can't bind keyword" );
-  require( !is_constant(x), x, n, "can't re-bind constant" );
+  stack_sp(s) = 0;
+  stack_cap(s) = N_STACK;
+  stack_data(s) = malloc_s( stack_size(s) );
 }
 
-void ensure_clo_args( value_t x, const char *n, bool_t *is_va, uint_t *argc )
+void finalize_stack(stack_t *s)
 {
-  argtype( x, n, type_vector );
+  free_s( stack_data(s) );
+}
 
-  uint_t vl = length( x );
+void grow_stack(stack_t *s)
+{
+  stack_cap(s) *= 2;
+  stack_data(s) = realloc_s( stack_data(s), stack_size(s) );
+}
 
-  *argc  = vl;
-  *is_va = false;
+void shrink_stack(stack_t *s)
+{
+  stack_cap(s) /= 2;
+  stack_data(s) = realloc_s( stack_data(s), stack_size(s) );
+}
 
-  for (uint_t i=0; i<vl; i++)
+bool check_grow(stack_t *s, size_t n)
+{
+  return stack_sp(s) + n >= stack_cap(s);
+}
+
+bool check_shrink(stack_t *s, size_t n)
+{
+  if (stack_cap(s) > N_STACK)
+    return stack_sp(s) - n <  stack_cap(s) / 2;
+
+  return false;
+}
+
+void stack_push(stack_t *s, value_t x)
+{
+  if (check_grow(s, 1))
+    grow_stack(s);
+
+  stack_data(s)[stack_sp(s)++] = x;
+}
+
+value_t stack_pop(stack_t *s)
+{
+  if (check_shrink(s, 1))
+    shrink_stack(s);
+
+  return stack_data(s)[--stack_sp(s)];
+}
+
+// heap implementation --------------------------------------------------------
+#define N_HEAP 16384
+#define GROW_F 0.625
+
+#define heap_used(h)       ((h)->used)
+#define heap_available(h)  ((h)->available)
+#define heap_alignment(h)  ((h)->alignment)
+#define heap_grow(h)       ((h)->grow)
+#define heap_grew(h)       ((h)->grew)
+#define heap_collecting(h) ((h)->collecting)
+#define heap_space(h)      ((h)->space)
+#define heap_swap(h)       ((h)->swap)
+#define heap_size(h)       (heap_available(h)*heap_alignment(h))
+#define heap_allocated(h)  (heap_used(h)*heap_alignment(h))
+#define heap_next(h)       (heap_space(h)+heap_allocated(h))
+
+void heap_collect(heap_t *h);
+
+void init_heap(heap_t *h)
+{
+  heap_used(h) = 0;
+  heap_available(h) = N_HEAP;
+  heap_alignment(h) = sizeof(cons_t);
+  heap_grow(h) = false;
+  heap_grew(h) = false;
+  heap_collecting(h) = false;
+  heap_space(h) = malloc_s(heap_size(h));
+  heap_swap(h) = malloc_s(heap_size(h));
+}
+
+void finalize_heap(heap_t *h)
+{
+  free_s( heap_space(h) );
+  free_s( heap_swap(h) );
+}
+
+void grow_space(heap_t *h)
+{
+  heap_available(h) *= 2;
+  heap_space(h) = realloc_s( heap_space(h), heap_size(h) );
+  heap_grew(h) = true;
+  heap_grow(h) = false;
+}
+
+void grow_swap(heap_t *h)
+{
+  heap_swap(h) = realloc_s( heap_swap(h), heap_size(h) );
+  heap_grew(h) = false;
+  heap_grow(h) = false;
+}
+
+void heap_resize(heap_t *h)
+{
+  if (heap_grow(h))
+    grow_space(h);
+
+  else if (heap_grew(h))
+    grow_swap(h);
+}
+
+void check_resize(heap_t *h)
+{
+  heap_grow(h) = heap_used(h) >= heap_available(h) * GROW_F;
+}
+
+bool check_collect(heap_t *h, size_t n)
+{
+  return !heap_collecting(h) &&
+          heap_allocated(h) + n < heap_size(h);
+}
+
+void *alloc_from(heap_t *h, size_t n)
+{
+  size_t a = aligned( n, heap_alignment(h) );
+
+  if (check_collect(h, a))
+    heap_collect(h);
+
+  void *out = heap_next(h);
+  heap_used(h) += n / heap_alignment(h);
+  memset(out, 0, a);
+  return out;
+}
+
+// misc runtime helpers -------------------------------------------------------
+void gc_frame_cleanup(gc_frame_t *g)
+{
+  assert(g);
+  Saved = g->next;
+}
+
+// external type implementations ----------------------------------------------
+// descriptive macros ---------------------------------------------------------
+#define tag_test(type, mask, tag)		\
+  bool is##type(value_t x)			\
+  {						\
+    return (x&mask) == tag;			\
+  }
+
+#define value_test(type, value)			\
+  bool is##type(value_t x)			\
+  {						\
+    return x == value;				\
+  }
+
+// cons implementation --------------------------------------------------------
+value_t cons(value_t ca, value_t cd)
+{
+  preserve(2, &ca, &cd);
+
+  cons_t *out = alloc_from(Heap, sizeof(cons_t));
+  out->car = ca; out->cdr = cd;
+  return tagptr(out, LIST);
+}
+
+bool iscons(value_t x)
+{
+  return !!pbits(x) && hitag(x) == LIST;
+}
+
+tag_test(list,HITAG,LIST)
+value_test(nil,NIL)
+
+// symbol implementation ------------------------------------------------------
+
+// string implementation ------------------------------------------------------
+#define str_length(x) getf(string, x, length)
+#define str_space(x) (&getf(string, x, space)[0])
+#define str_instr(x) ((short*)str_space(x))
+
+// vector implementation ------------------------------------------------------
+
+// table implementation -------------------------------------------------------
+
+// interpreter ----------------------------------------------------------------
+typedef enum
+  {
+   // constructors ------------------------------------------------------------
+   F_BOOLEAN=type_boolean, F_CHARACTER, F_INTEGER, F_FLONUM,
+   F_NIL, F_CONS, F_SYMBOL, F_CLOSURE=type_closure,
+   F_STRING, F_VECTOR, F_TABLE,
+
+   // predicates/comparison ---------------------------------------------------
+   F_ISA_P, F_ID_P, F_NOT, F_ORD=17,
+   F_KEYWORD_P, F_GENSYM_P, F_FUNCTION_P,
+
+   // utilities ---------------------------------------------------------------
+   F_TYPE, F_HASH, F_SIZE,
+
+   // arithmetic --------------------------------------------------------------
+   F_INC=25, F_DEC, F_ADD, F_SUB, F_MUL, F_DIV, F_REM,
+   F_EQP=33, F_LTP,
+
+   // input/output ------------------------------------------------------------
+   F_OPEN, F_CLOSE, F_EOFP,
+
+   F_READ, F_PRIN,
+
+   F_READC=41, F_PRINC, F_PEEKC,
+
+   F_CTYPE_P,
+
+   // accessors ---------------------------------------------------------------
+   F_CAR, F_CDR, F_NTH, F_REF=49, F_LEN,
+
+   // interpreter -------------------------------------------------------------
+   F_APPLY, F_COMPILE, F_COMPILE_FILE, F_EXEC, F_LOAD,
+
+   // runtime -----------------------------------------------------------------
+   F_SYS=57, F_ENV, F_EXIT, F_ERROR,
+
+   NUM_BUILTINS
+  } builtin_t;
+  
+  typedef enum
     {
-      value_t a = vec_ref( x, i );
-      ensure_var_name( a, n );
+     // exit point ------------------------------------------------------------
+     OP_HALT=NUM_BUILTINS,
 
-      if (a == stx_amp)
-	{
-	  *is_va = true;
-	  *argc -= 1;
-	}
-    }
-}
+     // stack manipulation ----------------------------------------------------
+     OP_POP,
 
-void ensure_let_args( value_t x, const char *n, uint_t *argc )
-{
-  argtype( x, n, type_vector );
+     // load/store instructions -----------------------------------------------
+     OP_LOAD_VALUE,
 
-  uint_t vl  = length(x);
-  require( vl %2 == 0, x, n, "unmatched let arg in " );
-  *argc = vl / 2;
+     OP_LOAD_LOCAL, OP_STORE_LOCAL,
 
-  for (uint_t i=0; i<vl; i++)
-    {
-      value_t val = vec_ref(x, i);
+     OP_LOAD_GLOBAL, OP_STORE_GLOBAL,
 
-      if (i%2)
-	  ensure_var_name( val, n );
-    }
-}
+     // control flow ----------------------------------------------------------
+     OP_JUMP, OP_JUMP_TRUE, OP_JUMP_FALSE,
+     
+     // function calls --------------------------------------------------------
+     OP_CALL, OP_RETURN,
 
-bool_t Cbool( value_t x )
-{
-  return x != NIL && x != TRUE;
-}
+     NUM_INSTRUCTIONS
+    } opcode_t;
 
-char *fun_name(value_t x)
-{
-  if (is_closure(x))
-    return sym_name(clo_name(x));
+const char* BuiltinNames[NUM_BUILTINS] =
+  {
+   // constructors ------------------------------------------------------------
+   [F_BOOLEAN] = "bool", [F_CHARACTER] = "chr",
+   [F_INTEGER] = "int", [F_FLONUM] = "flo",
+   [F_NIL] = "nil", [F_CONS] = "cons",
+   [F_SYMBOL] = "sym", [F_CLOSURE] = "closure",
+   [F_STRING] = "str", [F_VECTOR] = "vec",
+   [F_TABLE] = "table",
 
-  return BuiltinNames[ival(x)];
-}
+   // predicates/comparison ---------------------------------------------------
+   [F_ISA_P] = "isa?", [F_ID_P] = "id?",
+   [F_ORD] = "ord", [F_NOT] = "not",
+   [F_KEYWORD_P] = "keyword?", [F_GENSYM_P] = "gensym?",
+   [F_FUNCTION_P] = "function?",
 
-#define lisp_eval(_x, _e) (is_literal((_x)) ? (_x) : eval_sexpr(_x, _e))
+   // utilities ---------------------------------------------------------------
+   [F_TYPE] = "type", [F_SIZE] = "size", [F_HASH] = "hash",
 
-#define tail_eval(_x)				\
-  do						\
-    {						\
-      x  = (_x);				\
-      Sp = saveSp;				\
-      Fp = saveFp;				\
-      						\
-      if (is_literal(x))			\
-	{					\
-      	  v = x;				\
-	  goto ev_end;				\
-	}					\
-      goto ev_top;				\
-    } while(0)
-
-#define type_predicate(type)			\
-f_##type##p:					\
-v = is_##type(Values[Bp]) ? TRUE : FALSE;	\
-goto eval_end
-
-value_t eval_sexpr( value_t x , value_t e )
-{
-  static void *labels[NUM_BUILTINS] = {
-    [F_QUOTE] = &&ev_quote, [F_DO] = &&ev_do,
+   // arithmetic --------------------------------------------------------------
+   [F_INC] = "inc", [F_DEC] = "dec",
   };
 
-  bool_t is_mac = false, no_eval = false;
-  size_t n_arg = 0;
-  value_t f=NIL, a=NIL, v = NIL;
-  
-  uint_t saveSp = Sp, saveFp = Fp, Bp = Sp; gc_frame_t *saveGc = Saved;
-
-  if (setjmp(Toplevel))
+value_t eval(function_t *bytecode)
+{
+  static void *labels[NUM_INSTRUCTIONS] =
     {
-      Sp    = saveSp;
-      Fp    = saveFp;
-      Saved = saveGc;
-    }
+     [F_NIL] = &&f_nil,
+    };
 
-  preserve( 5, &f, &a, &v, &x, &e );
+  uint pc;
+  ushort argx;
   
- ev_top:
-  if (is_symbol(x))
-    {
-      if (is_constant(x))
-	return sym_bind(x);
+ do_dispatch:
 
-      while (e != TOPLEVEL)
-	{
-	  value_t n = env_names(e), b = env_binds(e);
+  // constructors -------------------------------------------------------------
+ f_nil:
+  stack_push(Eval, NIL);
+  goto do_dispatch;
 
-	  while (is_cons(n))
-	    {
-	      if (car(n) == x)
-		return car(b);
+  // control flow -------------------------------------------------------------
+ op_jump:
+  pc += argx;
+  goto do_dispatch;
 
-	      n = cdr(n);
-	      b = cdr(b);
-	    }
-	  e = env_parent(e);
-	}
-      
-      require( is_bound(x), x, "eval", "unbound symbol: " );
-      return sym_bind(x);
-    }
-
-  else if (is_macro_call(x))
-    {
-      f       = sym_bind(car(x));
-      a       = cdr(x);
-      n_arg   = length(a);
-      no_eval = true;
-      is_mac  = true;
-      
-      goto closure_args;
-    }
-
-  f     = eval_sexpr( f, e );
-  n_arg = length(a);
-
- apply_dispatch:
-  type_t ft      = argtypes( f, "eval", 3, type_closure, type_builtin, type_type );
-
-  require( ft != type_type || ft&7, f, "eval", "type is not constructable: " );
-
-  if (is_special_form(f))
-      goto *labels[ival(f)];
-
-  if (is_builtin(f) || is_type(f))
-    {
-      for_cons(&a, x)
-	{
-	  v = no_eval ? x : lisp_eval(x, e);
-	  push(v);
-	}
-
-      goto apply_builtin;
-    }
-
- closure_args:
-  argco( n_arg, clo_arity(f), clo_vargs(f), fun_name(f) );
-
-  for_cons(&a, x)
-    {
-      v = no_eval ? x : lisp_eval(x, e);
-      push(v);
-    }
-
-  if (clo_vargs(f))
-    {
-      uint_t n_va = n_arg-clo_arity(f);
-      
-      x = listn( &Values[Sp-n_va], n_va );
-      popn( n_va );
-      push( x );
-      n_arg -= n_va-1;
-    }
-
-  x = listn(&Values[Sp-n_arg], n_arg );
-  popn( n_arg );
   
-  
- apply_closure:
-  
-  
- apply_builtin:
-  
- ev_quote:
-  argco( n_arg, 1, false, "quote" );
-  v = x;
-  goto ev_end;
-
- ev_do:
-  argco( n_arg, 1, true, "do" );
-  for_t_cons(&a, x) v = lisp_eval( x, e );
-
-  tail_eval( x );
-
- ev_val:
-  
-
- ev_end:
-  saveSp = Sp;
-  saveFp = Fp;
-
-  if (is_mac)
-    tail_eval(v);
-
-  return v;
 }
 
+// compiler -------------------------------------------------------------------
