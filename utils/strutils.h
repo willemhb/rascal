@@ -28,6 +28,8 @@ char *uint2str(char *dest, size_t len, uint64_t num, int base );
 int   str2int(char *src, size_t len, int64_t *res, int base );
 
 // shit that should be in the standard library --------------------------------
-int strcount( const char *s, int ch );
+int    strcount( const char *s, int ch );
+size_t ucstou8( int ucs, char *b );
+int    u8toucs( const char *b, int l );
 
 #endif

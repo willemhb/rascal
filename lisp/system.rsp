@@ -1,74 +1,48 @@
 ;;; begin system.rsp
+
 (val *syntax* {})
 
-(fun cddr [xs] (cdr (cdr xs)))
-(fun cdar [xs] (cdr (car xs)))
-(fun cadr [xs] (car (cdr xs)))
-(fun caar [xs] (car (car xs)))
+(fun atom? [x]
+  (not (cons? x)))
 
-(mac cond [test then & more]
-  (if (id? test 'otherwise)
-      then
-      `(if ~test
-      	   ~then
-	   (cond ~@more))))
-
-(mac case [test & cases]
-  (let [testvar (symbol)]
-       (labl expander [testvar cases]
-       	     (if (nil? cases)
-	     	 ()
-		 (cons 'if
-		       (cons `(id? ~testvar ~(car cases))
-		       	     (cons (cadr cases)
-			     	   (expander (cddr cases))))))
-	     `(let (~testvar ~test)
-	     	   ~(expander testvar cases)))))
-
-(fun map [f xs]
-  (cond
-    (nil? xs) ()
-    otherwise (cons (f (car xs))
-	   	    (map f
-		    	 (cdr xs)))))
-
-(fun filter [p? xs]
-  (cond
-    (nil? xs)     ()
-    (p? (car xs)) (cons (car xs)
-    	     	  	(filter p?
-				(cdr xs)))
-    otherwise     (filter p? (cdr xs))))
-
-;;; math utilities
-(fun zero? [n]
-  (= n 0))
-
-(fun one? [n]
-  (= n 1))
-
-(fun even? [n]
-  (zero? (mod n 2)))
-
-(fun odd? [n]
-  (one? (mod n 2)))
-
-(fun pow [base exp]
-  (labl loop [base exp acc]
-    (cond
-      (= exp 0)   acc
-      (even? exp) (loop (* base base)
-      	     	  	(/ exp 2)
-			acc)
-      otherwise   (loop base
-      		  	(- exp 1)
-			(* base acc)))
-    (loop base exp 1)))
-
-(fun literal? [x]
-  (if (symbol? x)
-      (keyword? x)
+(fun lit? [x]
+  "`x` is self-evaluating?" 
+  (if (sym? x)
+      (not (kw? x))
       (not (cons? x))))
 
-(val *ordtable* {})
+(fun macro-call*? [form]
+  "Supplied form should be macro-expanded?"
+  (and (cons? form)
+       (sym? (car form))
+       (assc *syntax* (car form))))
+
+(fun macro-expand [form]
+  "Expand the supplied form once."
+  (if (atom? form)
+      form
+      (let [result (macro-call*? form)]
+        (if result
+	    (apply (car result)
+	    	   (cdr result))
+	    form))))
+
+(fun macro-expand* [form]
+  "Expand the supplied form recursively."
+  (cond (atom? form)
+          form
+  	(macro-call*? form) :as result
+	  (macro-expand* (apply (car result)
+	  	 	 	(cdr result)))
+        otherwise
+	  (map macro-expand* form)))
+
+(fun syntax-put [name expander]
+  "Add a macro-expander to the syntax table."
+  (put *syntax* name expander))
+
+(fun eval [x]
+  "Pass single argument "
+  (eval x (&env)))
+
 ;;; end system.rsp

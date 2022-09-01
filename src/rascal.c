@@ -4,32 +4,21 @@
 
 #include "common.h"
 #include "memory.h"
+#include "object.h"
 #include "lispio.h"
+#include "runtime.h"
 
-// pseudo-globals ------------------------------------------------------------
-#define Sp     (Stack->sp)
-#define Fp     (Stack->fp)
-#define Values (Stack->data)
-#define Tos    (Stack->data[Stack->sp-1])
 
-// safecasts ------------------------------------------------------------------
-cons_t   *tocons(value_t x, const char *fname);
-symbol_t *tosymbol(value_t x, const char *fname);
-
-bool_t is_vargs(value_t x);
-bool_t is_oargs(value_t x);
-
-value_t evalsx(value_t x, value_t e);
-value_t lookup(value_t x, value_t e);
-
-value_t vec_ref(value_t vec, uint_t n);
-value_t vec_put(value_t vec, value_t val);
-
-size_t  sxp_len(value_t x);
-
-#define eval(x, e) (is_literal(x) ? (x) : evalsx((x), (e)))
+// forward declarations -------------------------------------------------------
+value_t eval_sexpr( value_t x, value_t e );
+bool_t  is_macro_call(value_t x);
+void    ensure_var_name( value_t x, const char *n );
+void    ensure_clo_args( value_t a, const char *n, bool_t *is_va, uint_t *argc );
+value_t ensure_clo_body( value_t b, const char *n, value_t *l );
+void    ensure_let_args( value_t a, const char *n, uint_t *argc );
 
 // globals --------------------------------------------------------------------
+// core VM objects ------------------------------------------------------------
 stack_t        *Stack;
 heap_t         *Heap;
 symbol_table_t *Symbols;
@@ -38,7 +27,20 @@ ios_map_t      *Ports;
 gc_frame_t     *Saved;
 jmp_buf         Toplevel;
 
-char *builtinnames[] = {
+// form names -----------------------------------------------------------------
+value_t sym_quote, sym_do;
+value_t sym_if, sym_and, sym_or;
+value_t sym_val, sym_fun, sym_mac, sym_let, sym_labl;
+
+// keywords -------------------------------------------------------------------
+value_t kw_macro, kw_vargs;                        // closure options
+value_t kw_intern;                                 // symbol options
+value_t kw_text, kw_lisp, kw_bin, kw_ins, kw_outs; // io options
+
+// other syntax markers -------------------------------------------------------
+value_t stx_amp;
+
+char *BuiltinNames[NUM_BUILTINS] = {
   [type_type]="type", [type_port]="port", [type_pointer] ="ptr",
 
   [F_NONE] ="none",  [F_ANY]      ="any",   [F_NIL]  ="nil",
@@ -60,7 +62,7 @@ char *builtinnames[] = {
   [F_CELLP]="cell?",
 
   [F_ADD]  ="+", [F_SUB]="-", [F_MUL]="*", [F_DIV] ="/", [F_MOD]="mod",
-  [F_EQP] ="=", [F_LTP]="<",
+  [F_EQP]  ="=", [F_LTP]="<",
 
   [F_IDP]="id?", [F_NOT]="not",
 
@@ -74,70 +76,7 @@ char *builtinnames[] = {
   [F_VAL]="val", [F_FUN]="fun", [F_MAC]="let", [F_LABL]="labl"
 };
 
-// form names -----------------------------------------------------------------
-value_t sym_quote, sym_do;
-value_t sym_if, sym_and, sym_or;
-value_t sym_val, sym_fun, sym_mac, sym_let, sym_labl;
-
-size_t sxp_len(value_t x)
-{
-  size_t out = 0;
-
-  if (is_cons(x))
-    while (is_cons(x))
-    {
-      out++;
-      x = cdr(x);
-    }
-
-  return out;
-}
-
-value_t lookup(value_t n, value_t e)
-{
-  if (sym_constant(n))
-    return sym_bind(n);
-  
-  while (e != TOPLEVEL)
-    {
-      value_t names = env_names(e), binds = env_binds(e);
-
-      uint_t n_binds = env_length(e);
-
-      if (env_captured(e))
-	{
-	  for (uint_t i=0; i<n_binds; i++)
-	    {
-	      value_t argn = vec_ref(names, i), bindn = vec_ref(binds, n);
-	      if (argn == n)
-		return bindn;
-	    }
-	}
-
-      else
-	{
-	  value_t *base = &Values[ival(binds)];
-
-	  for (uint_t i=0; i<n_binds; i++)
-	    {
-	      value_t argn = vec_ref(names, i);
-	      if (argn == n)
-		return base[i];
-	    }
-	}
-
-      e = env_parent(e);
-    }
-
-  require( sym_bound(n),
-	   n,
-	   "eval",
-	   "unbound symbol %s",
-	   sym_name(n) );
-
-  return sym_bind(n);
-}
-
+// utilities ------------------------------------------------------------------
 bool_t is_literal(value_t x)
 {
   return is_symbol(x) ? is_keyword(x) : !is_cons(x);
@@ -148,111 +87,55 @@ bool_t is_special_form(value_t x)
   return is_builtin(x) && ival(x) > F_EXIT;
 }
 
-bool_t is_macro(value_t x)
+void ensure_var_name( value_t x, const char *n)
 {
-  return is_closure(x) && clo_macro(x);
+  require( is_symbol(x), x, n, "can't bind non-symbol" );
+  require( !is_keyword(x), x, n, "can't bind keyword" );
+  require( !is_constant(x), x, n, "can't re-bind constant" );
 }
 
-bool_t validate_argc(value_t *x, size_t argc)
+void ensure_clo_args( value_t x, const char *n, bool_t *is_va, uint_t *argc )
 {
-  static size_t builtin_arities[NUM_BUILTINS] = {
+  argtype( x, n, type_vector );
 
-  };
-  
-  if (is_closure(*x))
+  uint_t vl = length( x );
+
+  *argc  = vl;
+  *is_va = false;
+
+  for (uint_t i=0; i<vl; i++)
     {
-      uint_t arity = clo_arity(*x);
-      
-      if (clo_vargs(*x))
-	return argc >= arity;
+      value_t a = vec_ref( x, i );
+      ensure_var_name( a, n );
 
-      if (clo_oargs(*x))
+      if (a == stx_amp)
 	{
-
-	  value_t options = clo_args(*x);
-	  
-	  for (uint_t i=0; i<arity; i++)
-	    {
-	      value_t option   = vec_ref(options, i);
-	      if (validate_argc(&option, argc))
-		{
-		  *x = option;
-		  return true;
-		}
-	    }
-
-	  return false;
+	  *is_va = true;
+	  *argc -= 1;
 	}
-
-      return arity == argc;
     }
-
-  if (is_vargs(*x))
-    return argc >= builtin_arities[ival(*x)];
-
-  if (is_oargs(*x))
-    switch (*x)
-      {
-      case F_CLO:
-	return argc > 2 && argc < 7;
-
-      case F_SYM: case F_EXIT: case F_READ:
-	return argc == 0 || argc == 1;
-
-      case F_EVAL: case F_PRIN: case F_ERROR:
-	return argc == 1 || argc == 2;
-
-      case F_IF: case F_VAL:
-	return argc == 2 || argc == 3;
-
-      case F_FUN:
-	return argc >= 2 && argc <= 4;
-
-      case F_MAC: default:
-	return argc == 2 || argc == 3;
-      }
-
-  else
-    return argc == builtin_arities[ival(*x)];
 }
 
-bool_t is_oargs(value_t x)
+void ensure_let_args( value_t x, const char *n, uint_t *argc )
 {
-  static bool_t builtin_oargs[NUM_BUILTINS] = {
-    [F_CLO]   = true,  [F_SYM]   = true,
-    [F_READ]  = true,  [F_PRIN]  = true,
-    [F_EVAL]  = true,  [F_EXIT]  = true,
-    [F_ERROR] = true,
+  argtype( x, n, type_vector );
 
-    [F_IF]    = true, [F_VAL]    = true,
-    [F_FUN]   = true, [F_MAC]    = true
-  };
-  
-  if (is_closure(x))
-    return clo_oargs(x);
+  uint_t vl  = length(x);
+  require( vl %2 == 0, x, n, "unmatched let arg in " );
+  *argc = vl / 2;
 
-  assert(is_builtin(x));
-  return builtin_oargs[ival(x)];
+  for (uint_t i=0; i<vl; i++)
+    {
+      value_t val = vec_ref(x, i);
+
+      if (i%2)
+	  ensure_var_name( val, n );
+    }
 }
 
-bool_t is_vargs(value_t x)
+bool_t Cbool( value_t x )
 {
-  static bool_t builtin_vargs[NUM_BUILTINS] = {
-    [F_VEC]  = true, [F_STR] = true, [F_BIN] = true,
-    [F_AND]  = true, [F_OR]  = true,
-
-    [F_OPEN] = true,
-    
-    [F_ADD]  = true, [F_SUB] = true, [F_MUL] = true,
-    [F_DIV]  = true,
-    
-  };
-  
-  if (is_closure(x))
-    return clo_vargs(x);
-
-  assert(is_builtin(x));
-  return builtin_vargs[ival(x)];
+  return x != NIL && x != TRUE;
 }
 
 char *fun_name(value_t x)
@@ -260,19 +143,24 @@ char *fun_name(value_t x)
   if (is_closure(x))
     return sym_name(clo_name(x));
 
-  return builtinnames[ival(x)];
+  return BuiltinNames[ival(x)];
 }
 
-#define evalt(x)				\
+#define lisp_eval(_x, _e) (is_literal((_x)) ? (_x) : eval_sexpr(_x, _e))
+
+#define tail_eval(_x)				\
   do						\
     {						\
+      x  = (_x);				\
       Sp = saveSp;				\
       Fp = saveFp;				\
       						\
       if (is_literal(x))			\
-	return x;				\
-      goto eval_top;				\
-  						\
+	{					\
+      	  v = x;				\
+	  goto ev_end;				\
+	}					\
+      goto ev_top;				\
     } while(0)
 
 #define type_predicate(type)			\
@@ -280,167 +168,134 @@ f_##type##p:					\
 v = is_##type(Values[Bp]) ? TRUE : FALSE;	\
 goto eval_end
 
-
-
-value_t evalsx(value_t x, value_t e) {
+value_t eval_sexpr( value_t x , value_t e )
+{
   static void *labels[NUM_BUILTINS] = {
-    // special forms ----------------------------------------------------------
-    [F_QUOTE]     = &&ev_quote,    [F_DO]       = &&ev_do,
-
-    [F_IF]        = &&ev_if,       [F_OR]       = &&ev_or,      [F_AND]   = &&ev_and,
-
-    [F_VAL]       = &&ev_val,      [F_FUN]      = &&ev_fun,     [F_MAC]   = &&ev_mac,
-    [F_LET]       = &&ev_let,      [F_LABL]     = &&ev_labl,
-
-    // common functions -------------------------------------------------------
-    // constructors -----------------------------------------------------------
-    [F_PAIR]     = &&f_pair,       [F_CONS]  = &&f_cons,
-    [F_LIST]      = &&f_list,      [F_SYM]      = &&f_sym,      [F_VEC]   = &&f_vec,
-    [F_INT]       = &&f_int,       [F_BOOL]     = &&f_bool,
-
-    // accessors --------------------------------------------------------------
-    [F_CAR]       = &&f_car,       [F_CDR]      = &&f_cdr,      [F_FST]   = &&f_fst,
-    [F_SND]       = &&f_fst,       [F_XST]      = &&f_sxt,      [F_XND]   = &&f_xnd,
-    [F_HD]        = &&f_hd,        [F_TL]       = &&f_tl,
-
-  // type predicates ----------------------------------------------------------
-    [F_NONEP]     = &&f_nonep,     [F_ANYP]     = &&f_anyp,     [F_BOOLP]    = &&f_booleanp,
-    [F_PORTP]     = &&f_portp,     [F_INTP]     = &&f_integerp, [F_PRIMP]    = &&f_builtinp,
-    [F_CLOP]      = &&f_closurep,  [F_VECP]     = &&f_vectorp,  [F_PAIRP]    = &&f_pairp,
-    [F_CONSP]     = &&f_consp,     [F_SYMP]     = &&f_symbolp,  [F_STRP]     = &&f_stringp,
-    [F_BINP]      = &&f_binaryp,   [F_NILP]     = &&f_nilp,
-
-  // type-ish predicates ------------------------------------------------------
-    [F_FUNCP]     = &&f_functionp, [F_CELLP]    = &&f_cellp,
-    [F_GENSYMP]   = &&f_gensymp,   [F_KEYWORDP] = &&f_keywordp,
-
-    // arithmetic -------------------------------------------------------------
-    [F_ADD]       = &&f_add,       [F_SUB]      = &&f_sub,      [F_MUL]      = &&f_mul,
-    [F_DIV]       = &&f_div,       [F_MOD]      = &&f_mod,
-    [F_EQP]       = &&f_eqp,       [F_LTP]      = &&f_ltp,
-
-    // other predicates -------------------------------------------------------
-    [F_IDP]       = &&f_idp,       [F_NOT]      = &&f_not,
-
-    // io ---------------------------------------------------------------------
-    [F_OPEN]      = &&f_open,      [F_CLOSE]    = &&f_close,    [F_EOFP]     = &&f_eofp,
-    [F_READ]      = &&f_read,      [F_PRIN]     = &&f_prin,     [F_LOAD]     = &&f_load,
-
-    // interpreter ------------------------------------------------------------
-    [F_EVAL]      = &&f_eval,      [F_APPLY]    = &&f_apply,    [F_LOOKUP]   = &&f_lookup,
-
-    // runtime ----------------------------------------------------------------
-    [F_ERROR]     = &&f_error,     [F_EXIT]     = &&f_exit
+    [F_QUOTE] = &&ev_quote, [F_DO] = &&ev_do,
   };
 
-  uint_t saveSp = Sp, saveFp = Fp, Bp = Sp;
+  bool_t is_mac = false, no_eval = false;
+  size_t n_arg = 0;
+  value_t f=NIL, a=NIL, v = NIL;
+  
+  uint_t saveSp = Sp, saveFp = Fp, Bp = Sp; gc_frame_t *saveGc = Saved;
 
-  gc_frame_t *save_frame = Saved;
+  if (setjmp(Toplevel))
+    {
+      Sp    = saveSp;
+      Fp    = saveFp;
+      Saved = saveGc;
+    }
 
-  value_t f = NIL, a = NIL, v = NIL, pe = e;
-
-  value_t tmpx, tmpy, tmpz, tmpa, tmpb, tmpc;
-
-  if (setjmp(Toplevel)) {
-    Sp    = saveSp;
-    Fp    = saveFp;
-    Saved = save_frame;
-    
-    return NIL;
-  }
-
-  preserve( 6, &x, &e, &f, &a, &v, &pe );
-
- eval_top:
+  preserve( 5, &f, &a, &v, &x, &e );
+  
+ ev_top:
   if (is_symbol(x))
-    return lookup(x, e);
-
-  f = car(x); a = cdr(x); f = eval(f, a);
-
-  argtype( f, "eval", 2, type_closure, type_builtin, type_type );
-
-  if (is_type(f))
     {
-      require( f,
-	       !(f&7),
-	       "type %s not constructable",
-	       builtinnames[ival(f)] );
-      f = (f & IMASK) | FUNCTION;
-    }
+      if (is_constant(x))
+	return sym_bind(x);
 
-  size_t n_args = 0;
-  
-  if (is_special_form(f))
-    {
-      n_args = sxp_len(a);
-      require( validate_argc( &f, n_args ),
-	       f,
-	       fun_name(f),
-	       "bad arity" );
+      while (e != TOPLEVEL)
+	{
+	  value_t n = env_names(e), b = env_binds(e);
+
+	  while (is_cons(n))
+	    {
+	      if (car(n) == x)
+		return car(b);
+
+	      n = cdr(n);
+	      b = cdr(b);
+	    }
+	  e = env_parent(e);
+	}
       
-      goto *labels[ival(f)];
+      require( is_bound(x), x, "eval", "unbound symbol: " );
+      return sym_bind(x);
     }
 
-  Bp = Sp;
-  
-  bool_t expand = is_macro(f);
-  
+  else if (is_macro_call(x))
+    {
+      f       = sym_bind(car(x));
+      a       = cdr(x);
+      n_arg   = length(a);
+      no_eval = true;
+      is_mac  = true;
+      
+      goto closure_args;
+    }
+
+  f     = eval_sexpr( f, e );
+  n_arg = length(a);
+
+ apply_dispatch:
+  type_t ft      = argtypes( f, "eval", 3, type_closure, type_builtin, type_type );
+
+  require( ft != type_type || ft&7, f, "eval", "type is not constructable: " );
+
+  if (is_special_form(f))
+      goto *labels[ival(f)];
+
+  if (is_builtin(f) || is_type(f))
+    {
+      for_cons(&a, x)
+	{
+	  v = no_eval ? x : lisp_eval(x, e);
+	  push(v);
+	}
+
+      goto apply_builtin;
+    }
+
+ closure_args:
+  argco( n_arg, clo_arity(f), clo_vargs(f), fun_name(f) );
+
   for_cons(&a, x)
     {
-      v = expand ? x : eval(x, e);
-      n_args++;
+      v = no_eval ? x : lisp_eval(x, e);
+      push(v);
     }
 
-  require( validate_argc( &f, n_args ),
-	   f,
-	   fun_name(f),
-	   "bad arity" );
+  if (clo_vargs(f))
+    {
+      uint_t n_va = n_arg-clo_arity(f);
+      
+      x = listn( &Values[Sp-n_va], n_va );
+      popn( n_va );
+      push( x );
+      n_arg -= n_va-1;
+    }
 
-  if (is_builtin(f))
-    goto apply_builtin;
+  x = listn(&Values[Sp-n_arg], n_arg );
+  popn( n_arg );
+  
   
  apply_closure:
-  a = clo_body(f);
-  e = clo_envt(f);
-
+  
+  
  apply_builtin:
   
-  type_predicate(cons);
-  type_predicate(pair);
-  type_predicate(nil);
-  type_predicate(none);
-  type_predicate(symbol);
-  type_predicate(vector);
-  type_predicate(integer);
-  type_predicate(boolean);
-  type_predicate(binary);
-  type_predicate(string);
-  
-  
-  
- f_car:
-  v = car_s(Values[Bp], "car");
-  
-  goto eval_end;
+ ev_quote:
+  argco( n_arg, 1, false, "quote" );
+  v = x;
+  goto ev_end;
 
- f_cdr:
-  v = cdr_s(Values[Bp], "cdr");
+ ev_do:
+  argco( n_arg, 1, true, "do" );
+  for_t_cons(&a, x) v = lisp_eval( x, e );
 
-  goto eval_end;
+  tail_eval( x );
 
+ ev_val:
   
-    
- eval_end:
-  Sp = saveSp;
-  Fp = saveFp;
 
-  if (expand)
-    {
-      x = v;
-      e = pe;
-      
-      evalt(x);
-    }
+ ev_end:
+  saveSp = Sp;
+  saveFp = Fp;
 
-  return x;
+  if (is_mac)
+    tail_eval(v);
+
+  return v;
 }
+

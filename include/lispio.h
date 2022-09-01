@@ -75,7 +75,12 @@ struct ios_map_t
 #define is_texts(ios) ((ios)->flags&IOS_TEXT)
 #define is_bins(ios)  ((ios)->flags&IOS_BIN)
 
+#define STDIN  0
+#define STDOUT 1
+#define STDERR 2
+
 // utilities ------------------------------------------------------------------
+// low level io ---------------------------------------------------------------
 port_t  open_port( char *fname, flags_t flags, FILE *f );
 sint_t  close_port( port_t p );
 ios_t  *get_ios( port_t p, const char *fname );
@@ -90,17 +95,21 @@ sint_t  port_putc( port_t ios, int_t ch );
 sint_t  port_puts( port_t ios, char *str, size_t str_size );
 sint_t  port_putf( port_t ios, const char *fmt, ... );
 
+// lisp io --------------------------------------------------------------------
+value_t lisp_read( port_t p );
+value_t lisp_prin( port_t p, value_t x );
+
 // memory management ----------------------------------------------------------
 #define INI_BUF_SIZE    512
 #define INI_NUM_PORTS   32
 #define BUF_GROW_FACTOR 2.0
 
-void        trace_ios_map( ios_map_t *iom );
+void trace_ios_map( ios_map_t *iom );
 
 // initernal objects ----------------------------------------------------------
-void        init_buffer( buffer_t *b, ios_t *stream );
-void        finalize_buffer( buffer_t *b );
-void        reset_buffer( buffer_t *b );
+void init_buffer( buffer_t *b, ios_t *stream );
+void finalize_buffer( buffer_t *b );
+void reset_buffer( buffer_t *b );
 
 void        init_scanner( scanner_t *s, ios_t *owner );
 void        reset_scanner( scanner_t *s );
