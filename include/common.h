@@ -103,12 +103,19 @@ typedef union {
 
 // globals --------------------------------------------------------------------
 // core VM objects ------------------------------------------------------------
-extern stack_t *Eval, *Cntl;
+extern stack_t *Stack;
 extern heap_t *Heap;
 extern table_t *Symbols;
 
 extern gc_frame_t *Saved;
 extern jmp_buf Toplevel;
+
+// VM registers ---------------------------------------------------------------
+extern uint Arg, Ctl;
+extern value_t Fun, Val;
+
+// misc -----------------------------------------------------------------------
+extern value_t Open;
 
 // utilities ------------------------------------------------------------------
 #define rsp_aligned  __attribute__((aligned(sizeof(pair_t))))

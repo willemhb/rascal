@@ -8,7 +8,28 @@
 #include "rascal.h"
 
 // globals --------------------------------------------------------------------
-stack_t *Eval, *Cntl;
+/*
+  VM main registers:
+  fun - currently executing closure
+  arg - offset of environment
+  ctl - program counter
+  val - result of last computation
+
+  layout of a stack frame:
+  +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+
+  | upv | a-1 | ... | a-n | v-1 | ... | v-n | fun | arg | ctl |
+  +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+
+  ^                                         ^
+  |                                         |
+  arg                                       caller state
+
+ */
+
+uint Arg, Ctl;
+value_t Fun, Val;
+
+stack_t *Stack;
+
 heap_t *Heap;
 table_t *Symbols;
 
@@ -227,10 +248,17 @@ value_test(nil,NIL)
 
 // symbol implementation ------------------------------------------------------
 
+// function implementation ----------------------------------------------------
+#define fun_code(x) getf(function, x, code)
+#define fun_vals(x) getf(function, x, vals)
+#define fun_envt(x) getf(function, x, envt)
+
 // string implementation ------------------------------------------------------
 #define str_length(x) getf(string, x, length)
 #define str_space(x) (&getf(string, x, space)[0])
 #define str_instr(x) ((short*)str_space(x))
+
+#define instructions(x) ((short*)(&(x)->space[0]))
 
 // vector implementation ------------------------------------------------------
 
@@ -239,113 +267,86 @@ value_test(nil,NIL)
 // interpreter ----------------------------------------------------------------
 typedef enum
   {
-   // constructors ------------------------------------------------------------
-   F_BOOLEAN=type_boolean, F_CHARACTER, F_INTEGER, F_FLONUM,
-   F_NIL, F_CONS, F_SYMBOL, F_CLOSURE=type_closure,
-   F_STRING, F_VECTOR, F_TABLE,
-
-   // predicates/comparison ---------------------------------------------------
-   F_ISA_P, F_ID_P, F_NOT, F_ORD=17,
-   F_KEYWORD_P, F_GENSYM_P, F_FUNCTION_P,
-
-   // utilities ---------------------------------------------------------------
-   F_TYPE, F_HASH, F_SIZE,
-
-   // arithmetic --------------------------------------------------------------
-   F_INC=25, F_DEC, F_ADD, F_SUB, F_MUL, F_DIV, F_REM,
-   F_EQP=33, F_LTP,
-
-   // input/output ------------------------------------------------------------
-   F_OPEN, F_CLOSE, F_EOFP,
-
-   F_READ, F_PRIN,
-
-   F_READC=41, F_PRINC, F_PEEKC,
-
-   F_CTYPE_P,
-
-   // accessors ---------------------------------------------------------------
-   F_CAR, F_CDR, F_NTH, F_REF=49, F_LEN,
-
-   // interpreter -------------------------------------------------------------
-   F_APPLY, F_COMPILE, F_COMPILE_FILE, F_EXEC, F_LOAD,
-
-   // runtime -----------------------------------------------------------------
-   F_SYS=57, F_ENV, F_EXIT, F_ERROR,
-
    NUM_BUILTINS
   } builtin_t;
-  
-  typedef enum
-    {
-     // exit point ------------------------------------------------------------
-     OP_HALT=NUM_BUILTINS,
 
-     // stack manipulation ----------------------------------------------------
-     OP_POP,
-
-     // load/store instructions -----------------------------------------------
-     OP_LOAD_VALUE,
-
-     OP_LOAD_LOCAL, OP_STORE_LOCAL,
-
-     OP_LOAD_GLOBAL, OP_STORE_GLOBAL,
-
-     // control flow ----------------------------------------------------------
-     OP_JUMP, OP_JUMP_TRUE, OP_JUMP_FALSE,
-     
-     // function calls --------------------------------------------------------
-     OP_CALL, OP_RETURN,
-
-     NUM_INSTRUCTIONS
-    } opcode_t;
-
-const char* BuiltinNames[NUM_BUILTINS] =
+typedef enum
   {
-   // constructors ------------------------------------------------------------
-   [F_BOOLEAN] = "bool", [F_CHARACTER] = "chr",
-   [F_INTEGER] = "int", [F_FLONUM] = "flo",
-   [F_NIL] = "nil", [F_CONS] = "cons",
-   [F_SYMBOL] = "sym", [F_CLOSURE] = "closure",
-   [F_STRING] = "str", [F_VECTOR] = "vec",
-   [F_TABLE] = "table",
+   // exit point ------------------------------------------------------------
+   OP_HALT=NUM_BUILTINS,
 
-   // predicates/comparison ---------------------------------------------------
-   [F_ISA_P] = "isa?", [F_ID_P] = "id?",
-   [F_ORD] = "ord", [F_NOT] = "not",
-   [F_KEYWORD_P] = "keyword?", [F_GENSYM_P] = "gensym?",
-   [F_FUNCTION_P] = "function?",
+   // stack manipulation ----------------------------------------------------
+   OP_PUSH, OP_POP,
+   
+   // load/store instructions -----------------------------------------------
+   OP_LOAD_VALUE,
 
-   // utilities ---------------------------------------------------------------
-   [F_TYPE] = "type", [F_SIZE] = "size", [F_HASH] = "hash",
+   OP_LOAD_LOCAL, OP_STORE_LOCAL,
+   
+   OP_LOAD_GLOBAL, OP_STORE_GLOBAL,
+   
+   OP_LOAD_UPVALUE, OP_STORE_UPVALUE,
+   
+   // capture and closure instructions --------------------------------------
+   OP_CLOSURE,
+   
+   OP_CAPTURE_LOCAL, OP_CAPTURE_UPVALUE,
+   
+   // control flow ----------------------------------------------------------
+   OP_JUMP, OP_JUMP_TRUE, OP_JUMP_FALSE,
+   
+   // function calls --------------------------------------------------------
+   OP_CALL, OP_RETURN,
+   
+   NUM_INSTRUCTIONS
+  } opcode_t;
 
-   // arithmetic --------------------------------------------------------------
-   [F_INC] = "inc", [F_DEC] = "dec",
-  };
-
-value_t eval(function_t *bytecode)
+value_t eval(value_t bytecode)
 {
   static void *labels[NUM_INSTRUCTIONS] =
     {
-     [F_NIL] = &&f_nil,
+     [OP_HALT] = &&op_halt,
+
+     [OP_PUSH] = &&op_push, [OP_POP] = &&op_pop,
+
+     [OP_CLOSURE] = &&op_closure,
+     [OP_CAPTURE_LOCAL] = &&op_capture_local, [OP_CAPTURE_UPVALUE] = &&op_capture_upvalue,
     };
 
-  uint pc;
-  ushort argx;
+  string_t *code;
+  vector_t *vals;
+
+  ushort op; short argx, argy;
+
+  assert(Fun == UNBOUND);
+
+ do_call:
+  code = pval(fun_code(bytecode));
+  vals = pval(fun_vals(bytecode));
   
  do_dispatch:
+  op = instructions(code)[Ctl++];
 
-  // constructors -------------------------------------------------------------
- f_nil:
-  stack_push(Eval, NIL);
+  goto *labels[op];
+
+ op_push:
+  stack_push(Stack, Val);
   goto do_dispatch;
 
-  // control flow -------------------------------------------------------------
- op_jump:
-  pc += argx;
+ op_pop:
+  Val = stack_pop(Stack);
   goto do_dispatch;
 
-  
+ op_load_local:
+  Val = stack_ref(Stack, Arg+argx);
+  goto do_dispatch;
+
+ op_store_local:
+  stack_ref(Stack, Arg+argx) = Val;
+  goto do_dispatch;
+
+ op_halt:
+  return Val;
 }
 
 // compiler -------------------------------------------------------------------

@@ -7,16 +7,24 @@
 // C types --------------------------------------------------------------------
 struct function_t
 {
+  /* namespace info */
+  value_t names;
+  value_t binds;
+
+  /* metadata */
   value_t name;
-  value_t envt;
+  value_t props;
+
+  /* execution info */
   value_t vals;
   value_t code;
 
-  // metadata -----------------------------------------------------------------
-  value_t n_args;
-  value_t n_vars;
-  value_t is_varg;
-  value_t is_macro;
+  /* arity & flags */
+  uint n_args;
+  uint n_vars;
+  uint n_stack;
+
+  bool is_vargs;
 };
 
 struct symbol_t
@@ -64,8 +72,8 @@ typedef struct node_t
 struct table_t
 {
   value_t length;
-  value_t compare; // 
-  value_t mapping; // nodes
+  value_t compare;
+  value_t mapping; // HAMT of hashed entries
   value_t values;  // vector of key/value pairs
 };
 
