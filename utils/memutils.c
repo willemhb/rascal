@@ -6,15 +6,17 @@
 #include <stdint.h>
 
 // safe malloc substitutes ----------------------------------------------------
-void *malloc_s( size_t nbytes ) {
-  void *out = malloc( nbytes );
+void *malloc_s( size_t n_bytes )
+{
+  void *out = malloc( n_bytes );
 
-  if ( out == NULL ) {
+  if ( out == NULL )
+    {
       fprintf( stderr, "Out of memory, exiting.\n" );
       exit( 1 );
     }
 
-  memset( out, 0, nbytes );
+  memset( out, 0, n_bytes );
   return out;
 }
 

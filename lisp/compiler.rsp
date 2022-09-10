@@ -1,6 +1,0 @@
-;;; begin compiler.rsp
-(val *builtins* {})
-(val *opcodes* {})
-(val *syntax* {})
-
-;;; end compiler.rsp

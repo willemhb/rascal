@@ -1,0 +1,69 @@
+#ifndef rascal_memory_h
+#define rascal_memory_h
+
+#include "object.h"
+#include "function.h"
+
+// C types --------------------------------------------------------------------
+typedef void *(*relocate_t)(void *o);
+typedef void  (*finalize_t)(void *o);
+
+typedef enum
+  {
+    mem_fl_gray    = 1,
+    mem_fl_black   = 2,
+    mem_fl_finalze = 4,
+    mem_fl_global  = 8,
+    mem_fl_prim_ini=16,
+  } mem_fl_t;
+
+typedef struct heap_t
+{
+  HEADER;
+
+  size_t n_bytes, bytes_used;
+  size_t n_words, words_used;
+  size_t n_align, align_used;
+
+  uchar *space, *space_map;
+  uchar *swap,  *swap_map;
+
+  uint  flags;
+  uint  phase : 28;
+  uint  young :  1;
+  uint  stw   :  1;
+  uint  grew  :  1;
+  uint  grow  :  1;
+} heap_t;
+
+typedef struct gc_frame_t
+{
+  size_t size;
+  struct gc_frame_t *next;
+  value_t **saved;
+} gc_frame_t;
+
+// globals --------------------------------------------------------------------
+extern heap_t      *Heap;
+extern gc_frame_t  *Saved;
+extern relocate_t   Relocate[];
+extern finalize_t   Finalize[];
+
+// macros ---------------------------------------------------------------------
+#define preserve(n, save...)						\
+  value_t *__addr__[(n)] = { save };					\
+  gc_frame_t __gc__ __attribute__((cleanup(cleanup_gc_frames))) =	\
+    { (n), Saved, __addr__ };						\
+  Saved = &__gc__
+
+// forward declarations -------------------------------------------------------
+void     cleanup_gc_frames(gc_frame_t *gcf);
+uchar   *get_mem_fl(object_t *o);
+void     collect_garbage(void);
+void    *allocate(builtin_t base, size_t n, uint fl);
+value_t  move_val(value_t x);
+void    *move_ob(void *o);
+
+#define move(x) _Generic((x), value_t: move_val, default: move_ob)(x)
+
+#endif
