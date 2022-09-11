@@ -25,5 +25,11 @@ struct port_t
 };
 
 // forward declarations -------------------------------------------------------
+port_t *new_port(void);
+void    init_port(port_t *p, FILE *ios, uint fl );
+
+int     port_peekc(port_t *ios);
+int     port_readc(port_t *ios);
+int     port_princ(port_t *ios);
 
 #endif

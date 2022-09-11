@@ -27,7 +27,7 @@ typedef enum
     f_type,
 
     // arithmetic & numbers ---------------------------------------------------
-    f_add, f_sub, f_mul, f_div, r_rem,
+    f_add, f_sub, f_mul, f_div, f_rem,
 
     f_ltp, f_eqp, f_intp,
 

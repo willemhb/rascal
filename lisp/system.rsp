@@ -1,31 +1,29 @@
 ;;; begin system.rsp
 
-(type sym-tab: dict[str sym])
+;;; rascal-side definitions of object flags
+(val *cons-flags*
+  {
+    :cons-flag-proper       =>  1,
+    :cons-flag-cycle        =>  2,
+    :cons-flag-entry        =>  4,
+    :cons-flag-closure      =>  8,
+    :cons-flag-continuation => 16
+  })
 
-(type chr-list: list[chr])
+(val *func-flags*
+  {
+  
+  })
 
-(type list[a]
-  (nil)
-  (cons car: a
-  	cdr: list[a]))
+;;; standard type predicates
+(fun cons? (x)
+  (isa? x cons))
 
-(type color
-  (black 1)
-  (gray  2))
+(fun nil? (x)
+  (id? x nil))
 
-(type tree[a]
-  (empty)
-  (leaf key:   a)
-  (node key:   a
-  	left:  tree[a]
-	right: tree[a]))
+(fun list? (x)
+  (isa? x list))
 
-(fun len (xs: tree)
-  "Implementing for new type."
-  (case xs
-    ()      0
-    (_)     1
-    (_ l r) (+ 1
-       	       (len l)
-	       (len r))))
-
+(fun sym? (x)
+  (isa? x ))
