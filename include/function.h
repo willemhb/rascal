@@ -83,15 +83,23 @@ struct function_t
 
     struct
     {
-      object_t *locals;
-      object_t *closure;
-      object_t *constants;
-      object_t *instructions;
+      vector_t *locals;
+      vector_t *closure;
+      vector_t *constants;
+      binary_t *instructions;
     };
   };
 };
 
 // macros & statics -----------------------------------------------------------
+#define as_function(x) asa(function_t*, x, pval)
 
+#define fn_label(x)        getf(function_t*, x, label)
+#define fn_behavior(x)     getf(function_t*, x, behavior)
+#define fn_locals(x)       getf(function_t*, x, locals)
+#define fn_closure(x)      getf(function_t*, x, closure)
+#define fn_constants(x)    getf(function_t*, x, constants)
+#define fn_instructions(x) getf(function_t*, x, instructions)
+#define fn_code(x)         ((short*)(fn_instructions(x)->data))
 
 #endif

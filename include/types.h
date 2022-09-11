@@ -18,7 +18,7 @@ enum
     tag_vector   =5,
     tag_table    =6,
     tag_character=7,
-    tag_real     =8
+    tag_real     =8,
   };
 
 #define QNAN      0x7ffc000000000000ul
@@ -42,7 +42,7 @@ enum
 #define NIL        LIST
 #define TRUE       (ATOM|1)
 #define FALSE      (ATOM|0)
-#define EOS        PORT
+#define ENDOFIOS   PORT
 #define EMPTYSTR   (BINARY|C_ascii)
 #define EMPTYVEC   VECTOR
 #define EMPTYTABLE TABLE
@@ -53,7 +53,7 @@ typedef struct object_t object_t;
 
 // immediate types ------------------------------------------------------------
 typedef double real_t;
-typedef char   character_t;
+typedef uint   character_t;
 typedef bool   boolean_t;
 
 // object types ---------------------------------------------------------------
@@ -66,51 +66,6 @@ typedef struct vector_t   vector_t;
 typedef struct table_t    table_t;
 
 // macros & utils -------------------------------------------------------------
-#define HEADER object_t base
 
-#define tag(x)  ((x)&TMASK)
-#define pval(x) ((void*)((x)&PMASK))
-#define dval(x) (((ieee64_t)(x)).fp)
-#define cval(x) ((int)((x)&CMASK))
-#define cflg(x) (((x)>>32)&UINT16_MAX)
-
-#define asa(ctype, x, cnvt)          ((ctype)cnvt(x))
-#define getf(ctype, x, field)        (asa(ctype, x, pval)->field)
-#define getf_s(type, x, field, func) (to##type(x, func)->field)
-
-#define tag_p(type, TAG)      bool is_##type(value_t x) { return tag(x) == TAG; }
-#define value_p(value, VALUE) bool is_##value(value_t x) { return x == VALUE; }
-#define non_empty_tag_p(type, TAG)			\
-  bool is_##type(value_t x)				\
-  {							\
-    return tag(x) == TAG && !(x&7) && !!(x&PMASK);	\
-  }
-
-#define ob_flag_p(flag, TAG, FLAG)			\
-  bool is_##flag(value_t x)				\
-  {							\
-    return is_object(x)					\
-      && tag(x) == TAG					\
-      && !!(ob_flags(x)&FLAG);				\
-  }
-
-#define im_flag_p(flag, TAG, FLAG)		\
-  bool is_##flag(value_t x)			\
-  {						\
-    return is_immediate(x)			\
-      && tag(x) == TAG				\
-      && !!(cflg(x)&FLAG);			\
-  }
-
-#define flag_p(flag, TAG, FLAG)			\
-  bool is_##flag(value_t x)			\
-  {						\
-    if (tag(x) != TAG)				\
-      return false;				\
-    else if (is_immediate(x))			\
-      return !!(cflg(x)&FLAG);			\
-    else					\
-      return !!(ob_flags(x)&FLAG);		\
-  }
 
 #endif

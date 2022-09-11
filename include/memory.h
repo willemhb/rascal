@@ -9,6 +9,7 @@ typedef struct gc_frame_t
 {
   size_t size;
   struct gc_frame_t *next;
+  struct gc_frame_t *catch;
   value_t **saved;
 } gc_frame_t;
 
@@ -19,7 +20,7 @@ extern size_t HeapSize, HeapUsed, SwapUsed;
 
 extern bool Grow, Grew, Collecting;
 
-extern gc_frame_t  *Saved;
+extern gc_frame_t  *Saved, *Catch;
 
 // macros ---------------------------------------------------------------------
 #define preserve(n, save...)						\
@@ -30,12 +31,15 @@ extern gc_frame_t  *Saved;
 
 // forward declarations -------------------------------------------------------
 void     cleanup_gc_frames(gc_frame_t *gcf);
-uchar   *get_mem_fl(object_t *o);
-void     collect_garbage(void);
-void    *allocate(builtin_t base, size_t n, uint fl);
+void    *allocate(size_t n, bool gl);
+
+bool     global_val(value_t x);
+bool     global_ob(void *o);
+
 value_t  move_val(value_t x);
 void    *move_ob(void *o);
 
-#define move(x) _Generic((x), value_t: move_val, default: move_ob)(x)
+#define move(x)      _Generic((x), value_t: move_val, default: move_ob)(x)
+#define is_global(x) _Generic((x), value_t: global_val, default: global_ob)(x)
 
 #endif

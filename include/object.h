@@ -36,12 +36,26 @@ static inline bool is_immediate(value_t x)
 {
   return (x&QNAN) == QNAN
     ||   !(x&PMASK)
-    ||   !!(x&7);
+    ||   !!(x&15);
 }
 
 static inline bool is_object(value_t x)
 {
   return !is_immediate(x);
+}
+
+static inline void init_object(void *ob, size_t size, uint tag, uint flags)
+{
+  object_t *o   = ob;
+
+  ob_arity(o)   = 0;
+  ob_size(o)    = size;
+  ob_tag(o)     = tag;
+  ob_flags(o)   = flags;
+  ob_gc(o)      = 0;
+  ob_guarded(o) = false;
+  ob_moved(o)   = false;
+  ob_seen(o)    = false;
 }
 
 #endif

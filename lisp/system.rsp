@@ -1,29 +1,70 @@
 ;;; begin system.rsp
 
-;;; rascal-side definitions of object flags
-(val *cons-flags*
-  {
-    :cons-flag-proper       =>  1,
-    :cons-flag-cycle        =>  2,
-    :cons-flag-entry        =>  4,
-    :cons-flag-closure      =>  8,
-    :cons-flag-continuation => 16
-  })
-
-(val *func-flags*
-  {
+;;; examples of desired pattern matching syntax.
+(fun elem?
+  "Empty vector."
+  (_ []) false)
   
-  })
+(fun elem?
+  "Match found."
+  (x0 [x1 & xn])
+  (or (= x0 x1)
+      (elem? x0 xn)))
 
-;;; standard type predicates
-(fun cons? (x)
-  (isa? x cons))
+(fun elem?
+  "Example of extension for a user type"
+  [x %tree{}] false)
 
-(fun nil? (x)
-  (id? x nil))
+(fun elem?
+  "Leaf case."
+  [x %tree{y}]
+  (= x y))
 
-(fun list? (x)
-  (isa? x list))
+(fun elem?
+  "Node case."
+  [x %tree{y l r}]
+  (or (= x y)
+      (elem? l)
+      (elem? r)))
 
-(fun sym? (x)
-  (isa? x ))
+(fun add
+  (x: real y: real)
+  (+ x y))
+
+(fun conj
+  "Base case on lists."
+  [xs: list] xs)
+
+(fun conj
+  "Arity-2 version."
+  [xs: list x: any]
+  (cons x xs))
+
+(fun conj
+  "Arity-n version."
+  [xs: list x: any & more]
+  (cons x
+    (apply conj xs more)))
+
+(fun map
+  "Base case."
+  [() _] ())
+
+(fun map
+  "Common case."
+  [fn (x . xs)]
+  (cons x
+    (map fn xs)))
+
+(type (tree)
+      "Example of a user data type."
+      %empty{}
+      %leaf{key: any}
+      %node{key: any left: tree right: tree})
+
+(type (list a)
+      "If list were defined as such."
+      %empty{}
+      %cons{car: a cdr: list})
+
+;;; end system.rsp

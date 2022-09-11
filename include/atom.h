@@ -21,6 +21,7 @@ struct symbol_t
 // forward declarations -------------------------------------------------------
 value_t symbol(char *name);
 value_t gensym(char *name);
+ulong   hash_val(value_t x);
 
 // globals --------------------------------------------------------------------
 extern table_t *Symbols;
