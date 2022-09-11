@@ -1,0 +1,31 @@
+;;; begin system.rsp
+
+(type sym-tab: dict[str sym])
+
+(type chr-list: list[chr])
+
+(type list[a]
+  (nil)
+  (cons car: a
+  	cdr: list[a]))
+
+(type color
+  (black 1)
+  (gray  2))
+
+(type tree[a]
+  (empty)
+  (leaf key:   a)
+  (node key:   a
+  	left:  tree[a]
+	right: tree[a]))
+
+(fun len (xs: tree)
+  "Implementing for new type."
+  (case xs
+    ()      0
+    (_)     1
+    (_ l r) (+ 1
+       	       (len l)
+	       (len r))))
+
