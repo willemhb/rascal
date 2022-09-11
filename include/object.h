@@ -1,84 +1,47 @@
-#ifndef rascal_types_h
-#define rascal_types_h
+#ifndef rascal_object_h
+#define rascal_object_h
 
-#include <stdint.h>
-#include <stdbool.h>
-#include <stddef.h>
-
-#include "Ctypes.h"
-
-#define QNAN  0x7ffc000000000000ul
-#define SIGN  0x8000000000000000ul
-
-#define HTAG0 0x0000000000000000ul
-#define HTAG1 0x0001000000000000ul
-#define HTAG2 0x0002000000000000ul
-#define HTAG3 0x0003000000000000ul
-
-#define HTMASK (SIGN|QNAN|HTAG3)
-
-#define PMASK (~HTMASK)
-#define HMASK (PMASK&~15ul)
-#define LMASK PMASK
-#define IMASK UINT32_MAX
-#define UMASK IMASK
-
-// tags  ----------------------------------------------------------------------
-#define NIL       (QNAN|HTAG0)
-#define BOOLEAN   (QNAN|HTAG1)
-#define CHARACTER (QNAN|HTAG2)
-#define INTEGER   (QNAN|HTAG3)
-
-#define OBJECT    (SIGN|QNAN|HTAG0)
-#define IMMEDIATE (SIGN|QNAN|HTAG1)
-#define ESCAPE    (SIGN|QNAN|HTAG2)
-#define POINTER   (SIGN|QNAN|HTAG3)
+#include "types.h"
 
 // C types --------------------------------------------------------------------
-typedef uintptr_t value_t;
-
-typedef struct
+struct object_t
 {
-  uint   arity;       // abstract length, no 
-  ushort builtin;     // the builtin function that constructed this object
-  ushort size   : 12; // object base size
-  ushort gcbits :  2;
-  ushort moved  :  1;
-  ushort seen   :  1;
-} object_t;
+  uint   arity;
+  ushort size;
+  ushort flags   :  8;
+  ushort tag     :  3;
+  uchar  gc      :  2;
+  uchar  guarded :  1;
+  uchar  moved   :  1;
+  uchar  seen    :  1;
 
-typedef union
+  uchar  space[0];
+};
+
+// utility macros & statics ---------------------------------------------------
+#define as_object(x)  asa(object_t*, x, pval)
+
+#define ob_arity(x)   getf(object_t*, x, arity)
+#define ob_size(x)    getf(object_t*, x, size)
+#define ob_flags(x)   getf(object_t*, x, flags)
+#define ob_tag(x)     getf(object_t*, x, tag)
+#define ob_gc(x)      getf(object_t*, x, gc)
+#define ob_guarded(x) getf(object_t*, x, guarded)
+#define ob_moved(x)   getf(object_t*, x, moved)
+#define ob_seen(x)    getf(object_t*, x, seen)
+
+#define ob_space(x)   (&(getf(object_t*, x, space)[0]))
+
+static inline bool is_immediate(value_t x)
 {
-  double     d;
-  value_t    u;
-  
-  struct
-  {
-    long l : 48;
-    long   : 16;
-  };
-} word_t;
+  return (x&QNAN) == QNAN
+    ||   !(x&PMASK)
+    ||   !!(x&7);
+}
 
-// macros & utils -------------------------------------------------------------
-#define HEADER object_t base
-
-#define pval(x)						\
-  (_Generic((x),					\
-	   value_t:(void*)(((value_t)(x))&PMASK),	\
-	   default:(void*)(x)))
-
-#define tagp(x) (((value_t)(x))|OBJECT)
-
-#define asob(x)  ((object_t*)pval(x))
-
-#define ob_arity(x)      (asob(x)->arity)
-#define ob_size(x)       (asob(x)->size)
-#define ob_builtin(x)    (asob(x)->type)
-#define ob_gcbits(x)     (asob(x)->gcbits)
-#define ob_moved(x)      (asob(x)->moved)
-#define ob_seen(x)       (asob(x)->seen)
-
-// forward declarations -------------------------------------------------------
-void init_object(object_t *o, uint arity, ushort builtin, ushort size);
+static inline bool is_object(value_t x)
+{
+  return !is_immediate(x);
+}
 
 #endif

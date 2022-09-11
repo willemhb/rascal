@@ -7,97 +7,91 @@
 
 typedef enum
   {
-    /* initial part of the range reserved for builtin types */
-    // immediate types --------------------------------------------------------
-    type_nil         = 0,
+    // constructors -----------------------------------------------------------
+    f_nil, f_cons, f_list,
 
-    type_boolean     = 1,
-    type_character   = 2,
+    f_bool, f_sym,
 
-    // number types -----------------------------------------------------------
-    type_integer     = 3,
-    type_flonum      = 4,
-    type_ratio       = 5,
-    type_complex     = 6,
-    type_bigint      = 7,
+    f_func, f_port,
 
-    // pair types -------------------------------------------------------------
-    type_pair        = 8,
-    type_entry       = 9,
-    type_cons        =10,
+    f_bin, f_vec, f_table,
 
-    // misc core types --------------------------------------------------------
-    type_symbol      =11,
-    type_function    =12,
-    type_port        =13,
+    f_char, f_real,
 
-    // primitive array types --------------------------------------------------
-    type_string      =14,
-    type_bytes       =15,
-    type_buffer      =16,
+    f_none, f_any,
 
-    // builtin collection types -----------------------------------------------
-    type_vector      =17,
-    type_tuple       =18,
-    type_dict        =19,
-    type_set         =20,
-    type_table       =21,
-    type_record      =22,
+    // predicates/comparison --------------------------------------------------
+    f_idp, f_isap, f_flagp, f_not, f_ord,
 
-    // internal types ---------------------------------------------------------
-    type_bytecode    =23,
-    type_methods     =24,
-    type_closure     =25,
-    type_module      =26,
-    type_stack       =27,
-    type_heap        =28,
-    type_continuation=29,
-    type_symbol_table=30,
-    type_name_space  =31,
+    // misc utilities ---------------------------------------------------------
+    f_type,
 
-    // builtin union types, top/bottom types ----------------------------------
-    type_number      =32,
-    type_list        =33,
-    type_any         =34,
-    type_none        =35,
-    type_type        =36,
-    num_builtin_types=37,
+    // arithmetic & numbers ---------------------------------------------------
+    f_add, f_sub, f_mul, f_div, r_rem,
 
-    // predicates -------------------------------------------------------------
+    f_ltp, f_eqp, f_intp,
+
+    // accessors --------------------------------------------------------------
+    f_arity, f_size, f_flags,
+    
+    f_car, f_cdr, f_nth, f_ref,
+
+    f_xar, f_xdr, f_xth, f_xef,
+
+    f_conj, f_put, f_pop,
+
+    // io ---------------------------------------------------------------------
+    f_open, f_close, f_eosp,
+
+    f_read, f_prin, f_load,
+
+    f_readc, f_princ, f_peekc, f_ctypep,
+
+    // compiler & interpreter -------------------------------------------------
+    f_comp, f_compf, f_exec, f_apply,
+
+    // runtime support --------------------------------------------------------
+    f_error, f_getenv, f_sys, f_exit,
+
+    num_builtins,
   } builtin_t;
 
-typedef struct
-{
-  HEADER;
-  object_t *locals;
-  object_t *nonlocals;
-  object_t *namespace;
-  object_t *constants;
-  object_t *instructions;
-} code_t;
+typedef enum
+  {
+    fn_fl_primitive= 0,
+    fn_fl_builtin  = 1,
+    fn_fl_closure  = 2,
+    fn_fl_generic  = 3, // unused
 
-typedef struct closure_t
-{
-  HEADER;
+    fn_fl_type     = 4,
 
-  object_t *template;
-  object_t *environment;
-} closure_t;
+    fn_fl_vargs    = 8,
 
-typedef struct closure_t module_t;
+    fn_fl_macro    =16
+  } fn_fl_t;
 
-typedef struct
+struct function_t
 {
   HEADER;
 
-  value_t   behavior;
   object_t *name;
-  object_t *signature;
 
-  bool      type;
-  bool      macro;
-  bool      vargs;
-  builtin_t builtin;
-} function_t;
+  union
+  {
+    builtin_t   label;
+    value_t   (*behavior)(value_t *args, size_t n_args);
+
+    struct
+    {
+      object_t *locals;
+      object_t *closure;
+      object_t *constants;
+      object_t *instructions;
+    };
+  };
+};
+
+// macros & statics -----------------------------------------------------------
+
 
 #endif
