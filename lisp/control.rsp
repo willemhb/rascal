@@ -1,0 +1,16 @@
+;;; begin control.rsp
+
+(cntl generator
+  (yield [])
+  (yield [sentinel])
+  (yield [sentinel message]))
+
+(fun range [start end]
+  (if (>= start end)
+      ()))
+
+fun range [start end]
+    if {start >= end}
+       
+
+;;; end control.rsp

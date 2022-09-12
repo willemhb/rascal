@@ -1,0 +1,75 @@
+fun op in (x, xs: list)
+  case (xs)
+    []     -> false
+    [y|ys] -> x = y or x in ys
+  end
+end
+
+mac op or (&&form)
+  @doc "Demonstration of operator definition with macros."
+  syntax form ()
+    p or q -> { let test <-$p test if test else $q end }
+  end
+end
+
+mac for (&&form)
+  @doc "Demonstration of function-like macro."
+  syntax form (do, in, end)
+    for id in coll do ... end ->
+      {
+	 labl
+	   loop( _, (), acc )      -> acc
+	   loop( id, (x|xs), acc ) -> loop( x, xs, do ... end )
+	 in
+	   if ?coll
+	     ()
+	   else
+	     loop( coll[0], coll[1|], () )
+	   end
+	 end
+      }
+  end
+end
+
+cntl generator
+  yield (x)
+end
+
+fun range(stop: int)
+  range(0, stop)
+end
+
+fun range(start: int, stop: int)
+  range(0, stop, 1)
+end
+
+fun range(start: int, stop: int, step: int)
+  if start >= stop
+    stop
+  else
+    yield(start)
+    range(start+1, stop)
+  end
+end
+
+;;; demonstration of combination of effect handlers
+;;; with multiple dispatch
+fun for_each(fn: Fun, xs: list) -> ()
+  case xs
+    ()      -> ()
+    (x|xs') -> for_each(fn, xs') if fn(x) else ()
+  end
+end
+
+fun for_each(fn: Fun, action: Fun<generator>)
+  hndl action
+    return(x) -> ()
+    yield(x)  -> resume() if fn(x) else ()
+  end
+end
+
+type tree{a}
+  | empty ()
+  | leaf  (a)
+  | node  (a, tree{a}. tree{a})
+end

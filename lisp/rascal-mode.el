@@ -11,13 +11,12 @@
   '(";")
   '("quote" "do" "do*" "cntl" "hndl" "with" ;; control forms
     "if" "and" "or" "cond" "case"           ;; branching forms
-    "val" "fun" "mac" "type" "class"        ;; closure and binding forms
-    "let" "labl"
-
-    "where" "syntax")                       ;; non-lisp syntax
+    "val" "fun" "op" "mac" "type" "class"   ;; closure and binding forms
+    "let" "labl" "in"
+    "then" "else"
+    "where" "syntax" "end")                  ;; non-lisp syntax
   
-  '(("else" . font-lock-constant-face)
-    ("otherwise" . font-lock-constant-face)
+  '(("otherwise" . font-lock-constant-face)
     ("error" . font-lock-warning-face)
     ("true" . font-lock-builtin-face)
     ("false" . font-lock-builtin-face)

@@ -4,67 +4,8 @@
 (fun elem?
   "Empty vector."
   (_ []) false)
-  
-(fun elem?
-  "Match found."
-  (x0 [x1 & xn])
-  (or (= x0 x1)
-      (elem? x0 xn)))
 
 (fun elem?
-  "Example of extension for a user type"
-  [x %tree{}] false)
-
-(fun elem?
-  "Leaf case."
-  [x %tree{y}]
-  (= x y))
-
-(fun elem?
-  "Node case."
-  [x %tree{y l r}]
-  (or (= x y)
-      (elem? l)
-      (elem? r)))
-
-(fun add
-  (x: real y: real)
-  (+ x y))
-
-(fun conj
-  "Base case on lists."
-  [xs: list] xs)
-
-(fun conj
-  "Arity-2 version."
-  [xs: list x: any]
-  (cons x xs))
-
-(fun conj
-  "Arity-n version."
-  [xs: list x: any & more]
-  (cons x
-    (apply conj xs more)))
-
-(fun map
-  "Base case."
-  [() _] ())
-
-(fun map
-  "Common case."
-  [fn (x . xs)]
-  (cons x
-    (map fn xs)))
-
-(type (tree)
-      "Example of a user data type."
-      %empty{}
-      %leaf{key: any}
-      %node{key: any left: tree right: tree})
-
-(type (list a)
-      "If list were defined as such."
-      %empty{}
-      %cons{car: a cdr: list})
+  "")
 
 ;;; end system.rsp

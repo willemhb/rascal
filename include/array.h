@@ -7,25 +7,25 @@
 // C types --------------------------------------------------------------------
 typedef enum
   {
-    C_sint8=1, C_uint8=2, C_ascii=3, C_latin1=4, C_utf8=5,
+    C_sint8, C_uint8, C_ascii, C_latin1, C_utf8,
 
-    C_sint16=6, C_uint16=7, C_utf16=8,
+    C_sint16, C_uint16, C_utf16,
 
-    C_sint32=9, C_uint32=10, C_utf32=11, C_float32=12,
+    C_sint32, C_uint32, C_utf32, C_float32,
 
-    C_sint64=13, C_uint64=14, C_float64=15
+    C_sint64, C_uint64, C_pointer, C_float64
   } Ctype_t;
 
 typedef enum
   {
    vector_fl_envt    =1,
-   vector_fl_stack   =2,
+   vector_fl_stack   =2
   } vector_fl_t;
 
 typedef enum
   {
     table_fl_symbol_table  = 1,
-    table_fl_cycle_detector= 2,
+    table_fl_cycle_detector= 2
   } table_fl_t;
 
 struct binary_t
@@ -61,6 +61,7 @@ typedef struct vector_t stack_t;
 // forward declarations -------------------------------------------------------
 size_t    Ctype_size(Ctype_t C);
 bool      Ctype_is_encoded(Ctype_t C);
+bool      Ctype_is_integer(Ctype_t C);
 
 value_t   vector( value_t *args, size_t n_args );
 vector_t *new_vector( size_t n_args, size_t *padded, bool gl );
