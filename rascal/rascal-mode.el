@@ -9,9 +9,9 @@
 (define-generic-mode
   'rascal-mode
   '("//")
-  '("fun" "mac" "type" "val"
+  '("fun" "mac" "type" "class" "val"
     "do" "quote"
-    "if" "else" "and" "or" "cond"
+    "if" "else" "and" "or" "cond" "case"
     "end")
   '(("otherwise" . font-lock-builtin-face)
     ("true" . font-lock-builtin-face)

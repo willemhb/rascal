@@ -1,52 +1,15 @@
 // begin system.rsp
 
-fun nil? ( x )
-  xs = ()
-end
+// toplevel definitions
+val *syntax-table* <- {}
 
-fun map( fn, xs )
-  if xs.nil?
-    ()
-  else
-    cons( fn( xs.fst ),
-    	  map( fn, xs.rst ) )
-  end
-end
+// dict example
+{ :x <- 1, :y <- 2 }
 
-fun zip ( xs, ys )
-  cond
-    xs.nil?   -> ()
-    ys.nil?   -> ()
-    otherwise -> cons( ( xs.fst, ys.fst ),
-    	      	       zip( xs.rst, ys.rst ) )
-  end
-end
+// set example
+{ :x, :y, :z }
 
-fun zero? ( x )
-  @doc "x = 0?"
-  x = 0
-end
-
-fun curry ( fn, x )
-  fun ( &args )
-    fn( x, &args )
-  end
-end
-
-fun fib ( n )
-  cond
-    n = 1     -> 1
-    n = 2     -> 2
-    otherwise -> fib( n-2 ) + fib( n-1 )
-  end
-end
-
-fun fact ( n )
-  if n = 1
-    1
-  else
-    n * fact( n-1 )
-  end
-end
+// list example
+[1, 2, 3]
 
 // end system.rsp
