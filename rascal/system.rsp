@@ -1,15 +1,56 @@
 // begin system.rsp
 
-// toplevel definitions
-val *syntax-table* <- {}
+// toplevel assignments
+string_example   <- "abcde"
 
-// dict example
-{ :x <- 1, :y <- 2 }
+symbol_example   <- quote a_symbol end
 
-// set example
-{ :x, :y, :z }
+keyword_example  <- :a_symbol
 
-// list example
-[1, 2, 3]
+dict_example     <- { :x <- 1, :y <- 2 } // (:<-, :dict_example, { :x <- 1, :y <- 2 })
+
+set_example      <- { :x, :y, :z }
+
+list_example     <- [ 1, 2, 3 ]
+
+vector_example   <- ( 1, 2, 3 )        // 
+
+index_example    <- vector_example[1]  // [:<-, :index_example, [:] ]
+
+accessor_example <- list_example.hd    // -> 1
+
+infix_example    <- 1 + 2 * 3          // [:<-, :infix_example, [:+, 1, [:*, 2, 3 ]]]
+
+infix2_example   <- 1 * 4 + 3          // [:<-, :infix2_example, [:+, [:*, 1, 4], 3]]
+
+lambda_example   <- (x, y) -> x + y    // [:<-, :lambda_example, [:->, (:x, :y), [:+, :x, :y]]]
+
+comp_example     <- [x*x | x <- 1..10] // [ :<-,
+                                       //   :comp_example,
+                                       //   [ :|,
+				       //     [ :*, :x, :x ],
+				       //     [:<-, :x,
+				       //           [:.. 1, 10 ] ] ] ]
+
+// function definition example
+fun map (fn, xs)
+  "Base map implementation."
+
+  if xs = []
+    []
+  else
+    conj( fn( xs.hd ),
+       	  map( fn, xs.tl ) )
+  end
+end
+
+fun head ( xs )
+  "Simple example of head function; more syntax demonstrations."
+  if xs = []
+    none
+  else
+    xs.hd
+  end
+end
 
 // end system.rsp

@@ -30,8 +30,8 @@ static void runtimeError(const char *format, ...)
   va_end(args);
   fprintf( stderr, "\n" );
 
-  size_t instruction = vm.ip - vm.chunk->code - 1;
-  int line = vm.chunk->lines[instruction];
+  size_t instruction = vm.ip - vm.chunk->code->data - 1;
+  int line = vm.chunk->lines->data[instruction];
   fprintf( stderr, "[line %d] in script\n", line );
   resetStack();
 }
@@ -45,7 +45,6 @@ void freeVM( void )
 {
   
 }
-
 
 
 void push( Value value )

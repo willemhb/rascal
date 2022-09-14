@@ -3,7 +3,8 @@
 #include <ctype.h>
 
 #include "common.h"
-#include "scanner.h"
+#include "reader.h"
+#include "object.h"
 
 typedef struct
 {

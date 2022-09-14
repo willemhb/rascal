@@ -1,7 +1,10 @@
 #include <stdio.h>
+#include <string.h>
 
 #include "memory.h"
 #include "value.h"
+#include "object.h"
+
 
 ValueType valueType( Value x )
 {
@@ -17,39 +20,44 @@ ValueType valueType( Value x )
   return VAL_OBJ;
 }
 
-bool valuesEqual( Value a, Value b )
+bool ValuesSame( Value a, Value b )
 {
-  
+  return a == b;
 }
 
-void initValueArray( ValueArray *array )
+bool ValuesEqual( Value a, Value b )
 {
-  array->values   = NULL;
-  array->capacity = 0;
-  array->count    = 0;
-}
+  ValueType ta = valueType(a), tb = valueType(b);
 
-void writeValueArray( ValueArray *array, Value value )
-{
-  if ( array->capacity < array->count + 1 )
+  if (ta != tb)
+    return false;
+
+  if (ta == VAL_OBJ)
     {
-      int oldCapacity = array->capacity;
-      array->capacity = GROW_CAPACITY( oldCapacity );
-      array->values = GROW_ARRAY( Value, array->values,
-				 oldCapacity, array->capacity );
+      ObjType ota = OBJ_TYPE(ta), otb = OBJ_TYPE(tb);
+
+      if (ota != otb)
+	return false;
+
+      if (ota == OBJ_STRING)
+	{
+	  ObjString *aString = AS_STRING(a), *bString = AS_STRING(b);
+
+	  return aString->length == bString->length
+	    && memcmp( aString->chars, bString->chars, aString->length  ) == 0;
+	}
     }
 
-  array->values[array->count] = value;
-  array->count++;
-}
-
-void freeValueArray(ValueArray *array)
-{
-  FREE_ARRAY( Value, array->values, array->capacity );
-  initValueArray( array );
+  return ValuesSame( a, b );
 }
 
 void printValue( Value value )
 {
-  (void)value;
+  switch (valueType(value))
+    {
+    case VAL_NUMBER: break;
+    case VAL_BOOL: printf( value == TRUE_VAL ? "true" : "false" ); break;
+    case VAL_NIL: printf( "nil" ); break;
+    case VAL_OBJ: printObject( value ); break;
+    }
 }

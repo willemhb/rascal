@@ -1,5 +1,5 @@
-#ifndef rascal_scanner_h
-#define rascal_scanner_h
+#ifndef rascal_reader_h
+#define rascal_reader_h
 
 typedef enum
   {
@@ -23,13 +23,15 @@ typedef enum
     TOKEN_SYMBOL,     TOKEN_KEYWORD,
     TOKEN_STRING,     TOKEN_NUMBER,
 
+    // literals
+    TOKEN_NIL,        TOKEN_TRUE,
+    TOKEN_FALSE,
+
     // special forms
-    TOKEN_AND,   TOKEN_TYPE, TOKEN_ELSE,
-    TOKEN_FALSE, TOKEN_FUN,  TOKEN_IF,
-    TOKEN_NIL,   TOKEN_OR,   TOKEN_PRINT,
-    TOKEN_DO,    TOKEN_MAC,  TOKEN_END,
-    TOKEN_WITH,  TOKEN_TRUE, TOKEN_VAL,
-    TOKEN_QUOTE,
+    TOKEN_AND,   TOKEN_ELSE, TOKEN_FUN,
+    TOKEN_IF,    TOKEN_OR,   TOKEN_PRINT,
+    TOKEN_DO,    TOKEN_MAC,  TOKEN_QUOTE,
+    TOKEN_END,
 
     // sentinels
     TOKEN_ERROR, TOKEN_EOF
@@ -44,7 +46,7 @@ typedef struct
 } Token;
 
 void initScanner( const char *source );
-Token scanToken();
+Token scanToken( void );
 
 // misc macros
 #define rascal_fallthrough __attribute__((fallthrough))

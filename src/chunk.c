@@ -6,39 +6,29 @@
 
 void initChunk( Chunk *chunk )
 {
-  chunk->count    = 0;
-  chunk->capacity = 0;
-  chunk->code     = NULL;
-  chunk->lines    = NULL;
-  
-  initValueArray( &chunk->constants );
+  chunk->code      = ALLOCATE(UInt16Array, 1);
+  chunk->lines     = ALLOCATE(Int32Array, 1);
+  chunk->constants = ALLOCATE(ValueArray, 1);
+
+  initUInt16Array( chunk->code );
+  initInt32Array( chunk->lines );
+  initValueArray( chunk->constants );
 }
 
 void freeChunk( Chunk *chunk )
 {
-  FREE_ARRAY( uint16_t, chunk->code, chunk->capacity );
-  FREE_ARRAY( int, chunk->lines, chunk->capacity );
-  initChunk( chunk );
+  finalizeUInt16Array( chunk->code );     chunk->code      = NULL;
+  finalizeInt32Array( chunk->lines );     chunk->lines     = NULL;
+  finalizeValueArray( chunk->constants ); chunk->constants = NULL;
 }
 
 void writeChunk( Chunk* chunk, uint16_t byte, int line ) {
-  if (chunk->capacity < chunk->count + 1)
-    {
-      int oldCapacity = chunk->capacity;
-      chunk->capacity = GROW_CAPACITY(oldCapacity);
-      chunk->code = GROW_ARRAY( uint16_t, chunk->code,
-				   oldCapacity, chunk->capacity );
-      chunk->lines = GROW_ARRAY( int, chunk->lines,
-				 oldCapacity, chunk->capacity );
-    }
-
-  chunk->code[chunk->count]    = byte;
-  chunk->lines[chunk->count]   = line;
-  chunk->count++;
+  writeUInt16Array( chunk->code, byte );
+  writeInt32Array( chunk->lines, line );
 }
 
 int addConstant( Chunk* chunk, Value value )
 {
-  writeValueArray( &chunk->constants, value );
-  return chunk->constants.count - 1;
+  writeValueArray( chunk->constants, value );
+  return chunk->constants->length - 1;
 }

@@ -61,21 +61,8 @@ typedef double Value;
 
 #endif
 
-typedef struct
-{
-  ARRAY_HEADER;
-  Value *values;
-} ValueArray;
-
-
 bool valuesEqual( Value a, Value b );
 bool valuesSame( Value a, Value b );
-
-void initValueArray( ValueArray *array );
-void writeValueArray( ValueArray *array, Value value );
-void freeValueArray( ValueArray *array );
-
 void printValue( Value value );
-
 
 #endif

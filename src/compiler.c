@@ -3,7 +3,7 @@
 
 #include "common.h"
 #include "compiler.h"
-#include "scanner.h"
+#include "reader.h"
 
 #ifdef DEBUG_PRINT_CODE
 #include "debug.h"
@@ -275,7 +275,7 @@ ParseRule rules[] =
   
     [TOKEN_SYMBOL]        = { NULL,     NULL,   PREC_NONE       },
     [TOKEN_KEYWORD]       = { NULL,     NULL,   PREC_NONE       },
-    [TOKEN_STRING]        = { NULL,     NULL,   PREC_NONE       },
+    [TOKEN_STRING]        = { string,   NULL,   PREC_NONE       },
     [TOKEN_NUMBER]        = { number,   NULL,   PREC_NONE       },
     
     [TOKEN_AND]           = {NULL,     NULL,   PREC_NONE},

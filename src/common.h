@@ -5,9 +5,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define ARRAY_HEADER				\
-  int count;					\
-  int capacity
 
 #define HEADER					\
   Obj obj

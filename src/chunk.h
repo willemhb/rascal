@@ -3,6 +3,8 @@
 
 #include "common.h"
 #include "value.h"
+#include "object.h"
+#include "array.h"
 
 typedef enum
   {
@@ -25,10 +27,10 @@ typedef enum
 
 typedef struct
 {
-  ARRAY_HEADER;
-  uint16_t   *code;
-  int        *lines;
-  ValueArray  constants;
+  HEADER;
+  UInt16Array *code;
+  Int32Array  *lines;
+  ValueArray  *constants;
 } Chunk;
 
 void initChunk(Chunk *chunk );
