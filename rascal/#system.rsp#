@@ -1,0 +1,18 @@
+// begin system.rsp
+
+// toplevel definitions
+val *syntax-table* <- {}
+
+// dict example
+{ :x <- 1, :y <- 2 }
+
+// set example
+{ :x, :y, :z }
+
+// list example
+[1, 2, 3]
+
+[ x*x | x <- 1..10 ] // list comprehension
+( x*x | x <- 1..10 ) // vector 
+
+// end system.rsp

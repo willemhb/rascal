@@ -106,7 +106,8 @@ struct ObjVector
 };
 
 // forward declarations -------------------------------------------------------
-ObjString *copyString( const char *chars, int length );
+ObjString *makeString( const char *chars, int length );
+ObjSymbol *makeSymbol( const char *chars, bool intern );
 ObjList   *makeList( Value head, ObjList *tail );
 ObjVector *makeVector( void );
 

@@ -6,16 +6,177 @@
 #include "reader.h"
 #include "object.h"
 
+
+// globals --------------------------------------------------------------------
+Scanner scanner;
+Parser parser;
+
+// C types --------------------------------------------------------------------
+typedef enum
+  {
+    PREC_NONE,
+    PREC_ASSIGNMENT, // <-
+    PREC_OR,         // or
+    PREC_AND,        // and
+    PREC_EQUALITY,   // =, /=
+    PREC_COMPARISON, // <, >, <=, >=
+    PREC_TERM,       // +, -
+    PREC_FACTOR,     // *, /
+    PREC_UNARY,      // 1, -
+    PREC_CALL,       // ., ()
+    PREC_PRIMARY
+  } Precedence;
+
+typedef void (*ParseFn)(void);
+
 typedef struct
 {
-  const char *start;
-  const char *current;
-  int length;
-  int line;
-} Scanner;
+  ParseFn prefix;
+  ParseFn infix;
+  Precedence precedence;
+} ParseRule;
 
-Scanner scanner;
+// forward declarations -------------------------------------------------------
+static void       errorAtCurrent( const char *message );
+static void       errorAt( Token *token, const char *message );
+static void       error( const char *message );
 
+static void       binary( void );
+static void       literal( void );
+static void       expression( void );
+static void       grouping( void );
+static void       number( void );
+static void       unary( void );
+static void       string( void );
+static void       symbol( void );
+static void       vector( void );
+static void       list( void );
+
+static ParseRule *getRule( TokenType type );
+static void       parsePrecedence( Precedence precedence );
+
+
+// parse rules ----------------------------------------------------------------
+ParseRule rules[] =
+  {
+    [TOKEN_LEFT_PAREN]    = { grouping, NULL,   PREC_NONE       },
+    [TOKEN_RIGHT_PAREN]   = { NULL,     NULL,   PREC_NONE       },
+    [TOKEN_LEFT_BRACE]    = { NULL,     NULL,   PREC_NONE       }, 
+    [TOKEN_RIGHT_BRACE]   = { NULL,     NULL,   PREC_NONE       },
+    [TOKEN_LEFT_BRACK]    = { NULL,     NULL,   PREC_NONE       },
+    [TOKEN_RIGHT_BRACK]   = { NULL,     NULL,   PREC_NONE       },
+    
+    [TOKEN_COMMA]         = { NULL,     NULL,   PREC_NONE       },
+    [TOKEN_DOT]           = { NULL,     NULL,   PREC_NONE       },
+    [TOKEN_MINUS]         = { unary,    binary, PREC_TERM       },
+    [TOKEN_PLUS]          = { NULL,     binary, PREC_TERM       },
+    [TOKEN_SLASH]         = { NULL,     binary, PREC_FACTOR     },
+    [TOKEN_STAR]          = { NULL,     binary, PREC_FACTOR     },
+    
+    [TOKEN_EQUAL]         = { NULL,     binary, PREC_EQUALITY   },
+    [TOKEN_GREATER]       = { NULL,     binary, PREC_COMPARISON },
+    [TOKEN_GREATER_EQUAL] = { NULL,     binary, PREC_COMPARISON },
+    [TOKEN_LESS]          = { NULL,     binary, PREC_COMPARISON },
+    [TOKEN_LESS_EQUAL]    = { NULL,     binary, PREC_COMPARISON },
+    [TOKEN_LEFT_ARROW]    = { NULL,     NULL,   PREC_ASSIGNMENT },
+    [TOKEN_RIGHT_ARROW]   = { NULL,     NULL,   PREC_ASSIGNMENT },
+  
+    [TOKEN_SYMBOL]        = { NULL,     NULL,   PREC_NONE       },
+    [TOKEN_KEYWORD]       = { NULL,     NULL,   PREC_NONE       },
+    [TOKEN_STRING]        = { string,   NULL,   PREC_NONE       },
+    [TOKEN_NUMBER]        = { number,   NULL,   PREC_NONE       },
+    
+    [TOKEN_AND]           = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_TYPE]          = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_ELSE]          = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_FALSE]         = {literal,  NULL,   PREC_NONE},
+    [TOKEN_FUN]           = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_IF]            = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_NIL]           = {literal,  NULL,   PREC_NONE},
+    [TOKEN_OR]            = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_PRINT]         = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_DO]            = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_MAC]           = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_END]           = {NULL,     NULL,   PREC_NONE},  
+    [TOKEN_WITH]          = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_TRUE]          = {literal,  NULL,   PREC_NONE},
+    [TOKEN_VAL]           = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_QUOTE]         = {NULL,     NULL,   PREC_NONE},
+    
+    [TOKEN_ERROR]         = {NULL,     NULL,   PREC_NONE},
+    [TOKEN_EOF]           = {NULL,     NULL,   PREC_NONE},
+  };
+
+// error helpers --------------------------------------------------------------
+static void errorAtCurrent( const char *message )
+{
+  errorAt( &parser.previous, message );
+}
+
+static void errorAt( Token *token, const char *message )
+{
+  if (parser.panicMode)
+    return;
+  
+  parser.panicMode = true;
+  
+  fprintf( stderr, "[line %d] Error", token->line );
+  
+  if ( token->type == TOKEN_EOF )
+    {
+      fprintf( stderr, "at end" );
+    }
+
+  else if ( token->type == TOKEN_ERROR )
+    {
+      
+    }
+
+  else
+    {
+      fprintf( stderr, "at '%.*s'", token->length, token->start );
+    }
+
+  fprintf( stderr, ": %s\n", message );
+  parser.hadError = true;
+}
+
+static void error( const char *message )
+{
+  errorAt( &parser.previous, message );
+}
+
+// parser implementation ------------------------------------------------------
+
+static void parsePrecedence( Precedence precedence )
+{
+  advance();
+
+  ParseFn prefixRule = getRule(parser.previous.type)->prefix;
+
+  if (prefixRule == NULL)
+    {
+      error( "Expect expression." );
+      return;
+    }
+
+  prefixRule();
+
+  while (precedence <= getRule(parser.current.type)->precedence)
+    {
+      advance();
+      ParseFn infixRule = getRule(parser.previous.type)->infix;
+      infixRule();
+    }
+}
+
+static ParseRule *getRule(TokenType type)
+{
+  return &rules[type];
+}
+
+
+// scanner implementation -----------------------------------------------------
 void initScanner( const char *source )
 {
   scanner.length = strlen(source);
@@ -181,57 +342,14 @@ static TokenType checkKeyword(int start, int length,
 
 static TokenType identifierType()
 {
-  
   switch (scanner.start[0])
     {
       // special case
     case ':': return TOKEN_KEYWORD;
-      
-      // single branching
-    case 'a': return checkKeyword( 1, 2, "nd", TOKEN_AND );
-    case 'i': return checkKeyword( 1, 1, "f", TOKEN_IF);
-    case 'n': return checkKeyword( 1, 2, "il", TOKEN_NIL);
-    case 'o': return checkKeyword( 1, 1, "r", TOKEN_OR);
-    case 'p': return checkKeyword( 1, 4, "rint", TOKEN_PRINT);
-    case 'd': return checkKeyword( 1, 1, "o", TOKEN_DO );
-    case 'm': return checkKeyword( 1, 2, "ac", TOKEN_MAC );
-    case 'v': return checkKeyword( 1, 2, "al", TOKEN_VAL );
-    case 'q': return checkKeyword( 1, 4, "uote", TOKEN_QUOTE );
-    case 'w': return checkKeyword( 1, 3, "ith", TOKEN_WITH );
-
-      // double branching
-    case 't':
-      if (scanner.current - scanner.start > 1)
-	{
-	  switch (scanner.start[1])
-	    {
-	    case 'y': return checkKeyword( 2, 2, "pe", TOKEN_TYPE );
-	    case 'r': return checkKeyword( 2, 2, "ue", TOKEN_TRUE );
-	    }
-	}
-      break;
-      
-    case 'f':
-      if (scanner.current - scanner.start > 1)
-	{
-	  switch (scanner.start[1])
-	    {
-	    case 'a': return checkKeyword( 2, 3, "lse", TOKEN_FALSE );
-	    case 'u': return checkKeyword( 2, 1, "n", TOKEN_FUN );
-	    }
-	}
-      break;
-      
-    case 'e':
-      if (scanner.current - scanner.start > 1)
-	{
-	  switch (scanner.start[1])
-	    {
-	    case 'n': return checkKeyword( 2, 1, "d", TOKEN_END );
-	    case 'l': return checkKeyword( 2, 2, "se", TOKEN_ELSE );
-	    }
-	}
-      break;
+    case 'n': return checkKeyword( 1, 2, "il", TOKEN_NIL );
+    case 't': return checkKeyword( 1, 3, "rue", TOKEN_TRUE );
+    case 'f': return checkKeyword( 1, 4, "alse", TOKEN_FALSE );
+    case 'e': return checkKeyword( 1, 2, "nd", TOKEN_END );
     }
 
   return TOKEN_SYMBOL;
@@ -271,17 +389,15 @@ Token scanToken( void )
       case '}': return makeToken(TOKEN_RIGHT_BRACE);
       case '[': return makeToken(TOKEN_LEFT_BRACK);
       case ']': return makeToken(TOKEN_RIGHT_BRACK);
-      case ';': return makeToken(TOKEN_SEMICOLON);
       case ',': return makeToken(TOKEN_COMMA);
       case '.': return makeToken(TOKEN_DOT);
       case '+': return makeToken(TOKEN_PLUS);
-      case '!': return makeToken(TOKEN_BANG);
       case '*': return makeToken(TOKEN_STAR);
       case '/':
-	return makeToken( match('=') ? TOKEN_SLASH_EQUAL : TOKEN_BANG );
+	return makeToken( match('=') ? TOKEN_SLASH_EQUAL : TOKEN_SLASH );
 
       case '=':
-	return makeToken( match('=') ? TOKEN_EQUAL_EQUAL : TOKEN_EQUAL );
+	return makeToken( TOKEN_EQUAL );
 
       case '-':
 	if ( match( '>' ) )
@@ -300,9 +416,15 @@ Token scanToken( void )
 
       case '>':
 	return makeToken( match('=') ? TOKEN_GREATER_EQUAL : TOKEN_GREATER );
+
       case '"':
 	return string();
       }
 
   return errorToken( "Unexpected character." );
+}
+
+Value readExpression( void )
+{
+  
 }

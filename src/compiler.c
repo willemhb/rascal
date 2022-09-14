@@ -9,108 +9,24 @@
 #include "debug.h"
 #endif
 
-
-typedef struct
-{
-  Token current;
-  Token previous;
-  bool  hadError;
-  bool  panicMode;
-} Parser;
-
-typedef enum
-  {
-    PREC_NONE,
-    PREC_ASSIGNMENT, // <-
-    PREC_OR,         // or
-    PREC_AND,        // and
-    PREC_EQUALITY,   // =, /=
-    PREC_COMPARISON, // <, >, <=, >=
-    PREC_TERM,       // +, -
-    PREC_FACTOR,     // *, /
-    PREC_UNARY,      // 1, -
-    PREC_CALL,       // ., ()
-    PREC_PRIMARY
-  } Precedence;
-
-typedef void (*ParseFn)(void);
-
-typedef struct
-{
-  ParseFn prefix;
-  ParseFn infix;
-  Precedence precedence;
-} ParseRule;
-
-Parser parser;
 Chunk *compilingChunk;
 
 // forward declarations -------------------------------------------------------
 static Chunk     *currentChunk( void );
-static void       errorAtCurrent( const char *message );
-static void       errorAt( Token *token, const char *message );
-static void       error( const char *message );
 static void       advance( void );
 static void       consume( TokenType type, const char *message );
 static void       emitByte( uint16_t byte );
 static void       emitBytes( uint16_t byte1, uint16_t byte2 );
 static void       emitReturn( void );
 static void       endCompiler( void );
-static void       binary( void );
-static void       literal( void );
-static void       expression( void );
-static ParseRule *getRule( TokenType type );
-static void       grouping( void );
 static uint16_t   makeConstant( Value value );
 static void       emitConstant( Value value );
-static void       number( void );
-static void       unary( void );
-static void       parsePrecedence( Precedence precedence );
-
 
 
 // implementations ------------------------------------------------------------
 static Chunk *currentChunk( void )
 {
   return compilingChunk;
-}
-
-static void errorAtCurrent( const char *message )
-{
-  errorAt( &parser.previous, message );
-}
-
-static void errorAt( Token *token, const char *message )
-{
-  if (parser.panicMode)
-    return;
-  
-  parser.panicMode = true;
-  
-  fprintf( stderr, "[line %d] Error", token->line );
-  
-  if ( token->type == TOKEN_EOF )
-    {
-      fprintf( stderr, "at end" );
-    }
-
-  else if ( token->type == TOKEN_ERROR )
-    {
-      
-    }
-
-  else
-    {
-      fprintf( stderr, "at '%.*s'", token->length, token->start );
-    }
-
-  fprintf( stderr, ": %s\n", message );
-  parser.hadError = true;
-}
-
-static void error( const char *message )
-{
-  errorAt( &parser.previous, message );
 }
 
 static void advance( void )
@@ -169,7 +85,6 @@ static void binary( void )
     {
     case TOKEN_SLASH_EQUAL:   emitBytes(OP_EQUAL, OP_NOT); break;
     case TOKEN_EQUAL:         emitByte(OP_EQUAL); break;
-    case TOKEN_EQUAL_EQUAL:   emitByte(OP_SAME); break;
     case TOKEN_GREATER:       emitByte(OP_GREATER); break;
     case TOKEN_GREATER_EQUAL: emitBytes(OP_LESS, OP_NOT); break;
     case TOKEN_LESS:          emitByte(OP_LESS); break;
@@ -243,87 +158,6 @@ static void unary ( void )
 
     default: return;
     }
-}
-
-ParseRule rules[] =
-  {
-    [TOKEN_LEFT_PAREN]    = { grouping, NULL,   PREC_NONE       },
-    [TOKEN_RIGHT_PAREN]   = { NULL,     NULL,   PREC_NONE       },
-    [TOKEN_LEFT_BRACE]    = { NULL,     NULL,   PREC_NONE       }, 
-    [TOKEN_RIGHT_BRACE]   = { NULL,     NULL,   PREC_NONE       },
-    [TOKEN_LEFT_BRACK]    = { NULL,     NULL,   PREC_NONE       },
-    [TOKEN_RIGHT_BRACK]   = { NULL,     NULL,   PREC_NONE       },
-    
-    [TOKEN_COMMA]         = { NULL,     NULL,   PREC_NONE       },
-    [TOKEN_DOT]           = { NULL,     NULL,   PREC_NONE       },
-    [TOKEN_MINUS]         = { unary,    binary, PREC_TERM       },
-    [TOKEN_PLUS]          = { NULL,     binary, PREC_TERM       },
-    [TOKEN_SEMICOLON]     = { NULL,     NULL,   PREC_NONE       },
-    [TOKEN_SLASH]         = { NULL,     binary, PREC_FACTOR     },
-    [TOKEN_STAR]          = { NULL,     binary, PREC_FACTOR     },
-    
-    [TOKEN_BANG]          = { unary,    NULL,   PREC_NONE       },
-    [TOKEN_BANG_EQUAL]    = { NULL,     binary, PREC_EQUALITY   },
-    [TOKEN_EQUAL]         = { NULL,     binary, PREC_EQUALITY   },
-    [TOKEN_EQUAL_EQUAL]   = { NULL,     binary, PREC_EQUALITY   },
-    [TOKEN_GREATER]       = { NULL,     binary, PREC_COMPARISON },
-    [TOKEN_GREATER_EQUAL] = { NULL,     binary, PREC_COMPARISON },
-    [TOKEN_LESS]          = { NULL,     binary, PREC_COMPARISON },
-    [TOKEN_LESS_EQUAL]    = { NULL,     binary, PREC_COMPARISON },
-    [TOKEN_LEFT_ARROW]    = { NULL,     NULL,   PREC_ASSIGNMENT },
-    [TOKEN_RIGHT_ARROW]   = { NULL,     NULL,   PREC_ASSIGNMENT },
-  
-    [TOKEN_SYMBOL]        = { NULL,     NULL,   PREC_NONE       },
-    [TOKEN_KEYWORD]       = { NULL,     NULL,   PREC_NONE       },
-    [TOKEN_STRING]        = { string,   NULL,   PREC_NONE       },
-    [TOKEN_NUMBER]        = { number,   NULL,   PREC_NONE       },
-    
-    [TOKEN_AND]           = {NULL,     NULL,   PREC_NONE},
-    [TOKEN_TYPE]          = {NULL,     NULL,   PREC_NONE},
-    [TOKEN_ELSE]          = {NULL,     NULL,   PREC_NONE},
-    [TOKEN_FALSE]         = {literal,  NULL,   PREC_NONE},
-    [TOKEN_FUN]           = {NULL,     NULL,   PREC_NONE},
-    [TOKEN_IF]            = {NULL,     NULL,   PREC_NONE},
-    [TOKEN_NIL]           = {literal,  NULL,   PREC_NONE},
-    [TOKEN_OR]            = {NULL,     NULL,   PREC_NONE},
-    [TOKEN_PRINT]         = {NULL,     NULL,   PREC_NONE},
-    [TOKEN_DO]            = {NULL,     NULL,   PREC_NONE},
-    [TOKEN_MAC]           = {NULL,     NULL,   PREC_NONE},
-    [TOKEN_END]           = {NULL,     NULL,   PREC_NONE},  
-    [TOKEN_WITH]          = {NULL,     NULL,   PREC_NONE},
-    [TOKEN_TRUE]          = {literal,  NULL,   PREC_NONE},
-    [TOKEN_VAL]           = {NULL,     NULL,   PREC_NONE},
-    [TOKEN_QUOTE]         = {NULL,     NULL,   PREC_NONE},
-    
-    [TOKEN_ERROR]         = {NULL,     NULL,   PREC_NONE},
-    [TOKEN_EOF]           = {NULL,     NULL,   PREC_NONE},
-  };
-
-static void parsePrecedence( Precedence precedence )
-{
-  advance();
-
-  ParseFn prefixRule = getRule(parser.previous.type)->prefix;
-
-  if (prefixRule == NULL)
-    {
-      error( "Expect expression." );
-      return;
-    }
-
-  prefixRule();
-
-  while (precedence <= getRule(parser.current.type)->precedence)
-    {
-      advance();
-      ParseFn infixRule = getRule(parser.previous.type)->infix;
-      infixRule();
-    }
-}
-
-static ParseRule *getRule(TokenType type)
-{
-  return &rules[type];
 }
 
 bool compile( const char *source, Chunk *chunk )
