@@ -1,56 +1,53 @@
-// begin system.rsp
+# begin system.rsp
 
-// toplevel assignments
-string_example   <- "abcde"
+# toplevel assignments
 
-symbol_example   <- quote a_symbol end
+(class Person xp
+  { :name str(), :age int() }
+  (birthday [xp]))
 
-keyword_example  <- :a_symbol
+(type (student
+        [:name, str(), "John Doe"]
+   	[:age,  int(), 0]))
 
-dict_example     <- { :x <- 1, :y <- 2 } // (:<-, :dict_example, { :x <- 1, :y <- 2 })
+(type tree
+      (empty)
+      (leaf any())
+      (node any(), tree(), tree()))
+      
+(fun map [fn, xs: tree]
+  (case xs
+    (empty)        (empty)
+    (leaf k)       (leaf (fn k))
+    (node k, l, r) (node (fn k)
+    	      	         (map fn l)
+		         (map fn r))))
 
-set_example      <- { :x, :y, :z }
+(fun birthday [xp: student]
+  ())
 
-list_example     <- [ 1, 2, 3 ]
+(impl student < Person)
 
-vector_example   <- ( 1, 2, 3 )        // 
+class Person xp
+  ref(xp, :age): int
+  ref(xp, :name): str
+  birthday(xp): int
+end
 
-index_example    <- vector_example[1]  // [:<-, :index_example, [:] ]
+type tree
+  | empty( )
+  | leaf( any )
+  | node( any, tree, tree )
+end
 
-accessor_example <- list_example.hd    // -> 1
-
-infix_example    <- 1 + 2 * 3          // [:<-, :infix_example, [:+, 1, [:*, 2, 3 ]]]
-
-infix2_example   <- 1 * 4 + 3          // [:<-, :infix2_example, [:+, [:*, 1, 4], 3]]
-
-lambda_example   <- (x, y) -> x + y    // [:<-, :lambda_example, [:->, (:x, :y), [:+, :x, :y]]]
-
-comp_example     <- [x*x | x <- 1..10] // [ :<-,
-                                       //   :comp_example,
-                                       //   [ :|,
-				       //     [ :*, :x, :x ],
-				       //     [:<-, :x,
-				       //           [:.. 1, 10 ] ] ] ]
-
-// function definition example
-fun map (fn, xs)
-  "Base map implementation."
-
-  if xs = []
-    []
-  else
-    conj( fn( xs.hd ),
-       	  map( fn, xs.tl ) )
+fun map( fn, xs: tree)
+  case xs
+    empty()        -> empty()
+    leaf( x )      -> leaf( fn( x ) )
+    node( x, l, r) node( fn( x ),
+    	     	   	 map( fn, l ),
+			 map( fn, r ) )
   end
 end
 
-fun head ( xs )
-  "Simple example of head function; more syntax demonstrations."
-  if xs = []
-    none
-  else
-    xs.hd
-  end
-end
-
-// end system.rsp
+# end system.rsp

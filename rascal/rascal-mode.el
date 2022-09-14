@@ -8,7 +8,7 @@
 ;;; Code:
 (define-generic-mode
   'rascal-mode
-  '("//")
+  '("#")
   '("fun" "mac" "type" "class" "val"
     "do" "quote"
     "if" "else" "and" "or" "cond" "case"
@@ -19,8 +19,7 @@
     ("nil" . font-lock-builtin-face)
     ("none" . font-lock-builtin-face)
     (":[-+_a-zA-Z0-9?!/]+" . font-lock-builtin-face)
-    ("@[-_a-zA-Z0-9?!/]+" . font-lock-builtin-face)
-    ("[A-Z][_a-zA-Z0-9]*" . font-lock-function-name-face))
+    ("@[-_a-zA-Z0-9?!/]+" . font-lock-builtin-face))
   '("\\.rsp$" "\\.rdn$" "\\.rdn.o$") ;; source file, serialization format, object file
   '(rainbow-delimiters-mode)
   "A mode for rascal files.")

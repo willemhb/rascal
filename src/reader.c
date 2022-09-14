@@ -12,17 +12,43 @@ Scanner scanner;
 Parser parser;
 
 // C types --------------------------------------------------------------------
+/*
+  supported operators (besides standard arithmetic operators)
+
+  xs           <- [1, 2, 3]
+  ys           <- [3, 2, 1]
+  x            <- :an_atom
+
+  1..10        -> range(1, 10, 1)
+  1,3..10      -> range(1, 10, 2)
+  x >> [1, 2]  -> prepend(x, [1, 2])
+  x << [1, 2]  -> append(x, [1, 2])
+  x :: [1, 2]  -> conj(x, [1, 2])
+  [x] + [1, 2] -> cat([x], [1, 2])
+
+  xs[1]        -> index(xs, 1)
+  xs[1:2]      -> index(xs, slice(1, 2, 1))
+  xs[(<3)]     -> filter((x) -> x < 3, xs)
+  xs[:(<10)]   -> takewhile((x) -> x < 10, xs)
+  xs[(<10):]   -> dropwhile((x) -> x < 10, xs)
+  xs .(<10)    -> map((x) -> x < 10, xs)
+  xs .<= ys    -> map(<=, x, y)
+  xs .<= 2     -> map((x) -> x <= 2, xs)
+
+
+*/
 typedef enum
   {
     PREC_NONE,
-    PREC_ASSIGNMENT, // <-
+    PREC_ASSIGNMENT, // <-, ->
     PREC_OR,         // or
     PREC_AND,        // and
+    PREC_NOT,        // not
     PREC_EQUALITY,   // =, /=
     PREC_COMPARISON, // <, >, <=, >=
     PREC_TERM,       // +, -
     PREC_FACTOR,     // *, /
-    PREC_UNARY,      // 1, -
+    PREC_UNARY,      // +, -, ~
     PREC_CALL,       // ., ()
     PREC_PRIMARY
   } Precedence;
