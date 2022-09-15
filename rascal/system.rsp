@@ -1,53 +1,63 @@
 # begin system.rsp
 
-# toplevel assignments
+# basic syntax examples
+# assignment/toplevel binding syntax
+val SyntaxTable <- %{},
+    Modules     <- %{},
+    Debug       <- true,
+    Version     <- "0.0.1.a"
 
-(class Person xp
-  { :name str(), :age int() }
-  (birthday [xp]))
+# basic syntax examples
+fun map( fn, xs ) {
+  if xs = []
+    []
+  else
+    Cons( fn( xs.hd ),
+    	  map( fn, xs.tl ) )
+}
 
-(type (student
-        [:name, str(), "John Doe"]
-   	[:age,  int(), 0]))
+fun filter ( pred, xs ) {
+  if xs = []
+    []
+  elif pred( xs )
+    Cons( xs.hd,
+    	  filter( pred, xs.tl ) )
+  else
+    filter( pred, xs.tl )
+}
 
-(type tree
-      (empty)
-      (leaf any())
-      (node any(), tree(), tree()))
-      
-(fun map [fn, xs: tree]
-  (case xs
-    (empty)        (empty)
-    (leaf k)       (leaf (fn k))
-    (node k, l, r) (node (fn k)
-    	      	         (map fn l)
-		         (map fn r))))
+fun elem? ( x, xs ) {
+  if xs = []
+    return []
+  elif x = xs.hd
+    return true
+  else
+    return elem?( x, xs.tl )
+}
 
-(fun birthday [xp: student]
-  ())
+fun for_each (fn, xs) {
+  if xs = []
+    return nil
+  elif len( xs ) = 1
+    return fn( xs.hd )
+  else do {
+    fn( xs.hd )
+    return for_each( fn, xs.tl )
+  }
+}
 
-(impl student < Person)
+fun len ( xs )
+{
+  val XsType <- type( xs )
 
-class Person xp
-  ref(xp, :age): int
-  ref(xp, :name): str
-  birthday(xp): int
-end
-
-type tree
-  | empty( )
-  | leaf( any )
-  | node( any, tree, tree )
-end
-
-fun map( fn, xs: tree)
-  case xs
-    empty()        -> empty()
-    leaf( x )      -> leaf( fn( x ) )
-    node( x, l, r) node( fn( x ),
-    	     	   	 map( fn, l ),
-			 map( fn, r ) )
-  end
-end
+  if XsType = List  or
+     XsType = Tuple or
+     XsType = Map   or
+     XsType = Set
+     do {
+       return xs.length
+  } else
+    error( "Type #{XsType} is not a sequence." )
+}
 
 # end system.rsp
