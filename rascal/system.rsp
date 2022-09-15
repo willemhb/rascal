@@ -5,59 +5,91 @@
 val SyntaxTable <- %{},
     Modules     <- %{},
     Debug       <- true,
-    Version     <- "0.0.1.a"
+    Version     <- "0.0.1.a";
 
 # basic syntax examples
-fun map( fn, xs ) {
-  if xs = []
-    []
-  else
-    Cons( fn( xs.hd ),
-    	  map( fn, xs.tl ) )
-}
-
-fun filter ( pred, xs ) {
-  if xs = []
-    []
-  elif pred( xs )
-    Cons( xs.hd,
-    	  filter( pred, xs.tl ) )
-  else
-    filter( pred, xs.tl )
-}
-
-fun elem? ( x, xs ) {
-  if xs = []
-    return []
-  elif x = xs.hd
-    return true
-  else
-    return elem?( x, xs.tl )
-}
-
-fun for_each (fn, xs) {
-  if xs = []
-    return nil
-  elif len( xs ) = 1
-    return fn( xs.hd )
-  else do {
-    fn( xs.hd )
-    return for_each( fn, xs.tl )
+fun map( fn:: Fun, xs:: List ):: List
+  case xs {
+    []     -> []
+    [x|xs] -> fn(x) | map(fn, xs)
   }
+
+fun map( fn :: Fun, xs:: Tuple ):: Tuple
+  case xs {
+    ()     -> ()
+    (x|xs) -> fn(x) | map(fn, xs)
+ }
+
+fun conj( xs:: List, ..args ):: List
+  case args {
+    []      -> xs
+    [x]     -> x|xs
+    [x|xs'] -> conj(x|xs, ..xs')
+ }
+
+fun not ( x:: Any ):: Bool
+  if x
+    false
+  else
+    true
+
+cntl Exception {
+  raise( x:: Any )
+  raise( x:: Any, msg:: Str )
 }
 
-fun len ( xs )
-{
-  val XsType <- type( xs )
+fun catch( action:: Fun, handler:: Fun )
+  with
+    raise(agitant, msg) ->
+      handler(agitant, msg)
+  hndl
+    action
 
-  if XsType = List  or
-     XsType = Tuple or
-     XsType = Map   or
-     XsType = Set
-     do {
-       return xs.length
-  } else
-    error( "Type #{XsType} is not a sequence." )
+fun async( action:: Fun )
+  with
+    await( expression ) ->
+      schedule( :okay )
+        do
+          expression
+        do x
+          resume( x )
+  hndl
+    action
+
+cntl Generator{X}
+  yield( x:: X )
+
+fun range( stop:: Int )
+  range( 1, stop )
+
+fun range( start:: Int, stop:: Int )
+  range( start, stop, 1 )
+
+fun range ( start:: Int, stop:: Int, step:: Int )
+  if start >= stop
+    stop
+  else do {
+    yield( start )
+    range( start+step,
+    	   stop,
+	   step )
+  }
+
+# type definition syntax examples
+data Gender {
+  "Enum type example."
+  Male
+  | Female
+  | Nonbinary
+  | Unspecified
+}
+
+data Student {
+  "Record type example."
+  first:: Str     <- "John"
+  last:: Str      <- "Doe"
+  grade:: Int     <- 1
+  gender:: Gender <- Unspecified
 }
 
 # end system.rsp
