@@ -29,15 +29,14 @@ typedef enum
 
     TOKEN_COMMA,       TOKEN_DOT,
     TOKEN_PLUS,        TOKEN_STAR,
-    TOKEN_EQUALS,      TOKEN_MINUS,
+    TOKEN_EQUALS,
 
     // one- or two-character tokens.
+    TOKEN_MINUS,       TOKEN_RIGHT_ARROW,
     TOKEN_LESS,        TOKEN_LESS_EQUAL,
     TOKEN_LEFT_ARROW,
 
     TOKEN_GREATER,     TOKEN_GREATER_EQUAL,
-    TOKEN_RIGHT_ARROW,
-
     TOKEN_SLASH,       TOKEN_SLASH_EQUALS,
     
     TOKEN_PERCENT,     TOKEN_PERCENT_LEFT_BRACE,
@@ -47,10 +46,29 @@ typedef enum
     TOKEN_NUMBER,      TOKEN_STRING,
     
     // keywords.
-    
+    TOKEN_FUN,         TOKEN_VAL,
+
+    TOKEN_IF,          TOKEN_ELIF,
+    TOKEN_ELSE,        TOKEN_DO,
+
+    TOKEN_AND,         TOKEN_OR,
+    TOKEN_NOT,
+
+    // sentinels.
+    TOKEN_ERROR,       TOKEN_EOF,
   } TokenType;
 
 typedef void (*ParseFn)(void);
+
+typedef struct
+{
+  
+} TokenRule;
+
+typedef struct
+{
+  uint8_t *bitmap;
+} TokenTrie;
 
 typedef struct
 {

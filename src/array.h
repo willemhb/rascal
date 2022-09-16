@@ -37,8 +37,10 @@ struct Bytecode
 // forward declarations -------------------------------------------------------
 ARRAY_API(Tuple, Value);
 ARRAY_API(String, Char);
+ARRAY_API(Bytecode, Instruction);
 
 // utility macros & statics ---------------------------------------------------
-
+#define IS_TUPLE(val) (isObjType(val, OBJ_TUPLE))
+#define IS_
 
 #endif

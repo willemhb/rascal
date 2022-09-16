@@ -62,6 +62,7 @@ typedef union
 ValueType valueType( Value x );
 bool      sameValues( Value x, Value y );
 bool      equalValues( Value x, Value y );
+int       orderValues( Value x, Value y );
 void      printValue( Value x );
 hash_t    hashValue( Value x );
 
