@@ -35,7 +35,7 @@ typedef enum
   } ValueType;
 
 typedef uintptr_t Value;
-typedef int32_t   Char;
+typedef char      Char;
 typedef bool      Bool;
 typedef double    Real;
 typedef void*     Pointer;
@@ -63,6 +63,7 @@ ValueType valueType( Value x );
 bool      sameValues( Value x, Value y );
 bool      equalValues( Value x, Value y );
 void      printValue( Value x );
+hash_t    hashValue( Value x );
 
 // utility macros & statics ---------------------------------------------------
 #define IS_REAL(x)    (((x)&QNAN) != QNAN)

@@ -47,7 +47,7 @@ struct Obj
 };
 
 // forward declarations -------------------------------------------------------
-
+void initObject( Obj *o, ObjType type );
 
 // utility macros & statics ---------------------------------------------------
 #define OBJ_HEAD \
@@ -56,6 +56,11 @@ struct Obj
 static inline bool isObjType( Value x, ObjType t )
 {
   return IS_OBJ(x) && AS_OBJ(x)->type == t;
+}
+
+static inline bool isNilObjType( Value x, ObjType t )
+{
+  return x == NIL || isObjType( x, t );
 }
 
 #endif

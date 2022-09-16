@@ -12,11 +12,11 @@
     elType *data;					\
   }
 
-#define ARRAY_API(arrayType, elType)				\
-  void   init##arrayType( arrayType *array );			\
-  void   finalize##arrayType( arrayType *array );		\
-  void   write##arrayType( arrayType *array, elType element )
-
+#define ARRAY_API(arrayType, elType)				          \
+  arrayType *new##arrayType(size_t count);				  \
+  void       init##arrayType(arrayType *array,size_t count,elType *data); \
+  void       finalize##arrayType(arrayType *array);			  \
+  void       write##arrayType(arrayType *array,elType element)
 
 struct Tuple
 {
