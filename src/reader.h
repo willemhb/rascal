@@ -38,7 +38,7 @@ typedef enum
 
     TOKEN_GREATER,     TOKEN_GREATER_EQUAL,
     TOKEN_SLASH,       TOKEN_SLASH_EQUALS,
-    
+
     TOKEN_PERCENT,     TOKEN_PERCENT_LEFT_BRACE,
 
     // atomic tokens.
@@ -62,13 +62,10 @@ typedef void (*ParseFn)(void);
 
 typedef struct
 {
-  
-} TokenRule;
-
-typedef struct
-{
+  int      length;
+  int      capacity;
   uint8_t *bitmap;
-} TokenTrie;
+} ParseRules;
 
 typedef struct
 {

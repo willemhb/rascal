@@ -5,7 +5,7 @@
 val SyntaxTable <- %{},
     Modules     <- %{},
     Debug       <- true,
-    Version     <- "0.0.1.a";
+    Version     <- "0.0.1.a"
 
 # basic syntax examples
 fun map( fn:: Fun, xs:: List ):: List

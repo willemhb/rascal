@@ -13,15 +13,26 @@ typedef enum
   } CType;
 
 // forward declarations -------------------------------------------------------
-bool   equalNumbers( Value x, Value y );
-int    orderNumbers( Value x, Value y );
-hash_t hashNumber( Value x );
-void   printNumber( Value x );
+Bool   equalNumbers( Value x, Value y );
+Int    orderNumbers( Value x, Value y );
+Hash   hashNumber( Value x );
+Void   printNumber( Value x );
+
+// utils ----------------------------------------------------------------------
+UInt64 ceilLog2( UInt64 u );
 
 // native functions -----------------------------------------------------------
 Value nativeAdd( Value *args, int nArgs );
 Value nativeSub( Value *args, int nArgs );
 Value nativeMul( Value *args, int nArgs );
 Value nativeDiv( Value *args, int nArgs );
+
+// statics & macros -----------------------------------------------------------
+#define max(a, b)				\
+  ({						\
+    typeof(a) _a_ = a;				\
+    typeof(b) _b_ = b;				\
+    _a_ < _b_ ? _b_ : _a_;			\
+  })
 
 #endif

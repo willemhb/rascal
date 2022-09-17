@@ -8,15 +8,15 @@
 #define FNV64_PRIME  0x00000100000001B3ul
 #define FNV64_OFFSET 0xcbf29ce484222325ul
 
-hash_t hashCstring( const Cstring cstr )
+Hash hashCstring( const Cstring cstr )
 {
   return hashMemory( (const uint8_t*)cstr, strlen(cstr) );
 }
 
-hash_t hashMemory( const uint8_t *bytes, int nBytes )
+Hash hashMemory( const UInt8 *bytes, Arity nBytes )
 {
-  hash_t out = FNV64_OFFSET;
-  for (int i=0; i<nBytes; i++)
+  Hash out = FNV64_OFFSET;
+  for (Arity i=0; i<nBytes; i++)
     {
       out ^= bytes[i];
       out *= FNV64_PRIME;
@@ -25,7 +25,7 @@ hash_t hashMemory( const uint8_t *bytes, int nBytes )
   return out;
 }
 
-hash_t hashInt( uint64_t key )
+Hash hashInt( uint64_t key )
 {
     key = (~key) + (key << 21);            // key = (key << 21) - key - 1;
     key =   key  ^ (key >> 24);
@@ -37,22 +37,31 @@ hash_t hashInt( uint64_t key )
     return key;
 }
 
-hash_t hashReal( Real key )
+Hash hashReal( Real key )
 {
   return hashInt( AS_VALUE(key, 0) );
 }
 
-hash_t hashPointer( const Pointer p )
+Hash hashPointer( const Pointer p )
 {
   return hashInt( AS_VALUE(p, 0) );
 }
 
-hash_t mixHash( hash_t xHash, hash_t yHash )
+Hash mixHash( Hash xHash, Hash yHash )
 {
   return hashInt( xHash ^ yHash );
 }
 
 // table implementations ------------------------------------------------------
-TABLE_IMPL(Map, Value, Value, MapEntry, hashValue, equalValues)
-TABLE_IMPL(Set, Value, Value, SetEntry, hashValue, equalValues)
+#define TABLE_MIN_NKEYS       8
+#define TABLE_RESIZE_PRESSURE 0.75
 
+void initTable( Table *table )
+{
+  initObject( (Obj*)table, OBJ_TABLE );
+  table->length   = 0;
+  table->capacity = TABLE_MIN_NKEYS;
+  table->data     = ALLOCATE( Tuple*, table->capacity );
+}
+
+// initialization -------------------------------------------------------------

@@ -4,43 +4,54 @@
 #include "object.h"
 
 #define ARRAY_SPEC(elType)				\
+  elType  space[0]
+
+#define DYNAMIC_ARRAY_SPEC(elType)			\
   int     length;					\
   int     capacity;					\
-  union							\
-  {							\
-    elType  space[0];					\
-    elType *data;					\
-  }
+  elType *data
 
-#define ARRAY_API(arrayType, elType)				          \
-  arrayType *new##arrayType(size_t count);				  \
-  void       init##arrayType(arrayType *array,size_t count,elType *data); \
-  void       finalize##arrayType(arrayType *array);			  \
-  void       write##arrayType(arrayType *array,elType element)
+#define ARRAY_API(arrType, elType)					\
+  arrType *new##arrayType(Size count);					\
+  Void     init##arrayType(arrType *array, Size count, elType *data);	\
+  Void     finalize##arrayType(arrType *array);				\
+
+
+#define DYNAMIC_ARRAY_API(arrType, elType)				\
+  arrType *new##arrayType(Size count);					\
+  Void     init##arrayType(arrType *array, Size count, elType *data);	\
+  Void     finalize##arrayType(arrType *array);				\
+  Void     addTo##arrayType(arrType *array, elType element)
 
 struct Tuple
 {
+  OBJ_HEAD;
   ARRAY_SPEC(Value);
 };
 
 struct String
 {
-  ARRAY_SPEC(Char);
-  hash_t hash;
+  OBJ_HEAD;
+  ARRAY_SPEC(Value);
 };
 
-struct Bytecode
+struct ArrayList
 {
-  ARRAY_SPEC(Instruction);
+  OBJ_HEAD;
+  DYNAMIC_ARRAY_SPEC(Value);
 };
 
 // forward declarations -------------------------------------------------------
-ARRAY_API(Tuple, Value);
-ARRAY_API(String, Char);
-ARRAY_API(Bytecode, Instruction);
+DYNAMIC_ARRAY_API(ArrayList, Value);
+
 
 // utility macros & statics ---------------------------------------------------
-#define IS_TUPLE(val) (isObjType(val, OBJ_TUPLE))
-#define IS_
+#define IS_TUPLE(val)      (isObjType(val, OBJ_TUPLE))
+#define IS_STRING(val)     (isObjType(val, OBJ_STRING))
+#define IS_ARRAY_LIST(val) (isObjType(val, OBJ_ARRAY_LIST))
+
+#define AS_TUPLE(val)      ((Tuple*)AS_OBJ(val))
+#define AS_STRING(val)     ((String*)AS_OBJ(val))
+#define AS_ARRAY_LIST(val) ((ArrayList*)AS_OBJ(val))
 
 #endif
