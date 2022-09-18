@@ -4,7 +4,7 @@
 #include "value.h"
 
 // C types --------------------------------------------------------------------
-typedef enum
+typedef enum attribute((packed))
   {
    C_SINT8 =1, C_UINT8,  C_LATIN1,  C_ASCII,   C_UTF8,
    C_SINT16,   C_UINT16, C_UTF16,
@@ -20,6 +20,7 @@ Void   printNumber( Value x );
 
 // utils ----------------------------------------------------------------------
 UInt64 ceilLog2( UInt64 u );
+Int    orderUInt( UInt64 x, UInt64 y );
 
 // native functions -----------------------------------------------------------
 Value nativeAdd( Value *args, int nArgs );
@@ -33,6 +34,13 @@ Value nativeDiv( Value *args, int nArgs );
     typeof(a) _a_ = a;				\
     typeof(b) _b_ = b;				\
     _a_ < _b_ ? _b_ : _a_;			\
+  })
+
+#define min(a, b)				\
+  ({						\
+    typeof(a) _a_ = a;				\
+    typeof(b) _b_ = b;				\
+    _a_ > _b_ ? _b_ : _a_;			\
   })
 
 #endif

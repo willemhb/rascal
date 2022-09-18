@@ -3,78 +3,73 @@
 
 #include "value.h"
 
-// C types --------------------------------------------------------------------
-typedef struct Atom        Atom;
-typedef struct List        List;
-typedef struct Function    Function;
-typedef struct Tuple       Tuple;
-typedef struct HAMT        HAMT;
-typedef struct String      String;
-typedef struct Port        Port;
-
-typedef struct HAMT        Vector;
-typedef struct HAMT        Map;
-typedef struct HAMT        Set;
-
-typedef struct Table       Table;
-typedef struct ArrayList   ArrayList;
-typedef struct Closure     Closure;
-typedef struct UpValue     UpValue;
-typedef struct Native      Native;
-typedef struct Bytecode    Bytecode;
-
-typedef enum
-{
-  OBJ_ATOM=11,
-  OBJ_LIST=12,
-  OBJ_FUNCTION=13,
-  OBJ_TUPLE=14,
-  OBJ_VECTOR=15,
-  OBJ_MAP=17,
-  OBJ_SET=18,
-  OBJ_STRING=19,
-  OBJ_PORT=20,
-
-  // internal types
-  OBJ_TABLE=21,
-  OBJ_ARRAY_LIST=22,
-  OBJ_CLOSURE=23,
-  OBJ_UPVALUE=25,
-  OBJ_NATIVE=26,
-  OBJ_BYTECODE=27,
-  OBJ_MAP_ENTRY=28,
-  OBJ_TABLE_ENTRY=29
-} ObjType;
-
 struct Obj
 {
-  Obj    *next;
-  Arity   arity;
-  UInt16  type;
-  UInt16  flags : 13;
-  UInt16  black :  1;
-  UInt16  gray  :  1;
-  UInt16  alloc :  1;
+  Obj      *next;
+  ValueType type;
+  UInt8     alloc : 1;
+  UInt8     gray  : 1;
+  UInt8     black : 1;
+  UInt8           : 5;
+  UInt16    flags;
+  Arity     arity;
 };
 
-// forward declarations -------------------------------------------------------
-void initObject( Obj *o, ObjType type );
+#define OBJ_HEAD(flagsType)			\
+  struct					\
+  {						\
+    ValueType type;				\
+    UInt8     Ctype : 5;			\
+    UInt8     alloc : 1;			\
+    UInt8     gray  : 1;			\
+    UInt8     black : 1;			\
+    flagsType flags;				\
+    Arity     arity;				\
+  } object
 
-// utility macros & statics ---------------------------------------------------
-#define OBJ_HEAD \
-  Obj object
+#define objNext(val)  (asObj(val)->next)
+#define objType(val)  (asObj(val)->type)
+#define objCtype(val) (asObj(val)->Ctype)
+#define objAlloc(val) (asObj(val)->alloc)
+#define objGray(val)  (asObj(val)->gray)
+#define objBlack(val) (asObj(val)->black)
+#define objFlags(val) (asObj(val)->flags)
+#define objArity(val) (asObj(val)->arity)
 
-#define ob_next(val)  (AS_OBJ(x)->next)
-#define ob_arity(val) (AS_OBJ(x)->arity)
-#define ob_type(val)  (AS_OBJ(x)->type)
-#define ob_flags(val) (AS_OBJ(x)->flags)
-#define ob_black(val) (AS_OBJ(x)->black)
-#define ob_gray(val)  (AS_OBJ(x)->gray)
-#define ob_alloc(val) (AS_OBJ(x)->alloc)
-
-static inline bool isObjType( Value x, ObjType t )
+static inline Bool isObj( Value x )
 {
-  return IS_OBJ(x) && AS_OBJ(x)->type == t;
+  return !isImmediate(x)
+    && asPtr(x) != NULL;
+}
+
+static inline Bool isObjType( Value x, ValueType type )
+{
+  return isObj(x)
+    && objType( x ) == type;
+}
+
+static inline Value tagObj( Obj *o )
+{
+  switch( o->type )
+    {
+    case VAL_LIST: case VAL_UPVALUE:
+      return tagPtr( o, LIST );
+
+    case VAL_MAP:
+      return tagPtr( o, MAP );
+
+    case VAL_VECTOR:
+      return tagPtr( o, VECTOR );
+
+    case VAL_FUNCTION:
+      return tagPtr( o, FUNCTION );
+
+    case VAL_CLOSURE:
+      return tagPtr( o, CLOSURE );
+
+    default:
+      return tagPtr( o, BINARY );
+    }
 }
 
 #endif

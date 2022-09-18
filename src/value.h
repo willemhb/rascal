@@ -9,47 +9,68 @@
 
 // value tags -----------------------------------------------------------------
 #define IMMEDIATE 0x7ffc000000000000ul
-#define CHARACTER 0x7ffd000000000000ul
-#define INTEGER   0x7ffe000000000000ul
-#define OBJECT    0x7fff000000000000ul
+#define ATOM      0x7ffd000000000000ul
+#define LIST      0x7ffe000000000000ul
+#define FUNCTION  0x7fff000000000000ul
+#define BINARY    0xfffc000000000000ul
+#define VECTOR    0xfffd000000000000ul
+#define MAP       0xfffe000000000000ul
+#define CLOSURE   0xffff000000000000ul
 
-// internal tags --------------------------------------------------------------
-#define ARITY     0xfffc000000000000ul
-#define POINTER   0xfffd000000000000ul
-#define CSTRING   0xfffe000000000000ul
-#define HEADER    0xffff000000000000ul
+#define BOOLEAN   (IMMEDIATE|(1ul<<32))
+#define CHARACTER (IMMEDIATE|(2ul<<32))
+#define TRUE      (BOOLEAN|1)
+#define FALSE     (BOOLEAN|0)
 
-#define BOOLEAN  (IMMEDIATE|2)
-#define NIL      (IMMEDIATE|1)
-#define FALSE    (BOOLEAN|0)
-#define TRUE     (BOOLEAN|1)
-
-// typedefs -------------------------------------------------------------------
-typedef enum
+typedef enum __attribute__((packed))
   {
-    VAL_NIL=1,
-    VAL_BOOL=2,
-    VAL_CHAR=3,
-    VAL_REAL=4,
-    VAL_INT=5,
-    VAL_OBJ=6,
+    VAL_REAL,
+    VAL_BOOL,
+    VAL_CHAR,
+    VAL_ATOM,
+    VAL_LIST,
+    VAL_FUNCTION,
+    VAL_BINARY,
+    VAL_VECTOR,
+    VAL_MAP,
+    VAL_CLOSURE,
 
-    TAG_ARITY=7, // 48-bit unsigned integer (used internally for hashes)
-    TAG_PTR=8,   // 
-    TAG_CSTR=9,  // 
-    TAG_HEDR=10, // 
+    // internal types
+    // list types
+    VAL_UPVALUE,
+ 
+    // binary types
+    VAL_NATIVE,
+    VAL_ARRAYLIST,
+    VAL_BYTECODE,
+    VAL_TABLE,
+    VAL_ENTRY,
+
+    // pad
+    NUM_TYPES
   } ValueType;
 
 typedef uintptr_t Value;
 typedef double    Real;
-typedef Void*     Pointer;
-typedef Char*     Cstring;
 
 // other internal types
-typedef uint16_t  Instruction;
-typedef Value   (*NativeFn)( Value *args, Int nNargs );
+typedef uint16_t   Instruction;
+typedef Value    (*NativeFn)( Value *args, Arity nNargs );
 
-typedef struct Obj Obj;
+typedef struct Obj      Obj;
+typedef struct Atom     Atom;
+typedef struct List     List;
+typedef struct Function Function;
+typedef struct Binary   Binary;
+typedef struct Vector   Vector;
+typedef struct Map      Map;
+typedef struct Closure  Closure;
+
+typedef struct ArrayList ArrayList;
+typedef struct Table     Table;
+typedef struct ByteCode  ByteCode;
+typedef struct UpValue   UpValue;
+typedef struct Native    Native;
 
 typedef union
   {
@@ -57,35 +78,45 @@ typedef union
     Bool     as_bool;
     Real     as_real;
     Value    as_val;
-    Obj     *as_obj;
-    Pointer  as_ptr;
-    Cstring  as_cstr;
+    Void    *as_ptr;
   } ValueData;
 
 // forward declarations -------------------------------------------------------
-ValueType valueType( Value x );
-Bool      sameValues( Value x, Value y );
-Bool      equalValues( Value x, Value y );
-Int       orderValues( Value x, Value y );
-Void      printValue( Value x );
-Hash      hashValue( Value x );
+Hash hashValue( Value k );
 
 // utility macros & statics ---------------------------------------------------
-#define IS_REAL(x)    (((x)&QNAN) != QNAN)
-#define IS_NIL(x)     ((x)==NIL)
-#define IS_CHAR(x)    (((x)&CHARACTER) == CHARACTER)
-#define IS_BOOL(x)    (((x)&BOOLEAN) == BOOLEAN)
-#define IS_PTR(x)     (((x)&POINTER) == POINTER)
-#define IS_CSTR(x)    (((x)&CSTRING) == CSTRING)
-#define IS_HEDR(x)    (((x)&HEADER) == HEADER)
-#define IS_OBJ(x)     (((x)&OBJECT) == OBJECT)
+#define tagPtr(p, t)   (((Value)(p))|(t))
+#define isImmediate(x) (((x)&IMMEDIATE) == IMMEDIATE)
+#define isReal(x)      (((x)&QNAN) != QNAN)
+#define isChar(x)      (((x)&CHARACTER) == CHARACTER)
+#define isBool(x)      (((x)&BOOLEAN) == BOOLEAN)
+#define isAtom(x)      (((x)&ATOM) == ATOM)
+#define isList(x)      (((x)&LIST) == LIST)
+#define isFunction(x)  (((x)&FUNCTION) == FUNCTION)
+#define isBinary(x)    (((x)&BINARY) == BINARY)
+#define isVector(x)    (((x)&VECTOR) == VECTOR)
+#define isMap(x)       (((x)&MAP) == MAP)
+#define isClosure(x)   (((x)&CLOSURE) == CLOSURE)
 
-#define AS_VALUE(x, t) ((((ValueData)(x)).as_val)|(t))
-#define AS_REAL(x)     (((ValueData)(x)).as_real)
-#define AS_BOOL(x)     ((x)==TRUE)
-#define AS_CHAR(x)     ((Char)((x)&UINT32_MAX))
-#define AS_PTR(x)      ((Pointer)((x)&~HEADER))
-#define AS_CSTR(x)     ((Cstring)((x)&~HEADER))
-#define AS_OBJ(x)      ((Obj*)((x)&~HEADER))
+#define asValue(x, t) ((((ValueData)(x)).as_val)|(t))
+#define asReal(x)     (((ValueData)(x)).as_real)
+#define asArity(x)    ((Arity)((x)&UINT32_MAX))
+#define asBool(x)     ((x)==TRUE)
+#define asChar(x)     ((Char)((x)&UINT32_MAX))
+#define asPtr(x)      ((Void*)((x)&~CLOSURE))
+
+#define asObjType(obType, x)				\
+  ((obType*)_Generic((x),				\
+		    Value:(((Value)(x))&~CLOSURE),	\
+		     default:((obType*)(x))))
+
+#define asObj(x)      asObjType(Obj, x)
+#define asAtom(x)     asObjType(Atom, x)
+#define asList(x)     asObjType(List, x)
+#define asFunction(x) asObjType(Function, x)
+#define asBinary(x)   asObjType(Binary, x)
+#define asVector(x)   asObjType(Vector, x)
+#define asMap(x)      asObjType(Map, x)
+#define asClosure(x)  asObjType(Closure, x)
 
 #endif

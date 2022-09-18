@@ -1,0 +1,20 @@
+# begin web-example.rsp
+
+@route "/"
+fun index ( request, response )
+  @doc "homepage."
+
+  when { :method <- "GET" }, _
+    do open( "index.htm" )
+      do (io) io.read
+  when { :method <- "POST" }, _
+    do open( "somedb.sql" )
+      do (conn) conn.login(request.user)
+
+@route "/user"
+fun user ( request, response )
+  @doc "user profile."
+  ...
+
+
+# end web-example.rsp

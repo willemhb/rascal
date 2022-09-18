@@ -5,69 +5,49 @@
 #include "memory.h"
 #include "list.h"
 #include "number.h"
-#include "array.h"
-#include "hamt.h"
-
-#define HAMT_MIN_NODE_COUNT  2
-#define HAMT_MAX_NODE_COUNT 32
-#define VECTOR_MAX_DEPTH     7
-#define MAP_MAX_DEPTH       10
-#define HASH_MASK           (~HEADER)
-
-// C types --------------------------------------------------------------------
-struct HAMTPathBuffer
-{
-  Arity count;
-  HAMT *nodes[MAP_MAX_DEPTH];
-  Arity indices[MAP_MAX_DEPTH];
-};
-
-#define as_entry(val)   (((Tuple*)AS_OBJ(val)))
-#define entry_key(val)  (((Tuple*)AS_OBJ(val))->space[0])
-#define entry_val(val)  (((Tuple*)AS_OBJ(val))->space[1])
-#define entry_hash(val) (((Tuple*)AS_OBJ(val))->space[2])
+#include "vector.h"
 
 // forward declarations -------------------------------------------------------
-static Arity HAMTcount( HAMT *h );
+static Arity Vectorcount( Vector *h );
 
 
 // local helpers --------------------------------------------------------------
-static inline Bool  HAMTisFull( HAMT *h )
+static inline Bool  MapNodeIsFull( Vector *h )
 {
-  return h->length == HAMTcount( h );
+  return h->length == Vectorcount( h );
 }
 
-static inline Bool  isMaxHAMTNodeSize( HAMT *h )
+static inline Bool  isMaxVectorNodeSize( Vector *h )
 {
-  return h->length == HAMT_MAX_NODE_COUNT;
+  return h->length == Vector_MAX_NODE_COUNT;
 }
 
-static inline Arity HAMTcount( HAMT *h )
+static inline Arity Vectorcount( Vector *h )
 {
   return popcount( h->bitmap );
 }
 
-static inline Int HAMTFirstIndex( HAMT *h )
+static inline Int VectorFirstIndex( Vector *h )
 {
   if (h->bitmap)
     return countLz( h->bitmap );
   return -1;
 }
 
-static inline Int HAMTLastIndex( HAMT *h )
+static inline Int VectorLastIndex( Vector *h )
 {
   if (h->bitmap)
     return 31 - countTz( h->bitmap );
   return -1;
 }
 
-static inline Bool  HAMTHasIndex( HAMT *h, Arity i )
+static inline Bool  VectorHasIndex( Vector *h, Arity i )
 {
   return i < 32
     &&   !!((1<<i) & h->object.arity);
 }
 
-static inline Bool HAMTGetIndex( HAMT *h, Arity i )
+static inline Bool VectorGetIndex( Vector *h, Arity i )
 {
   return popcount( ((1<<i)-1) & ((1<<countLz(h->bitmap))-1) );
 }
@@ -78,11 +58,11 @@ static inline Bool compareToEntry( Value key, Hash h, Entry *e )
     && equalValues( key, e->space[0] );
 }
 
-static HAMT *updatePath( HAMTPathBuffer *buffer, Value val)
+static Vector *updatePath( VectorPathBuffer *buffer, Value val)
 {  
   for (Arity i=buffer->count; i > 0; i--)
     {
-      HAMT *node         = copyHAMT( buffer->nodes[i-1] );
+      Vector *node         = copyVector( buffer->nodes[i-1] );
       buffer->nodes[i-1] = node;
       Arity loc          = buffer->indices[i-1];
       
@@ -106,18 +86,18 @@ static HAMT *updatePath( HAMTPathBuffer *buffer, Value val)
 }
 
 // implementations ------------------------------------------------------------
-HAMT *newHAMT( ObjType type )
+Vector *newVector( ObjType type )
 {
-  HAMT  *out    = ALLOCATE_OBJ( HAMT, type );
+  Vector  *out    = ALLOCATE_OBJ( Vector, type );
 
-  initHAMT( out );
+  initVector( out );
 
   return out;
 }
 
-HAMT *copyHAMT( HAMT *original )
+Vector *copyVector( Vector *original )
 {
-  HAMT  *out   = DUP_OBJECT( HAMT, original );
+  Vector  *out   = DUP_OBJECT( Vector, original );
   Value *space = DUP_ARRAY( Value, original->data, original->length, original->capacity );
 
   out->data    = space;
@@ -126,19 +106,19 @@ HAMT *copyHAMT( HAMT *original )
   return out;
 }
 
-void initHAMT( HAMT *h )
+void initVector( Vector *h )
 {
-  h->length = HAMT_MIN_NODE_COUNT;
+  h->length = Vector_MIN_NODE_COUNT;
   h->height = 0;
   h->bitmap = 0;
   h->data   = ALLOCATE( Value, h->length );
   h->cache  = NULL;
 }
 
-void HAMTgrow( HAMT *h )
+void Vectorgrow( Vector *h )
 {
   
-  assert(h->length < HAMT_MAX_NODE_COUNT);
+  assert(h->length < Vector_MAX_NODE_COUNT);
   
   Arity oldLength = h->length;
   Arity newLength = oldLength * 2;
@@ -148,7 +128,7 @@ void HAMTgrow( HAMT *h )
 }
 
 // vector implementation ------------------------------------------------------
-Value *vectorRef( Vector *ob, Arity index, HAMTPathBuffer *buffer )
+Value *vectorRef( Vector *ob, Arity index, VectorPathBuffer *buffer )
 {
   if (index > ob->object.arity)
     return NULL;
@@ -157,7 +137,7 @@ Value *vectorRef( Vector *ob, Arity index, HAMTPathBuffer *buffer )
     {
       UInt32 shift      = ob->height * 5;
       Arity local_index = (index & (0x1ful<<shift))>>shift;
-      Arity true_index  = HAMTGetIndex( ob, local_index );
+      Arity true_index  = VectorGetIndex( ob, local_index );
       
       if (buffer)
 	{
@@ -176,7 +156,7 @@ Value *vectorRef( Vector *ob, Arity index, HAMTPathBuffer *buffer )
 
 Vector *vectorSet( Vector *ob, Arity index, Value val, Bool inPlace )
 {
-  HAMTPathBuffer buffer = { .count = 0, .indices = { }, .nodes = { } };
+  VectorPathBuffer buffer = { .count = 0, .indices = { }, .nodes = { } };
 
   Value *location = vectorRef( ob, index, &buffer );
 
@@ -193,7 +173,7 @@ Vector *vectorSet( Vector *ob, Arity index, Value val, Bool inPlace )
 }
 
 // map implementation ---------------------------------------------------------
-Value *mapRef( Map *ob, Value key, HAMTPathBuffer *buffer )
+Value *mapRef( Map *ob, Value key, VectorPathBuffer *buffer )
 {
   Hash h = hashValue( key );
 
@@ -201,7 +181,7 @@ Value *mapRef( Map *ob, Value key, HAMTPathBuffer *buffer )
     {
       UInt32 shift       = ob->height * 5;
       Arity  index       = (h & (0x1ful<<shift))>>shift;
-      Arity  true_index  = HAMTGetIndex( ob, index );
+      Arity  true_index  = VectorGetIndex( ob, index );
 
       if (buffer)
 	{
@@ -210,7 +190,7 @@ Value *mapRef( Map *ob, Value key, HAMTPathBuffer *buffer )
 	  buffer->indices[count] = true_index;
 	}
 
-      if (!HAMTHasIndex( ob, index ))
+      if (!VectorHasIndex( ob, index ))
 	return NULL;
 
       Value *entry = ob->data+true_index;
@@ -244,7 +224,7 @@ Value *mapRef( Map *ob, Value key, HAMTPathBuffer *buffer )
 
 Map *MapSet( Map *ob, Value key, Value val, Bool inPlace )
 {
-  HAMTPathBuffer buffer = { .count = 0, .indices = { }, .nodes = { } };
+  VectorPathBuffer buffer = { .count = 0, .indices = { }, .nodes = { } };
 
   Value *location = mapRef( ob, key, &buffer );
 
@@ -262,5 +242,5 @@ Map *MapSet( Map *ob, Value key, Value val, Bool inPlace )
 
 Map *MapPut( Map *map, Value key, Bool inPlace )
 {
-  HAMTPathBuffer buffer = { .count = 0, .indices = { }, .nodes = { } };
+  VectorPathBuffer buffer = { .count = 0, .indices = { }, .nodes = { } };
 }

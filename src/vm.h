@@ -2,7 +2,6 @@
 #define rascal_vm_h
 
 #include "table.h"
-#include "array.h"
 #include "reader.h"
 #include "function.h"
 
@@ -20,7 +19,6 @@ typedef struct VM
   // environment and symbol table state ---------------------------------------
   Map         *globals;
   Table       *symbols;
-  Idno         nSymbols;
 
   // reader state -------------------------------------------------------------
   Scanner     *scanner;
@@ -28,8 +26,7 @@ typedef struct VM
 
   // memory management state --------------------------------------------------
   UpValue     *openUpvalues;
-  Obj         *obList;
-  Obj         *freeList;
+  Obj         *objects;
   Size         bytesAllocated;
   Size         nextGC;
   Stack       *grayStack;

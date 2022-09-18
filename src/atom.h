@@ -1,28 +1,23 @@
 #ifndef rascal_atom_h
 #define rascal_atom_h
 
-#include "object.h"
+#include "table.h"
 
 // C types --------------------------------------------------------------------
-typedef uintptr_t hash_t;
 
 struct Atom
 {
-  OBJ_HEAD;
-  Map       *ns;
+  OBJ_HEAD(UInt16);
+
+  Table     *ns;
   String    *name;
-  hash_t     hash;
-  idno_t     idno;
+  Hash       hash;
+  Idno       idno;
 };
 
 // globals --------------------------------------------------------------------
 // forward declarations -------------------------------------------------------
-Atom *newAtom( const char *name, bool isGenSym );
-void  initAtom( Atom *atom, String *name, Map *ns );
+Atom *newAtom( const char *name, Table *ns );
 Value internAtom( const char *name );
-
-bool   equalAtoms( Value, Value b );
-hash_t hashAtom( Value a );
-void   printAtom( Value a );
 
 #endif

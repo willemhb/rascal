@@ -9,10 +9,11 @@
 (define-generic-mode
   'rascal-mode
   '("#")
-  '("fun" "mac" "data" "type" "class" "cntl" "hndl" "with"
-    "val" "var" "do" "quote" "syntax" "where"
-    "if"  "else" "case" "cond" "and" "or" "when"
-    )
+  '("fun"  "mac"  "op"   "data"  "type"   "class"  "cntl"
+    "val"  "var"  "do"   "quote" "syntax" "where"
+    "if"   "elif" "else" "and"   "or"     "not"
+    "let"  "in"   "is"   "has"   "does"
+    "when" "case" "hndl" "with")
   '(("otherwise" . font-lock-builtin-face)
     ("true" . font-lock-builtin-face)
     ("false" . font-lock-builtin-face)

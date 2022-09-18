@@ -1,41 +1,69 @@
 #ifndef rascal_hamt_h
 #define rascal_hamt_h
 
-#include "table.h"
+#include "object.h"
+
+// parameters -----------------------------------------------------------------
+#define HAMT_MAX_NODE_COUNT 64
+#define HAMT_MIN_NODE_COUNT  2
+
+// describe macros ------------------------------------------------------------
+#define HAMT_FL_SPEC				\
+  UInt16 length    : 8;				\
+  UInt16 depth     : 4;				\
+  UInt16 shared    : 1;				\
+  UInt16 inlined   : 1;				\
+  UInt16 internal  : 1;				\
+  UInt16 leaf      : 1
+
+#define HAMT_SPEC(elType, flType)		\
+  OBJ_HEAD(flType);				\
+  union						\
+  {						\
+    Size bitmap;				\
+    Hash hash;					\
+  };						\
+  union						\
+  {						\
+    Obj *cache;					\
+    Obj *next;					\
+    Obj *parent;				\
+  };						\
+  elType _data
+
+#define HAMT_BUFFER_SPEC(HAMTType, maxDepth)		\
+  Arity     count;					\
+  Arity     indices[maxDepth];				\
+  HAMTType *nodes[maxDepth]
+
+#define HAMT_ELEMENTS(HAMTType, elType, _inl, _ptr)		\
+  elType *get##HAMTType##Elements( HAMTType *h )		\
+  {								\
+    if (h->object.flags.inlined)				\
+      return &(h->_data._inl[0]);				\
+    return h->_data._ptr;					\
+  }
 
 // C types --------------------------------------------------------------------
-struct HAMT
+typedef struct
 {
-  OBJ_HEAD;
-  Arity   bitmap;
-  UInt16  height;
-  UInt8   length;
-  UInt8   capacity;
-  Value  *data;
-  Obj    *cache;
-};
+  HAMT_FL_SPEC;
+} HAMTFl;
 
-typedef struct HAMTPathBuffer HAMTPathBuffer;
+typedef union
+{
+  Obj    *i_obs[0];
+  Obj   **p_obs;
+  Value   i_vals[0];
+  Value  *p_vals;
+} HAMTData;
 
-// forward declarations -------------------------------------------------------
-HAMT   *newHAMT( ObjType type );
-void    initHAMT( HAMT *ob );
-void    finalizeHAMT( HAMT *ob );
-HAMT   *copyHAMT( HAMT *ob );
+typedef struct
+{
+  HAMT_SPEC(HAMTFl, HAMTData);
+} HAMT;
 
-// 
-Value  *vectorRef( Vector *ob, Arity index, HAMTPathBuffer *buffer );
-Vector *vectorConj( Vector *ob, Value val, bool inPlace );
-Value  *mapRef( Map *ob, Value key, HAMTPathBuffer *buffer );
+// utility macros & statics ---------------------------------------------------
 
-
-// statics & utility macros ---------------------------------------------------
-#define IS_VECTOR(val) (isObjType(val, OBJ_VECTOR))
-#define IS_MAP(val)    (isObjType(val, OBJ_MAP))
-#define IS_SET(val)    (isObjType(val, OBJ_SET))
-
-#define AS_VECTOR(val) ((Vector*)AS_OBJ(val))
-#define AS_MAP(val)    ((Map*)AS_OBJ(val))
-#define AS_SET(val)    ((Set*)AS_OBJ(val))
 
 #endif

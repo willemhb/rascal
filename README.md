@@ -9,9 +9,7 @@ The first serious version of rascal.
 * control extensiblity with algebraic effects and handlers
 * operative extensiblity with open type classes functions/multimethods
 * pattern matching
-* algebraic data types
 * easy to use module/namespace system (based on Python modules)
 * low latency garbage collector
 * optimizing bytecode interpreter/compiler with supplemental JIT
 * simple but effective concurrency with green threads and actor-based processes
-* 

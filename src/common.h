@@ -45,9 +45,24 @@ typedef UInt64         Idno;
 typedef UInt32         Arity;
 
 // renames of __builtin -------------------------------------------------------
-#define popcount    __builtin_popcount
-#define countLz     __builtin_clz
-#define countTz     __builtin_ctz
+#define popcount(x)				\
+  _Generic((x),					\
+	   UInt32: __builtin_popcount,		\
+	   UInt64: __builtin_popcountl)(x)
+
+
+
+#define countLz(x)				\
+  _Generic((x),					\
+	   UInt32: __builtin_clz,		\
+	   UInt64: __builtin_clzl)(x)
+
+#define countTz(x)				\
+  _Generic((x),					\
+	   UInt32: __builtin_ctz,		\
+	   UInt64: __builtin_ctzl)(x)
+
 #define unreachable __builtin_unreachable
+#define attribute   __attribute__
 
 #endif
