@@ -12,18 +12,32 @@ typedef struct
   UInt8 shared    : 4;
 } BinaryFl;
 
-struct Binary
+struct String
 {
   OBJ_HEAD(BinaryFl);
 
-  union
-  {
-    UInt8 bytes[0];
-    Void *data;
-  };
+  Char *chars;
+  Hash  hash;
 };
 
-typedef struct Binary String;
-typedef struct Binary Instructions;
+struct CodeBuffer
+{
+  OBJ_HEAD(BinaryFl);
+
+  Instruction *code;
+  Arity length, capacity;
+};
+
+// forward declarations
+
+
+// utility macros
+#define isString(val)   isObjType(val, VAL_STRING)
+#define asString(val)   asObjType(String, val)
+
+#define strCtype(val)   (asString(val)->flags.Ctype)
+#define strInlined(val) (asString(val)->flags.inlined)
+#define strShared(val)  (asString(val)->flags.shared)
+#define strChars(val)   (asString(val)->chars)
 
 #endif

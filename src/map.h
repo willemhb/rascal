@@ -11,7 +11,6 @@ typedef struct
 
 typedef union
 {
-  Map  *space[0];
   Map **data;
 
   struct
@@ -54,13 +53,8 @@ Map   *mapPop( Map *m, Value key, Bool inPlace );
 #define mapHash(map)       (asMap(map)->hash)
 #define mapCache(map)      (asMap(map)->cache)
 #define mapParent(map)     (asMap(map)->parent)
-#define mapSpace(map)      (asMap(map)->_data.space)
 #define mapData(map)       (asMap(map)->_data.data)
 #define mapKey(map)        (asMap(map)->_data.key)
 #define mapVal(map)        (asMap(map)->_data.val)
-#define mapElements(map)   (getMapElements(asMap(map)))
-
-HAMT_ELEMENTS(Map, Map*, space, data)
-
 
 #endif

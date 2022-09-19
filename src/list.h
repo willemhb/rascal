@@ -8,51 +8,54 @@
 // C types --------------------------------------------------------------------
 typedef struct
 {
-  UInt8 isOpen;
-  UInt8 isClosed;
-} UpValueFl;
+  UInt16               : 13;
+  UInt16 isProper      :  1;
+  UInt16 closedUpvalue :  1;
+  UInt16 openUpvalue   :  1;
+} ListFl;
 
 struct List
 {
-  OBJ_HEAD(UInt16);
-  Value  head;
-  List  *tail;
-};
+  OBJ_HEAD(ListFl);
 
-struct UpValue
-{
-  OBJ_HEAD(UpValueFl);
-  Value    value;
-  UpValue *next;
+  union
+  {
+    Value car;
+    Value head;
+  };
+
+  union
+  {
+    Value  cdr;
+    List  *tail;
+  };
 };
 
 // forward declarations -------------------------------------------------------
-List  *Cons(  Value head,  List *tail  );
-List  *ListN( Value *args, Arity nArgs );
+#define Cons(ca, cd)				\
+  _Generic((cd),				\
+	   List*:Cons2,				\
+	   Arity:ConsN)((ca), (cd))
+
+List  *Cons2(  Value head,  List *tail );
 List  *ConsN( Value *args, Arity nArgs );
-List  *listAssoc( List *list, Value key );
+List  *ListN( Value *args, Arity nArgs );
 
 // initialization -------------------------------------------------------------
 Void listInit( Void );
 
 // utility macros & statics ---------------------------------------------------
-#define isUpValue(val)       (isObjType(val), VAL_UPVALUE)
-#define asUpValue(val)       (asObjType(UpValue, val))
- 
+#define isList(val)            (isObjType(val), VAL_LIST)
+#define asList(val)            (asObjType(List, val))
+
+#define listOpenUpvalue(val)   (asList(val)->object.flags.openUpvalue)
+#define listClosedUpvalue(val) (asList(val)->object.flags.closedUpvalue)
+#define listIsProper(val)      (asList(val)->object.flags.isProper)
+
+#define listArity(val)       (asList(val)->object.arity)
+#define listCar(val)         (asList(val)->car)
+#define listCdr(val)         (asList(val)->cdr)
 #define listHead(val)        (asList(val)->head)
 #define listTail(val)        (asList(val)->tail)
-
-#define upValueValue(val)    (asUpValue(val)->value)
-#define upValueNext(val)     (asUpValue(val)->next)
-#define upValueisOpen(val)   (asUpValue(val)->object.flags.isOpen)
-#define upValueIsClosed(val) (asUpValue(val)->object.flags.isClosed)
-
-static inline Value deRefUpValue(UpValue *upval)
-{
-  if (upValueIsClosed(upval))
-    return upValueValue(upval);
-
-  return vm.stack->values[asArity(upValueValue(upval))];
-}
 
 #endif

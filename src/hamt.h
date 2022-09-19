@@ -52,10 +52,8 @@ typedef struct
 
 typedef union
 {
-  Obj    *i_obs[0];
-  Obj   **p_obs;
-  Value   i_vals[0];
-  Value  *p_vals;
+  Obj   **objects;
+  Value  *values;
 } HAMTData;
 
 typedef struct
@@ -65,5 +63,9 @@ typedef struct
 
 // utility macros & statics ---------------------------------------------------
 
+static inline Arity HAMTNodeArity( HAMT *h )
+{
+  return popcount(h->bitmap);
+}
 
 #endif

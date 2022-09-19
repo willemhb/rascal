@@ -7,63 +7,25 @@
 #include "table.h"
 
 // C types --------------------------------------------------------------------
-typedef enum
-  {
-   // stack manipulation ------------------------------------------------------
-   OP_PUSH,
-   OP_POP,
-
-   // load & store instructions -----------------------------------------------
-   OP_CONSTANT,
-   OP_LOAD_GLOBAL,
-   OP_STORE_GLOBAL,
-   OP_LOAD_LOCAL,
-   OP_STORE_LOCAL,
-   OP_LOAD_UPVALUE,
-   OP_STORE_UPVALUE,
-   
-   // control flow -----------------------------------------------------------
-   OP_JUMP,
-   OP_JUMP_TRUE,
-   OP_JUMP_FALSE,
-   OP_CALL,
-   OP_RETURN,
-  } OpCode;
-
-
+typedef struct
+{
+  UInt16          : 12;
+  UInt16 native   :  1;
+  UInt16 bytecode :  1;
+  UInt16 vargs    :  1;
+} FunctionFl;
 
 struct Function
 {
-  OBJ_HEAD(UInt16);
+  OBJ_HEAD(FunctionFl);
 
-  Binary *name;
+  String *name;
 
-  Arity   arity;
-  Arity   flags  : 31;
-  Arity   vargs  :  1;
-  
   union
   {
-    Native   *native;
+    NativeFn  native;
     ByteCode *bytecode;
   };
-};
-
-struct Native
-{
-  OBJ_HEAD(BinaryFl);
-  NativeFn function;
-};
-
-struct ByteCode
-{
-  OBJ_HEAD(BinaryFl);
-  
-  Arity         nUpvalues;
-  Arity         nArgs;
-  
-  Instructions *code;
-  ArrayList    *constants;
 };
 
 struct Closure
@@ -73,5 +35,17 @@ struct Closure
   Function  *function;
   ArrayList *upvalues;
 };
+
+// utility macros -------------------------------------------------------------
+#define fnArgco(val)     (asFunction(val)->object.arity)
+#define fnIsNative(val)  (asFunction(val)->object.flags.native)
+#define fnIsCode(val)    (asFunction(val)->object.flags.bytecode)
+#define fnName(val)      (asFunction(val)->name)
+#define fnNative(val)    (asFunction(val)->native)
+#define fnByteCode(val)  (asFunction(val)->bytecode)
+
+#define clNStack(val)    (asClosure(val)->object.arity)
+#define clFunction(val)  (asClosure(val)->function)
+#define clUpvalues(val)  (asClosure(val)->upvalues)
 
 #endif

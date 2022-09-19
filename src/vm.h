@@ -25,7 +25,7 @@ typedef struct VM
   Parser      *parser;
 
   // memory management state --------------------------------------------------
-  UpValue     *openUpvalues;
+  List        *openUpvalues;
   Obj         *objects;
   Size         bytesAllocated;
   Size         nextGC;

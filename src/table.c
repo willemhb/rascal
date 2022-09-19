@@ -1,23 +1,97 @@
 #include <string.h>
+#include <stdlib.h>
+#include <tgmath.h>
 
-#include "vm.h"
-#include "memory.h"
 #include "table.h"
+#include "memory.h"
 #include "value.h"
+#include "vm.h"
+
+// parameters -----------------------------------------------------------------
+#define TABLE_MIN_NKEYS        8
+#define TABLE_RESIZE_PRESSURE  0.75
+#define ARRAY_RESIZE_PRESSURE  1.0
+#define PYTHON_RESIZE_PRESSURE 0.0
+#define TABLE_RESIZE_FACTOR    2.0
+#define FNV64_PRIME  0x00000100000001B3ul
+#define FNV64_OFFSET 0xcbf29ce484222325ul
+
+// globals --------------------------------------------------------------------
+Table EmptyTableObj;
+ArrayList EmptyArrListObj;
+
+
 
 // forward declarations -------------------------------------------------------
-static Void    resizeTable( Table *table, Arity newCap );
 static Void    growTable( Table *table );
 static Void    shrinkTable( Table *table );
 static Void    rehash( Entry **oldData, Arity oldCap, Entry **newData, Arity newCap );
 static Entry **tableLocate( Table *table, Value key, Hash *buf );
 static Void    addEntry( Table *table, Entry **location, Value key, Hash hash );
 static Entry  *popEntry( Table *table, Entry **location );
+static Size    trimArraySize( Obj *obj, Size newSize, Real pressure );
+
+static Size  trimArraySize( Obj *obj, Size newSize, Real pressure )
+{
+  Size oldCap, oldSize, newCap;
+  Bool conservative = pressure == PYTHON_RESIZE_PRESSURE;
+
+  if (obj)
+    {
+      oldCap  = arrListCap(obj);
+      oldSize = arrListLength(obj);
+    }
+
+  else
+    {
+      oldSize = 0;
+      oldCap  = conservative ? 0 : TABLE_MIN_NKEYS;
+    }
+  
+  if (conservative)
+    {
+      // python algorithm - significantly less overallocation, more resizes
+      if (newSize <= oldCap && newSize >= (oldCap>>1))
+	newCap = oldCap;
+
+      else
+	{
+	  newCap = (newSize + (newSize >> 3) + 6) & ~3ul;
+
+	  if (newSize - oldSize > newCap - newSize)
+	    newCap = (newSize + 3) & ~3ul;
+	}
+    }
+  
+  else
+    {
+      if (newSize > (oldCap * pressure))
+	{
+	  do 
+	    oldCap <<= 1;
+	  while (newSize > (oldCap*pressure));
+	  newCap = oldCap;
+	}
+
+      else if (newSize < oldCap / 2 *  pressure
+	       && oldCap > TABLE_MIN_NKEYS)
+	{
+	  do
+	    oldCap >>= 1;
+	  while (newSize < oldCap / 2 * pressure
+		 && oldCap > TABLE_MIN_NKEYS);
+	  newCap = oldCap;
+	}
+      else
+	{
+	  newCap = oldCap;
+	}
+    }
+
+  return newCap;
+}
 
 // hashing functions ----------------------------------------------------------
-#define FNV64_PRIME  0x00000100000001B3ul
-#define FNV64_OFFSET 0xcbf29ce484222325ul
-
 Hash hashCstring( const Char* cstr )
 {
   return hashMemory( (const UInt8*)cstr, strlen(cstr) );
@@ -49,12 +123,12 @@ Hash hashInt( uint64_t key )
 
 Hash hashReal( Real key )
 {
-  return hashInt( AS_VALUE(key, 0) );
+  return hashInt( asValue(key) );
 }
 
-Hash hashPointer( const Pointer p )
+Hash hashPointer( const Void *p )
 {
-  return hashInt( AS_VALUE(p, 0) );
+  return hashInt( (Value)p );
 }
 
 Hash mixHash( Hash xHash, Hash yHash )
@@ -62,18 +136,98 @@ Hash mixHash( Hash xHash, Hash yHash )
   return hashInt( xHash ^ yHash );
 }
 
-// table implementations ------------------------------------------------------
-#define TABLE_MIN_NKEYS       8
-#define TABLE_RESIZE_PRESSURE 0.75
-#define TABLE_RESIZE_FACTOR   2.0
-
-
-Void initTable( Table *table )
+// memory methods -------------------------------------------------------------
+// trace ----------------------------------------------------------------------
+Void traceTable( Obj *object )
 {
-  initObject( (Obj*)table, OBJ_TABLE );
+  Table *table = (Table*)object;
+  
+  trace( (Obj**)table->entries, table->cap );
+}
+
+Void traceArrList( Obj *object )
+{
+  ArrayList *aList = (ArrayList*)object;
+
+  trace( aList->values, aList->length );
+}
+
+// finalize -------------------------------------------------------------------
+Void finalizeTable( Obj *object )
+{
+  Table *table = (Table*)object;
+
+  if ( table->entries )
+    free( table->entries );
+}
+
+Void finalizeArrList( Obj *object )
+{
+  ArrayList *aList = (ArrayList*)object;
+
+  if ( aList->values )
+    free( aList->values );
+}
+
+// construct ------------------------------------------------------------------
+Obj *constructTable( Size count, Flags fl)
+{
+  Size base = sizeof(Table);
+
+  if (isSharedFl(fl))
+      return allocate( base );
+  
+  Size cap          = trimArraySize(NULL, count, TABLE_RESIZE_PRESSURE);
+
+  Obj *out          = allocate( base + cap * sizeof(Entry*));
+  Entry **entries   = (Entry**)((Char*)out + sizeof(Table));
+  tableEntries(out) = entries;
+  tableCap(out)     = cap;
+
+  return out;
+}
+
+Obj *constructArrList( Size count, Bool share)
+{
+    
+}
+
+// resize ---------------------------------------------------------------------
+Obj *resizeTable( Obj *obj, Size newSize )
+{
+  
+}
+
+Obj *resizeArrList( Obj *obj, Size newSize )
+{
+  
+}
+
+// initialize -----------------------------------------------------------------
+Void initTable( Obj *obj, Size count, Void *data, Flags flags )
+{
+  
+}
+
+Void initArrList( Obj *obj, Size count, Void *data, Flags flags )
+{
+  
+}
+
+Void initEntry( Obj *obj, Size count, Void *data, Flags flags )
+{
+  
+}
+
+// table implementations ------------------------------------------------------
+
+
+Void tableInit( Table *table )
+{
+  initObj( (Obj*)table, VAL_TABLE );
   table->length   = 0;
-  table->capacity = TABLE_MIN_NKEYS;
-  table->data     = ALLOCATE( Tuple*, table->capacity );
+  table->cap      = TABLE_MIN_NKEYS;
+  table->entries  = allocate( table->cap * );
 }
 
 Void freeTable( Table *table )
@@ -250,12 +404,15 @@ Entry *tablePop( Table *table, Value key )
 }
 
 // initialization -------------------------------------------------------------
-Table SymbolTable;
-
-Void TableInit( Void )
+Void tableInit( Void )
 {
-  vm.symbols  = &SymbolTable;
-  vm.nSymbols = 0;
+  // initialize dispatch tables
+  ValueTag[VAL_TABLE]           = OBJECT;
+  Immutable[VAL_TABLE]          = false;
+  BaseSizeDispatch[VAL_TABLE]   = sizeof(Table);
+  TraceDispatch[VAL_TABLE]      = traceTable;
+  ConstructDispatch[VAL_TABLE]  = constructTable;
+  InitializeDispatch[VAL_TABLE] = initTable;
 
-  initTable( &SymbolTable );
+  
 }

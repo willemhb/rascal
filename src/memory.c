@@ -1,136 +1,143 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "memory.h"
-#include "compiler.h"
-#include "list.h"
-#include "function.h"
 #include "vm.h"
 
 #define GC_HEAP_GROW_FACTOR 2
 
-// C types --------------------------------------------------------------------
-typedef Void (*Trace)(Obj*);
-typedef Void (*Finalize)(Obj *);
-
-// forward declarations -------------------------------------------------------
-Void traceList(Obj *obj);
-Void traceFunction(Obj *obj);
-Void traceVector(Obj *obj);
-Void traceMap(Obj *obj);
-Void traceClosure(Obj *obj);
-
-Void traceUpValue(Obj *obj);
-
-Void traceArrayList(Obj *obj);
-Void traceByteCode(Obj *obj);
-Void traceTable(Obj *obj);
-
-Void finalizeAtom(Obj *obj);
-Void finalizeFunction(Obj *obj);
-Void finalizeBinary(Obj *obj);
-Void finalizeVector(Obj *obj);
-Void finalizeMap(Obj *obj);
-Void finalizeClosure(Obj *obj);
-
-Void finalizeArrayList(Obj *obj);
-Void finalizeByteCode(Obj *obj);
-Void finalizeTable(Obj *obj);
-
-Trace TraceDispatch[NUM_TYPES] =
-  {
-    [VAL_REAL]      = NULL,           [VAL_BOOL]      = NULL,
-    [VAL_CHAR]      = NULL,
-
-    [VAL_ATOM]      = NULL,           [VAL_LIST]      = traceList,
-    [VAL_FUNCTION]  = traceFunction,  [VAL_BINARY]    = NULL,
-    [VAL_VECTOR]    = traceVector,    [VAL_MAP]       = traceMap,
-    [VAL_CLOSURE]   = traceClosure,
-
-    [VAL_UPVALUE]   = traceUpValue,   [VAL_NATIVE]    = NULL,
-    [VAL_ARRAYLIST] = traceArrayList, [VAL_BYTECODE]  = traceByteCode,
-    [VAL_TABLE]     = traceTable,     [VAL_ENTRY]     = NULL,
-  };
-
-Finalize FinalizeDispatch[NUM_TYPES] =
-  {
-    [VAL_REAL]      = NULL,              [VAL_BOOL]      = NULL,
-    [VAL_CHAR]      = NULL,
-
-    [VAL_ATOM]      = finalizeAtom,      [VAL_LIST]      = NULL,
-    [VAL_FUNCTION]  = finalizeFunction,  [VAL_BINARY]    = finalizeBinary,
-    [VAL_VECTOR]    = finalizeVector,    [VAL_MAP]       = finalizeMap,
-    [VAL_CLOSURE]   = finalizeClosure,
-
-    [VAL_UPVALUE]   = NULL,              [VAL_NATIVE]    = NULL,
-    [VAL_ARRAYLIST] = finalizeArrayList, [VAL_BYTECODE]  = finalizeByteCode,
-    [VAL_TABLE]     = traceTable,        [VAL_ENTRY]     = NULL,
-  };
-
-// internal methods -----------------------------------------------------------
-Void traceList(Obj *obj)
+// trace methods --------------------------------------------------------------
+Void traceValue( Value val )
 {
-  List *list = (List*)obj;
-  
-  while (list && !objBlack(list))
-    {
-      markValue(list->head);
-      objGray(list) = false;
-      list = list->tail;
-    }
+  assert(isObj(val));
+  traceObject( asObj(val) );
 }
 
-Void traceUpValue(Obj *obj)
+Void traceObject( Obj *object )
 {
-  UpValue *upvalue = asUpValue(obj);
+  assert(object != NULL);
+  ValueType objT = typeOf(object);
+  assert(TraceDispatch[objT] != NULL);
 
-  while (upvalue && !objBlack(upvalue))
-    {
-      Value val = deRefUpValue(upvalue);
-      markValue(val);
-      objGray(upvalue) = false;
-      upvalue = upValueNext(upvalue);
-    }
+  TraceDispatch[objT]( object );
 }
 
-Void markFunction(Obj *obj)
+Void traceValues( Value *values, Arity count )
 {
-  
+  for (Arity i=0; i<count; i++)
+    mark(values[i]);
 }
 
-
-void markArrayList(Obj *obj)
+Void traceObjects( Obj **objects, Arity count )
 {
-  ArrayList *array = asArrayList(obj);
-  
-  for (Arity i = 0; i < array->length; i++)
-    markValue(array->values[i]);
+  for (Arity i=0; i<count; i++)
+    mark(objects[i]);
 }
 
+// finalize implementation ----------------------------------------------------
+Void finalizeValue( Value arg )
+{
+  finalizeObject( asObj(arg) );
+}
+
+Void finalizeObject( Obj *obj )
+{
+  if (obj == NULL)
+    return;
+
+  ValueType oType = typeOf(obj);
+
+  if (FinalizeDispatch[oType])
+    FinalizeDispatch[oType](obj);
+
+  if ( objAlloc(obj) )
+    free( obj );
+}
+
+Void finalizeValues( Value *values, Arity count )
+{
+  for (Arity i=0; i<count; i++)
+    finalize(values[i]);
+}
+
+Void finalizeObjects( Obj **objects, Arity count )
+{
+  for (Arity i=0; i<count; i++)
+    finalize(objects[i]);
+}
 
 // memory management ----------------------------------------------------------
-Void *allocate( Size nBytes )
+Obj  *constructObj( ValueType type, Size count, Void *data, Flags fl )
+{
+  Obj *obj;
+  if (isAllocFl(fl))
+    obj = allocate( type, count, data, fl );
+
+  else
+    {
+      assert(data);
+      obj = data;
+    }
+
+  if (obj != NULL)
+    {
+      initObj( obj, type, fl );
+
+      if ( InitializeDispatch[type] )
+	InitializeDispatch[type]( obj, count, data, fl );
+    }
+
+  return obj;
+}
+
+Void *allocateBytes( Size nBytes )
 {
   vm.bytesAllocated += nBytes;
 
-  if ()
-    
+  if (vm.bytesAllocated > vm.nextGC)
+    collectGarbage();
+
+  Void *out = safeMalloc( nBytes );
+
+  memset( out, 0, nBytes );
+  return out;
 }
 
-Void* reallocate(Void* pointer, Size oldSize, Size newSize)
+Obj  *allocateObject( ValueType objType, Size count, Void *data, Flags fl )
 {
-  vm.bytesAllocated += newSize - oldSize;
-  if (newSize > oldSize)
+  (Void)data;
+
+  Obj *out;
+  
+  if (ConstructDispatch[objType])
+    out = ConstructDispatch[objType]( count, fl );
+
+  else if (count > 0)
     {
-#ifdef DEBUG_STRESS_GC
-      collectGarbage();
-#endif
-      
-      if (vm.bytesAllocated > vm.nextGC)
-	{
-	  collectGarbage();
-	}
+      Size base = BaseSizeDispatch[objType];
+      out       = allocate( base * count );
     }
+
+  else if (Immutable[objType])
+    out = Singletons[objType];
+
+  else
+    {
+      Size base = BaseSizeDispatch[objType];
+      out       = allocateBytes(base);
+    }
+
+  return out;
+}
+
+Void *reallocateBytes( Void* pointer, Size oldSize, Size newSize )
+{
+  vm.bytesAllocated += newSize;
+  vm.bytesAllocated -= oldSize;
+  
+  if (vm.bytesAllocated > vm.nextGC)
+    collectGarbage();
   
   if (newSize == 0)
     {
@@ -138,21 +145,55 @@ Void* reallocate(Void* pointer, Size oldSize, Size newSize)
       return NULL;
     }
 
-  void *result;
+  void *result = safeRealloc( pointer, newSize );
 
-  if (cache)
-    {
-      result = safeMalloc( newSize );
-      
-    }
-
-  else
-    result = safeRealloc( pointer, newSize );
-  
   return result;
 }
 
-void markObject(Obj* object) {
+Value  reallocateVal( Value val, Size newSize )
+{
+  if (isImmediate(val) || isObj(val))
+    {
+      Obj *new = reallocateObj( asObj(val), newSize );
+      return tagValue( new, OBJECT );
+    }
+
+  return val;
+}
+
+Obj   *reallocateObj( Obj *object, Size newSize )
+{
+  if (objSingleton(object))
+      return constructObj( typeOf(object), newSize, NULL, ALLOC_ALLOCATE );
+
+  if (ResizeDispatch[typeOf(object)])
+    return ResizeDispatch[typeOf(object)](object, newSize );
+
+  // this shouldn't ever be reached
+  unreachable();
+}
+
+// object and value size ------------------------------------------------------
+Size valSizeOf( Value val )
+{
+  if (isObj(val))
+    return objSizeOf( asObj(val) );
+
+  return BaseSizeDispatch[typeOf(val)];
+}
+
+Size objSizeOf( Obj *obj )
+{
+  assert(obj);
+
+  if (!objSingleton(obj) && SizeOfDispatch[objType(obj)])
+    return SizeOfDispatch[objType(obj)](obj);
+
+  return BaseSizeDispatch[objType(obj)];
+}
+
+// garbage collector phases ---------------------------------------------------
+Void markObject(Obj* object) {
   if (object == NULL)
     return;
 
@@ -162,7 +203,7 @@ void markObject(Obj* object) {
   object->black = true;
 
   if (objGray( object ) && TraceDispatch[objType(object)])
-      pushArrayList( vm.grayStack, tagObj( object ) );
+    arrListPush( vm.grayStack, tagValue( object, OBJECT ));
 
   else
     objGray( object ) = false;
@@ -172,12 +213,6 @@ void markValue(Value value)
 {
   if (isObj(value))
     markObject(asObj(value));
-}
-
-
-static void freeObject(Obj* object)
-{
-  
 }
 
 static Void markRoots( Void )
@@ -193,9 +228,9 @@ static Void traceReferences( Void )
 {
   while (vm.grayStack->length > 0)
     {
-      Value toTrace = popArrayList( vm.grayStack );
-      Obj  *object  = asObj( toTrace );
-      TraceDispatch[objType(object)]( object );
+      Value toTrace     = arrListPop( vm.grayStack );
+      trace( toTrace );
+      objGray( toTrace ) = false;
     }
 }
 
@@ -225,7 +260,7 @@ static Void sweep( Void )
 	  else
 	      vm.objects = object;
 
-	  freeObject(unreached);
+	  finalize( unreached );
 	}
     }
 }
@@ -244,9 +279,22 @@ Void freeObjects( Void )
   while (object != NULL)
     {
       Obj* next = object->next;
-      freeObject(object);
+      finalize(object);
       object = next;
     }
   
   free(vm.grayStack);
+}
+
+// initialization -------------------------------------------------------------
+Void initMemory( Void )
+{
+  // initialize dispatch tables
+  initDispatch(TraceDispatch);
+  initDispatch(FinalizeDispatch);
+  initDispatch(BaseSizeDispatch);
+  initDispatch(SizeOfDispatch);
+  initDispatch(ResizeDispatch);
+  initDispatch(ConstructDispatch);
+  initDispatch(InitializeDispatch);
 }

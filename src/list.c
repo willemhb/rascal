@@ -1,20 +1,19 @@
 #include <stdio.h>
 
-#include "memory.h"
-#include "value.h"
-#include "table.h"
 #include "list.h"
+#include "memory.h"
+#include "prin.h"
+
+// globals --------------------------------------------------------------------
+List NilObj;
 
 // static helpers -------------------------------------------------------------
 static void initCell( List *ob, Value head, List *tail )
 {
-  ob->head = head;
-  ob->tail = tail;
+  listHead(ob)  = head;
+  listTail(ob)  = tail;
 
-  obj_arity(ob) = 1;
-
-  if (tail)
-    obj_arity(ob) += obj_arity(tail);
+  listArity(ob) = 1 + listArity(tail);
 }
 
 static void initCells( List *head, Arity nArgs, Value *args, List *last )
@@ -22,69 +21,39 @@ static void initCells( List *head, Arity nArgs, Value *args, List *last )
   for (Arity i=0; i<nArgs; i++)
     {
       List *tail = i == nArgs - 1 ? last : head+i+1;
-      initCell( head+i, args[i], tail );
+      initObj( (Obj*)(head+i), VAL_LIST, true );
+
+
+      if (args == NULL)
+	initCell( head+i, NIL, tail );
+	
+      else
+	initCell( head+i, args[i], tail );
     }
 }
 
-// object api -----------------------------------------------------------------
-List *newList( void )
+// memory methods -------------------------------------------------------------
+Void traceList( Obj *ob )
 {
-  return (List*)allocateObject( OBJ_LIST, 1 );
-}
+  List *xs = (List*)ob;
 
-List *newListN( Arity nArgs )
-{
-  assert(nArgs > 0);
-  return (List*)allocateObject( OBJ_LIST, nArgs );
-}
-
-List *Cons( Value head, List *tail )
-{
-  List *out = newList();
-  initCell( out, head, tail );
-  return out;
-}
-
-List *ListN( Value *args, Arity nArgs )
-{
-  if (nArgs == 0)
-    return NULL;
-
-  List *out  = newListN( nArgs );
-
-  if (args)
-    initCells( out, nArgs, args, NULL );
-
-  return out;
-}
-
-List *ConsN( Value *args, Arity nArgs )
-{
-  assert(nArgs >= 2);
-
-  List *out  = newListN( nArgs - 1);
-  List *last = as_list(args[nArgs-1]);
-  initCells(out, nArgs, args, last);
-  return out;
-}
-
-// utilities ------------------------------------------------------------------
-List *listAssoc( List *list, Value key )
-{
-  while (list)
+  while (!objBlack(xs))
     {
-      if ( equalValues( list->head, key ) )
-	break;
-
-      list = list->tail;
+      mark( listHead(xs) );
+      xs = listTail(xs);
     }
-
-  return list;
 }
 
+Void  initList( Obj *object, Size count, Void *data, Flags fl )
+{
+  List  *list = (List*)object;
+  Value *vals = data;
+  List  *tail = vals && isSharedFl(fl) ? asList( vals[count-1] ) : NULL;
 
+  initCells( list, count, vals, tail );
+}
 
-// implementations ------------------------------------------------------------
+// utility methods ------------------------------------------------------------
 Int  orderLists( Value xs, Value ys )
 {
   if (xs == NIL)
@@ -93,7 +62,7 @@ Int  orderLists( Value xs, Value ys )
   if (ys == NIL)
     return 1;
 
-  List *xsl = as_list(xs), *ysl = as_list(ys);
+  List *xsl = asList(xs), *ysl = asList(ys);
 
   Int o;
 
@@ -109,52 +78,68 @@ Int  orderLists( Value xs, Value ys )
   return 0 - (xsl == NULL) + (ysl == NULL);
 }
 
-Bool equalLists( Value xs, Value ys )
+// IO methods -----------------------------------------------------------------
+Void prinListObj( Obj *obj )
 {
-  return !!orderLists( xs, ys );
-}
+  printf( "(" );
 
-Void printList( Value xs )
-{
-  printf( "[" );
-
-  List *xsOb = as_list(xs);
+  List *xsOb = asList(obj);
 
   while ( xsOb )
     {
-      printValue( xsOb->head );
+      prinLisp( xsOb->head );
+
+      
+      if (!listIsProper(xsOb))
+	{
+	  printf( " . " );
+	  prinLisp( xsOb->cdr );
+	  break;
+	}
+
+      if (xsOb->tail)
+	printf( " " );
 
       xsOb = xsOb->tail;
-
-      if ( xsOb )
-	printf( ", " );
     }
 
-  printf( "]" );
+  printf( ")" );
 }
 
-Hash hashList( Value xs )
+// object api -----------------------------------------------------------------
+List *ListN( Value *args, Arity nArgs )
 {
-  if (xs == NIL)
-    return hashInt(xs);
-
-  return hashPointer(as_obj(xs));
+  return (List*)constructObj( VAL_LIST, nArgs, args, ALLOC_ALLOCATE );
 }
 
-// memory management ----------------------------------------------------------
+List *Cons2( Value head, List *tail )
+{
+  List *out = ListN( NULL, 1 );
+  initCell( out, head, tail );
+  return out;
+}
 
+List *ConsN( Value *args, Arity nArgs )
+{
+  assert(nArgs >= 2);
+
+  List *out  = ListN( NULL, nArgs - 1 );
+  List *last = asList(args[nArgs-1]);
+  initCells( out, nArgs, args, last );
+  return out;
+}
 
 // initialization -------------------------------------------------------------
 Void listInit( Void )
 {
-  TypeDispatch[OBJ_LIST] = &ListMethods;
-  TypeDispatch[VAL_NIL]  = &ListMethods;
-  
-  ListMethods.Print      = printList;
-  ListMethods.Order      = orderLists;
-  ListMethods.Equal      = equalLists;
-  ListMethods.Hash       = hashList;
+  initObj( (Obj*)&NilObj, VAL_LIST, false );
 
-  ListMethods.Mark       = markList;
-  ListMethods.Finalize   = NULL;
+  NilObj.head = NIL;
+  NilObj.tail = &NilObj;
+
+  BaseSizeDispatch[VAL_LIST]   = sizeof(List);
+    TraceDispatch[VAL_LIST]      = traceList;
+  InitializeDispatch[VAL_LIST] = initList;
+  PrinObjDispatch[VAL_LIST]    = prinListObj;
+  OrderDispatch[VAL_LIST]      = orderLists;
 }

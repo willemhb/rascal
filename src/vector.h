@@ -9,15 +9,9 @@ typedef struct
   HAMT_FL_SPEC;
 } VectorFl;
 
-typedef union
-{
-  Value  space[0];
-  Value *data;
-} VectorData;
-
 struct Vector
 {
-  HAMT_SPEC(VectorData, VectorFl);
+  HAMT_SPEC(Value*, VectorFl);
 };
 
 // statics and utility macros -------------------------------------------------
@@ -31,10 +25,6 @@ struct Vector
 #define vecBitmap(vec)     (asVector(vec)->bitmap)
 #define vecCache(vec)      (asVector(vec)->cache)
 #define vecParent(vec)     (asVector(vec)->parent)
-#define vecSpace(vec)      (asVector(vec)->_data.space)
-#define vecData(vec)       (asVector(vec)->_data.data)
-#define vecElements(vec)   (getVectorElements(asVector(vec)))
-
-HAMT_ELEMENTS(Vector, Value, space, data)
+#define vecData(vec)       (asVector(vec)->_data)
 
 #endif

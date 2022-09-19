@@ -1,146 +1,29 @@
-# begin system.rsp
+;; begin system.rsp
 
-# basic syntax examples
-fun pow
-  when x, n
-    do pow(x, n, 1)
-  when _, 0, acc
-    do acc
-  when x, n, acc
-    if n%2
-      do pow(x, n-1, x*acc)
-    else
-      do pow(x*x, n/2, acc)
-#end pow
+;; basic syntax examples
 
-fun mul
-  @doc "Multiply two numbers."
-  # short circuit when one argument is 0.
-  when _, 0
-  when 0, _
-    do 0
-  # base cases.
-  when x, 1
-  when 1, x
-    do x
-  when x, y
-    do x + mul( x, y-1 )
+(enum List
+      (data Nil)
+      (data Cons Any List))
 
-fun mul
-  @doc "Inductive cases."
-  when x, y
-    do x + mul( x, y-1 )
+(enum Gender :Male,
+      	     :Female,
+    	     :NonBinary,
+    	     :Other)
 
-fun op ::
-  when x, y@List
-    do Cons( x, y )
-  when x, y@Vec
-    do insert( y, -1 )
-  when x, y@Dict
-    do union( y, x )
+(enum Tree (data Empty)
+      	   (data Leaf Any)
+	   (data Node Any Tree Tree))
 
-fun map
-  @doc "Implementation for lists."
-  when _, []
-    do []
-  when fn, [x|xs]
-    do fn( x ) | map( fn, xs )
+(union Number Real,
+       	      Int,
+ 	      Complex,
+ 	      Ratio)
 
-fun map
-  @doc "Implement for multiple variable arity."
-  when fn, ys..
-    do
-      if ys.all?
-        let
-	  head <- fn( map( 0, ys ).. ),
-	  tail <- map( fn, map( [1:], ys ) )
-	in
-	  head|tail
-      else
-        []
+(class Person
+ (:name: Str)
+ (:age:  Int)
+ (:gender: Gender)
+ (birthday: Person [p: Person]))
 
-fun map
-  when _,  %[]
-    do %[]
-  when fn, %[x|xs]
-    do fn( x ) | map( fn, xs )
-
-fun map
-  when fn, %[x|xs]
-    do fn( x ) | map( fn, xs )
-
-fun conj
-  when xs
-    do xs
-
-fun conj
-  when xs, x
-    do x|xs
-
-fun conj
-  when xs, x, x'..
-    do conj( x|xs, ..x' )
-
-type Gender is
-    :Male
-  | :Female
-  | :NonBinary
-  | :Unspecified
-
-data Complex is
-  real: Real,
-  imag: Imag
-
-data Regex is
-  pattern:  String,
-  compiled: CompiledRegex,
-  flags:    RegexFlags
-
-class Person has
-  name: String,
-  age: Number,
-  gender: Gender,
-  birthday( _: Person ): Person
-
-fun op =
-  when x: Complex, y: Complex
-    do x.real = y.real and
-       x.imag = y.imag
-
-fun op +
-  when x@Complex, y@Complex
-    do Complex( x.real + y.real,
-       		x.imag + y.imag )
-
-mac op xor
-  when p xor q
-    quote {
-      if $p
-        if $q false else $p
-      elif $p
-        $q
-      else
-        false
-    }
-
-cntl Exception does
-  raise( x: A, msg: Text ): A
-
-fun catch
-  when action, handler
-    with
-      raise( x )
-        do handler( x )
-      raise( x, msg )
-        do handler( x, msg )
-    hndl
-      action
-
-fun main
-  when ..
-    do print( usage_message )
-  when _, "h" | "help", ..
-    do print( help_message )
-  # ...
-
-# end system.rsp
+;; end system.rsp

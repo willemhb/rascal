@@ -7,22 +7,33 @@
 
 #define IMTYPE_MASK UINT16_MAX
 
-ValueType valueType( Value x )
+ValueType valueTypeOf( Value x )
 {
-  Value tag = x&HEADER;
-
-  switch (tag)
+  switch (x&POINTER)
     {
-    case IMMEDIATE: return x>> 32 & IMTYPE_MASK;
-    case CHARACTER: return VAL_CHAR;
-    case INTEGER:   return VAL_INT;
-    case OBJECT:    return obj_type(x);
-    case ARITY:     return TAG_ARITY;
-    case POINTER:   return TAG_PTR;
-    case CSTRING:   return TAG_CSTR;
-    case HEADER:    return TAG_HEDR;
-    default:        return VAL_REAL;
+    case SMALL:
+      return x>>32&IMTYPE_MASK;
+	
+    case OBJECT:
+      return objectTypeOf( asObj(x) );
+
+    case IMMEDIATE:
+      return x&IMTYPE_MASK;
+
+    case INTEGER:
+    case ARITY:
+    case POINTER:
+      return VAL_INT;
+      
+    default:
+      return VAL_REAL;
     }
+}
+
+ValueType objectTypeOf( Obj *object )
+{
+  assert(object != NULL);
+  return objType( object );
 }
 
 Bool sameValues( Value x , Value y )
@@ -40,7 +51,7 @@ Int orderValues( Value x, Value y )
   if (x == y)
     return 0;
 
-  ValueType xType = valueType( x ), yType = valueType( y );
+  ValueType xType = typeOf( x ), yType = valueType( y );
 
   if (xType != yType)
       return orderUInt( xType, yType );

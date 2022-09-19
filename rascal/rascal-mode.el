@@ -8,12 +8,12 @@
 ;;; Code:
 (define-generic-mode
   'rascal-mode
-  '("#")
-  '("fun"  "mac"  "op"   "data"  "type"   "class"  "cntl"
-    "val"  "var"  "do"   "quote" "syntax" "where"
-    "if"   "elif" "else" "and"   "or"     "not"
-    "let"  "in"   "is"   "has"   "does"
-    "when" "case" "hndl" "with")
+  '(";")
+  '("fun"  "mac"  "cntl"
+    "enum" "data" "union" "type"  "class"
+    "val"  "var"  "do"    "quote" "syntax"
+    "if"   "case" "cond"  "and"   "or"
+    "let"  "with" "hndl")
   '(("otherwise" . font-lock-builtin-face)
     ("true" . font-lock-builtin-face)
     ("false" . font-lock-builtin-face)

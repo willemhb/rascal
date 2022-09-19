@@ -43,6 +43,7 @@ typedef bool           Bool;
 typedef UInt64         Hash;
 typedef UInt64         Idno;
 typedef UInt32         Arity;
+typedef UInt32         Flags;
 
 // renames of __builtin -------------------------------------------------------
 #define popcount(x)				\
@@ -64,5 +65,15 @@ typedef UInt32         Arity;
 
 #define unreachable __builtin_unreachable
 #define attribute   __attribute__
+
+#define unlikely(x) __builtin_expect(0,(x))
+#define likely(x)   __builtin_expect(1,!!(x))
+
+// common describe macros -----------------------------------------------------
+#define FlagPredicate(flag, FLAG)		\
+  Bool is##flag##Fl( Flags fl )			\
+  {						\
+    return !!(fl&FLAG);				\
+  }
 
 #endif
