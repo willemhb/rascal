@@ -26,25 +26,32 @@ typedef uint32_t     val_type_t;
 // value types
 enum
   {
-    NIL_TYPE=1,
+    none_type,
+    nil_type=1,
 
-    INT_TYPE,
-    REAL_TYPE,
-    BOOL_TYPE,
-    CHAR_TYPE,
+    int_type,
+    real_type,
+    bool_type,
+    char_type,
 
-    ATOM_TYPE,
-    CONS_TYPE,
-    FUNC_TYPE,
-    PORT_TYPE,
-    STRING_TYPE,
+    atom_type,
+    cons_type,
+    func_type,
+    port_type,
+    str_type,
+    any_type,
 
     // internal types
-    NATIVE_TYPE,
-    CODE_TYPE,
-    CLOSURE_TYPE,
+    native_type,
+    code_type,
+    closure_type,
+    stack_type,
+    sym_table_type,
+    sym_table_kv_type,
+    heap_type,
+    vm_type,    
     
-    NUM_VALUE_TYPES
+    num_value_types
   };
 
 #define BOOLEAN   (SMALL|((val_t)BOOL_TYPE<<32))
@@ -66,5 +73,8 @@ typedef union
     int_t        : 16;
   };
 } val_data_t;
+
+// statics and utilities ------------------------------------------------------
+#define val_tag(val) ((val)&ARITY)
 
 #endif

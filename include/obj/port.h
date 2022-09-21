@@ -4,7 +4,6 @@
 #include "obj.h"
 #include "read.h"
 
-
 // C types --------------------------------------------------------------------
 typedef struct port_t
 {
@@ -17,5 +16,11 @@ typedef struct port_t
   tok_t    token;
   flags_t  flags;
 } port_t;
+
+// globals --------------------------------------------------------------------
+extern obj_t *Ins, *Outs, *Errs;
+// toplevel dispatch ----------------------------------------------------------
+void port_mark( void );
+void port_init( void );
 
 #endif

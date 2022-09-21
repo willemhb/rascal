@@ -3,8 +3,12 @@
 
 #include "val.h"
 
-// forward declarations
+// forward declarations -------------------------------------------------------
 void prin_obj(obj_t *obj, obj_t *ios);
 void prin_val(val_t val,  obj_t *ios);
+
+// toplevel dispatch ----------------------------------------------------------
+void read_mark( void );
+void read_init( void );
 
 #endif

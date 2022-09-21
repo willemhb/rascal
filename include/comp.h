@@ -28,4 +28,8 @@ obj_t *comp_val(val_t val);
 obj_t *comp_obj(obj_t *obj);
 obj_t *comp_file(obj_t *fname);
 
+// toplevel dispatch ----------------------------------------------------------
+void comp_mark( void );
+void comp_init( void );
+
 #endif

@@ -10,12 +10,14 @@ void init_obj(obj_t *obj, val_type_t type, flags_t fl)
 
   if (is_flag( fl, MEM_STATIC))
     {
-      obj->next  = NULL;
+      obj->next  = obj;
       obj->black = true;
     }
 
   else
     {
-      obj->next = ObList;      
+      obj->next        = TheHeap->objects;
+      TheHeap->objects = obj;
+      obj->black       = false;
     }
 }

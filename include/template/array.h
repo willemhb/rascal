@@ -11,11 +11,17 @@
   }
 
 #define STRING(T, V)				\
+  typedef struct T##_ini_t			\
+  {						\
+    V *data;					\
+    bool has_hash;				\
+    hash_t hash;				\
+  } T##_ini_t;					\
   struct T##_t					\
   {						\
     OBJ_HEAD;					\
     V      *vals;				\
-    hash_t  h;					\
+    hash_t  hash;				\
   }
 
 #define TUPLE(T, V)				\
