@@ -12,9 +12,11 @@ struct obj_t
   arity_t     arity;
 };
 
-#define OBJ_HEAD obj_t object
+#define OBJ_HEAD \
+  obj_t object
 
 // forward declarations -------------------------------------------------------
 void init_obj( obj_t *obj, val_type_t type, flags_t fl );
+void mark_obj( obj_t *obj );
 
 #endif

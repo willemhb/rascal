@@ -1,0 +1,15 @@
+;;; begin math.rsp
+
+(fun diff
+  "With one argument, returns a function that computes the derivative of fn."
+  [fn]
+    (curry diff fn)
+  [fn x]
+    (diff fn x 0.0001)
+  [fn x h]
+    (/ (- (fn (+x h))
+       	  (fn x))
+       h))
+
+(fun sqrt
+  "Square root by newton's method.")

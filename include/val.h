@@ -1,7 +1,7 @@
 #ifndef rascal_val_h
 #define rascal_val_h
 
-#include "common.h"
+#include "core.h"
 
 #define QNAN      0x7ffc000000000000ul
 #define SIGN      0x8000000000000000ul
@@ -26,7 +26,7 @@ typedef uint32_t     val_type_t;
 // value types
 enum
   {
-    NIL_TYPE,
+    NIL_TYPE=1,
 
     INT_TYPE,
     REAL_TYPE,
@@ -47,6 +47,10 @@ enum
     NUM_VALUE_TYPES
   };
 
+#define BOOLEAN   (SMALL|((val_t)BOOL_TYPE<<32))
+#define CHARACTER (SMALL|((val_t)CHAR_TYPE<<32))
+#define NIL       (IMMEDIATE|NIL_TYPE)
+
 #define NUM_TYPES_PAD 255
 
 typedef union
@@ -62,7 +66,5 @@ typedef union
     int_t        : 16;
   };
 } val_data_t;
-
-
 
 #endif
