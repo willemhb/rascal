@@ -3,10 +3,7 @@
 
 #include "obj.h"
 
-
-// C types --------------------------------------------------------------------
-// static function representation ---------------------------------------------
-typedef struct func_t
+struct func_t
 {
   OBJ_HEAD;
 
@@ -16,7 +13,7 @@ typedef struct func_t
   obj_t *name;
   obj_t *ns;
   obj_t *tplt;
-} func_t;
+};
 
 // container for a builtin function -------------------------------------------
 typedef struct native_t

@@ -3,12 +3,7 @@
 
 #include "obj.h"
 
-/**
- * static environment representation.
- **/
-
-// C types --------------------------------------------------------------------
-typedef struct ns_t ns_t;
+OBJ_TYPE(ns);
 
 struct ns_t
 {
@@ -25,10 +20,5 @@ struct ns_t
 
 // globals --------------------------------------------------------------------
 extern obj_t *ToplevelNS;
-// forward declarations -------------------------------------------------------
-// toplevel dispatch ----------------------------------------------------------
-void stack_mark( void );
-void stack_init( void );
-// convenience ----------------------------------------------------------------
 
 #endif

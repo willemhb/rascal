@@ -9,6 +9,7 @@
 static const arity_t sym_table_min_cap = 8;
 static const double  sym_table_load = 0.75;
 
+sym_table_t SymbolTableObject;
 
 static bool sym_table_cmp( str_t *interning, str_t *interned )
 {
@@ -66,10 +67,71 @@ obj_t *str_atom( str_t *str )
 }
 
 // hashing functions ----------------------------------------------------------
+#define FNV64_PRIME  0x00000100000001B3ul
+#define FNV64_OFFSET 0xcbf29ce484222325ul
 
+hash_t hash_string( char *chars )
+{
+  arity_t n = strlen(chars);
+  return hash_bytes((uint8_t*)chars, n);
+}
+
+hash_t hash_bytes( uint8_t *mem, arity_t n)
+{
+  hash_t  out = FNV64_OFFSET;
+
+  while (n > 8)
+    {
+      uint64_t chunk  = *(uint64_t*)mem;
+      out            ^= chunk;
+      out            *= FNV64_PRIME;
+      mem            += 8;
+      n              -= 8;
+    }
+
+  for (arity_t i=0; i<n; i++)
+    {
+      out ^= mem[i];
+      out *= FNV64_PRIME;
+    }
+
+  return out;
+}
+
+// memory methods -------------------------------------------------------------
+void init_atom( obj_t *obj, arity_t i, void *data, flags_t fl )
+{
+  (void)fl;
+  (void)i;
+  
+  atom_t *atom = (atom_t*)obj;
+  atom->idno   = ++SymbolCount;
+  atom->name   = data;
+  atom->hash   = mix_hashes( atom_type, atom->name->hash );
+}
 
 // toplevel dispatch ----------------------------------------------------------
-void atom_init( void )
+rt_table_t AtomRtTable, SymTableRtTable, SymTableKvRtTable;
+
+static void atom_init_globals( void )
+{
+  SymbolCount = 0;
+  SymbolTable = &SymbolTableObject;
+  initialize( (obj_t*)SymbolTable, sym_table_type, 0, NULL, STATIC_OBJ );
+}
+
+static void atom_init_types( void )
 {
   
+}
+
+void atom_init( void )
+{
+  atom_init_globals();
+  atom_init_types();
+}
+
+void atom_mark( void )
+{
+  mark_obj( (obj_t*)SymbolTable );
 }

@@ -3,35 +3,50 @@
 
 #include "val.h"
 
-struct obj_t
-{
-  obj_t      *next;
-  val_type_t  type  : 30;
-  val_type_t  black :  1;
-  val_type_t  gray  :  1;
-  arity_t     arity;
-};
+typedef struct init_t init_t;
 
 #define OBJ_HEAD \
   obj_t object
 
+#define DECL_OBJ(T)						\
+  typedef struct T##_t T##_t;					\
+  obj_t *new_##T(init_t *args);					\
+  void   init_##T(obj_t *obj, init_t *args);			\
+  void   mark_##T(obj_t *obj);					\
+  void   finalize_##T(obj_t *obj);				\
+  obj_t *resize_##T(obj_t *obj, size_t old_n, size_t new_n);	\
+  void   T##_init( void );					\
+  void	 T##_mark( void )
+
+#define IMPL_NEW(T)      obj_t *new_##T(init_t *args)
+#define IMPL_INIT(T)     void   init_##T(obj_t *obj, init_t *args)
+#define IMPL_MARK(T)     void   mark_##T(obj_t *obj)
+#define IMPL_FINALIZE(T) void   finalize_##T(obj_t *obj)
+#define IMPL_RESIZE(T)   void   resize_##T(obj_t *obj)
+#define INIT_IMPL(T)     void   T##_init( void )
+#define INIT_MARK(T)     void   T##_mark( void )
+
+DECL_OBJ(obj);
+
+struct obj_t
+{
+  obj_t      *next;
+  val_type_t  type;
+  uint16_t    flags;
+  uint8_t     black;
+  uint8_t     gray;
+};
+
+size_t sizeof_obj(obj_t *obj);
+bool   is_static(obj_t *obj);
+bool   has_static(obj_t *obj);
+bool   is_famous(obj_t *obj);
+
 // globals --------------------------------------------------------------------
 extern obj_t *WellKnownObjects[NUM_TYPES_PAD];
 
-// forward declarations -------------------------------------------------------
-void init_obj( obj_t *obj, val_type_t type, flags_t fl );
-void mark_obj( obj_t *obj );
-void finalize_obj( obj_t *obj );
-
-// toplevel dispatch ----------------------------------------------------------
-void obj_mark( void );
-void obj_init( void );
-
 // convenience ----------------------------------------------------------------
-static inline bool obj_is_static( obj_t *obj )
-{
-  return obj->next == obj;
-}
+#define as_obj(val) ((obj_t*)as_ptr(x))
 
 static inline void *as_ptr( val_t x )
 {
@@ -46,7 +61,7 @@ static inline void *as_ptr( val_t x )
 
 static inline val_t as_val( obj_t *obj )
 {
-  if (WellKnownObjects[obj->type] == obj)
+  if (is_famous(obj))
     return IMMEDIATE|obj->type;
 
   return ((val_t)obj)|OBJECT;

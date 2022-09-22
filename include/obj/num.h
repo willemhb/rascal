@@ -16,6 +16,7 @@ typedef enum
 size_t   C_type_size( C_type_t Ctype );
 uint64_t ceil_log2(uint64_t i);
 uint64_t floor_log2( uint64_t i);
+int_t    ord_uint(uint64_t x, uint64_t y);
 
 // toplevel dispatch ----------------------------------------------------------
 void stack_mark( void );

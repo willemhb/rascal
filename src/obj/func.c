@@ -1,0 +1,3 @@
+#include "obj/func.h"
+
+

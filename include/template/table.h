@@ -164,14 +164,15 @@ static inline size_t pad_table_size( size_t n, double load, size_t cap, size_t l
 	      return false;					\
 	    }							\
 	  idx++;						\
-	  if (idx >= table->cap)				\
-	    idx = 0;						\
-	}							\
-      T##_kv_ini_t ini = { table, k, h, NULL };			\
-      entry = construct( T##_kv_type, 1, &ini, INIT_SPECIAL );	\
-      entries[idx] = entry;					\
-      resize_##T( (obj_t*)table, table->len+1 );		\
-      if (buf)							\
+	  if (idx >= table->cap)					\
+	    idx = 0;							\
+	}								\
+      T##_kv_ini_t ini = { table, k, h, NULL };				\
+      entry = (T##_kv_t*)construct( T##_kv_type,			\
+				    1, &ini, INIT_SPECIAL );		\
+      entries[idx] = entry;						\
+      resize_##T( (obj_t*)table, table->len+1 );			\
+      if (buf)								\
 	*buf = (obj_t*)entry;					\
       return true;						\
     }

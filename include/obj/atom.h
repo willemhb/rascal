@@ -4,21 +4,21 @@
 #include "obj.h"
 
 // C types --------------------------------------------------------------------
-typedef struct sym_table_t    sym_table_t;
-typedef struct sym_table_kv_t sym_table_kv_t;
-typedef struct str_t          str_t;
+typedef struct symt_t    symt_t;
+typedef struct symt_kv_t symt_kv_t;
+typedef struct str_t     str_t;
 
 typedef struct atom_t
 {
   OBJ_HEAD;
-  obj_t     *name;
+  str_t     *name;
   hash_t     hash;
   idno_t     idno;
 } atom_t;
 
 // globals --------------------------------------------------------------------
-extern sym_table_t *SymbolTable;
-extern idno_t SymbolCount;
+extern symt_t *SymbolTable;
+extern idno_t  SymbolCount;
 
 // forward declarations & generics --------------------------------------------
 obj_t *intern( char *name );
@@ -37,6 +37,10 @@ obj_t *str_atom( str_t *str );
 // hashing utilities ----------------------------------------------------------
 hash_t hash_string( char *chars );
 hash_t hash_bytes( uint8_t *mem, arity_t cnt );
+hash_t hash_int( uint64_t u );
+hash_t hash_real( real_t r );
+hash_t hash_ptr( ptr_t p );
+hash_t mix_hashes( hash_t h1, hash_t h2 );
 
 // toplevel dispatch ----------------------------------------------------------
 void atom_mark( void );
