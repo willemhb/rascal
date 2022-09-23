@@ -6,10 +6,8 @@
 
 typedef struct str_t str_t;
 
-STRING(str, char_t);
+DECL_OBJ(str);
 
-// toplevel dispatch ----------------------------------------------------------
-void str_mark( void );
-void str_init( void );
+STRING(str, char_t);
 
 #endif

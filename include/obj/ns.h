@@ -3,7 +3,7 @@
 
 #include "obj.h"
 
-OBJ_TYPE(ns);
+DECL_OBJ(ns);
 
 struct ns_t
 {

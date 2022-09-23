@@ -6,14 +6,14 @@
 // C types --------------------------------------------------------------------
 typedef enum
   {
-    C_type_sint8=1, C_type_uint8,  C_type_ascii,   C_type_latin1, C_type_utf8,
-    C_type_sint16,  C_type_uint16, C_type_utf16,
-    C_type_sint32,  C_type_uint32, C_type_utf32,   C_type_float32,
-    C_type_sint64,  C_type_uint64, C_type_pointer, C_type_float64
-  } C_type_t;
+    Ctype_sint8=1, Ctype_uint8,  Ctype_ascii,   Ctype_latin1, Ctype_utf8,
+    Ctype_sint16,  Ctype_uint16, Ctype_utf16,
+    Ctype_sint32,  Ctype_uint32, Ctype_utf32,   Ctype_float32,
+    Ctype_sint64,  Ctype_uint64, Ctype_pointer, Ctype_float64
+  } Ctype_t;
 
 // forward declarations & generics --------------------------------------------
-size_t   C_type_size( C_type_t Ctype );
+size_t   Ctype_size( Ctype_t Ctype );
 uint64_t ceil_log2(uint64_t i);
 uint64_t floor_log2( uint64_t i);
 int_t    ord_uint(uint64_t x, uint64_t y);
@@ -25,26 +25,26 @@ void stack_init( void );
 // convenience ----------------------------------------------------------------
 #define Ctypeof(type)					\
   _Generic((type)0,					\
-	   int8_t:   C_type_sint8,			\
-	   uint8_t:  C_type_uint8,			\
-	   int16_t:  C_type_sint16,			\
-	   uint16_t: C_type_uint16,			\
-	   int32_t:  C_type_sint32,			\
-	   uint32_t: C_type_uint32,			\
-	   float:    C_type_float32,			\
-	   int64_t:  C_type_sint64,			\
-	   uint64_t: C_type_uint64,			\
-	   double:   C_type_float64,			\
-	   void*:    C_type_pointer)
+	   int8_t:   Ctype_sint8,			\
+	   uint8_t:  Ctype_uint8,			\
+	   int16_t:  Ctype_sint16,			\
+	   uint16_t: Ctype_uint16,			\
+	   int32_t:  Ctype_sint32,			\
+	   uint32_t: Ctype_uint32,			\
+	   float:    Ctype_float32,			\
+	   int64_t:  Ctype_sint64,			\
+	   uint64_t: Ctype_uint64,			\
+	   double:   Ctype_float64,			\
+	   void*:    Ctype_pointer)
 
-static inline size_t size_of_C_type( C_type_t C )
+static inline size_t sizeof_Ctype( Ctype_t C )
 {
   switch(C)
     {
-    case C_type_sint8  ... C_type_utf8:    return 1;
-    case C_type_sint16 ... C_type_utf16:   return 2;
-    case C_type_sint32 ... C_type_float32: return 4;
-    default:                               return 8;
+    case Ctype_sint8  ... Ctype_utf8:    return 1;
+    case Ctype_sint16 ... Ctype_utf16:   return 2;
+    case Ctype_sint32 ... Ctype_float32: return 4;
+    default:                             return 8;
     }
 }
 
@@ -53,6 +53,13 @@ static inline size_t size_of_C_type( C_type_t C )
     typeof(a) _a_ = a;				\
     typeof(b) _b_ = b;				\
     _a_ < _b_ ? _b_ : _a_;			\
+  })
+
+#define min(a, b)				\
+  ({						\
+    typeof(a) _a_ = a;				\
+    typeof(b) _b_ = b;				\
+    _a_ > _b_ ? _b_ : _a_;			\
   })
 
 #endif

@@ -2,6 +2,7 @@
 #define rascal_obj_h
 
 #include "val.h"
+#include "num.h"
 
 typedef struct init_t init_t;
 
@@ -12,6 +13,7 @@ typedef struct init_t init_t;
   typedef struct T##_t T##_t;					\
   obj_t *new_##T(init_t *args);					\
   void   init_##T(obj_t *obj, init_t *args);			\
+  void   write_##T(void *spc, val_t val, Ctype_t Ctype);	\
   void   mark_##T(obj_t *obj);					\
   void   finalize_##T(obj_t *obj);				\
   obj_t *resize_##T(obj_t *obj, size_t old_n, size_t new_n);	\
@@ -20,6 +22,7 @@ typedef struct init_t init_t;
 
 #define IMPL_NEW(T)      obj_t *new_##T(init_t *args)
 #define IMPL_INIT(T)     void   init_##T(obj_t *obj, init_t *args)
+#define IMPL_WRITE(T)    void   write_##T();
 #define IMPL_MARK(T)     void   mark_##T(obj_t *obj)
 #define IMPL_FINALIZE(T) void   finalize_##T(obj_t *obj)
 #define IMPL_RESIZE(T)   void   resize_##T(obj_t *obj)

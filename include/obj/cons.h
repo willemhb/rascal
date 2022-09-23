@@ -8,9 +8,20 @@ DECL_OBJ(cons);
 struct cons_t
 {
   OBJ_HEAD;
-  val_t   hd;
-  cons_t *tl;
-  size_t  len;
+  union
+  {
+    val_t car;
+    val_t hd;
+  };
+
+  union
+  {
+    val_t   cdr;
+    cons_t *tl;
+  };
+
+  arity_t    len;
+  val_type_t eltype;
 };
 
 #endif

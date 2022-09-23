@@ -15,8 +15,12 @@ typedef struct repr_t
   obj_t     *name;
   size_t     base_size;
   val_t      val_tag;
+
   val_type_t val_type;
-  C_type_t   val_C_type;
+  val_type_t el_type;
+
+  Ctype_t    val_Ctype;
+  Ctype_t    el_ctype;
 
   // memory management --------------------------------------------------------
   obj_t  *(*new)(init_t *args);
@@ -24,6 +28,7 @@ typedef struct repr_t
   obj_t  *(*resize)(obj_t *obj, size_t n);
   void    (*trace)(obj_t *obj);
   void    (*finalize)(obj_t *obj);
+  int     (*write)(void *spc, val_t val, Ctype_t Ctype);
 
   // other dispatching methods ------------------------------------------------
   int_t   (*cmp)(val_t x, val_t y);

@@ -20,8 +20,8 @@ typedef char       char_t;
 typedef bool       bool_t;
 typedef void      *ptr_t;
 
-
 typedef uint32_t   val_type_t;
+typedef uint16_t   opcode_t;
 
 typedef struct obj_t  obj_t;
 typedef struct repr_t repr_t;
@@ -47,8 +47,9 @@ enum
     // internal types
     native_type,
     code_type,
-    closure_type,
+    clo_type,
     stack_type,
+    iobuf_type,
     instr_type,
     alist_type,
 

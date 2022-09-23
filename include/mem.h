@@ -18,9 +18,18 @@ enum
 
 typedef struct init_t
 {
-  val_type_t type;
-  flags_t    fl;
+  val_type_t  type;
+  flags_t     flags;
+  size_t      arity;
+  void       *data;
 } init_t;
+
+typedef struct prim_init_t
+{
+  init_t  init;
+  void   *spc;
+  val_t   val;
+} prim_init_t;
 
 // forward declarations & generics --------------------------------------------
 void  *alloc(size_t n);
@@ -28,14 +37,22 @@ void   dealloc(void *ptr, size_t n);
 void   copy(void *dst, void *src, size_t n);
 
 obj_t *new(init_t *ini);
-void   init(obj_t *obj, init_t *ini);
 void   finalize(obj_t *obj, obj_t **prev);
+
+#define init(buf, ini)				\
+  _Generic((buf),				\
+	   void*:  init_spc,			\
+	   obj_t*: init_obj)((buf), (ini))
+
+void   init_spc(void  *spc, init_t *ini);
+void   init_obj(obj_t *obj, init_t *ini);
 
 #define resize(ptr, ...)						\
   _Generic((ptr),							\
 	   obj_t*: resize_obj,						\
 	   default:resize_bytes)((ptr) __VA_OPT__(,) __VA_ARGS__)
 
+obj_t *resize_obj(obj_t *obj, size_t old_n, size_t new_n);
 void  *resize_bytes(void *ptr, size_t old_n, size_t new_n);
 
 #define dup(ptr, ...)						\
@@ -51,6 +68,9 @@ obj_t *dup_obj( obj_t *ptr );
 	   val_t:mark_val,			\
 	   obj_t*:mark_obj)(val)
 
+void mark_val(val_t  val);
+void mark_obj(obj_t *obj);
+
 #define trace(val, ...)						\
   _Generic((val),						\
 	   obj_t*:trace_obj,					\
@@ -59,11 +79,11 @@ obj_t *dup_obj( obj_t *ptr );
 	   val_t*:trace_vals,					\
 	   default:trace_noop)((val) __VA_OPT__(,) __VA_ARGS__)
 
-void   trace_obj(obj_t *obj);
-void   trace_val(val_t val);
-void   trace_objs(obj_t **objs, arity_t n);
-void   trace_vals(val_t *vals, arity_t n);
-void   trace_noop(void *ptr, arity_t n);
+void trace_obj(obj_t *obj);
+void trace_val(val_t val);
+void trace_objs(obj_t **objs, arity_t n);
+void trace_vals(val_t *vals, arity_t n);
+void trace_noop(void *ptr, arity_t n);
 
 // toplevel dispatch ----------------------------------------------------------
 void collect_garbage( void );

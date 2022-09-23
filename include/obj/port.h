@@ -1,26 +1,28 @@
 #ifndef rascal_port_h
 #define rascal_port_h
 
+#include <stdio.h>
+
 #include "obj.h"
 #include "read.h"
 
-// C types --------------------------------------------------------------------
-typedef struct port_t
+
+DECL_OBJ(port);
+
+struct port_t
 {
   OBJ_HEAD;
 
-  val_t    stream;
   val_t    value;
   obj_t   *buffer;
 
+  FILE    *stream;
+
   tok_t    token;
   flags_t  flags;
-} port_t;
+};
 
 // globals --------------------------------------------------------------------
 extern obj_t *Ins, *Outs, *Errs;
-// toplevel dispatch ----------------------------------------------------------
-void port_mark( void );
-void port_init( void );
 
 #endif

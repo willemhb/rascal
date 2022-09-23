@@ -18,6 +18,9 @@ typedef uint64_t idno_t;
 #define dispatch(test, x1, x2)			\
   (__builtin_choose_expr((test), (x1), (x2)))
 
+#define types_compat(t1, t2)			\
+  (__builtin_types_compatible_p(t1, t2))	\
+
 static inline bool is_flag( flags_t fl, uint32_t mask )
 {
   return !!(fl & mask);
