@@ -13,7 +13,7 @@
   bool    T##_set( obj_t *obj, arity_t n, V val, V *buf );		\
   bool	  T##_pop( obj_t *obj, V *buf );				\
   bool    T##_splice( obj_t *obj, arity_t n, V val, V *buf );		\
-  bool    T##_unsplice( obj_t *obj, aity_t n, V *buf );			\
+  bool    T##_unsplice( obj_t *obj, arity_t n, V *buf );		\
   obj_t  *T##_apend( obj_t *obj, V val );				\
   obj_t  *T##_write( obj_t *obj, V *src, arity_t buf_n );		\
   arity_t T##_read( V *buf, obj_t *obj, arity_t n, arity_t cap )

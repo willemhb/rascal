@@ -2,6 +2,7 @@
 #include "exec.h"
 #include "obj/ns.h"
 #include "obj/func.h"
+#include "obj/atom.h"
 
 // C types --------------------------------------------------------------------
 typedef enum
@@ -27,8 +28,17 @@ typedef struct
 // forward declarations -------------------------------------------------------
 static void       emit_instr( obj_t *code, instr_t instr, ... );
 static ref_type_t resolve_name( val_t name, obj_t *ns, ref_buf_t *buf );
+static bool       is_literal( val_t x );
 
 // implementations -------------------------------------------------------------
+static bool is_literal( val_t x)
+{
+  if (is_atom(x))
+    return is_keyword(x);
+
+  return !is_cons(x);
+}
+
 void do_comp_expr( val_t expr, obj_t *code, obj_t *ns )
 {
   

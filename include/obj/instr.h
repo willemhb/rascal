@@ -2,10 +2,10 @@
 #define rascal_instr_h
 
 #include "obj.h"
-#include "template/array.h"
+#include "template/alist.h"
 
 DECL_OBJ(instr);
 
-ARRAYLIST(instr, opcode_t);
+DECL_ALIST(instr, opcode_t);
 
 #endif

@@ -15,7 +15,7 @@
     arity_t len;				\
     Ctype_t Ctype;				\
     hash_t  hash;				\
-  };						\
+  }
 
 #define INIT_STRING(T, V, hash_fn)					\
   void init_##T( obj_t *obj, arity_t n, void *ini, flags_t fl )		\

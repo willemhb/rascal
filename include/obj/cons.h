@@ -24,4 +24,12 @@ struct cons_t
   val_type_t eltype;
 };
 
+// convenience
+#define is_cons(val) (is_obj_type(val, cons_type))
+
+static inline bool is_list(val_t x)
+{
+  return x == NIL || is_cons(x);
+}
+
 #endif

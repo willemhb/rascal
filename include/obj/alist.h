@@ -2,11 +2,11 @@
 #define rascal_alist_h
 
 #include "obj.h"
-#include "template/array.h"
+#include "template/alist.h"
 
 // similar to a stack, but with a different reallocation algorithm
 DECL_OBJ(alist);
 
-ARRAYLIST(alist, val_t);
+DECL_ALIST(alist, val_t);
 
 #endif

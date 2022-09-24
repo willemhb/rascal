@@ -50,6 +50,7 @@ extern obj_t *WellKnownObjects[NUM_TYPES_PAD];
 
 // convenience ----------------------------------------------------------------
 #define as_obj(val) ((obj_t*)as_ptr(x))
+#define is_obj(val) (val_tag(val)==OBJECT)
 
 static inline void *as_ptr( val_t x )
 {
@@ -61,6 +62,13 @@ static inline void *as_ptr( val_t x )
 
   return NULL;
 }
+
+static inline bool  is_obj_type( val_t x, val_type_t t )
+{
+  return is_obj(x)
+    && as_obj(x)->type == t;
+}
+
 
 static inline val_t as_val( obj_t *obj )
 {
