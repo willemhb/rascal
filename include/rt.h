@@ -26,8 +26,8 @@ extern jmp_buf Toplevel;
   ({								\
     Agitant = agitant;						\
     fprintf( stderr,						\
-	     fname,						\
 	     "%s: error: "fmt".\n",				\
+      	     fname __VA_OPT__(,)				\
 	     __VA_ARGS__);					\
     if (Catch)							\
       longjmp(Catch->saved, 1);					\

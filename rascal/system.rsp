@@ -1,0 +1,26 @@
+;;; begin system.rsp
+
+(type tree
+  (enum (data empty)
+  	(data leaf (key any))
+	(data node (key any)
+	      	   (left tree)
+		   (right tree))))
+
+(fun add
+  [(x int)  (y int)]
+  [(x real) (y real)]
+    (+ x y))
+
+(fun all?
+  ([_ ()] true)
+  ([p? (x . xs)]
+    (and (p? x)
+    	 (all? p? xs))))
+
+(fun some?
+  ([_ ()] false)
+  ([p? (x . xs)]
+    (or (p? x)
+       	(some? p? xs))))
+

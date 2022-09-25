@@ -32,6 +32,7 @@ struct cons_t
 
 // convenience
 #define is_cons(val) (is_obj_type(val, cons_type))
+#define as_cons(val) ((cons_t*)as_obj(val))
 
 static inline bool is_list(val_t x)
 {

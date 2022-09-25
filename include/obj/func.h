@@ -14,15 +14,23 @@ struct func_t
 {
   OBJ_HEAD;
 
+  obj_t  *name;
+  obj_t  *ns;
+  obj_t  *tplt;
+  obj_t  *sig;
+};
+
+struct sig_t
+{
+  OBJ_HEAD;
+
+  arity_t arity;
   bool    vargs;
-  arity_t argco;
 
-  obj_t *type;    // the type this function is a constructor for (if any)
-  obj_t *sig;     // the function's signature
+  hash_t  hash;
 
-  str_t *name;
-  obj_t *ns;
-  obj_t *tplt;
+  val_t   type;
+  val_t   sig[1];
 };
 
 #endif
