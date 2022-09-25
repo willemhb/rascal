@@ -2,57 +2,45 @@
 #define rascal_mem_h
 
 #include "obj/obj.h"
-#include "obj/num.h"
+#include "utils/num.h"
 
 // C types --------------------------------------------------------------------
+typedef struct init_t
+{
+  type_t   type;
+  flags_t  fl;
+  arity_t  n;
+  void    *data;
+} init_t;
+
 enum
   {
+   SHARE_DATA   = 0x00001000,
    FAMOUS_OBJ   = 0x00002000,
    STATIC_OBJ   = 0x00004000,
    STATIC_DATA  = 0x00008000,
    INIT_NONE    = 0x00010000,
    INIT_SPECIAL = 0x00020000,
    INIT_PARENT  = 0x00040000,
-   INIT_STACK   = 0x00080000
+   INIT_STACK   = 0x00080000,
+   INIT_SEQ     = 0x00100000,
   };
-
-typedef struct init_t
-{
-  val_type_t  type;
-  flags_t     flags;
-  size_t      arity;
-  void       *data;
-} init_t;
-
-typedef struct prim_init_t
-{
-  init_t  init;
-  void   *spc;
-  val_t   val;
-} prim_init_t;
 
 // forward declarations & generics --------------------------------------------
 void  *alloc(size_t n);
 void   dealloc(void *ptr, size_t n);
-void   copy(void *dst, void *src, size_t n);
+void   copy( void *dst, void *src, size_t n );
 
-obj_t *new(init_t *ini);
-void   finalize(obj_t *obj, obj_t **prev);
-
-#define init(buf, ini)				\
-  _Generic((buf),				\
-	   void*:  init_spc,			\
-	   obj_t*: init_obj)((buf), (ini))
-
-void   init_spc(void  *spc, init_t *ini);
-void   init_obj(obj_t *obj, init_t *ini);
+obj_t *new( init_t *ini );
+void   init(obj_t *obj, init_t *ini );
+void   finalize( obj_t **buffer );
 
 #define resize(ptr, ...)						\
   _Generic((ptr),							\
 	   obj_t*: resize_obj,						\
 	   default:resize_bytes)((ptr) __VA_OPT__(,) __VA_ARGS__)
 
-obj_t *resize_obj(obj_t *obj, size_t old_n, size_t new_n);
+obj_t *resize_obj( obj_t *obj, size_t old_n, size_t new_n );
 void  *resize_bytes(void *ptr, size_t old_n, size_t new_n);
 
 #define dup(ptr, ...)						\
@@ -89,7 +77,9 @@ void trace_noop(void *ptr, arity_t n);
 void collect_garbage( void );
 
 // convenience ----------------------------------------------------------------
-#define scrubv(vec, n, type)       memset((vec), 0, (n) * sizeof(type))
+#define scrub(spc, n)              memset((spc), 0, (n))
+
+#define scrubv(vec, n, type)       scrub((vec), (n) * sizeof(type))
 #define allocv(n, type)            alloc((n) * sizeof(type))
 #define deallocv(ptr, n, type)     dealloc((ptr), (n) * sizeof(type))
 #define dupv(ptr, n, type)         dup((ptr), (n) * sizeof(type))
@@ -109,5 +99,6 @@ void collect_garbage( void );
       }									\
     _ptr_;								\
   })
+  
 
 #endif

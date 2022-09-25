@@ -4,6 +4,7 @@
 #include "obj.h"
 
 DECL_OBJ(ns);
+DECL_OBJ_API(ns);
 
 struct ns_t
 {

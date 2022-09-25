@@ -14,13 +14,8 @@
 #define OBJECT    0xffff000000000000ul
 
 typedef uintptr_t  val_t;
-typedef double     real_t;
-typedef intptr_t   int_t;
-typedef char       char_t;
-typedef bool       bool_t;
-typedef void      *ptr_t;
 
-typedef uint32_t   val_type_t;
+typedef uint32_t   type_t;
 typedef uint16_t   opcode_t;
 
 typedef struct obj_t  obj_t;
@@ -29,8 +24,8 @@ typedef struct repr_t repr_t;
 // value types
 enum
   {
-    none_type,
-    nil_type=1,
+    none_type=1,
+    nil_type,
 
     int_type,
     real_type,
@@ -84,17 +79,31 @@ typedef union
 } val_data_t;
 
 // forward declarations -------------------------------------------------------
-val_type_t  typeof_val(val_t x);
-repr_t     *reprof_val(val_t x);
-size_t      sizeof_val(val_t x);
-int_t       cmp_vals(val_t x, val_t y);
-hash_t      hash_val(val_t x);
+type_t  typeof_val(val_t x);
+repr_t *reprof_val(val_t x);
+size_t  sizeof_val(val_t x);
+int_t   cmp_vals(val_t x, val_t y);
+hash_t  hash_val(val_t x);
 
 // convenience ----------------------------------------------------------------
+#define DECL_VAL_API(T)					\
+  int_t   cmp_##T(val_t x, val_t y);			\
+  arity_t prin_##T(obj_t *stream, val_t val);		\
+  hash_t  hash_##T(val_t val);				\
+  val_t   call_##T(val_t val, val_t *args, arity_t n)
+
 #define val_tag(val)    ((val)&ARITY)
 #define imm_type(val)   ((val)&(NUM_TYPES_PAD-1))
 #define small_type(val) ((val)>>32&(NUM_TYPES_PAD-1))
 
-#define as_char(val)    ((char)((val)&UINT32_MAX))
+#define as_small(val)    ((val)&UINT32_MAX)
+#define as_char(val)     ((char)as_small(val))
+#define as_float(val)    (float_bits((uint32_t)as_small(val)))
+#define as_real(val)     (((val_data_t)(val)).as_real)
+
+static inline int64_t as_int(val_t val)
+{
+  return ((val_data_t)(val)).as_int;
+}
 
 #endif

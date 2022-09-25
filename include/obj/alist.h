@@ -6,7 +6,7 @@
 
 // similar to a stack, but with a different reallocation algorithm
 DECL_OBJ(alist);
-
+DECL_OBJ_API(alist);
 DECL_ALIST(alist, val_t);
 
 #endif

@@ -9,6 +9,7 @@ typedef struct symt_kv_t symt_kv_t;
 typedef struct str_t     str_t;
 
 DECL_OBJ(atom);
+DECL_OBJ_API(atom);
 
 struct atom_t
 {
@@ -34,14 +35,6 @@ obj_t *str_atom( str_t *str );
 
 bool   is_keyword( val_t val );
 bool   is_gensym( val_t val );
-
-// hashing utilities ----------------------------------------------------------
-hash_t hash_string( char *chars );
-hash_t hash_bytes( uint8_t *mem, arity_t cnt );
-hash_t hash_int( uint64_t u );
-hash_t hash_real( real_t r );
-hash_t hash_ptr( ptr_t p );
-hash_t mix_hashes( hash_t h1, hash_t h2 );
 
 // convenience ----------------------------------------------------------------
 #define is_atom(x) (is_obj_type(x, atom_type))

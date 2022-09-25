@@ -2,26 +2,32 @@
 #define rascal_cons_h
 
 #include "obj.h"
+#include "mem.h"
 
 DECL_OBJ(cons);
+DECL_OBJ_API(cons);
+DECL_VAL_API(cons);
+
+
+typedef struct pair_t
+{
+  OBJ_HEAD;
+
+  val_t  fst;
+  val_t  snd;
+
+  hash_t hash;
+} pair_t;
 
 struct cons_t
 {
   OBJ_HEAD;
-  union
-  {
-    val_t car;
-    val_t hd;
-  };
 
-  union
-  {
-    val_t   cdr;
-    cons_t *tl;
-  };
+  val_t   hd;
+  cons_t *tl;
 
-  arity_t    len;
-  val_type_t eltype;
+  arity_t len;
+  type_t  eltype;
 };
 
 // convenience

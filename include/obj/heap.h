@@ -3,21 +3,24 @@
 
 #include "obj.h"
 
-typedef struct heap_t heap_t;
+typedef struct heap_t  heap_t;
+typedef struct stack_t stack_t;
 
 DECL_OBJ(heap);
+DECL_OBJ_API(heap);
 
 struct heap_t
 {
   OBJ_HEAD;
 
-  obj_t *objects;
-  obj_t *gray_stack;
+  obj_t   *objects;
+  stack_t *gray_stack;
 
   size_t allocated;
   size_t next_gc;
 
   bool_t collecting;
+  bool_t initialized;
   float  heap_grow_factor;
 };
 

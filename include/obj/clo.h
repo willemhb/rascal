@@ -5,6 +5,7 @@
 
 
 DECL_OBJ(clo);
+DECL_OBJ_API(clo);
 
 // runtime function representation --------------------------------------------
 struct clo_t

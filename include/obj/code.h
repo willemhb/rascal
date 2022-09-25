@@ -5,6 +5,7 @@
 
 
 DECL_OBJ(code);
+DECL_OBJ_API(code);
 
 struct code_t
 {

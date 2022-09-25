@@ -1,52 +1,37 @@
 #ifndef rascal_table_h
 #define rascal_table_h
 
-#include <tgmath.h>
 
-#include "core.h"
-#include "obj/num.h"
+#define DECL_TABLE(T, K, V)					\
+  typedef struct T##_kv_t					\
+  {								\
+    OBJ_HEAD;							\
+    K      key;							\
+    V      val;							\
+    hash_t hash;						\
+  } T##_kv_t;							\
+  typedef struct T##_kv_ini_t					\
+  {								\
+    T##_t *table;						\
+    K      key;							\
+    hash_t hash;						\
+    V      val;							\
+  } T##_kv_ini_t;						\
+  typedef struct T##_t						\
+  {								\
+    OBJ_HEAD;							\
+    arity_t   len;						\
+    arity_t   cap;						\
+    obj_t   **entries;						\
+  } T##_t
 
-static inline size_t pad_table_size( size_t n, double load, size_t cap, size_t least )
-{
-  if (n >= cap*load)
-    {
-      do
-	cap <<= 1;
-      while (n >= cap*load);
-    }
+#define DECL_TABLE_API(T, K, V)						\
+  size_t pad_##T##_size(size_t old_size, size_t new_size, size_t cap);	\
+  bool   T##_get(obj_t *obj, K key, obj_t **buf );			\
+  bool 	 T##_put(obj_t *obj, K key, obj_t **buf );			\
+  bool	 T##_pop(obj_t *obj, K key, obj_t **buf );			\
+  void   rehash_##T(obj_t **old,obj_t **new,size_t old_n,size_t new_n)
 
-  else if (cap > least && n <= cap*load)
-    {
-      do
-	cap >>= 1;
-      while (cap > least && n <= cap*load);
-    }
-
-  return cap;
-}
-
-#define TABLE(T, K, V)				\
-  typedef struct T##_kv_t			\
-  {						\
-    OBJ_HEAD;					\
-    K      key;					\
-    V      val;					\
-    hash_t hash;				\
-  } T##_kv_t;					\
-  typedef struct T##_kv_ini_t			\
-  {						\
-    T##_t *table;				\
-    K      key;					\
-    hash_t hash;				\
-    V      val;					\
-  } T##_kv_ini_t;				\
-  struct T##_t					\
-  {						\
-    OBJ_HEAD;					\
-    arity_t   len;				\
-    arity_t   cap;				\
-    obj_t   **entries;				\
-  }
 
 #define TABLE_TRACE(T)				\
   void trace_##T(obj_t *obj)			\
@@ -60,15 +45,28 @@ static inline size_t pad_table_size( size_t n, double load, size_t cap, size_t l
   {									\
     (void)fl;								\
     T##_t *table = (T##_t*)obj;						\
-    arity_t cap = pad_table_size( n,					\
-				  T##_load,				\
-				  T##_min_cap,				\
+    arity_t cap = pad_##T##_size( 0,					\
+				  n,					\
 				  T##_min_cap );			\
     table->len     = n;							\
     table->cap     = cap;						\
     table->entries = allocv( cap, T##_kv_t* );				\
     if (ini)								\
       copyv( table->entries, ini, cap, T##_kv_t* );			\
+  }
+
+#define TABLE_PAD(T)							\
+  size_t pad_##T##_size(size_t old_size, size_t new_size, size_t cap)	\
+  {									\
+    size_t new_cap = cap;						\
+    if (old_size > new_size)						\
+	while (new_cap > T##_min_cap					\
+	       && new_size < new_cap / 2 * T##_load)			\
+	  new_cap >>= 1;						\
+    else if (new_size > old_size)					\
+      while (new_size > new_cap *T##_load )				\
+	new_cap <<= 1;							\
+    return new_cap;							\
   }
 
 #define TABLE_FINALIZE(T)			\
@@ -120,6 +118,9 @@ static inline size_t pad_table_size( size_t n, double load, size_t cap, size_t l
 	table->entries = new;						\
       }									\
   }
+
+
+
 
 
 #define TABLE_GET(T, K, V)					\

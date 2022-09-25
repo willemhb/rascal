@@ -3,7 +3,7 @@
 #include "obj/repr.h"
 #include "obj/atom.h"
 
-val_type_t typeof_val(val_t x)
+type_t typeof_val(val_t x)
 {
   switch (val_tag(x))
     {

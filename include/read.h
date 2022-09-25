@@ -21,15 +21,9 @@ typedef enum
     TOK_STRING,
   } tok_t;
 
-// globals --------------------------------------------------------------------
-
 // forward declarations -------------------------------------------------------
 val_t read_val( obj_t *ios );
 val_t load_file( obj_t *src );
 val_t comp_file( obj_t *src );
-
-// toplevel dispatch ----------------------------------------------------------
-void read_mark( void );
-void read_init( void );
 
 #endif

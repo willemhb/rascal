@@ -4,6 +4,7 @@
 #include "obj.h"
 
 DECL_OBJ(vm);
+DECL_OBJ_API(vm);
 
 struct vm_t
 {

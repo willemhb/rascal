@@ -1,42 +1,197 @@
 #include "obj/cons.h"
+#include "obj/repr.h"
+#include "obj/str.h"
+#include "obj/native.h"
 #include "mem.h"
+#include "rt.h"
 
 // globals --------------------------------------------------------------------
 cons_t nil_obj;
+str_t cons_name_obj, nil_name_obj, list_name_obj, hd_name_obj, tl_name_obj;
 
 #define NIL_LIST (&nil_obj)
 #define NIL_OBJ ((obj_t*)NIL_LIST)
 
-// forward declarations -------------------------------------------------------
-obj_t *construct_cons(val_type_t type, arity_t arity, void *ini, flags_t fl);
-void   init_cons(obj_t *obj, arity_t arity, void *ini, flags_t fl );
+// forward declarations
+val_t native_cons(val_t *args, arity_t n_args);
+val_t native_list(val_t *args, arity_t n_args);
+val_t native_nil(val_t *args,  arity_t n_args);
+val_t native_hd(val_t *args,   arity_t n_args);
+val_t native_tl(val_t *args,   arity_t n_args);
 
+// implementations
+val_t cons(val_t hd, cons_t *tl)
+{
+  cons_t *out = alloc( sizeof(cons_t) );
+
+  init_obj( (obj_t*)out, cons_type, 0 );
+
+  out->hd     = hd;
+  out->tl     = tl;
+  out->len    = tl->len+1;
+  out->eltype = 0;
+
+  return as_val((obj_t*)out);
+}
+
+val_t consn(val_t *args, arity_t n)
+{
+  
+}
+  
+val_t native_cons( val_t *args, arity_t n)
+{
+  assert(n == 2);
+
+  return 
+}
+
+void mark_cons( obj_t *o )
+{
+  cons_t* c = (cons_t*)o;
+
+  while (!c->object.black && c != NIL_LIST)
+    {
+      mark(c->hd);
+      c = c->tl;
+    }
+}
 
 // initialization -------------------------------------------------------------
-rt_table_t ConsTableObj;
+repr_t ConsReprObj, NilReprObj;
 
 static void nil_init( void )
 {
-  init_obj( NIL_OBJ, nil_type, STATIC_OBJ );
+  *NIL_LIST = (cons_t){
+      {
+	.next=NULL,
+	.type=nil_type,
+	.flags=FAMOUS_OBJ|STATIC_OBJ,
+	.gray=true,
+	.black=false
+      },
 
-  nil_obj.hd = NIL;
-  nil_obj.tl = NIL_LIST;
+      .hd=NIL,
+      .tl=NIL_LIST,
+      .len=0,
+      .eltype=0
+  };
 
-  WellKnownObjects[nil_type]  = NIL_OBJ;
-  WellKnownObjects[nil_type]  = NIL_OBJ;
+  FamousObjects[nil_type]   = NIL_OBJ;
 }
 
-static void types_init( void )
+static void names_init( void )
 {
-  rt_table_t *ConsTable = &ConsTableObj;
+  cons_name_obj = (str_t){
+    {
+      .next=NULL,
+      .type=str_type,
+      .flags=STATIC_OBJ|STATIC_DATA,
+      .gray=true,
+      .black=false
+    },
+    .vals="cons",
+    .len=4,
+    .enc=enc_ascii,
+    .hash=hash_string( "cons" )
+  };
 
-  init_obj( (obj_t*)ConsTable, rt_table_type, STATIC_OBJ );
+  nil_name_obj = (str_t){
+    {
+      .next=NULL,
+      .type=str_type,
+      .flags=STATIC_OBJ|STATIC_DATA,
+      .gray=true,
+      .black=false
+    },
+    .vals="nil",
+    .len=3,
+    .enc=enc_ascii,
+    .hash=hash_string( "nil" )
+  };
+}
 
-  
+static void reprs_init( void )
+{
+  ConsReprObj = (repr_t){
+    {
+      .next=NULL,
+      .type=repr_type,
+      .flags=STATIC_OBJ,
+      .gray=true,
+      .black=false
+    },
+
+    // basic type information
+    .name=(obj_t*)&cons_name_obj,
+    .base_size=sizeof(cons_t),
+    .val_tag=OBJECT,
+    .val_type=cons_type,
+    .el_type=0,
+    .val_Ctype=Ctype_pointer,
+    .el_Ctype=0,
+
+    // object methods
+    .do_new=new_cons,
+    .do_init=init_cons,
+    .do_init_vals=NULL,
+    .do_resize=NULL,
+    .do_trace=mark_cons,
+    .do_finalize=NULL,
+
+    // value methods
+    .do_cmp=cmp_cons,
+    .do_prin=prin_cons,
+    .do_hash=NULL,
+    .do_call=NULL
+  };
+
+  NilReprObj = (repr_t){
+    {
+      .next=NULL,
+      .type=repr_type,
+      .flags=STATIC_OBJ,
+      .gray=true,
+      .black=false
+    },
+
+    // basic type information
+    .name=(obj_t*)&nil_name_obj,
+    .base_size=sizeof(cons_t),
+    .val_tag=OBJECT,
+    .val_type=nil_type,
+    .el_type=0,
+    .val_Ctype=Ctype_pointer,
+    .el_Ctype=0,
+
+    // object methods
+    .do_new=NULL,
+    .do_init=NULL,
+    .do_init_vals=NULL,
+    .do_resize=NULL,
+    .do_trace=NULL,
+    .do_finalize=NULL,
+
+    // value methods
+    .do_cmp=cmp_cons,
+    .do_prin=prin_cons,
+    .do_hash=NULL,
+    .do_call=NULL
+  };
 }
 
 void cons_init( void )
 {
   nil_init();
-  types_init();
+  names_init();
+  reprs_init();
+}
+
+void cons_init_natives( void )
+{
+  native( &cons_name_obj, 2, true, &ConsReprObj, native_cons );
+  native( &nil_name_obj, 1, false, &NilReprObj, native_nil );
+  native( &list_name_obj, 0, true, NULL, native_list );
+  native( &hd_name_obj, 1, false, NULL, native_hd );
+  native( &tl_name_obj, 1, false, NULL, native_tl );
 }

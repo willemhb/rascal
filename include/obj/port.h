@@ -8,6 +8,7 @@
 
 
 DECL_OBJ(port);
+DECL_OBJ_API(port);
 
 struct port_t
 {

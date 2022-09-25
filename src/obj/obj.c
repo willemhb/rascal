@@ -2,33 +2,34 @@
 #include "obj/repr.h"
 #include "obj/stack.h"
 #include "obj/heap.h"
+#include "utils/arr.h"
 #include "mem.h"
 
 
 bool is_famous( obj_t *obj )
 {
-  return is_flag( obj->flags, FAMOUS_OBJ );
+  return flag_p( obj->flags, FAMOUS_OBJ );
 }
 
 bool is_static( obj_t *obj )
 {
-  return is_flag( obj->flags, STATIC_OBJ );
+  return flag_p( obj->flags, STATIC_OBJ );
 }
 
 bool has_static( obj_t *obj )
 {
-  return is_flag( obj->flags, STATIC_DATA );
+  return flag_p( obj->flags, STATIC_DATA );
 }
 
 // implementation and fallback methods for object types
-IMPL_INIT(obj)
+void init_obj(obj_t *obj, type_t type, flags_t fl)
 {
-  obj->type  = args->type;
+  obj->type  = type;
   obj->gray  = true;
   obj->black = false;
-  obj->flags = args->fl&UINT16_MAX;
+  obj->flags = fl&UINT16_MAX;
 
-  if (is_flag(args->fl, STATIC_OBJ))
+  if (flag_p(fl, STATIC_OBJ))
     obj->next = NULL;
 
   else
@@ -48,14 +49,14 @@ IMPL_MARK(obj)
 
   obj->black = true;
 
-  if (Reprs[obj->type]->trace)
-    stack_push( Heap->gray_stack, as_val(obj) );
+  if (Reprs[obj->type]->do_trace)
+    push( Heap->gray_stack, as_val(obj) );
 }
 
 IMPL_FINALIZE(obj)
 {
-  if (Reprs[obj->type]->finalize)
-    Reprs[obj->type]->finalize(obj);
+  if (Reprs[obj->type]->do_finalize)
+    Reprs[obj->type]->do_finalize(obj);
 
   dealloc(obj, sizeof(obj));
 }
