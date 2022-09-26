@@ -2,10 +2,12 @@
 #define rascal_code_h
 
 #include "obj.h"
+#include "obj/envt.h"
 
+typedef struct cons_t  cons_t;
+typedef struct code_t  code_t;
 typedef struct func_t  func_t;
-typedef struct envt_t  envt_t;
-typedef struct instr_t instr_t;
+typedef struct multi_t multi_t;
 
 typedef struct instr_t
 {
@@ -16,7 +18,7 @@ typedef struct instr_t
 
 typedef struct code_t
 {
-  OBJ_HEAD;
+  
   arity_t n_stack;
   arity_t n_cap;
 

@@ -3,20 +3,7 @@
 
 
 #define DECL_TABLE(T, K, V)					\
-  typedef struct T##_kv_t					\
-  {								\
-    OBJ_HEAD;							\
-    K      key;							\
-    V      val;							\
-    hash_t hash;						\
-  } T##_kv_t;							\
-  typedef struct T##_kv_ini_t					\
-  {								\
-    T##_t *table;						\
-    K      key;							\
-    hash_t hash;						\
-    V      val;							\
-  } T##_kv_ini_t;						\
+								\
   typedef struct T##_t						\
   {								\
     OBJ_HEAD;							\
@@ -31,7 +18,6 @@
   bool 	 T##_put(obj_t *obj, K key, obj_t **buf );			\
   bool	 T##_pop(obj_t *obj, K key, obj_t **buf );			\
   void   rehash_##T(obj_t **old,obj_t **new,size_t old_n,size_t new_n)
-
 
 #define TABLE_TRACE(T)				\
   void trace_##T(obj_t *obj)			\

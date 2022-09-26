@@ -10,7 +10,10 @@ typedef struct func_t func_t;
 
 typedef enum
   {
-    
+   var_fl_closure =1,
+   var_fl_module  =2,
+   var_fl_toplevel=4,
+   var_fl_captured=8,
   } var_fl_t;
 
 typedef enum

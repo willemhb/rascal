@@ -66,6 +66,7 @@ enum
     code_type,
     clo_type,
     envt_type,
+    multi_type,
 
     num_val_types
   };

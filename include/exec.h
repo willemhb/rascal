@@ -2,10 +2,12 @@
 #define rascal_exec_h
 
 #include "obj.h"
+#include "obj/envt.h"
 
-typedef struct cons_t cons_t;
-typedef struct code_t code_t;
-typedef struct func_t func_t;
+typedef struct cons_t  cons_t;
+typedef struct code_t  code_t;
+typedef struct func_t  func_t;
+typedef struct multi_t multi_t;
 
 typedef struct vm_t
 {
