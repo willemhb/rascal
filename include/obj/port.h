@@ -7,8 +7,7 @@
 #include "read.h"
 
 
-DECL_OBJ(port);
-DECL_OBJ_API(port);
+typedef struct port_t port_t;
 
 struct port_t
 {
@@ -25,5 +24,12 @@ struct port_t
 
 // globals --------------------------------------------------------------------
 extern obj_t *Ins, *Outs, *Errs;
+
+// initialization
+void port_init( void );
+
+// convenience
+#define is_port(val) (is_obj_type(val, port_type))
+#define as_port(val) ((port_t*)as_ptr(val))
 
 #endif

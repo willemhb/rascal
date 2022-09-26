@@ -52,6 +52,9 @@ hash_t hash_real( real_t r );
 hash_t hash_ptr( ptr_t p );
 hash_t mix_hashes( hash_t h1, hash_t h2 );
 
+// ordering helpers
+int    ord_ulong( uint64_t x, uint64_t y );
+
 // convenience ----------------------------------------------------------------
 #define real_bits(r)  (((ieee64_t)(r)).bits)
 #define float_bits(f) (((ieee32_t)(f)).bits)
@@ -70,7 +73,7 @@ hash_t mix_hashes( hash_t h1, hash_t h2 );
 	   double:   Ctype_float64,			\
 	   void*:    Ctype_pointer)
 
-#define ord(a, b)				\
+#define cmp(a, b)				\
   ({						\
     typeof(a) _a_ = a;				\
     typeof(b) _b_ = b;				\

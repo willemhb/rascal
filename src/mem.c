@@ -3,101 +3,17 @@
 #include <string.h>
 
 #include "mem.h"
+#include "obj.h"
 #include "rt.h"
 #include "utils/arr.h"
-#include "obj/obj.h"
-#include "obj/repr.h"
-#include "obj/heap.h"
-#include "obj/stack.h"
+#include "obj/cons.h"
+#include "obj/atom.h"
 
 // static helpers -------------------------------------------------------------
 static void guard_gc( size_t n )
 {
-  if (Heap->allocated + n >= Heap->next_gc)
+  if (Heap.allocated + n >= Heap.next_gc)
     collect_garbage();
-}
-
-// core memory api ------------------------------------------------------------
-// object model core dispatch functions ---------------------------------------
-val_t construct(init_t *ini)
-{
-  type_t  type = ini->type;
-
-  if (ini->repr == NULL)
-    ini->repr = Reprs[type];
-
-  repr_t *repr = ini->repr;
-
-  if (repr->val_tag == OBJECT || repr->val_tag == IMMEDIATE)
-    {
-      obj_t *out = mk_obj(ini);
-      return as_val(out);
-    }
-
-  val_t buf = 0;
-
-  if (repr->do_init_vals(&buf, ini->val))
-    type_error( repr_name(repr),
-		ini->val,
-		repr->val_type );
-
-  return buf|repr->val_tag;
-}
-
-obj_t *mk_obj(init_t *ini)
-{
-  obj_t *out = new(ini);
-
-  if (!flag_p(ini->fl, INIT_NONE))
-    init( out, ini );
-
-  return out;
-}
-
-obj_t *new(init_t *init)
-{
-  obj_t *out; repr_t *repr = Reprs[init->type];
-  
-  if (init->obj != NULL && flag_p(init->fl, STATIC_OBJ))
-      out = init->obj;
-
-  else if (repr->do_new)
-    out = repr->do_new(init);
-
-  else
-    out = alloc( repr->base_size );
-  
-  return out;
-}
-
-void init(obj_t *obj, init_t *init )
-{
-  repr_t *repr = Reprs[init->type];
-
-  if (!flag_p(init->fl, INIT_SEQ))
-    init_obj( obj, init );
-
-  if (repr->do_init)
-    repr->do_init( obj, init );
-}
-
-void finalize(obj_t **buffer)
-{
-  if (buffer == NULL)
-    return;
-
-  obj_t *obj  = (*buffer);
-  obj_t *next = obj->next;
-
-  obj->next = NULL;
-  *buffer   = next;
-  
-  repr_t *repr = Reprs[obj->type];
-  
-  if (repr->do_finalize)
-    repr->do_finalize(obj);
-
-  dealloc(obj, repr->base_size);
 }
 
 // core allocation functions --------------------------------------------------
@@ -112,7 +28,7 @@ void *alloc(size_t n)
 void dealloc(void *ptr, size_t n)
 {
   assert( n > 0 );
-  Heap->allocated -= n;
+  Heap.allocated -= n;
   free(ptr);
 }
 
@@ -127,10 +43,10 @@ void *resize_bytes( void *ptr, size_t old_n, size_t new_n )
   ptr = safe_alloc( realloc, ptr, new_n );
 
   if (grew)
-    Heap->allocated += diff;
+    Heap.allocated += diff;
 
   else
-    Heap->allocated -= diff;
+    Heap.allocated -= diff;
 
   return ptr;
 }
@@ -141,18 +57,6 @@ void copy(void *dst, void *src, size_t n)
 }
 
 
-void *dup_bytes( void *ptr, size_t n )
-{
-  void *cpy = alloc( n );
-  copy( cpy, ptr, n );
-  return cpy;
-}
-
-obj_t *dup_obj( obj_t *ptr )
-{
-  return dup_bytes( ptr, sizeof_obj(ptr) );
-}
-
 // memory management ----------------------------------------------------------
 void mark_val(val_t val)
 {
@@ -160,16 +64,28 @@ void mark_val(val_t val)
     mark_obj(as_obj(val));
 }
 
+void mark_obj(obj_t *obj)
+{
+  if (obj == NULL)
+    return;
+
+  if (obj->black)
+    return;
+
+  obj->black = true;
+
+  if (ObjApis[obj->type].do_mark)
+    {
+      push( Heap.gray_stack, obj );
+    }
+
+  else
+    obj->gray = false;
+}
+
 void trace_val(val_t val)
 {
   trace_obj(as_obj(val));
-}
-
-void trace_obj(obj_t *obj)
-{
-  repr_t *repr = Reprs[obj->type];
-  
-  repr->do_trace(obj);
 }
 
 void trace_vals(val_t *vals, arity_t n)
@@ -194,53 +110,44 @@ void trace_noop(void *spc, arity_t n)
 static void gc_roots( void );
 static void gc_mark( void );
 static void gc_sweep( void );
+static const float gc_load_factor = 0.75;
 
 void collect_garbage( void )
 {
-  Heap->collecting = true;
-  size_t allocated = Heap->allocated;
+  Heap.collecting = true;
 
   gc_roots();
   gc_mark();
   gc_sweep();
 
-  Heap->collecting = false;
-  resize_heap( (obj_t*)Heap, allocated, Heap->allocated );
+  Heap.collecting = false;
+
+  if (Heap.allocated >= Heap.next_gc * gc_load_factor)
+    Heap.next_gc *= 2;
 }
 
-#include "obj/atom.h"
-#include "obj/ns.h"
-#include "obj/port.h"
-#include "obj/symt.h"
-#include "obj/vm.h"
+#include "exec.h"
 
 static void gc_roots( void )
 {
-  Heap->collecting = true;
-
+  exec_mark();
   atom_mark();
-  ns_mark();
-  obj_mark();
-  port_mark();
-  repr_mark();
-  symt_mark();
-  vm_mark();
 }
 
 static void gc_mark( void )
 {
-  while (((stack_t*)Heap->gray_stack)->len > 0)
+  while ((Heap.gray_stack)->len > 0)
     {
-      val_t   val  = pop( Heap->gray_stack );
-      type_t  type = typeof_val(val);
-      repr_t *repr = Reprs[type];
-      repr->do_trace(as_obj(val));
+      obj_t  *obj  = pop( Heap.gray_stack );
+      type_t type  = obj->type;
+      ObjApis[type].do_mark(obj);
+      obj->gray    = true;
     }
 }
 
 static void gc_sweep( void )
 {
-  obj_t **buffer = &Heap->objects;
+  obj_t **buffer = &Heap.objects;
 
   while (*buffer != NULL)
     {
@@ -253,5 +160,44 @@ static void gc_sweep( void )
 
       else
 	finalize( buffer );
+    }
+}
+
+// initialization
+#include "obj/port.h"
+#include "obj/clo.h"
+#include "obj/envt.h"
+
+void mem_init( void )
+{
+  
+  static const size_t obj_base_sizes[num_val_types] =
+    {
+      [none_type] = 0, [any_type] = sizeof(val_t),
+
+      [int_type]   = sizeof(int_t),
+      [real_type]  = sizeof(real_t),
+      [bool_type]  = sizeof(bool_t),
+      [char_type]  = sizeof(char_t),
+
+      [atom_type]  = sizeof(atom_t),
+      [nil_type]   = sizeof(val_t),
+      [cons_type]  = sizeof(cons_t),
+      [func_type]  = sizeof(func_t),
+      [port_type]  = sizeof(port_t),
+      [str_type]   = sizeof(str_t),
+      [table_type] = sizeof(table_t),
+      [clo_type]   = sizeof(clo_t),
+      [envt_type]  = sizeof(envt_t)
+    };
+
+  for (type_t t=1; t <  num_val_types; t++)
+    {
+      ObjApis[t] = (obj_api_t)
+	{
+	  .base_obj_size=obj_base_sizes[t],
+	  .do_finalize=NULL,
+	  .do_mark=NULL
+	};
     }
 }

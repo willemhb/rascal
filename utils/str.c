@@ -16,20 +16,39 @@ hash_t hash_bytes( byte_t *mem, arity_t n)
 {
   hash_t  out = FNV64_OFFSET;
 
-  while (n > 8)
-    {
-      uint64_t chunk  = *(uint64_t*)mem;
-      out            ^= chunk;
-      out            *= FNV64_PRIME;
-      mem            += 8;
-      n              -= 8;
-    }
+  // hashing word-sized chunks, but ensuring memory is aligned first
+      if (n&1)
+	{
+	  out ^= *mem;
+	  out *= FNV64_PRIME;
+	  mem += 1;
+	  n   &= ~1ul;
+	}
 
-  for (arity_t i=0; i<n; i++)
-    {
-      out ^= mem[i];
-      out *= FNV64_PRIME;
-    }
+      if (n&3)
+	{
+	  out ^= *(uint16_t*)mem;
+	  out *= FNV64_PRIME;
+	  mem += 2;
+	  n   &= ~2ul;
+	}
+
+      if (n&7)
+	{
+	  out ^= *(uint16_t*)mem;
+	  out *= FNV64_PRIME;
+	  mem += 4;
+	  n   &= ~4ul;
+	}
+
+      while (n > 8)
+	{
+	  out ^= *(uint64_t*)mem;
+	  out *= FNV64_PRIME;
+	  mem += 8;
+	  n   -= 8;
+	}
+
 
   return out;
 }

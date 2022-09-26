@@ -10,9 +10,9 @@
   'rascal-mode
   '(";")
   '("fun"  "mac"   "cntl"
-    "data" "type"  "union" "enum"
+    "data" "type"  "union" "enum" "class"
     "var"  "val"   "do"    "quote"
-    "if"   "and"   "or"
+    "if"   "and"   "or" "cond" "case"
     "let"  "with" "hndl")
   '(("otherwise" . font-lock-builtin-face)
     ("true" . font-lock-builtin-face)

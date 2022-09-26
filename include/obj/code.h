@@ -3,19 +3,27 @@
 
 #include "obj.h"
 
+typedef struct func_t  func_t;
+typedef struct envt_t  envt_t;
+typedef struct instr_t instr_t;
 
-DECL_OBJ(code);
-DECL_OBJ_API(code);
+typedef struct instr_t
+{
+  arity_t   len;
+  arity_t   cap;
+  opcode_t *instr;
+} instr_t;
 
-struct code_t
+typedef struct code_t
 {
   OBJ_HEAD;
-  arity_t n_local;
-  arity_t n_closure;
+  arity_t n_stack;
+  arity_t n_cap;
 
-  obj_t *code;
-  obj_t *vals;
-};
-
+  func_t  *func;
+  envt_t  *envt;
+  instr_t *code;
+  vals_t  *vals;
+} code_t;
 
 #endif

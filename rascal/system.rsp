@@ -8,19 +8,94 @@
 		   (right tree))))
 
 (fun add
-  [(x int)  (y int)]
-  [(x real) (y real)]
+  ([x.int y.int]
     (+ x y))
+  ((x.real y.int)
+    (+ x y.real)))
 
-(fun all?
-  ([_ ()] true)
-  ([p? (x . xs)]
-    (and (p? x)
-    	 (all? p? xs))))
+(fun fib.int
+  ((1) 1)
+  ((2) 1)
+  ((n.int)
+   (+ (fib (- n 1))
+      (fib (- n 2)))))
 
-(fun some?
-  ([_ ()] false)
-  ([p? (x . xs)]
-    (or (p? x)
-       	(some? p? xs))))
+(fun fact.int
+  ((1) 1)
+  ((n.int)
+   (* n
+      (fact (- n 1)))))
 
+;; signature: (: bool any (| cons nil))
+;; body: (if (=? %1 ())
+;;           false
+;;           (let ((%3 (car %2))
+;;                 (%2 (cdr %2)))
+;;   	       (if (=? %1 %3)
+;;                 true
+;;                 (&func %1 %2))))
+
+(class (a Ord)
+  (fun (ord (| :Lt :Eq :Gt))
+       ((x a) (y a))))
+
+(class (a Eq)
+  (fun (=? bool) (x a) (y a)))
+
+
+
+;; signature: (: bool any (| cons nil))
+;; body: (if (=? %2 ())
+;;           false
+;;           (let ((%3 (car %2))
+;;                 (%2 (cdr %2)))
+;;             (if (=? %2 %3)
+;;                 true
+;;                 ())))
+
+(fun in?
+  ([_ ()]       false)
+  ([x (x . __)] true )
+  ([x (_ . xs)]
+   (in? x xs)))
+
+(fun =?
+  ([() ()]  true )
+  ([() __]  false)
+  ([__ ()]  false)
+  ([(x . xs)
+    (y . ys)]
+   (and (=? x y)
+   	(=? xs ys))))
+
+(fun =?
+  ([[] []] true )
+  ([[] __] false)
+  ([__ []] false)
+  ([(vec x . xs)
+    (vec y . ys)]
+   (and (=? x y)
+   	(=? xs ys))))
+
+(fun +
+  "Unary case."
+  (((x int)) x)
+  (((x int) (y int))
+   (+ x y))
+  (((x int) (y int) . more)
+   (apply +
+   	  (+ x y)
+   	  more)))
+
+(fun map
+  ((_ ()) ())
+  ((fn (cons x . xs))
+   (cons (fn x)
+   	 (map fn xs))
+   ()))
+
+(fun map
+  ((_ []) [])
+  ((fn (vec x . xs))
+   (conj (map fn xs))
+   	 (fn x)))

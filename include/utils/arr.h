@@ -3,30 +3,20 @@
 
 #include "core.h"
 
-// genericized array operations (NB: not portable, change these to macros at some point)
-static inline size_t pad_alist_size(size_t oldl, size_t newl, size_t oldc)
+typedef struct array_t
 {
-  if (oldc >= newl && newl >= (oldc>>1))			
-    return oldc;							
-  arity_t newc = ((size_t)newl+(newl>>3)+6)&~(size_t)3;	
-  if (newl - oldl > newc - oldc)				
-    newc = ((size_t)newl+3)&~(size_t)3;			       
-  return newc;
-}
+  arity_t len;
+  arity_t cap;
 
-static inline size_t pad_stack_size(size_t oldl, size_t newl, size_t oldc, size_t minc)
-{
-  size_t newc = oldc;
-  if (newc < minc)
-    newc = minc;
-  if (newl > oldl)						
-    while (newl > newc)				       
-      newc <<= 1;
-  else if (oldl > newl)
-    while (newc > minc && newl < (newc >> 1))
-      newc >>= 1;
-  return newc;
-}
+  void   *data;
+} array_t;
+
+// generic utilities
+size_t pad_alist_size(size_t oldl, size_t newl, size_t oldc);
+size_t pad_stack_size(size_t oldl, size_t newl, size_t oldc, size_t minc);
+void   resize_array(array_t *array, size_t newl, size_t elsize);
+
+// genericized array operations (NB: not portable, change these to macros at some point)
 
 #define aref(array, n, buf)					\
   ({								\
@@ -38,7 +28,7 @@ static inline size_t pad_stack_size(size_t oldl, size_t newl, size_t oldc, size_
     if (_n_ => 0 && _n_<_array_->len)				\
       {								\
 	if (buf)						\
-	  *buf = _array_->vals[_n_];				\
+	  *buf = _array_->data[_n_];				\
 	_r_ = true;						\
       }								\
     _r_;							\
@@ -55,29 +45,31 @@ static inline size_t pad_stack_size(size_t oldl, size_t newl, size_t oldc, size_
     if (_n_ >= 0 && _n_<_array_->len)		\
       {						\
 	if (buf)				\
-	  *buf = _array_->vals[_n_];		\
-	_array_->vals[_n_] = _val_;		\
+	  *buf = _array_->data[_n_];		\
+	_array_->data[_n_] = _val_;		\
 	_r_ = true;				\
       }						\
     _r_;					\
   })
 
-#define apop(array, buf)			\
-  ({						\
-    typeof(array) _array_ = array;		\
-    typeof(buf) _buf_ = buf;			\
-    arity_t _n_ = _array_->len;			\
-    bool _r_ = false;				\
-    if (_n_)					\
-      {						\
-	if (_buf_)				\
-	  {					\
-	    *_buf_ = _array_->vals[_n_-1];	\
-	  }					\
-	_r_ = true;				\
-	resize((obj_t*)_array_, _n_, _n_-1);	\
-      }						\
-    _r_;					\
+#define apop(array, buf)						\
+  ({									\
+    typeof(array) _array_ = array;					\
+    typeof(buf) _buf_ = buf;						\
+    arity_t _n_ = _array_->len;						\
+    bool _r_ = false;							\
+    if (_n_)								\
+      {									\
+	if (_buf_)							\
+	  {								\
+	    *_buf_ = _array_->data[_n_-1];				\
+	  }								\
+	_r_ = true;							\
+	resize_array((array_t*)_array_,					\
+		     _n_-1,						\
+		     sizeof(_array_->data[0]));				\
+      }									\
+    _r_;								\
   })
 
 #define push(array, val)			\
@@ -85,8 +77,10 @@ static inline size_t pad_stack_size(size_t oldl, size_t newl, size_t oldc, size_
     typeof(array) _array_ = array;		\
     typeof(val) _val_ = val;			\
     arity_t _n_ = _array_->len;			\
-    resize( (obj_t*)_array_, _n_, _n_+1 );	\
-    _array_->vals[_n_] = _val_;			\
+    resize_array( (array_t*)_array_,		\
+		  _n_+1,			\
+		  sizeof(_array_->data[0]));	\
+    _array_->data[_n_] = _val_;			\
     _n_;					\
   })
 
@@ -95,7 +89,9 @@ static inline size_t pad_stack_size(size_t oldl, size_t newl, size_t oldc, size_
     typeof(array) _array_ = array;		\
     typeof(n) _n_ = n;				\
     arity_t _r_ = _array_->len;			\
-    resize( (obj_t*)_array_, _r_, _r_+_n_);	\
+    resize_array( (array_t*)_array_,		\
+		  _r_+_n_,			\
+		  sizeof(_array_->data[0]));	\
     _r_;					\
   })
 
@@ -104,8 +100,10 @@ static inline size_t pad_stack_size(size_t oldl, size_t newl, size_t oldc, size_
     typeof(array) _array_ = array;				\
     arity_t _n_ = _array_->len;					\
     assert(_n_ > 0);						\
-    typeof(*(_array_->vals)) _val_ = _array_->vals[_n_];	\
-    resize( (obj_t*)_array_, _n_, _n_-1);			\
+    typeof(*(_array_->data)) _val_ = _array_->data[_n_];	\
+    resize_array( (array_t*)_array_,				\
+		  _n_-1,					\
+		  sizeof(_val_) );				\
     _val_;							\
   })
 
@@ -116,8 +114,10 @@ static inline size_t pad_stack_size(size_t oldl, size_t newl, size_t oldc, size_
     arity_t _i_ = _array_->len;						\
     assert(_i_ > 0);							\
     assert(_i_ >= _n_);							\
-    typeof(*(_array_->vals)) _val_ = _array_->vals[_i_-1];		\
-    resize((obj_t*)_array_, _i_, _i_-_n_);				\
+    typeof(*(_array_->data)) _val_ = _array_->data[_i_-1];		\
+    resize_array((array_t*)_array_,					\
+		 _i_-_n_,						\
+		 sizeof(_val_) );					\
     _val_;								\
   })
 
@@ -126,8 +126,10 @@ static inline size_t pad_stack_size(size_t oldl, size_t newl, size_t oldc, size_
     typeof(array) _array_ = array;				\
     typeof(src) _src_ = src;					\
     typeof(n) _n_ = n;						\
-    resize( (obj_t*)_array_, _array_->len, _array_->len+_n_ );	\
-    memcpy( _array_->vals, _src_, _n_ * sizeof(*_src_));	\
+    resize_array( (array_t*)_array_,				\
+		  _array_->len+_n_,				\
+		  sizeof(*_src_));				\
+    memcpy( _array_->data, _src_, _n_ * sizeof(*_src_));	\
     _array_->len;						\
   })
 
@@ -137,7 +139,7 @@ static inline size_t pad_stack_size(size_t oldl, size_t newl, size_t oldc, size_
     typeof(dst) _dst_ = dst;					\
     arity_t _n_ = n;						\
     _n_ = min( _n_, _array_->len );				\
-    memcpy( _dst_, _array_->vals, _n_ * sizeof(*_src_));	\
+    memcpy( _dst_, _array_->data, _n_ * sizeof(*_src_));	\
     _n_;							\
   })
 

@@ -14,13 +14,27 @@ typedef enum
     enc_utf32 =16|Ctype_sint32
   } encoding_t;
 
-// character encoding utilities -----------------------------------------------
-bool    is_multibyte( encoding_t enc );
-Ctype_t enc_Ctype( encoding_t enc );
-size_t  enc_size( encoding_t enc );
+#define enc_mask 0x3f
 
 // string and bytes hashing utilities -----------------------------------------
 hash_t hash_string( char *chars );
+hash_t hash_wstring( uint32_t *wchrs, arity_t cnt );
 hash_t hash_bytes( byte_t *mem, arity_t cnt );
+
+// convenience
+static inline size_t sizeof_enc(encoding_t enc)
+{
+  return sizeof_Ctype(enc&15);
+}
+
+static inline bool is_multibyte( encoding_t enc )
+{
+  return enc == enc_utf8 || enc == enc_utf16;
+}
+
+static inline Ctype_t enc_Ctype( encoding_t enc )
+{
+  return enc&15;
+}
 
 #endif

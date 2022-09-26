@@ -21,6 +21,14 @@ typedef enum
     TOK_STRING,
   } tok_t;
 
+typedef struct buffer_t
+{
+  arity_t len;
+  arity_t cap;
+
+  char_t *data;
+} buffer_t;
+
 // forward declarations -------------------------------------------------------
 val_t read_val( obj_t *ios );
 val_t load_file( obj_t *src );

@@ -3,7 +3,11 @@
 
 #include <setjmp.h>
 
-#include "obj/obj.h"
+#include "obj.h"
+#include "exec.h"
+#include "obj/str.h"
+#include "obj/func.h"
+#include "obj/code.h"
 
 // C types
 typedef struct catch_frame_t
@@ -22,12 +26,13 @@ extern catch_frame_t *Catch;
 extern jmp_buf Toplevel;
 
 // convenience
-#define error(fname, agitant, fmt, ...)				\
+#define error(agitant, fmt, ...)				\
   ({								\
     Agitant = agitant;						\
+    char *_fn_ = Vm.code->func->name->data;			\
     fprintf( stderr,						\
 	     "%s: error: "fmt".\n",				\
-      	     fname __VA_OPT__(,)				\
+      	     _fn_ __VA_OPT__(,)					\
 	     __VA_ARGS__);					\
     if (Catch)							\
       longjmp(Catch->saved, 1);					\
@@ -35,16 +40,15 @@ extern jmp_buf Toplevel;
       longjmp(Toplevel, 1);					\
   })
 
-#define type_error(fname, agitant, expected)			\
+#define type_error(agitant, expected)				\
   ({								\
     val_t  _agitant_  = agitant;				\
     type_t _expected_ = expected;				\
     type_t _got_ = typeof_val(_agitant_);			\
-    error(fname,						\
-	  _agitant_,						\
+    error(_agitant_,						\
 	  "wanted a value of type %s, got a value of type %s",	\
-	  typename(_expected_),					\
-	  typename(_got_));					\
+	  ValApis[_expected_].name,				\
+	  ValApis[_got_].name );				\
   })
 
 #define require(condition, ...)			\
