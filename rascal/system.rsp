@@ -1,5 +1,73 @@
 ;;; begin system.rsp
 
+(union list
+       nil
+       (cons any list))
+
+(union tree
+       (data empty)
+       (data leaf any)
+       (data node any tree tree))
+
+(fun map
+  ([_ ()] ())
+  ([fn (cons x xs)] (cons (fn x) (map fn xs)))
+  ([fn (list xs) & more]
+   (let
+     loop ([fn xs acc]
+           (if (some? empty? xs)
+      	       (reverse acc)
+	       (loop fn
+	       	     (map tl xs)
+	       	     (cons (fn .. (map hd xs)) acc)))
+    in (loop fn
+       	     (cons xs
+	     	   (map #(list .. %1) more))
+	     ))))
+
+(fun conj
+  "generic constructor"
+  ([(list xs)] xs)
+  ([(list xs) x] (cons x xs))
+  ([(list xs) x .. more] (conj (cons x xs) .. more)))
+
+(fun conj
+  ([(vec xs)] xs)
+  ([(vec xs) x] (join xs x))
+  ([(vec xs) x .. more] (conj (join xs x) .. more)))
+
+(fun conj
+  ([(str xs)] xs)
+  ([(str xs) x] (join xs x))
+  ([(str xs) x .. more] (conj (join xs x) .. more)))
+
+(fun conj
+  ([(set xs)] xs)
+  ([(set xs) x] (add x xs))
+  ([(set xs) x .. more] (conj (add x xs) .. more)))
+
+(fun conj
+  ([(dict xs)] xs)
+  ([(dict xs) k] (add k xs nil))
+  ([(dict xs) k v] (add k xs v))
+  ([(dict xs) k v .. more] (conj (add k xs v) .. more)))
+
+(fun fst
+  ([()] nil)
+  ([(cons x _)] x))
+
+(fun rst
+  ([()] nil)
+  ([(cons _ xs)] xs))
+
+(fun fst
+  ([[]] nil)
+  ([(vec x .. _)] x))
+
+(fun rst
+  ([[]] nil)
+  ([(vec _ .. xs)] xs))
+
 
 
 ;;; end system.rsp
