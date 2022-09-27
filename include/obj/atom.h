@@ -15,7 +15,7 @@ typedef enum
 
 typedef struct atom_t
 {
-  OBJ_HEAD;
+  OBJ_HEAD
   str_t     *name;
   hash_t     hash;
   idno_t     idno;

@@ -1,42 +1,36 @@
 #ifndef rascal_template_str_h
 #define rascal_template_str_h
 
-#define DECL_STRING(T, V)				\
-  typedef struct T##_t T##_t;				\
-  struct T##_t						\
-  {							\
-    OBJ_HEAD;						\
-    union						\
-    {							\
-      V         *data;					\
-      char_t   *latin1;					\
-      char_t   *ascii;					\
-      char_t   *utf8;					\
-      char16_t *utf16;					\
-      char32_t *utf32;					\
-    };							\
-    arity_t    len;					\
-    arity_t    cap;					\
-    hash_t     hash;					\
+
+#define DECL_STRING(T)				\
+  typedef struct T##_t T##_t
+
+#define STRING_TYPE(T, H, V, F, fname)		\
+  struct T##_t					\
+  {						\
+    H						\
+    STRING_SLOTS(V, F, fname);			\
   }
 
-#define DECL_STRING_API(T, V)						\
-  T##_t *new_##T(arity_t n, V *i, encoding_t e);			\
-  void   init_##T(T##_t* s, arity_t n, V *i, encoding_t e);		\
-  size_t pad_##T##_size(arity_t oldl, arity_t newl, arity_t oldc);	\
-  encoding_t get_##T##_enc( T##_t *str);				\
-  void   finalize_##T(obj_t *s)
+#define STRING_SLOTS(V, F, fname)		\
+  V       *data;				\
+  arity_t  len;					\
+  F        fname;				\
+  hash_t   hash
 
-#define DECL_BUFFER_API(T)			\
-  void   resize_##T(T##_t *s, arity_t newl)
+#define DECL_STRING_API(T, V, F, fname)					\
+  T##_t *new_##T(arity_t n, V *i, F fname);				\
+  void   init_##T(T##_t* s, arity_t n, V *i, F fname);			\
+  size_t pad_##T##_size(arity_t oldl, arity_t newl, arity_t oldc);	\
+  void   finalize_##T(obj_t *s)
 
 #define PAD_TEXT_SIZE(T)						\
   size_t pad_##T##_size(arity_t oldl, arity_t newl, arity_t oldc)	\
-    {									\
-      (void)oldl;							\
-      (void)oldc;							\
-      return newl + 1;							\
-    }
+  {									\
+    (void)oldl;								\
+    (void)oldc;								\
+    return newl + 1;							\
+  }
 
 #define PAD_BUFFER_SIZE(T, V)						\
   size_t pad_##T##_size(arity_t oldl, arity_t newl, arity_t oldc)	\
@@ -44,8 +38,8 @@
     return pad_stack_size(oldl+1, newl+1, oldc, T##_min_cap);		\
   }
 
-#define NEW_STRING(T, V)						\
-  T##_t *new_##T(arity_t n, V *i, encoding_t enc)			\
+#define NEW_STRING(T, V, F, fname)					\
+  T##_t *new_##T(arity_t n, V *i, F fname)				\
   {									\
     if (n == 0)								\
       return empty_##T;							\

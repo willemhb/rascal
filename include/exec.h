@@ -5,21 +5,19 @@
 #include "obj/envt.h"
 
 typedef struct cons_t  cons_t;
+typedef struct clo_t   clo_t;
 typedef struct code_t  code_t;
-typedef struct func_t  func_t;
-typedef struct multi_t multi_t;
 
 typedef struct vm_t
 {
-  vals_t   *stack;
+  vals_t    stack;
 
   // vm state ('registers')
-  code_t   *code;
-  objs_t   *upvals;
-  vals_t   *toplevel;
+  clo_t    *exec;
   opcode_t *ip;
+  
   arity_t   bp;
-  arity_t   argc;
+  arity_t   cnt;
 
   // upvalues list
   cons_t   *open_upvals;

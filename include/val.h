@@ -53,7 +53,7 @@ enum
     real_type,
     bool_type,
     char_type,
-    
+
     nil_type,
     cons_type,
     atom_type,
@@ -66,7 +66,9 @@ enum
     code_type,
     clo_type,
     envt_type,
-    multi_type,
+    cntl_type,
+    method_type,
+    methods_type,
 
     num_val_types
   };
@@ -103,7 +105,8 @@ typedef struct
 
 #include "template/arr.h"
 
-DECL_ALIST(vals, val_t);
+DECL_ALIST(vals);
+ALIST_TYPE(vals, EMPTY_HEAD, val_t);
 DECL_ALIST_API(vals, val_t);
 
 // globals

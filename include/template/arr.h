@@ -1,21 +1,30 @@
 #ifndef rascal_template_arr_h
 #define rascal_template_arr_h
 
+#define EMPTY_HEAD
+
 // templates and generic macros for different array types
-#define DECL_ALIST_API(T, V)				\
-  T##_t *new_##T(arity_t n, V *ini);			\
-  void   init_##T(T##_t *array, arity_t n, V *ini);	\
-  void   finalize_##T(T##_t *array);			\
-  void   mark_##T( T##_t *array);			\
+#define DECL_ALIST_API(T, V)					\
+  T##_t *new_##T(arity_t n, V *ini);				\
+  void   init_##T(T##_t *array, arity_t n, V *ini);		\
+  void   finalize_##T(T##_t *array);				\
+  void   mark_##T( T##_t *array);				\
+  size_t pad_##T##_size(size_t oldl, size_t newl, size_t oldc);	\
   void   resize_##T(T##_t *array, arity_t n)
 
-#define DECL_ALIST(T, V)						\
-  typedef struct T##_t T##_t;						\
-  struct T##_t								\
-  {									\
-    V      *data;							\
-    arity_t len;							\
-    arity_t cap;							\
+#define ALIST_SLOTS(V)				\
+  V       *data;				\
+  arity_t  len;					\
+  arity_t  cap
+
+#define DECL_ALIST(T)						\
+  typedef struct T##_t T##_t
+
+#define ALIST_TYPE(T, H, V)			\
+  struct T##_t					\
+  {						\
+    H						\
+    ALIST_SLOTS(V);				\
   }
 
 #define PAD_ALIST_SIZE(T, V)						\

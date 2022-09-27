@@ -1,45 +1,5 @@
 ;;; begin system.rsp
 
-(fun elem?
-  ((_ ())       false)
-  ((x (x . _))  true)
-  ((x (_ . xs)) (elem? x xs)))
 
-(fun elem?
-  ((_ [])       false)
-  ((x [x & _])  true)
-  ((x [_ & xs]) (elem? x xs)))
-
-(fun elem?
-  ((_ {})          false)
-  ((x {x <- _ & })  true)
-  ((x {_ <- & xs})
-      (elem? x xs)))
-
-(cntl Exc
-  "Effect type for exceptions."
-  (cntl raise x)
-  (cntl raise x (str msg)))
-
-(cntl Coro
-  "Effect type for coroutines."
-  ((action . coroutines)
-   ()))
-
-(fun catch
-  "Standard implementation of Exc."
-  ((action handler)
-   (with
-     ((cntl raise x)
-      (handler x))
-     ((cntl raise x msg)
-      (handler x msg))
-     (action))))
-
-(class (Shape a)
-  (fun real|area (x|a))
-  (fun scale|a   (x|real))
-  (fun skew|a    (x|real y|real))
-  (fun paint|nil (x|color)))
 
 ;;; end system.rsp

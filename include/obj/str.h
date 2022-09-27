@@ -15,8 +15,9 @@ typedef enum
     str_fl_hashed=0x0100, // whether the hash has been computed
   } str_fl_t;
 
-DECL_STRING(str, char_t);
-DECL_STRING_API(str, char_t);
+DECL_STRING(str);
+DECL_STRING_API(str, char_t, encoding_t, enc);
+STRING_TYPE(str, OBJ_HEAD, char_t, encoding_t, enc);
 
 // globals
 extern str_t *empty_str;

@@ -10,7 +10,7 @@ typedef struct clo_t clo_t;
 // runtime function representation --------------------------------------------
 struct clo_t
 {
-  OBJ_HEAD;
+  OBJ_HEAD
 
   func_t *func;
   envt_t *envt;

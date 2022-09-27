@@ -18,7 +18,8 @@ typedef enum
 
 // string and bytes hashing utilities -----------------------------------------
 hash_t hash_string( char *chars );
-hash_t hash_wstring( uint32_t *wchrs, arity_t cnt );
+int    u32cmp( uint32_t *xb, uint32_t *yb, size_t n );
+hash_t hash_wbytes( uint32_t *wchrs, arity_t cnt );
 hash_t hash_bytes( byte_t *mem, arity_t cnt );
 
 // convenience

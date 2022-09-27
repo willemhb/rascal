@@ -3,22 +3,19 @@
 
 #include "obj.h"
 #include "obj/envt.h"
+#include "template/arr.h"
 
 typedef struct cons_t  cons_t;
 typedef struct code_t  code_t;
 typedef struct func_t  func_t;
-typedef struct multi_t multi_t;
 
-typedef struct instr_t
-{
-  arity_t   len;
-  arity_t   cap;
-  opcode_t *instr;
-} instr_t;
+
+DECL_ALIST(instr);
+ALIST_TYPE(instr, EMPTY_HEAD, opcode_t);
+
 
 typedef struct code_t
-{
-  
+{  
   arity_t n_stack;
   arity_t n_cap;
 

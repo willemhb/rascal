@@ -5,7 +5,7 @@
 #include "utils/num.h"
 
 #define OBJ_HEAD				\
-  obj_t object
+  obj_t object;
 
 struct obj_t
 {
@@ -19,7 +19,8 @@ struct obj_t
 // api
 void init_obj(obj_t *obj, type_t type, flags_t fl);
 
-DECL_ALIST(objs, obj_t*);
+DECL_ALIST(objs);
+ALIST_TYPE(objs, EMPTY_HEAD, obj_t*);
 DECL_ALIST_API(objs, obj_t*);
 
 // convenience ----------------------------------------------------------------

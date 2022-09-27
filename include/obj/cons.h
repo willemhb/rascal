@@ -43,6 +43,10 @@ cons_t *new_cons( val_t hd, val_t tl );
 kv_t   *new_kv( val_t k, val_t b, type_t t, arity_t i, hash_t h );
 var_t  *new_var(val_t k, val_t b, type_t t, arity_t i, hash_t h );
 
+
+val_t   listn(val_t *args, arity_t n);
+val_t   consn(val_t *args, arity_t n);
+
 // convenience
 #define is_cons(val) (is_obj_type(val, cons_type))
 #define as_cons(val) ((cons_t*)as_obj(val))

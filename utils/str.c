@@ -12,6 +12,45 @@ hash_t hash_string( char *chars )
   return hash_bytes((byte_t*)chars, n);
 }
 
+int u32cmp(uint32_t *xb, uint32_t *yb, size_t n)
+{
+  uint32_t *xe = xb+n,  *ye = yb+n;
+
+  uint32_t o;
+
+  for (uint32_t *xc=xb, *yc=yb; xc<xe && yc<ye; xc++, yc++)
+      if ((o=*xc-*yc))
+	return (int)o;
+
+  return 0;
+}
+
+hash_t hash_wbytes( uint32_t *mem, arity_t n )
+{
+  hash_t  out = FNV64_OFFSET;
+  
+  if ((uint64_t)mem & 7)
+    {
+      out ^= *mem;
+      out *= FNV64_PRIME;
+      mem++;
+      n--;
+    }
+  while (n > 2)
+    {
+      out ^= *(uint64_t*)mem;
+      out *= FNV64_PRIME;
+      mem += 2;
+      n   -= 2;
+    }
+  if (n)
+    {
+      out ^= *mem;
+      out *= FNV64_PRIME;
+    }
+  return out;
+}
+
 hash_t hash_bytes( byte_t *mem, arity_t n)
 {
   hash_t  out = FNV64_OFFSET;

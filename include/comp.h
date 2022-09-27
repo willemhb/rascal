@@ -19,8 +19,12 @@ typedef enum
 
    OP_CLOSURE,     OP_CLOSE_UPVAL,
 
-   OP_CALL,        OP_RETURN,
-   OP_HALT,
+   OP_CALL,        OP_DISPATCH,
+
+   // capture a continuation
+   OP_CNTL,
+
+   OP_RETURN,      OP_HALT,
   } op_t;
 
 // forward declarations -------------------------------------------------------
