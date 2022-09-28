@@ -10,10 +10,10 @@
   'rascal-mode
   '(";")
   '("fun" "mac" "cntl" "syntax"
-    "type" "data" "union" "class"
-    "val" "var" "do" "quote"
+    "data" "union" "class" "impl"
+    "val" "var" "do" "do*" "quote"
     "cond" "if" "and" "or" "case"
-    "let"  "with")
+    "let"  "labl" "with")
   '(("otherwise" . font-lock-builtin-face)
     ("resume" . font-lock-builtin-face)
     ("escape" . font-lock-builtin-face)
@@ -22,7 +22,9 @@
     ("false" . font-lock-builtin-face)
     ("nil" . font-lock-builtin-face)
     ("none" . font-lock-builtin-face)
-    ("\\W:\\{1\\}[-+_a-zA-Z0-9?!/]+" . font-lock-builtin-face)
+    ("not" . font-lock-builtin-face)
+    ("eos" . font-lock-builtin-face)
+    ("\\W:\\{1\\}[a-zA-Z][-+_a-zA-Z0-9?!/]*" . font-lock-builtin-face)
     ("[A-Z][_a-zA-Z0-9]*" . font-lock-function-name-face))
   '("\\.rsp$" "\\.rdn$" "\\.rdn.o$") ;; source file, serialization format, object file
   '(rainbow-delimiters-mode)

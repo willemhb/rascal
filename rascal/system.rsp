@@ -1,83 +1,127 @@
 ;;; begin system.rsp
 
-(union list
-       nil
-       (cons any list))
+;;; some initial utilities
+(fun zero? "x is zero?"
+  (x) (= x 0))
 
-(union tree
-       (data empty)
-       (data leaf any)
-       (data node any tree tree))
+(fun one? "x is one?"
+  (x) (= x 1))
+
+(fun =?
+  "equal?"
+  (x y)
+  (zero? (ord x y)))
+
+;;; basic type tests and whatnot
+(fun nil?   (x) (id? x nil))
+(fun true?  (x) (id? x true))
+(fun false? (x) (id? x false))
+(fun eos?   (x) (id? x eos))
+
+(fun cons? (x) (isa? x cons))
+(fun sym?  (x) (isa? x sym))
+(fun str?  (x) (isa? x str))
+(fun func? (x) (isa? x func))
+(fun real? (x) (isa? x real))
+(fun chr?  (x) (isa? x chr))
+(fun bool? (x) (isa? x bool))
+(fun port? (x) (isa? x port))
+
+;;; first real test of multiple dispatch
+(fun len
+  ((nil x)) 0)
+
+(fun len
+  ((cons xs))
+  (:len xs))
+
+(fun len
+  ((str xs))
+  (:len xs))
+
+;;; first real test of algebraic effects
+(cntl exception
+  (raise x))
+
+;;; first real test of macros
+(mac catch
+  (handlers . actions)
+  `(with ~handlers
+     	 (fun ()
+	      (do ~@actions))))
+
+;;; a simple function combining all 3
+(fun parity
+  (xs ys)
+  (catch ((raise x)
+  	  (if (=? x :zero-div)
+	      0
+	      (raise x)))
+	 (/ (len xs)
+	    (len ys))))
+
+;;; basic type definitions
+(union list
+       (nil cons))
+
+(union num
+       (real int))
+
+(union seq
+       (list str))
+
+(union atom
+       (not cons))
+
+;; list and sequence utilities
+(fun list
+  (.. args) args)
+
+(fun empty?
+  ((seq xs))
+  (zero? (len xs)))
+
+(fun len=?
+  (xs i)
+  (= (len xs) i))
+
+(fun nth
+  ((nil xs) _)
+  (raise :bounds-error))
+
+(fun nth
+  ((cons xs) (int n))
+  (cond ((zero? n) (car xs))
+  	(otherwise (nth (cdr xs)
+		   	(dec n)))))
+
+(fun nth
+  ((str xs) (int n))
+  (ref xs n))
+
+(fun str->list
+  ((str xs))
+  (str->list xs 0))
+
+(fun str->list
+  ((str xs) (int i))
+  (cond ((len=? xs i) ())
+  	(otherwise    (cons (ref xs i)
+		      	    (str->list xs (inc i))))))
+
+(fun list->str
+  ((list xs))
+  (apply str list))
+
+;;; apply specializations
+(fun map
+  (fn (list xs))
+  (cond ((nil? xs) ())
+  	(otherwise (cons (fn (car xs))
+		   	 (map fn (cdr xs))))))
 
 (fun map
-  ((_ ()) ())
-  ((fn (cons x xs)) (cons (fn x) (map fn xs)))
-  ((fn (list xs) .. more)
-   (let (loop (fun (xss acc)
-   	        (if (some? empty? xss)
-	       	    (reverse acc)
-		    (loop (map:hd xss)
-		      	  (~>> xss map:tl apply:fn))))
-	 acc  ()
-	 xss  (cons xs (map apply:list more)))
-     	 (loop xss acc))))
-
-(fun conj
-  "generic constructor"
-  (((list xs)) xs)
-  (((list xs) x) (cons x xs))
-  (((list xs) x .. more) (conj (cons x xs) .. more)))
-
-(fun conj
-  (((vec xs)) xs)
-  (((vec xs) x) (join xs x))
-  (((vec xs) x .. more) (conj (join xs x) .. more)))
-
-(fun conj
-  (((str xs)) xs)
-  (((str xs) x) (join xs x))
-  (((str xs) x .. more) (conj (join xs x) .. more)))
-
-(fun conj
-  (((set xs)) xs)
-  (((set xs) x) (add x xs))
-  (((set xs) x .. more) (conj (add x xs) .. more)))
-
-(fun conj
-  (((dict xs)) xs)
-  (((dict xs) k) (add k xs nil))
-  (((dict xs) k v) (add k xs v))
-  (((dict xs) k v .. more) (conj (add k xs v) .. more)))
-
-(fun fst
-  ((()) nil)
-  (((cons x _)) x))
-
-(fun rst
-  ((()) nil)
-  (((cons _ xs)) xs))
-
-(fun fst
-  (([]) nil)
-  (((vec x .. _)) x))
-
-(fun rst
-  (([]) nil)
-  (((vec _ .. xs)) xs))
-
-(mac catch
-  ((handlers .. body)
-   (mac handle
-     (()))))
-   	 
-
-(fun range
-  (((int stop)) (range 0 n))
-  (((int start) (int stop)) (range 0 n 1))
-  (((int start) (int stop) (int step))
-   (if (>= start stop)
-       stop
-       (do (yield start)
-       	   (range (+ start step) stop step)))))
+  (fn (str xs))
+  (list->str (map fn (str->list xs))))
 
 ;;; end system.rsp

@@ -10,7 +10,7 @@
 #include "mem.h"
 
 /* common implementation */
-meth_t *cache_method(metht_t *metht, type_t t, )
+meth_t *cache_method(metht_t *metht, type_t t, hash_t h, )
 {
   
 }
