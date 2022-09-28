@@ -67,8 +67,8 @@ enum
     clo_type,
     envt_type,
     cntl_type,
-    method_type,
-    methods_type,
+    meth_type,
+    metht_type,
 
     num_val_types
   };

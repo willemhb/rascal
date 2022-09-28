@@ -1,6 +1,7 @@
 #ifndef rascal_table_h
 #define rascal_table_h
 
+#include "core.h"
 
 #define DECL_TABLE(T)				\
   typedef struct T##_t	T##_t
@@ -39,7 +40,7 @@
   bool   T##_get(T##_t *table, K key, E *buf );				\
   bool 	 T##_put(T##_t *table, K key, E *buf );				\
   bool	 T##_pop(T##_t *table, K key, E *buf );				\
-  void   rehash_##T(E *old, E *new, size_t oldn,size_t newn)
+  void   rehash_##T(E *old, E *new, arity_t oldn,arity_t newn)
 
 #define TABLE_TRACE(T, O)			\
   void trace_##T(T##_t *table)			\
@@ -55,9 +56,9 @@
 				    T##_min_cap );			\
       table->len     = n;						\
       table->cap     = cap;						\
-      table->entries = allocv( cap, E );				\
+      table->data = allocv( cap, E );					\
       if (ini)								\
-	copyv( table->entries, ini, cap, E* );				\
+	copyv( table->data, ini, cap, E );				\
   }
 
 #define TABLE_PAD(T)							\
@@ -67,7 +68,7 @@
     if (oldl > newl)							\
       while (newc > T##_min_cap						\
 	     && newl < newc / 2 * T##_load)				\
-	  new_cap >>= 1;						\
+	newc >>= 1;							\
     else if (newl > oldl)						\
       while (newl > newc *T##_load )					\
 	newc <<= 1;							\
@@ -77,7 +78,7 @@
 #define TABLE_FINALIZE(T, E, O)			\
   void finalize_##T(T##_t *table)		\
   {						\
-    deallocv( (O*)table->entries,		\
+    deallocv( (O*)table->data,			\
 	      table->cap,			\
 	      E );				\
   }
@@ -91,13 +92,14 @@
 	if (guard(entry))						\
 	  continue;							\
 	hash_t h = hash(entry);						\
+	arity_t j = h & (newc-1);					\
 	while (!guard(entry))						\
 	  {								\
-	    i++;							\
-	    if (i >= newc)						\
-	      i = 0;							\
+	    j++;							\
+	    if (j >= newc)						\
+	      j = 0;							\
 	  }								\
-	new[i] = entry;							\
+	new[j] = entry;							\
       }									\
   }
 
@@ -106,9 +108,8 @@
   {									\
     table->len  = newl;							\
     size_t oldc = table->cap;						\
-    size_t newc = pad_table_size(newl,					\
-				 T##_load,				\
-				 old_cap,				\
+    size_t newc = pad_##T##_size(newl,					\
+				 oldc,					\
 				 T##_min_cap );				\
     if (oldc != newc)							\
       {									\
@@ -120,17 +121,17 @@
   }
 
 
-#define TABLE_GET(T, E, K, guard, ehash, cmp, hash)		\
+#define TABLE_GET(T, E, K, guard, cmph, cmpk, hashk)		\
   bool_t T##_get(T##_t *table, K k, E *buf)			\
     {								\
       E *entries   = table->data;				\
       E  entry;						        \
-      hash_t h     = hash(k);					\
+      hash_t h     = hashk(k);					\
       arity_t idx  = h  & (table->cap-1);			\
       								\
       while (!guard((entry=entries[idx])))			\
 	{							\
-	  if (h == ehash(entry) && cmp(k, entry) == 0)		\
+	  if (cmph(h, entry) && cmpk(k, entry))			\
 	    {							\
 	      if (buf)						\
 		*buf = entry;					\

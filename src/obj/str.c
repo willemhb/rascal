@@ -11,8 +11,8 @@ str_t *empty_str, empty_str_obj;
 
 // object api]
 PAD_TEXT_SIZE(str)
-NEW_STRING(str, char_t)
-INIT_STRING(str, char_t)
+NEW_STRING(str, char_t, encoding_t, enc)
+INIT_STRING(str, char_t, encoding_t, enc, true)
 FINALIZE_STRING(str, char_t)
 
 // api implementations

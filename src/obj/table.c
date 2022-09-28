@@ -22,7 +22,7 @@ int     envt_ord(val_t x, val_t y);
 obj_t  *envt_intern(table_t *table, val_t key, hash_t hash);
 
 // static helpers
-static size_t pad_table_size(size_t oldl, size_t newl, size_t oldc)
+size_t pad_table_size(size_t oldl, size_t newl, size_t oldc)
 {
   size_t newc = max(oldc, table_min_cap);
 

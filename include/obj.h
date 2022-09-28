@@ -27,6 +27,7 @@ DECL_ALIST_API(objs, obj_t*);
 #define as_obj(val) ((obj_t*)as_ptr(val))
 #define is_obj(val) (val_tag(val)==OBJECT)
 
+
 static inline bool  is_obj_type( val_t x, type_t t )
 {
   return is_obj(x)
