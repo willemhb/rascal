@@ -1,0 +1,41 @@
+;;; begin seq.rsp
+;;; sequence manipulation functions and types.
+
+(union list
+  "The simple definition of a list."
+  (nul cons))
+
+(union seq
+  "Simple definition."
+  (list str vec set dict))
+
+
+;;; Seq implementation for list.
+(fun conj
+  ((xs list)) xs)
+
+(fun conj
+ ((xs list) x) (cons x xs))
+
+(fun conj
+  ((xs list) x . more)
+  (conj (cons x xs) . more))
+
+(fun fst
+  ((xs nul)) ())
+
+(fun fst
+  ((xs cons) (hd xs)))
+
+(fun rst
+  ((xs nul)) ())
+
+(fun rst
+  ((xs cons)) (tl xs))
+
+(fun empty?
+  ((xs list)) (nul? xs))
+
+;;; seq implementation for str.
+
+;;; end future.rsp

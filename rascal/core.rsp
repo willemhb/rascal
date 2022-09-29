@@ -1,0 +1,98 @@
+;;; begin core.rsp
+;;; rascal basics module.
+
+;;; well-known value predicates
+(fun nul?    (x) (id? x nul))
+(fun any?    (x) true)
+(fun none?   (x) false)
+(fun eos?    (x) (id? x eos))
+(fun true?   (x) (id? x true))
+(fun false?  (x) (id? x false))
+
+;;; builtin type predicates
+(fun bool? (x) (isa? x bool))
+(fun chr?  (x) (isa? x chr))
+(fun int?  (x) (isa? x int))
+(fun real? (x) (isa? x real))
+
+(fun port? (x) (isa? x port))
+(fun func? (x) (isa? x func))
+(fun sym?  (x) (isa? x sym))
+(fun cons? (x) (isa? x cons))
+(fun vec?  (x) (isa? x vec))
+(fun str?  (x) (isa? x str))
+(fun set?  (x) (isa? x set))
+(fun dict? (x) (isa? x dict))
+
+;;; basic logic and comparison
+(fun not (x) (if x true false))
+
+;;; basic higher order functions
+(fun neg (fn)
+  (fun args
+    (not (fn . args))))
+
+(fun curry (fn arg)
+  (fun args
+    (fn arg . args)))
+
+(fun compose (f g)
+  (fun args
+    (f (g . args))))
+
+
+;;; early sequence utilities
+(fun list args args)
+
+(fun cddr (x)
+  (cdr (cdr x)))
+
+(fun cdar (x)
+  (cdr (car x)))
+
+(fun cadr (x)
+  (car (cdr x)))
+
+(fun caar (x)
+  (car (car x)))
+
+;;; let macro
+
+
+;;; backquote implementation
+(mac bqt
+  (x) (bqtex x))
+
+(fun bqt? (x)
+  (id? (car x) 'bqt))
+
+(fun tld? (x)
+  (id? (car x) 'tld))
+
+(fun tld-at? x
+  (id? (car x) 'tld-at))
+
+(fun atom? (x)
+  (not (cons? x)))
+
+(fun lit? (x)
+  (not (or (cons? x)
+       	   (sym? x))))
+
+(fun bq-wrap
+  (x)
+  (if (atom? x) (list cons (bqex x) nul)
+
+(fun bqtex (x)
+  (if (lit? x)    x
+      (atom? x)   (list 'quote x)
+      (tld? x)    (cadr x)
+      (tld-at? x) (list 'splice (cadr x))
+      otherwise   (bqex1 x)))
+
+(fun bqex1)
+
+;;; exports
+(export :all :except ())
+
+;;; end core.rsp

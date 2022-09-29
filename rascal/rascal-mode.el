@@ -9,21 +9,24 @@
 (define-generic-mode
   'rascal-mode
   '(";")
-  '("fun" "mac" "cntl" "syntax"
-    "data" "union" "class" "impl"
-    "val" "var" "do" "do*" "quote"
-    "cond" "if" "and" "or" "case"
-    "let"  "labl" "with")
+  '("val" "var" "let"     ;; general binding
+    "fun" "mac" "cntl"    ;; closures
+    "data" "union"        ;; types
+    "if" "and" "or"       ;; branching
+    "do" "with"           ;; control
+    "import" "export"     ;; module system
+    "quote" "c-call")     ;; misc
   '(("otherwise" . font-lock-builtin-face)
-    ("resume" . font-lock-builtin-face)
-    ("escape" . font-lock-builtin-face)
-    ("abort" . font-lock-builtin-face)
-    ("true" . font-lock-builtin-face)
-    ("false" . font-lock-builtin-face)
-    ("nil" . font-lock-builtin-face)
-    ("none" . font-lock-builtin-face)
+    ("resume\\W" . font-lock-builtin-face)
+    ("escape\\W" . font-lock-builtin-face)
+    ("abort\\W" . font-lock-builtin-face)
+    ("true\\W" . font-lock-builtin-face)
+    ("false\\W" . font-lock-builtin-face)
+    ("nul\\W" . font-lock-builtin-face)
+    ("none\\W" . font-lock-builtin-face)
     ("not" . font-lock-builtin-face)
-    ("eos" . font-lock-builtin-face)
+    ("eos\\W" . font-lock-builtin-face)
+    ("any\\W" . font-lock-builtin-face)
     ("\\W:\\{1\\}[a-zA-Z][-+_a-zA-Z0-9?!/]*" . font-lock-builtin-face)
     ("[A-Z][_a-zA-Z0-9]*" . font-lock-function-name-face))
   '("\\.rsp$" "\\.rdn$" "\\.rdn.o$") ;; source file, serialization format, object file
