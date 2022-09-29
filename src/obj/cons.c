@@ -1,3 +1,4 @@
+
 #include <stdio.h>
 
 #include "obj/cons.h"
@@ -56,4 +57,82 @@ var_t *new_var( val_t k, val_t b, type_t t, arity_t i, hash_t h )
   var_t *out = alloc(sizeof(var_t));
   init_var( out, k, b, t, i, h );
   return out;
+}
+
+// utilities
+val_t ncat(val_t xs, val_t ys)
+{
+  if (xs == NIL)
+    return ys;
+
+  if (ys == NIL)
+    return xs;
+
+  arity_t inc = as_cons(ys)->len;
+
+  for (val_t tmp=xs;;tmp=as_cons(xs)->tl)
+    {
+      as_cons(tmp)->len += inc;
+
+      if (!is_cons(as_cons(tmp)->tl))
+	{
+	  as_cons(tmp)->tl = ys;
+	  break;
+	}
+    }
+  return xs;
+}
+
+val_t xar( val_t xs, val_t v )
+{
+  if (!!(as_obj(xs)->flags & 0x1e))
+    {
+      cons_t *copy = new_cons(v, as_cons(xs)->tl);
+      xs = tag_val((obj_t*)copy, OBJECT);
+    }
+
+  else
+    as_cons(xs)->hd = v;
+
+  return xs;
+}
+
+val_t xdr( val_t xs, val_t v )
+{
+  if (is_proper(xs))
+    {
+      cons_t *copy = new_cons(as_cons(xs)->hd, v);
+      xs = tag_val((obj_t*)copy, OBJECT);
+    }
+
+  else
+    {
+      as_cons(xs)->tl = v;
+      as_cons(xs)->len = 1;
+
+      if (is_cons(v))
+	as_cons(xs)->len += as_cons(v)->len;
+
+    }
+  return xs;
+}
+
+val_t nrev(val_t xs)
+{
+  if (is_cons(xs) && as_cons(xs)->len > 1)
+    {
+      val_t last=NIL;
+      arity_t len = as_cons(xs)->len;
+
+      for (arity_t i=1; i <= len; i++)
+      	{
+	  as_cons(xs)->len = i;
+	  val_t tmp        = as_cons(xs)->tl;
+	  as_cons(xs)->tl  = last;
+	  last             = xs;
+	  xs               = tmp;
+	}
+    }
+
+  return xs;
 }

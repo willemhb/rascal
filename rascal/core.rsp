@@ -27,6 +27,25 @@
 ;;; basic logic and comparison
 (fun not (x) (if x true false))
 
+;;; basic numeric definitions and utilities
+(type num
+      (union int real))
+
+(fun zero? (x) (=? x 0))
+(fun one?  (x) (=? x 1))
+
+(fun inc ((n int)) (+ n 1))
+(fun dec ((n int)) (- n 1))
+
+(fun /= (x y) (~= x y))
+(fun <= (x y) (or (< x y)
+     	      	  (= x y)))
+(fun >  (x y) (~<= x y))
+(fun >= (x y) (~< x y))
+
+(fun even? (n) (zero? (mod n 2)))
+(fun odd?  (n) (one? (mod n 2)))
+
 ;;; basic higher order functions
 (fun neg (fn)
   (fun args
@@ -40,59 +59,406 @@
   (fun args
     (f (g . args))))
 
+;;; list implementation and basic utilities
+(type list
+      (union cons nul))
 
-;;; early sequence utilities
 (fun list args args)
 
-(fun cddr (x)
-  (cdr (cdr x)))
+(fun cons* (x (cons xs)) (cons x xs))
+(fun cons* (x y . more)  (cons x (cons* y . more)))
 
-(fun cdar (x)
-  (cdr (car x)))
+(fun copy ((xs list)) (apply list xs))
 
-(fun cadr (x)
-  (car (cdr x)))
+(fun cat ((xs list) (ys list))
+  (if (nul? xs) ys
+      otherwise (cons (hd xs)
+      		      (cat (tl xs) ys))))
 
-(fun caar (x)
-  (car (car x)))
+(fun rev ((xs list))
+  (nrev (copy xs)))
 
-;;; let macro
+;;; preferred list accessors
+(fun hd ((cons x)) (car x))
+(fun tl ((cons x)) (cdr x))
+(fun hd ((nul x))  nul)
+(fun tl ((nul x))  nul)
 
+;;; hd/tl compositions
+(fun ttl (x) (tl:tl x))
+(fun thd (x) (tl:hd x))
+(fun htl (x) (hd:tl x))
+(fun hhd (x) (hd:hd x))
 
-;;; backquote implementation
-(mac bqt
-  (x) (bqtex x))
+(fun tttl (x) (tl:tl:tl x))
+(fun tthd (x) (tl:tl:hd x))
+(fun thtl (x) (tl:hd:tl x))
+(fun thhd (x) (tl:hd:hd x))
+(fun httl (x) (hd:tl:tl x))
+(fun hthd (x) (hd:tl:hd x))
+(fun hhtl (x) (hd:hd:tl x))
+(fun hhhd (x) (hd:hd:hd x))
 
-(fun bqt? (x)
-  (id? (car x) 'bqt))
+(fun ttttl (x) (tl:tl:tl:tl x))
+(fun ttthd (x) (tl:tl:tl:hd x))
+(fun tthtl (x) (tl:tl:hd:tl x))
+(fun tthhd (x) (tl:tl:hd:hd x))
+(fun thttl (x) (tl:hd:tl:tl x))
+(fun ththd (x) (tl:hd:tl:hd x))
+(fun thhtl (x) (tl:hd:hd:tl x))
+(fun thhhd (x) (tl:hd:hd:hd x))
+(fun htttl (x) (hd:tl:tl:tl x))
+(fun htthd (x) (hd:tl:tl:hd x))
+(fun hthtl (x) (hd:tl:hd:tl x))
+(fun hthhd (x) (hd:tl:hd:hd x))
+(fun hhttl (x) (hd:hd:tl:tl x))
+(fun hhthd (x) (hd:hd:tl:hd x))
+(fun hhhtl (x) (hd:hd:hd:tl x))
+(fun hhhhd (x) (hd:hd:hd:hd x))
 
-(fun tld? (x)
-  (id? (car x) 'tld))
+(fun fst ((x cons)) (hd x))
+(fun snd ((x cons)) (htl x))
+(fun thd ((x cons)) (httl x))
+(fun fth ((x cons)) (htttl x))
 
-(fun tld-at? x
-  (id? (car x) 'tld-at))
+;;; cxr compositions
+(fun cddr (x) (cdr:cdr x))
+(fun cdar (x) (cdr:car x))
+(fun cadr (x) (car:cdr x))
+(fun caar (x) (car:car x))
+
+(fun cdddr (x) (cdr:cdr:cdr x))
+(fun cddar (x) (cdr:cdr:car x))
+(fun cdadr (x) (cdr:car:cdr x))
+(fun cdaar (x) (cdr:car:car x))
+(fun caddr (x) (car:cdr:cdr x))
+(fun cadar (x) (car:cdr:car x))
+(fun caadr (x) (car:car:cdr x))
+(fun caaar (x) (car:car:car x))
+
+(fun cddddr (x) (cdr:cdr:cdr:cdr x))
+(fun cdddar (x) (cdr:cdr:cdr:car x))
+(fun cddadr (x) (cdr:cdr:car:cdr x))
+(fun cddaar (x) (cdr:cdr:car:car x))
+(fun cdaddr (x) (cdr:car:cdr:cdr x))
+(fun cdadar (x) (cdr:car:cdr:car x))
+(fun cdaadr (x) (cdr:car:car:cdr x))
+(fun cdaaar (x) (cdr:car:car:car x))
+(fun cadddr (x) (car:cdr:cdr:cdr x))
+(fun caddar (x) (car:cdr:cdr:car x))
+(fun cadadr (x) (car:cdr:car:cdr x))
+(fun cadaar (x) (car:cdr:car:car x))
+(fun caaddr (x) (car:car:cdr:cdr x))
+(fun caadar (x) (car:car:cdr:car x))
+(fun caaadr (x) (car:car:car:cdr x))
+(fun caaaar (x) (car:car:car:car x))
+
+;;; basic sequence utilities
+(fun len=?
+  (xs (n int))
+  (= (len xs) n))
+
+(fun len=?
+  (xs (n int) (k int) . more)
+  (or (len=? xs n)
+      (len=? k . more)))
+
+(fun len>=?
+  (xs (n int))
+  (not (< n (len xs))))
+
+(fun nth
+  ((xs cons) (n int))
+  (if (one? n)  (hd xs)
+      otherwise (nth (tl xs)
+      		     (dec n))))
+
+(fun nth
+  ((xs str) (n int))
+  (str-ref xs n))
+
+(fun nth
+  ((xs vec) (n int))
+  (vec-ref xs n))
+
+(fun map
+  (fn xs)
+  (if (nul? xs) ()
+      otherwise (cons (fn xs)
+      		      (map fn (tl xs)))))
+
+(fun filter
+  (p? xs)
+  (if (nul? xs)    ()
+      (p? (hd xs)) (cons (hd xs)
+      	      	   	 (filter p? (tl xs)))
+      otherwise    (filter p? (tl xs))))
+
+(fun reduce
+  (fn (xs list))
+  (reduce fn (tl xs) (hd xs)))
+
+(fun reduce
+  (fn (xs list) acc)
+  (if (nul? xs) acc
+      otherwise (reduce fn (tl xs)
+      			   (fn acc (hd xs)))))
+
+(fun take
+  ((n int) xs)
+  (if (zero? n) '()
+      (nul? xs) '()
+      otherwise  (cons (hd xs)
+      		       (take (dec n)
+		       	     (tl xs)))))
+
+(fun take
+  (p? xs)
+  (if (nul? xs)    '()
+      (p? (hd xs)) '()
+      otherwise    (cons (hd xs)
+      		   	 (take p? (tl xs)))))
+
+(fun drop
+  ((n int) xs)
+  (if (zero? n) xs
+      (nul? xs) '()
+      otherwise (drop (dec n) (tl xs))))
+
+(fun drop
+  (p? xs)
+  (if (nul? xs)  '()
+      (p?:hd xs) (drop p? (tl xs))
+      otherwise  xs))
+
+(fun some?
+  (p? (xs list))
+  (if (nul? xs)    false
+      (p?:hd xs)   true
+      otherwise    (some? p? (tl xs))))
+
+(fun every?
+  (p? (xs list))
+  (if (nul? xs)    true
+      (p?:hd xs)   (every? p? (tl xs))
+      otherwise    false))
+
+;;; eval and expand utilities (syntax checkers, etc)
+(fun car=? (xs x . more)
+  (or (=? (car xs) x)
+      (and (cons? xs)
+      	   (car=? (hd more)
+	   	  (tl more)))))
 
 (fun atom? (x)
-  (not (cons? x)))
+     (~cons? x))
+
+(fun name? (x)
+  (and (sym? x)
+       (~kw? x)))
+
+(fun formal? (x)
+  "Is x a name or annotated name?"
+  (or (name? x)
+      (and (cons? x)
+      	   (len=? x 2)
+	   (name?:fst x)
+	   (name?:snd x))))
+
+(fun formals? (xs)
+  "Is xs a (possibly dotted) list of formals?"
+  (or (nul? xs)
+      (formal? xs)
+      (and (formal?:hd xs)
+      	   (formals?:tl xs))))
+
+(fun let-formals? (xs)
+  "Is xs a properly formatted list of let formals?"
+  (if (nul? xs)    true
+      (len=? xs 2) (and (formal?:hd xs)
+      	     	   	(let-formals?:ttl xs))
+      otherwise    false))
 
 (fun lit? (x)
-  (not (or (cons? x)
-       	   (sym? x))))
+  (~or (cons? x)
+       (sym? x)))
 
-(fun bq-wrap
-  (x)
-  (if (atom? x) (list cons (bqex x) nul)
+(fun var? (x)
+  (and (cons? x)
+       (car=? x 'var)
+       (or (and (len=? x 3)
+       	   	(formal?:snd x))
+	   (and (len=? x 4)
+	   	(formal?:snd x)
+		(str?:thd x)))))
 
-(fun bqtex (x)
-  (if (lit? x)    x
-      (atom? x)   (list 'quote x)
-      (tld? x)    (cadr x)
-      (tld-at? x) (list 'splice (cadr x))
-      otherwise   (bqex1 x)))
+(fun val? (x)
+  (and (cons? x)
+       (car=? x 'val)
+       (or (and (len=? x 3)
+       	   	(formal?:snd x))
+	   (and (len=? x 4)
+	   	(formal?:snd x)
+		(str?:thd x)))))
 
-(fun bqex1)
+(fun let? (x)
+  (and (cons? x)
+       (car=? x 'let)
+       (len=? x 3)
+       (let-formals?:snd x)))
 
-;;; exports
-(export :all :except ())
+(fun fun? (x)
+  (and (cons? x)
+       (car=? x 'fun)
+       (or (and (len=? x 3)
+       	   	(formals?:snd x))
+	   (and (len=? x 4)
+	   	(formal?:snd x)
+		(formals?:thd x))
+	   (and (len=? x 5)
+	   	(formal?:snd  x)
+		(formals?:thd x)
+		(str?:fth x)))))
+
+(fun mac? (x)
+  (and (cons? x)
+       (car=? x 'mac)
+       (or (and (len=? x 3)
+       	   	(formals?:snd x))
+	   (and (len=? x 4)
+	   	(formal?:snd x)
+		(formals?:thd x))
+	   (and (len=? x 5)
+	   	(formal?:snd  x)
+		(formals?:thd x)
+		(str?:fth x)))))
+
+(fun cntl? (x)
+  (and (cons? x)
+       (car=? x 'cntl)
+       (or (and (len=? x 3)
+       	   	(formals?:snd x))
+	   (and (len=? x 4)
+	   	(formal?:snd x)
+		(formals?:thd x))
+	   (and (len=? x 5)
+	   	(formal?:snd  x)
+		(formals?:thd x)
+		(str?:fth x)))))
+
+(fun if? (x)
+  (and (cons? x)
+       (car=? x 'if)
+       (len>=? x 3)))
+
+(fun and? (x)
+  (and (cons? x)
+       (car=? x 'and)))
+
+(fun or? (x)
+  (and (cons? x)
+       (car=? x 'or)))
+
+(fun do? (x)
+  (and (cons? x)
+       (car=? x 'do)
+       (len>=? x 2)))
+
+
+(fun with-formal? (xs)
+  (and (cons? xs)
+       (len=? xs 2)
+       (cons?:fst xs)
+       (name?:hhd xs)
+       (formals?:thd xs)))
+
+(fun with-formals? (xs)
+  (and (list? xs)
+       (every? with-formal? xs)))
+
+(fun with? (x)
+  (and (cons? x)
+       (car=? x 'with)
+       (len=? x 3)
+       (with-formals?:snd x)))
+
+(fun import-spec? (x)
+  (and (cons? x)
+       (car=? :only :except :as)
+       (formals?:tl x)))
+
+(fun import-specs? (x)
+  (every? import-spec? x))
+
+(fun import? (x)
+  (and (cons? x)
+       (car=? x 'import)
+       (import-specs?:tl x)))
+
+(fun export? (x)
+  (and (cons? x)
+       (car=? x 'export)
+       (import-specs?:tl x)))
+
+(fun quote? (x)
+  (and (cons? x)
+       (car=? x 'quote)
+       (len=? x 2)))
+
+(fun c-call? (x)
+  (and (cons? x)
+       (car=? x 'c-call)
+       (len=? x 5)
+       (sym?:snd x)
+       (sym?:thd x)
+       (every? sym? (fth x))
+       (list?:nth:_:5 x)
+       (= (len:nth:_:5 x)
+       	  (len:nth:_:4 x))))
+
+;;; helpers for constructing primitive forms
+;;; before quasiquote works
+(fun if-form
+  (test then . more)
+  (list 'if test then
+  	    	 (and more
+		      (if-form . more))))
+
+(fun do-form
+  body
+  (cons 'do body))
+
+(fun and-form
+  body
+  (cons 'and body))
+
+(fun or-form
+  body
+  (cons 'or body))
+
+(fun let-form
+  (formals body)
+  (list 'let formals body))
+
+(fun fun-form
+  (args body)
+  (list 'fun args body))
+
+(fun fun-form
+  (name args body)
+  (list 'fun name args body))
+
+(fun mac-form
+  (name args body)
+  (list 'mac name args body))
+
+;;; export list
+(export
+  (:except formal?,
+  	   formals?,
+	   let-formals?,
+  	   with-formal?,
+  	   with-formals?,
+	   import-spec?))
 
 ;;; end core.rsp

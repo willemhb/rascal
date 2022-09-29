@@ -11,7 +11,7 @@
   '(";")
   '("val" "var" "let"     ;; general binding
     "fun" "mac" "cntl"    ;; closures
-    "data" "union"        ;; types
+    "type" "data" "union" ;; types
     "if" "and" "or"       ;; branching
     "do" "with"           ;; control
     "import" "export"     ;; module system
@@ -24,10 +24,10 @@
     ("false\\W" . font-lock-builtin-face)
     ("nul\\W" . font-lock-builtin-face)
     ("none\\W" . font-lock-builtin-face)
-    ("not" . font-lock-builtin-face)
+    ("\\Wnot\\W" . font-lock-builtin-face)
     ("eos\\W" . font-lock-builtin-face)
     ("any\\W" . font-lock-builtin-face)
-    ("\\W:\\{1\\}[a-zA-Z][-+_a-zA-Z0-9?!/]*" . font-lock-builtin-face)
+    ("[^a-zA-Z?*+]:[-a-zA-Z?*+]+" . font-lock-builtin-face)
     ("[A-Z][_a-zA-Z0-9]*" . font-lock-function-name-face))
   '("\\.rsp$" "\\.rdn$" "\\.rdn.o$") ;; source file, serialization format, object file
   '(rainbow-delimiters-mode)
