@@ -12,27 +12,11 @@
   arity_t len;					\
   arity_t cap
 
-#define TABLE_TYPE(T, H, E)			\
-  struct T##_t					\
-  {						\
-    TABLE_SLOTS(H, E);				\
-  }
-
-#define DECL_ORDERED_TABLE(T, E)				\
-								\
-  typedef struct T##_map_t					\
-  {								\
-    int     *data;						\
-    arity_t  len;						\
-    arity_t  cap;						\
-  } T##_map_t;							\
-  typedef struct T##_t						\
-  {								\
-    E        *data;						\
-    arity_t   len;						\
-    arity_t   cap;						\
-    T##_map_t map;						\
-  } T##_t
+#define ORDERED_TABLE_SLOTS(H, E)				\
+  E        *data;						\
+  arity_t   len;						\
+  arity_t   cap;						\
+  ordmap_t  mapord
 
 #define DECL_TABLE_API(T, K, E)						\
   size_t pad_##T##_size(size_t oldl, size_t newl, size_t oldc);		\
