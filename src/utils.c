@@ -1,6 +1,99 @@
 #include <string.h>
 
-#include "utils/str.h"
+#include "utils.h"
+
+// array sizing utilities
+static const double table_resize_pressure = 0.75;
+
+size_t pad_alist_size(size_t oldl, size_t newl, size_t oldc, size_t minc)
+{
+  if (oldc >= newl && newl >= (oldc>>1))			
+    return oldc;							
+  arity_t newc = ((size_t)newl+(newl>>3)+6)&~(size_t)3;	
+  if (newl - oldl > newc - oldc)				
+    newc = ((size_t)newl+3)&~(size_t)3;
+  if (newc < minc)
+    newc = minc;
+  return newc;
+}
+
+size_t pad_stack_size(size_t oldl, size_t newl, size_t oldc, size_t minc)
+{
+  size_t newc = oldc;
+  if (newl > oldl)						
+    while (newl > newc)				       
+      newc <<= 1;
+  else if (oldl > newl)
+    while (newc > minc && newl < (newc >> 1))
+      newc >>= 1;
+  if (newc < minc)
+    newc = minc;
+  return newc;
+}
+
+size_t pad_table_size(size_t oldl, size_t newl, size_t oldc, size_t minc)
+{
+  size_t newc = oldc;
+
+  if (newl > oldl)						
+    while (newl > newc*table_resize_pressure)				       
+      newc <<= 1;
+  else if (oldl > newl)
+    while (newc > minc && newl < table_resize_pressure*(newc >> 1))
+      newc >>= 1;
+  if (newc < minc)
+    newc = minc;
+  return newc;
+
+}
+
+// numeric & low-level helpers
+#define TOP_BIT 0x8000000000000000ul
+
+uint64_t clog2(uint64_t i)
+{
+  if (i == 0)
+    return 1;
+
+  if ((i&(i-1))==0)
+    return i;
+
+  if (i&TOP_BIT)
+    return TOP_BIT;
+
+  while (i&(i-1))
+    i &= i-1;
+
+  return i<<1;
+}
+
+// hashing
+hash_t hash_int( uint64_t key )
+{
+  key = (~key) + (key << 21);            // key = (key << 21) - key - 1;
+    key =   key  ^ (key >> 24);
+    key = (key + (key << 3)) + (key << 8); // key * 265
+    key =  key ^ (key >> 14);
+    key = (key + (key << 2)) + (key << 4); // key * 21
+    key =  key ^ (key >> 28);
+    key =  key + (key << 31);
+    return key;
+}
+
+hash_t hash_doubl( double d )
+{
+  return hash_int( real_bits(d) );
+}
+
+hash_t hash_ptr( void *p )
+{
+  return hash_int((uintptr_t)p);
+}
+
+hash_t mix_hashes( hash_t h1, hash_t h2 )
+{
+  return hash_int( h1 ^ h2 );
+}
 
 // comparison functions -------------------------------------------------------
 int32_t u16cmp(uint16_t *xb, uint16_t *yb, size_t n)

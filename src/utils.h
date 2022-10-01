@@ -1,8 +1,9 @@
+#ifndef rascal_utils_h
+#define rascal_utils_h
 
-#ifndef rascal_utils_num_h
-#define rascal_utils_num_h
+#include "common.h"
 
-#include "core.h"
+// low-level utilities
 
 // C types --------------------------------------------------------------------
 typedef enum
@@ -29,7 +30,7 @@ typedef union
 typedef union
 {
   uint64_t bits;
-  real_t   ieee;
+  double   ieee;
 
   struct
   {
@@ -39,23 +40,70 @@ typedef union
   } parts;
 } ieee64_t;
 
-// forward declarations & generics --------------------------------------------
+// C types --------------------------------------------------------------------
+typedef enum
+  {
+    enc_ascii =16|Ctype_sint8,
+    enc_latin1=16|Ctype_uint8,
+    enc_utf8  =32|Ctype_sint8,
+    enc_utf16 =16|Ctype_sint16,
+    enc_utf32 =16|Ctype_sint32
+  } encoding_t;
+
+#define enc_mask 0x3f
+
+// string and bytes hashing utilities
+hash_t hash_string( char *chars );
+int    u64cmp( uint64_t *xb, uint64_t *yb, size_t n );
+int    u32cmp( uint32_t *xb, uint32_t *yb, size_t n );
+int    u16cmp( uint16_t *xb, uint16_t *yb, size_t n );
+
+hash_t hash_wbytes( uint32_t *wchrs, arity_t cnt );
+hash_t hash_bytes( byte_t *mem, arity_t cnt );
+
+bool  ihash_bytes( byte_t **mem, hash_t **buf, arity_t *cnt, arity_t *cap );
+bool  ihash_wbytes( uint32_t **wchrs, hash_t **buf, arity_t *cnt, arity_t *cap );
+
+// forward declarations & generics
 size_t   sizeof_Ctype( Ctype_t Ctype );
 bool     Ctype_fits( Ctype_t Cx, Ctype_t Cy );
 Ctype_t  common_Ctype( Ctype_t Cx, Ctype_t Cy );
 
 uint64_t clog2(uint64_t i);
 
-// numeric hashing utilities --------------------------------------------------
+// numeric hashing utilities
 hash_t hash_int( uint64_t u );
-hash_t hash_real( real_t r );
-hash_t hash_ptr( ptr_t p );
+hash_t hash_double( double r );
+hash_t hash_ptr( void *p );
 hash_t mix_hashes( hash_t h1, hash_t h2 );
 
-// ordering helpers
-int    ord_ulong( uint64_t x, uint64_t y );
+// convenience
+size_t sizeof_Ctype( Ctype_t C )
+{ 
+  switch(C)
+    {
+    case Ctype_sint8  ... Ctype_uint8:    return 1;
+    case Ctype_sint16 ... Ctype_uint16:   return 2;
+    case Ctype_sint32 ... Ctype_float32:  return 4;
+    default:                              return 8;
+    }
+}
 
-// convenience ----------------------------------------------------------------
+static inline size_t sizeof_enc(encoding_t enc)
+{
+  return sizeof_Ctype(enc&15);
+}
+
+static inline bool is_multibyte( encoding_t enc )
+{
+  return enc == enc_utf8 || enc == enc_utf16;
+}
+
+static inline Ctype_t enc_Ctype( encoding_t enc )
+{
+  return enc&15;
+}
+
 #define real_bits(r)  (((ieee64_t)(r)).bits)
 #define float_bits(f) (((ieee32_t)(f)).bits)
 
@@ -123,5 +171,13 @@ int    ord_ulong( uint64_t x, uint64_t y );
 	   uint32_t:__builtin_bswap32,		\
 	   int64_t:__builtin_bswap64,		\
 	   uint64_t:__builtin_bswap64)(i)
+
+// array & map utilities
+size_t pad_alist_size(size_t oldl, size_t newl, size_t oldc, size_t minc);
+size_t pad_stack_size(size_t oldl, size_t newl, size_t oldc, size_t minc);
+size_t pad_table_size(size_t oldl, size_t newl, size_t oldc, size_t minc);
+
+// genericized array operations (NB: not portable, change these to macros at some point)
+
 
 #endif
