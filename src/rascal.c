@@ -160,6 +160,31 @@ void mem_init( void );
 #define PTR       0xfffe000000000000ul
 #define INT       0xffff000000000000ul
 
+#define ATOM      0x7ffc000000000000ul
+#define PAIR      0x7ffd000000000000ul
+#define ARRAY     0x7ffe000000000000ul
+#define MAP       0x7fff000000000000ul
+
+#define PTR       0xffff000000000000ul
+
+#define NUL       (ATOM|0x1ul)
+#define CHR       (ATOM|0x2ul)
+#define BOOL      (ATOM|0x3ul)
+#define OP        (ATOM|0x4ul)
+#define TYPEID    (ATOM|0x5ul)
+#define PORTID    (ATOM|0x6ul)
+#define PROCID    (ATOM|0x7ul)
+#define CATCH     (ATOM|0x8ul)
+#define 
+#define REAL      (ATOM|0x8ul)
+#define INT       (ATOM|0x9ul)
+#define BIGINT    (ATOM|0xaul)
+#define RATIO     (ATOM|0xbul)
+#define CPLX      (ATOM|0xcul)
+#define SYM       (ATOM|0xful)
+
+
+
 // value types
 enum
   {

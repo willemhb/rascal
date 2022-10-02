@@ -53,10 +53,11 @@ typedef enum
 #define enc_mask 0x3f
 
 // string and bytes hashing utilities
-hash_t hash_string( char *chars );
-int    u64cmp( uint64_t *xb, uint64_t *yb, size_t n );
-int    u32cmp( uint32_t *xb, uint32_t *yb, size_t n );
-int    u16cmp( uint16_t *xb, uint16_t *yb, size_t n );
+hash_t  hash_string( char *chars );
+int32_t u16cmp( uint16_t *xb, uint16_t *yb, size_t n );
+int32_t u32cmp( uint32_t *xb, uint32_t *yb, size_t n );
+int64_t u64cmp( uint64_t *xb, uint64_t *yb, size_t n );
+
 
 hash_t hash_wbytes( uint32_t *wchrs, arity_t cnt );
 hash_t hash_bytes( byte_t *mem, arity_t cnt );
