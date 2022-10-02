@@ -9,11 +9,16 @@
 // utility typedefs
 typedef uint8_t  byte_t;
 
-typedef int32_t  order_t;
-typedef uint32_t arity_t;
-typedef uint32_t flags_t;
-typedef uint64_t hash_t;
-typedef uint64_t idno_t;
+typedef int32_t  ord32_t;
+typedef uint32_t arity32_t;
+typedef uint32_t flags32_t;
+typedef uint32_t hash32_t;
+typedef uint32_t idno32_t;
+
+typedef int64_t  ord64_t;
+typedef uint64_t arity64_t;
+typedef uint64_t hash64_t;
+typedef uint64_t idno64_t;
 
 // general convenience 
 #define unlikely(test) __builtin_expect(0, (test))
@@ -26,12 +31,12 @@ typedef uint64_t idno_t;
 #define types_compat(t1, t2)			\
   (__builtin_types_compatible_p(t1, t2))
 
-static inline bool flag_p( flags_t fl, uint32_t mask )
+static inline bool flag_p( flags32_t fl, flags32_t mask )
 {
   return !!(fl & mask);
 }
 
-static inline bool mflag_p( flags_t fl, uint32_t mask, uint32_t val )
+static inline bool mflag_p( flags32_t fl, flags32_t mask, flags32_t val )
 {
   return (fl&mask) == val;
 }

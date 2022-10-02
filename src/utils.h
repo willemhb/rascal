@@ -53,17 +53,17 @@ typedef enum
 #define enc_mask 0x3f
 
 // string and bytes hashing utilities
-hash_t  hash_string( char *chars );
-int32_t u16cmp( uint16_t *xb, uint16_t *yb, size_t n );
-int32_t u32cmp( uint32_t *xb, uint32_t *yb, size_t n );
-int64_t u64cmp( uint64_t *xb, uint64_t *yb, size_t n );
+hash64_t  hash_string( char *chars );
+ord32_t u16cmp( uint16_t *xb, uint16_t *yb, size_t n );
+ord32_t u32cmp( uint32_t *xb, uint32_t *yb, size_t n );
+ord64_t u64cmp( uint64_t *xb, uint64_t *yb, size_t n );
 
 
-hash_t hash_wbytes( uint32_t *wchrs, arity_t cnt );
-hash_t hash_bytes( byte_t *mem, arity_t cnt );
+hash64_t hash_wbytes( uint32_t *wchrs, arity32_t cnt );
+hash64_t hash_bytes( byte_t *mem, arity32_t cnt );
 
-bool  ihash_bytes( byte_t **mem, hash_t **buf, arity_t *cnt, arity_t *cap );
-bool  ihash_wbytes( uint32_t **wchrs, hash_t **buf, arity_t *cnt, arity_t *cap );
+bool  ihash_bytes( byte_t **mem, hash64_t **buf, arity32_t *cnt, arity32_t *cap );
+bool  ihash_wbytes( uint32_t **wchrs, hash64_t **buf, arity32_t *cnt, arity32_t *cap );
 
 // forward declarations & generics
 size_t   sizeof_Ctype( Ctype_t Ctype );
@@ -73,10 +73,10 @@ Ctype_t  common_Ctype( Ctype_t Cx, Ctype_t Cy );
 uint64_t clog2(uint64_t i);
 
 // numeric hashing utilities
-hash_t hash_int( uint64_t u );
-hash_t hash_double( double r );
-hash_t hash_ptr( void *p );
-hash_t mix_hashes( hash_t h1, hash_t h2 );
+hash64_t hash_int( uint64_t u );
+hash64_t hash_double( double r );
+hash64_t hash_ptr( void *p );
+hash64_t mix_hashes( hash64_t h1, hash64_t h2 );
 
 // convenience
 size_t sizeof_Ctype( Ctype_t C )
