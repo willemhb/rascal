@@ -1,4 +1,9 @@
 ;;; begin core.rsp
 ;;; rascal basics module.
 
+(fun isa? (value sometype)
+  (=? (typeof value) sometype))
+
+
+
 ;;; end core.rsp

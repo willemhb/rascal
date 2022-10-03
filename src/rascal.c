@@ -31,12 +31,13 @@ typedef struct envt_t envt_t;
 typedef struct var_t  var_t;
 
 // internal types
-typedef struct symt_t   symt_t;
-typedef struct readt_t  readt_t;
-typedef struct rentry_t rentry_t;
-typedef struct buffer_t buffer_t;
-typedef struct alist_t  alist_t;
-typedef struct stack_t  stack_t;
+typedef struct symt_t     symt_t;
+typedef struct readt_t    readt_t;
+typedef struct rentry_t   rentry_t;
+typedef struct buffer_t   buffer_t;
+typedef struct alist_t    alist_t;
+typedef struct stack_t    stack_t;
+typedef struct heap_t     heap_t;
 
 // C function typedefs
 typedef void  (*reader_fn_t)(port_t *stream, char32_t dispatch);
@@ -52,6 +53,12 @@ typedef union
 } val_data_t;
 
 // base object type
+// common object flags
+typedef enum
+  {
+    obj_fl_traversed=0x8000,
+  } obj_fl_t;
+
 typedef struct obj_t
 {
   obj_t    *next;
@@ -147,7 +154,7 @@ typedef enum port_fl_t
     port_fl_ready   =0x200,
   } port_fl_t;
 
-typedef struct port_t
+struct port_t
 {
   obj_t      obj;
 
@@ -155,19 +162,21 @@ typedef struct port_t
   buffer_t  *buffer;
 
   val_t      value;
-  val_t      previous;
-} port_t;
+  val_t      temp;
+};
 
 // vm-internal types
-typedef struct heap_t
+struct heap_t
 {
   obj_t    obj;
   obj_t   *objects;
+
   stack_t *grays;
+  stack_t *saved;
 
   size_t   allocated;
   size_t   alloccap;
-} heap_t;
+};
 
 // globals
 // vm core objects
@@ -225,7 +234,6 @@ enum
 #define as_obj(val)      ((obj_t*)as_ptr(val))
 #define as_atom(val)     ((atom_t*)as_ptr(val))
 #define as_cons(val)     ((cons_t*)as_ptr(val))
-
 
 type_t typeof_obj(obj_t *obj)
 {
@@ -309,6 +317,8 @@ void      free_atom(obj_t *obj);
 void      prin_atom(port_t *port, val_t val);
 
 cons_t   *new_cons(void);
+cons_t   *new_conses(arity32_t n);
+void      init_conses(cons_t *cons, val_t *args, arity32_t n);
 void      init_cons(cons_t *cons, val_t car, val_t cdr);
 void      trace_cons(obj_t *obj);
 void      prin_list(port_t *port, val_t val);
@@ -390,7 +400,7 @@ const char  *TypeNames[N_TYPES] =
   {
     [REAL]    = "real",        [CHRTYPE] = "chr",   [NULTYPE] = "nul",
     [ATOM]    = "atom",        [SYMT]    = "symt",  [READT]   = "readt",
-    [RENTRY]  = "readt-entry", [PORT]    = "port",
+    [RENTRY]  = "readt-entry", [PORT]    = "port",  [CONS]    = "cons",
     [ALIST]   = "alist",       [STACK]   = "stack",
   };
 
@@ -461,6 +471,10 @@ void init_heap(heap_t *heap)
   gray->len       = 0;
   gray->cap       = Mincs[STACK];
   gray->data      = alloc_vec(  gray->cap, val_t );
+
+  // saved can be initialized the easy way
+  heap->saved     = new_stack();
+  init_stack(heap->saved);
 }
 
 void free_heap(obj_t *obj)
@@ -480,6 +494,7 @@ void free_heap(obj_t *obj)
 
 void mark_roots( void )
 {
+  mark_obj((obj_t*)Heap.saved);
   mark_obj((obj_t*)&Symbols);
   mark_obj((obj_t*)&Reader);
   mark_obj((obj_t*)&Ins);
@@ -654,13 +669,23 @@ void init_obj( obj_t *obj, type_t type, flags16_t flags )
 }
 
 // pair types
-OBJ_NEW(cons);
-
 bool is_proper(val_t val)
 {
   return is_nul(val)
     || (is_cons(val)
 	&& flag_p(as_obj(val)->flags, cons_fl_proper));
+}
+
+bool is_list(val_t val)
+{
+  return is_nul(val) || is_cons(val);
+}
+
+OBJ_NEW(cons);
+
+cons_t *new_conses(arity32_t n)
+{
+  return alloc_vec(n, cons_t );
 }
 
 void init_cons( cons_t *cons, val_t car, val_t cdr )
@@ -675,14 +700,35 @@ void init_cons( cons_t *cons, val_t car, val_t cdr )
     cons->len += as_cons(cdr)->len;
 }
 
+void init_conses( cons_t *cons, val_t *args, arity32_t n )
+{
+  for (arity32_t i=n-1; i>0; i--)
+    {
+      val_t tail = args[i];
+      val_t head = args[i-1];
+      init_cons(cons+i-1, head, tail);
+      args[i-1] = tail;
+    }
+}
+
+
 void prin_list(port_t *port, val_t val)
 {
   port_prinf(port, "(" );
 
   while (is_cons(val))
     {
-      
+      port_prin(port, cons_car(val));
+      val = cons_cdr(val);
+
+      if (is_cons(val))
+	port_prinf(port, " ");
+
+      if (!is_nul(val))
+	port_prinf(port, ". ");
     }
+
+  port_prinf(port, ")");
 }
 
 // boxed array types
@@ -735,7 +781,6 @@ TABLE_CLEAR(symt, atom);
 TABLE_REHASH(symt, atom);
 TABLE_RESIZE(symt, atom, SYMT);
 TABLE_PUT(symt, atom, char*, name, hash_string, strcmp);
-
 
 atom_t *symt_intern(symt_t *symt, char *name)
 {
@@ -798,6 +843,7 @@ void init_port(port_t *port, FILE *stream, flags16_t flags)
 {
   init_obj( &port->obj, PORT, flags );
   port->stream = stream;
+  port->value = port->temp = NUL;
   port->buffer = new_buffer();
   init_buffer( port->buffer );
 }
@@ -808,7 +854,7 @@ void trace_port(obj_t *obj)
 
   mark_obj((obj_t*)port->buffer);
   mark_val(port->value);
-  mark_val(port->previous);
+  mark_val(port->temp);
 }
 
 void free_port(obj_t *obj)
@@ -911,15 +957,10 @@ val_t port_prin(port_t *port, val_t val)
 
 val_t  port_take(port_t *port)
 {
-  
-  if (port_readyp(port))
-    return port->previous;
-
-  if (port_eosp(port))
+  if (port_readyp(port) || port_eosp(port))
     return port->value;
-
+  
   val_t out      = port->value;
-  port->previous = port->value;
   port->value    = NUL;
 
   port->obj.flags |= port_fl_ready;
@@ -934,20 +975,25 @@ void port_give(port_t *port, val_t val)
   port->value      = val;
 }
 
+static reader_fn_t get_reader(int32_t dispatch)
+{
+  rentry_t *buf;
+
+  if (!readt_get(&Reader, dispatch, &buf))
+    {
+	  printf( "No way to read %c, exiting.\n", dispatch );
+	  exit( 1 );
+    }
+
+  return buf->handler;
+}
+
 val_t port_read(port_t *port)
 {
   while (port_readyp(port))
     {
-      int32_t ch = port_peekc(port);
-      rentry_t *buf;
-      
-      if (!readt_get(&Reader, ch, &buf))
-	{
-	  printf( "No way to read %c, exiting.\n", ch );
-	  exit(1);
-	}
-      
-      reader_fn_t reader = buf->handler;
+      int32_t ch  = port_peekc(port);
+      reader_fn_t reader = get_reader(ch);
       reader(port, ch);
     }
 
@@ -963,7 +1009,6 @@ val_t port_read(port_t *port)
 
 #define INPROMPT  "<< "
 #define OUTPROMPT ">> "
-
 static bool symchrp(int32_t chr)
 {
   if (chr == EOF)
@@ -991,6 +1036,14 @@ static void accumc( port_t *port, char32_t ch )
   buffer_push( port->buffer, ch );
 }
 
+void read_error(port_t *port, char32_t dispatch)
+{
+  (void)dispatch;
+
+  atom_t *atom = symt_intern( &Symbols, "error" );
+  port_give(port, tag_ptr(atom, OBJ));
+}
+
 void read_atom(port_t *port, char32_t dispatch)
 {
   dispatch = port_readc(port); // advance
@@ -1005,6 +1058,47 @@ void read_atom(port_t *port, char32_t dispatch)
   // printf( "made it through read.\n" );
   atom_t *interned = symt_intern(&Symbols, port->buffer->data);
   port_give(port, tag_ptr(interned, OBJ));
+}
+
+void read_list(port_t *port, char32_t dispatch)
+{
+  port->temp = NUL;
+  port_readc(port);     // advance past opening '('.
+
+  arity32_t base = Heap.saved->len;
+
+  while ((dispatch=port_peekc(port)) != ')' && dispatch != '.')
+    {
+      port_read(port);
+      stack_push( Heap.saved, port_take(port) );
+    }
+
+  if (dispatch == '.')
+    {
+      port_readc(port); // advance past '.'
+      port_read(port);
+      stack_push(Heap.saved, port_take(port) );
+    }
+
+  else
+    stack_push(Heap.saved, NUL);
+
+  if (dispatch != ')')
+    {
+      read_error(port, dispatch);
+      return;
+    }
+
+  // allocate and initialize
+  cons_t *space = new_conses( Heap.saved->len-base-1 );
+  init_conses(space, Heap.saved->data+base, Heap.saved->len-base );
+
+  // set token value
+  port_give(port, tag_ptr(space, OBJ));
+
+  // cleanup
+  resize_stack( Heap.saved, base );
+  port_readc(port); // advance past terminal ')'
 }
 
 void read_real(port_t *port, char32_t dispatch)
@@ -1079,6 +1173,14 @@ static void init_reader( void )
 
 	case ';':
 	  add_reader_macro( &Reader, dispatch, read_comment );
+	  break;
+
+	case '(':
+	  add_reader_macro( &Reader, dispatch, read_list );
+	  break;
+
+	case ')':
+	  add_reader_macro( &Reader, dispatch, read_error );
 	  break;
 
 	default:
