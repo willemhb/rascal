@@ -65,7 +65,6 @@ bool  ihash_bytes( byte_t **mem, hash64_t **buf, arity32_t *cnt, arity32_t *cap 
 bool  ihash_wbytes( uint32_t **wchrs, hash64_t **buf, arity32_t *cnt, arity32_t *cap );
 
 // forward declarations & generics
-size_t   sizeof_Ctype( Ctype_t Ctype );
 bool     Ctype_fits( Ctype_t Cx, Ctype_t Cy );
 Ctype_t  common_Ctype( Ctype_t Cx, Ctype_t Cy );
 
@@ -80,7 +79,7 @@ hash64_t hash_ptr( void *p );
 hash64_t mix_hashes( hash64_t h1, hash64_t h2 );
 
 // convenience
-size_t sizeof_Ctype( Ctype_t C )
+static inline size_t sizeof_Ctype( Ctype_t C )
 { 
   switch(C&Ctype_mask) // mask out the encoding (if present)
     {

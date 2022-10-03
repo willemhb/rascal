@@ -11,21 +11,32 @@
 #include "templates.h"
 
 // typedefs
-typedef uintptr_t val_t;
+// representation types
+typedef uintptr_t    val_t;
+typedef struct obj_t obj_t;
+
+// immediate types
+typedef uint64_t  type_t;
 typedef double    real_t;
 typedef int64_t   int_t;
 typedef char      char_t;
-typedef uint64_t  type_t;
 
-typedef struct obj_t    obj_t;
-typedef struct atom_t   atom_t;
+// object types
+typedef struct atom_t atom_t;
+typedef struct cons_t cons_t;
+typedef struct port_t port_t;
+
+// vm & envt types
+typedef struct envt_t envt_t;
+typedef struct var_t  var_t;
+
+// internal types
 typedef struct symt_t   symt_t;
 typedef struct readt_t  readt_t;
 typedef struct rentry_t rentry_t;
 typedef struct buffer_t buffer_t;
 typedef struct alist_t  alist_t;
 typedef struct stack_t  stack_t;
-typedef struct port_t   port_t;
 
 // C function typedefs
 typedef void  (*reader_fn_t)(port_t *stream, char32_t dispatch);
@@ -51,31 +62,62 @@ typedef struct obj_t
 } obj_t;
 
 // symbol and symbol table
-typedef struct atom_t
+struct atom_t
 {
   obj_t obj;
   ENTRY_SLOTS(char*, name, idno64_t, idno);
-} atom_t;
+};
 
-typedef struct symt_t
+struct symt_t
 {
   obj_t obj;
   ARRAY_SLOTS(atom_t*);
   idno64_t idno;
-} symt_t;
+};
+
+// pair types
+typedef enum
+  {
+   cons_fl_proper=0x001,
+   cons_fl_typed =0x002,
+  } cons_fl_t;
+
+struct cons_t
+{
+  obj_t   obj;
+
+  val_t   car;
+  val_t   cdr;
+
+  arity32_t len;
+  type_t    eltype;
+};
+
+// vm & envt types
+struct var_t
+{
+  obj_t obj;
+  ENTRY_SLOTS(atom_t*, name, val_t, bind); 
+};
+
+struct envt_t
+{
+  obj_t obj;
+  ARRAY_SLOTS(var_t*);
+};
 
 // array types
-typedef struct alist_t
+struct alist_t
 {
   obj_t obj;
   ARRAY_SLOTS(val_t);
-} alist_t;
+};
 
-typedef struct stack_t
+struct stack_t
 {
   obj_t obj;
   ARRAY_SLOTS(val_t);
-} stack_t;
+};
 
 // read table and reader entry
 typedef struct rentry_t
@@ -132,6 +174,7 @@ typedef struct heap_t
 heap_t  Heap;
 symt_t  Symbols;
 readt_t Reader;
+envt_t  Toplevel;
 
 // standard streams
 port_t  Ins, Outs, Errs;
@@ -148,7 +191,7 @@ port_t  Ins, Outs, Errs;
 #define TMASK     0xffff000000000000ul
 
 #define EOS       ((val_t)EOF|CHRTAG)
-#define NUL       ((val_t)0|NULTAG)
+#define NUL       ((val_t)0  |NULTAG)
 
 // builtin types
 enum
@@ -156,16 +199,20 @@ enum
     REAL   =0x01,
     CHRTYPE=0x03,
     NULTYPE=0x04,
-    HEAP   =0x10,
-    ATOM   =0x11,
-    SYMT   =0x12,
-    READT  =0x13,
-    RENTRY =0x14,
-    PORT   =0x15,
-    BUFFER =0x16,
-    ALIST  =0x17,
-    STACK  =0x18,
 
+    HEAP   =0x10,
+    CONS   =0x14,
+    ATOM   =0x15,
+    SYMT   =0x16,
+    RENTRY =0x17,
+    READT  =0x18,
+    PORT   =0x19,
+    BUFFER =0x1a,
+    ALIST  =0x1b,
+    STACK  =0x1c,
+    
+    ANY    =0x20,
+    NONE   =0x21,
     N_TYPES
   };
 
@@ -176,9 +223,9 @@ enum
 #define as_ptr(val)      ((void*)(as_val(val)&PMASK))
 #define tag_ptr(val,tag) ((((val_t)(val))&PMASK)|(tag))
 #define as_obj(val)      ((obj_t*)as_ptr(val))
+#define as_atom(val)     ((atom_t*)as_ptr(val))
+#define as_cons(val)     ((cons_t*)as_ptr(val))
 
-#define is_real(val)     ((val)&QNAN != QNAN)
-#define is_obj(val)      (((val)&TMASK)==OBJ)
 
 type_t typeof_obj(obj_t *obj)
 {
@@ -189,8 +236,10 @@ type_t typeof_val(val_t val)
 {
   switch ((val&TMASK))
     {
-    case OBJ: return as_obj(val)->type;
-    default:  return REAL;
+    case OBJ:    return as_obj(val)->type;
+    case CHRTAG: return CHRTYPE;
+    case NULTAG: return NULTYPE;
+    default:     return REAL;
     }
 }
 
@@ -198,6 +247,20 @@ type_t typeof_val(val_t val)
   _Generic((val),				\
 	   val_t:typeof_val,			\
 	   obj_t*:typeof_obj)((val))
+
+#define isa(val, type)				\
+  (rtypeof(val)==(type))
+
+#define is_real(val)     ((val)&QNAN != QNAN)
+#define is_obj(val)      (((val)&TMASK)==OBJ)
+#define is_chr(val)      (((val)&TMASK)==CHRTAG)
+#define is_nul(val)      ((val)==NUL)
+#define is_atom(val)     isa(val, ATOM)
+#define is_cons(val)     isa(val, CONS)
+#define is_port(val)     isa(val, PORT)
+
+#define cons_car(val)    (as_cons(val)->car)
+#define cons_cdr(val)    (as_cons(val)->cdr)
 
 // memory management
 // forward declarations
@@ -245,10 +308,16 @@ void      init_atom(atom_t *atom, symt_t *symt, char *name);
 void      free_atom(obj_t *obj);
 void      prin_atom(port_t *port, val_t val);
 
+cons_t   *new_cons(void);
+void      init_cons(cons_t *cons, val_t car, val_t cdr);
+void      trace_cons(obj_t *obj);
+void      prin_list(port_t *port, val_t val);
+
 port_t   *new_port(void);
 void      init_port(port_t *port, FILE *stream, flags16_t flags);
 void      trace_port(obj_t *obj);
 void      free_port(obj_t *obj);
+void      reset_port(port_t *port);
 void      port_close(port_t *port);
 
 // IO predicates
@@ -289,6 +358,8 @@ bool      stack_pop(stack_t *stack, val_t *buf);
 buffer_t *new_buffer(void);
 void      init_buffer(buffer_t *buffer);
 void      free_buffer(obj_t *obj);
+void      clear_buffer(buffer_t *buffer);
+void      reset_buffer(buffer_t *buffer);
 void      resize_buffer(buffer_t *buffer, size_t newl);
 arity32_t buffer_push(buffer_t *buffer, char val);
 arity32_t buffer_write(buffer_t *buffer, char *src, arity32_t n);
@@ -325,32 +396,39 @@ const char  *TypeNames[N_TYPES] =
 
 printer_fn_t Print[N_TYPES] =
   {
-    [REAL] = prin_real, [ATOM] = prin_atom, [CHRTYPE] = prin_chr
+   [REAL] = prin_real, [ATOM]   = prin_atom, [CHRTYPE] = prin_chr,
+   [CONS] = prin_list, [NULTYPE]= prin_list,
   };
 
 const size_t BaseSizes[N_TYPES] =
   {
-    [REAL]  = sizeof(real_t),  [ATOM]   = sizeof(atom_t),   [SYMT] = sizeof(symt_t),
-    [READT] = sizeof(readt_t), [RENTRY] = sizeof(rentry_t), [PORT] = sizeof(port_t),
-    [ALIST] = sizeof(alist_t), [STACK]  = sizeof(stack_t)
+   [REAL]  =sizeof(real_t),  [CHRTYPE]=sizeof(char_t),
+
+   [CONS]  =sizeof(cons_t),
+   [ATOM]  =sizeof(atom_t),  [SYMT]   =sizeof(symt_t),
+   [READT] =sizeof(readt_t), [RENTRY] =sizeof(rentry_t), [PORT]  =sizeof(port_t),
+   [ALIST] =sizeof(alist_t), [STACK]  =sizeof(stack_t),  [BUFFER]=sizeof(buffer_t),
   };
 
 const size_t Mincs[N_TYPES] =
   {
     [ALIST]  = 8,   [SYMT]  = 256, [READT] = 256,
-    [BUFFER] = 128, [STACK] = 64
+    [BUFFER] = 128, [STACK] = 64,
   };
 
 trace_fn_t Trace[N_TYPES] =
   {
     [READT] = trace_readt, [SYMT]  = trace_symt,
     [STACK] = trace_stack, [ALIST] = trace_alist,
-    [PORT]  = trace_port,
+    [PORT]  = trace_port,  [CONS]  = trace_cons,
   };
 
 free_fn_t Free[N_TYPES] =
   {
-    [READT] = free_readt,  [ATOM]  = free_atom,
+   [ATOM]  =free_atom,   [PORT]  =free_port,
+   [SYMT]  =free_symt,   [READT] =free_readt,
+   [STACK] =free_stack,  [ALIST] =free_alist,
+   [BUFFER]=free_buffer,
   };
 
 // memory implementation
@@ -575,6 +653,38 @@ void init_obj( obj_t *obj, type_t type, flags16_t flags )
   obj->flags   = flags;
 }
 
+// pair types
+OBJ_NEW(cons);
+
+bool is_proper(val_t val)
+{
+  return is_nul(val)
+    || (is_cons(val)
+	&& flag_p(as_obj(val)->flags, cons_fl_proper));
+}
+
+void init_cons( cons_t *cons, val_t car, val_t cdr )
+{
+  init_obj(&cons->obj, CONS, cons_fl_proper * is_proper(cdr) );
+  cons->car    = car;
+  cons->cdr    = cdr;
+  cons->eltype = ANY;
+  cons->len    = 1;
+
+  if (is_cons(cdr))
+    cons->len += as_cons(cdr)->len;
+}
+
+void prin_list(port_t *port, val_t val)
+{
+  port_prinf(port, "(" );
+
+  while (is_cons(val))
+    {
+      
+    }
+}
+
 // boxed array types
 OBJ_NEW(alist);
 ARRAY_INIT(alist, val_t, Ctype_uint64, ALIST);
@@ -611,6 +721,11 @@ void init_atom(atom_t *atom, symt_t *symt, char *name )
 
   atom->name = duplicate(name);
   atom->idno = symt->idno++;
+}
+
+void prin_atom(port_t *port, val_t val)
+{
+  port_prinf( port, as_atom(val)->name );
 }
 
 TABLE_INIT(symt, atom, SYMT);
@@ -752,7 +867,7 @@ int32_t port_princ(port_t *port, int32_t ch)
   return fputc( ch, port->stream);
 }
 
-int32_t port_getc(port_t *port)
+int32_t port_readc(port_t *port)
 {
   if (port_eosp(port))
     return EOF;
@@ -768,6 +883,14 @@ int32_t port_peekc(port_t *port)
   int32_t out = fgetc(port->stream);
   ungetc(out, port->stream);
   return out;
+}
+
+int32_t port_ungetc(port_t *port, int32_t ch)
+{
+  if (port_eosp(port))
+    return EOF;
+
+  return ungetc(ch, port->stream);
 }
 
 // lisp IO
@@ -832,14 +955,14 @@ val_t port_read(port_t *port)
 }
 
 // reader
-#define RASCAL_VFMT   "%d.%d.%d.%c"
-#define RASCAL_MAJOR  0
-#define RASCAL_MINOR  1
-#define RASCAL_PATCH  1
-#define RASCAL_DEV    'a'
+#define VERSION "%d.%d.%d.%c"
+#define MAJOR   0
+#define MINOR   1
+#define PATCH   1
+#define DEV     'a'
 
-#define RASCAL_INPROMPT  "<< "
-#define RASCAL_OUTPROMPT ">> "
+#define INPROMPT  "<< "
+#define OUTPROMPT ">> "
 
 static bool symchrp(int32_t chr)
 {
@@ -870,11 +993,16 @@ static void accumc( port_t *port, char32_t ch )
 
 void read_atom(port_t *port, char32_t dispatch)
 {
+  dispatch = port_readc(port); // advance
+
+  // printf( "made it into read_atom.\n" );
   while (symchrp(dispatch))
     {
-      accumc(port, dispatch);
+      accumc( port, dispatch );
+      dispatch = port_readc(port);
     }
 
+  // printf( "made it through read.\n" );
   atom_t *interned = symt_intern(&Symbols, port->buffer->data);
   port_give(port, tag_ptr(interned, OBJ));
 }
@@ -899,7 +1027,7 @@ void read_real(port_t *port, char32_t dispatch)
       char *buf;
       double out = strtod( port->buffer->data, &buf );
 
-      assert(*buf);
+      assert(!*buf);
 
       port_give(port, as_val(out) );
     }
@@ -973,11 +1101,21 @@ static void init_rascal( void )
   init_reader();
 }
 
+static void prin_welcome( void )
+{
+  printf("Welcome to rascal version "VERSION"!\n\n", MAJOR, MINOR, PATCH, DEV );
+}
+
 static void repl( void )
 {
   for (;;)
     {
-      
+      port_take(&Ins);
+      printf(INPROMPT);
+      val_t val = port_read(&Ins);
+      printf("\n"OUTPROMPT);
+      port_prin(&Outs, val);
+      printf("\n");
     }
 }
 
@@ -986,6 +1124,8 @@ int main(const int argc, const char *argv[argc])
   (void)argv;
 
   init_rascal();
+  prin_welcome();
+  repl();
   
   return 0;
 }

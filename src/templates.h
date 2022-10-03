@@ -92,7 +92,7 @@
   hash64_t hash
 
 #define TABLE_INIT(T, E, type)				\
-  void init_##T##_base(T##_t *T)			\
+  void init_##T(T##_t *T)				\
   {							\
     init_obj(&T->obj, type, 0);				\
     T->len   = 0;					\
