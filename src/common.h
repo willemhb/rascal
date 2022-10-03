@@ -1,13 +1,18 @@
 #ifndef rascal_common_h
 #define rascal_common_h
-
+#include <uchar.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <assert.h>
 
-// utility typedefs
+// utility & style typedefs
+typedef char     char8_t;
 typedef uint8_t  byte_t;
+
+typedef uint8_t  flags8_t;
+typedef uint16_t flags16_t;
+typedef uint16_t arity16_t;
 
 typedef int32_t  ord32_t;
 typedef uint32_t arity32_t;

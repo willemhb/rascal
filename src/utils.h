@@ -11,7 +11,14 @@ typedef enum
     Ctype_sint8=1, Ctype_uint8,
     Ctype_sint16,  Ctype_uint16,
     Ctype_sint32,  Ctype_uint32,   Ctype_float32,
-    Ctype_sint64,  Ctype_uint64,   Ctype_pointer, Ctype_float64
+    Ctype_sint64,  Ctype_uint64,   Ctype_pointer, Ctype_float64,
+
+    // encoded types
+    Ctype_ascii=16|Ctype_sint8,
+    Ctype_latin=16|Ctype_uint8,
+    Ctype_utf8 =32|Ctype_sint8,
+    Ctype_utf16=16|Ctype_sint16,
+    Ctype_utf32=16|Ctype_sint32
   } Ctype_t;
 
 typedef union
@@ -41,22 +48,14 @@ typedef union
 } ieee64_t;
 
 // C types --------------------------------------------------------------------
-typedef enum
-  {
-    enc_ascii =16|Ctype_sint8,
-    enc_latin1=16|Ctype_uint8,
-    enc_utf8  =32|Ctype_sint8,
-    enc_utf16 =16|Ctype_sint16,
-    enc_utf32 =16|Ctype_sint32
-  } encoding_t;
-
-#define enc_mask 0x3f
+#define enc_mask   0x3f
+#define Ctype_mask 0x0f
 
 // string and bytes hashing utilities
 hash64_t  hash_string( char *chars );
-ord32_t u16cmp( uint16_t *xb, uint16_t *yb, size_t n );
-ord32_t u32cmp( uint32_t *xb, uint32_t *yb, size_t n );
-ord64_t u64cmp( uint64_t *xb, uint64_t *yb, size_t n );
+ord32_t   u16cmp( uint16_t *xb, uint16_t *yb, size_t n );
+ord32_t   u32cmp( uint32_t *xb, uint32_t *yb, size_t n );
+ord64_t   u64cmp( uint64_t *xb, uint64_t *yb, size_t n );
 
 
 hash64_t hash_wbytes( uint32_t *wchrs, arity32_t cnt );
@@ -73,7 +72,9 @@ Ctype_t  common_Ctype( Ctype_t Cx, Ctype_t Cy );
 uint64_t clog2(uint64_t i);
 
 // numeric hashing utilities
-hash64_t hash_int( uint64_t u );
+hash32_t hash_int( uint32_t u );
+hash64_t hash_long( uint64_t u );
+hash32_t hash_float( float f );
 hash64_t hash_double( double r );
 hash64_t hash_ptr( void *p );
 hash64_t mix_hashes( hash64_t h1, hash64_t h2 );
@@ -81,7 +82,7 @@ hash64_t mix_hashes( hash64_t h1, hash64_t h2 );
 // convenience
 size_t sizeof_Ctype( Ctype_t C )
 { 
-  switch(C)
+  switch(C&Ctype_mask) // mask out the encoding (if present)
     {
     case Ctype_sint8  ... Ctype_uint8:    return 1;
     case Ctype_sint16 ... Ctype_uint16:   return 2;
@@ -90,19 +91,14 @@ size_t sizeof_Ctype( Ctype_t C )
     }
 }
 
-static inline size_t sizeof_enc(encoding_t enc)
+static inline bool is_multibyte( Ctype_t enc )
 {
-  return sizeof_Ctype(enc&15);
+  return enc == Ctype_utf8 || enc == Ctype_utf16;
 }
 
-static inline bool is_multibyte( encoding_t enc )
+static inline Ctype_t enc_Ctype( Ctype_t enc )
 {
-  return enc == enc_utf8 || enc == enc_utf16;
-}
-
-static inline Ctype_t enc_Ctype( encoding_t enc )
-{
-  return enc&15;
+  return enc&Ctype_mask;
 }
 
 #define real_bits(r)  (((ieee64_t)(r)).bits)

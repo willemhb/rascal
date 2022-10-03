@@ -9,7 +9,7 @@ size_t pad_alist_size(size_t oldl, size_t newl, size_t oldc, size_t minc)
 {
   if (oldc >= newl && newl >= (oldc>>1))			
     return oldc;							
-  arity_t newc = ((size_t)newl+(newl>>3)+6)&~(size_t)3;	
+  arity32_t newc = ((size_t)newl+(newl>>3)+6)&~(size_t)3;	
   if (newl - oldl > newc - oldc)				
     newc = ((size_t)newl+3)&~(size_t)3;
   if (newc < minc)
@@ -68,7 +68,24 @@ uint64_t clog2(uint64_t i)
 }
 
 // hashing
-hash_t hash_int( uint64_t key )
+hash32_t hash_int( uint32_t key )
+{
+  key = (key+0x7ed55d16) + (key<<12);
+  key = (key^0xc761c23c) ^ (key>>19);
+  key = (key+0x165667b1) + (key<<5);
+  key = (key+0xd3a2646c) ^ (key<<9);
+  key = (key+0xfd7046c5) + (key<<3);
+  key = (key^0xb55a4f09) ^ (key>>16);
+
+  return key;
+}
+
+hash32_t hash_float( float key )
+{
+  return hash_int( float_bits(key) );
+}
+
+hash64_t hash_long( uint64_t key )
 {
   key = (~key) + (key << 21);            // key = (key << 21) - key - 1;
     key =   key  ^ (key >> 24);
@@ -80,17 +97,17 @@ hash_t hash_int( uint64_t key )
     return key;
 }
 
-hash_t hash_doubl( double d )
+hash64_t hash_double( double d )
 {
   return hash_int( real_bits(d) );
 }
 
-hash_t hash_ptr( void *p )
+hash64_t hash_ptr( void *p )
 {
   return hash_int((uintptr_t)p);
 }
 
-hash_t mix_hashes( hash_t h1, hash_t h2 )
+hash64_t mix_hashes( hash64_t h1, hash64_t h2 )
 {
   return hash_int( h1 ^ h2 );
 }
@@ -124,15 +141,15 @@ int64_t u64cmp(uint64_t *xb, uint64_t *yb, size_t n)
 #define FNV64_PRIME  0x00000100000001B3ul
 #define FNV64_OFFSET 0xcbf29ce484222325ul
 
-hash_t hash_string( char *chars )
+hash64_t hash_string( char *chars )
 {
-  arity_t n = strlen(chars);
+  arity32_t n = strlen(chars);
   return hash_bytes((byte_t*)chars, n);
 }
 
-hash_t hash_wbytes( uint32_t *mem, arity_t n )
+hash64_t hash_wbytes( uint32_t *mem, arity32_t n )
 {
-  hash_t  out = FNV64_OFFSET;
+  hash64_t  out = FNV64_OFFSET;
   
   if ((uint64_t)mem & 7)
     {
@@ -156,7 +173,7 @@ hash_t hash_wbytes( uint32_t *mem, arity_t n )
   return out;
 }
 
-bool ihash_wbytes( uint32_t **mem, hash_t **buf, arity_t *cnt, arity_t *cap )
+bool ihash_wbytes( uint32_t **mem, hash64_t **buf, arity32_t *cnt, arity32_t *cap )
 {
   if (*cnt == 0)
       **buf = FNV64_OFFSET;
@@ -172,9 +189,9 @@ bool ihash_wbytes( uint32_t **mem, hash_t **buf, arity_t *cnt, arity_t *cap )
   return true;
 }
 
-hash_t hash_bytes( byte_t *mem, arity_t n)
+hash64_t hash_bytes( byte_t *mem, arity32_t n)
 {
-  hash_t  out = FNV64_OFFSET;
+  hash64_t  out = FNV64_OFFSET;
 
   // hashing word-sized chunks, but ensuring memory is aligned first
       if (n&1)
@@ -208,11 +225,11 @@ hash_t hash_bytes( byte_t *mem, arity_t n)
 	  mem += 8;
 	  n   -= 8;
 	}
-      
+
   return out;
 }
 
-bool ihash_bytes( byte_t **mem, hash_t **buf, arity_t *cnt, arity_t *cap )
+bool ihash_bytes( byte_t **mem, hash64_t **buf, arity32_t *cnt, arity32_t *cap )
 {
   if (*cnt == 0)
       **buf = FNV64_OFFSET;
