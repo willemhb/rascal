@@ -1,9 +1,12 @@
 ;;; begin core.rsp
 ;;; rascal basics module.
 
-(fun isa? (value sometype)
-  (=? (typeof value) sometype))
+(union list
+  (cons nul))
 
+(union num
+  (real int ratio cplx))
 
+(union array)
 
 ;;; end core.rsp
