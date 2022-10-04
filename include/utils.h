@@ -4,8 +4,7 @@
 #include "common.h"
 
 // low-level utilities
-
-// C types --------------------------------------------------------------------
+// C types
 typedef enum
   {
     Ctype_sint8=1, Ctype_uint8,
@@ -56,7 +55,6 @@ hash64_t  hash_string( char *chars );
 ord32_t   u16cmp( uint16_t *xb, uint16_t *yb, size_t n );
 ord32_t   u32cmp( uint32_t *xb, uint32_t *yb, size_t n );
 ord64_t   u64cmp( uint64_t *xb, uint64_t *yb, size_t n );
-
 
 hash64_t hash_wbytes( uint32_t *wchrs, arity32_t cnt );
 hash64_t hash_bytes( byte_t *mem, arity32_t cnt );
@@ -167,13 +165,5 @@ static inline Ctype_t enc_Ctype( Ctype_t enc )
 	   uint32_t:__builtin_bswap32,		\
 	   int64_t:__builtin_bswap64,		\
 	   uint64_t:__builtin_bswap64)(i)
-
-// array & map utilities
-size_t pad_alist_size(size_t oldl, size_t newl, size_t oldc, size_t minc);
-size_t pad_stack_size(size_t oldl, size_t newl, size_t oldc, size_t minc);
-size_t pad_table_size(size_t oldl, size_t newl, size_t oldc, size_t minc);
-
-// genericized array operations (NB: not portable, change these to macros at some point)
-
 
 #endif
