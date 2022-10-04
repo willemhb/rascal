@@ -25,8 +25,8 @@ void   trace_readt(obj_t *obj);
 void   init_readt(readt_t *readt);
 void   free_readt(obj_t *obj);
 void   clear_readt(readt_t *readt);
-void   resize_readt(readt_t *readt, size_t newl);
-void   rehash_readt(rentry_t**old,size_t oldc,rentry_t**new,size_t newc);
+void   resize_readt(readt_t *readt, arity_t newl);
+void   rehash_readt(rentry_t**old,arity_t oldc,rentry_t**new,arity_t newc);
 bool   readt_put(readt_t *readt,char32_t dispatch, rentry_t **buf);
 bool   readt_get(readt_t *readt,char32_t dispatch, rentry_t **buf);
 

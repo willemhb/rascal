@@ -29,7 +29,7 @@ TABLE_INIT(symt, atom, SYMT);
 TABLE_FREE(symt, atom);
 TABLE_TRACE(symt, atom);
 TABLE_CLEAR(symt, atom);
-TABLE_REHASH(symt, atom);
+TABLE_REHASH(symt, atom); 
 TABLE_RESIZE(symt, atom, SYMT);
 TABLE_PUT(symt, atom, char*, name, hash_string, strcmp);
 

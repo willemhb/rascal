@@ -32,7 +32,7 @@
     T##_t *T = 	(T##_t*)obj;					\
     _Generic(T->data,						\
 	     val_t*:trace_vals((val_t*)T->data, T->len),	\
-	     default:trace_objs((obj_t**)T->data, T->len));	\
+	     default:mark_objs((obj_t**)T->data, T->len));	\
   }
 
 #define ARRAY_FREE(T, V)			\

@@ -8,7 +8,7 @@ void mark_val(val_t val)
     mark_obj(as_obj(val));
 }
 
-void trace_vals(val_t *vals, size_t n)
+void mark_vals(val_t *vals, size_t n)
 {
   for (size_t i=0; i<n; i++)
     mark_val(vals[i]);

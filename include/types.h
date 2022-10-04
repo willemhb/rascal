@@ -41,6 +41,7 @@ typedef void  (*reader_fn_t)(port_t *stream, char32_t dispatch);
 typedef void  (*printer_fn_t)(port_t *stream, val_t val);
 typedef void  (*trace_fn_t)(obj_t *obj);
 typedef void  (*free_fn_t)(obj_t *obj);
+typedef val_t (*native_fn_t)(obj_t *args, arity_t n);
 
 typedef union
 {

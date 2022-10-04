@@ -37,8 +37,8 @@ void      trace_symt(obj_t *obj);
 void      init_symt(symt_t *symt);
 void      free_symt(obj_t *obj);
 void      clear_symt(symt_t *symt);
-void      resize_symt(symt_t *symt, size_t newl);
-void      rehash_symt(atom_t **old,size_t oldc,atom_t **new,size_t newc);
+void      resize_symt(symt_t *symt, arity_t newl);
+void      rehash_symt(atom_t **old, arity_t oldc, atom_t **new, arity_t newc);
 bool      symt_put(symt_t *symt, char *name, atom_t **buf);
 
 // external API

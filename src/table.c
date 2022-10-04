@@ -6,13 +6,13 @@ static const double table_resize_pressure = 0.75;
 
 void init_ords(arity_t cap, ords_t *ords, arity_t *osize)
 {
-  if (cap < INT8_MAX)
+  if (cap <= INT8_MAX)
     {
       *(int8_t**)ords = alloc_vec( cap, int8_t );
       *osize          = 1;
     }
 
-  else if (cap < INT16_MAX)
+  else if (cap <= INT16_MAX)
     {
       *(int16_t**)ords = alloc_vec( cap, int16_t );
       *osize           = 2;

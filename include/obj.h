@@ -39,7 +39,7 @@ typedef struct obj_t
 // forward declarations
 void init_obj(obj_t *obj, type_t type, flags_t flags);
 void mark_obj(obj_t *obj);
-void trace_objs(obj_t **objs, size_t n);
+void mark_objs(obj_t **objs, size_t n);
 void free_obj(obj_t *obj);
 
 #endif

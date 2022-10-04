@@ -3,7 +3,7 @@
 
 #include "array.h"
 
-typedef union
+typedef union ords_t
 {
   int8_t  *o8;
   int16_t *o16;
@@ -53,7 +53,7 @@ typedef union
   void trace_##T(obj_t *obj)			\
   {						\
     T##_t *T = (T##_t*)obj;			\
-    trace_objs((obj_t**)T->data, T->len);	\
+    mark_objs((obj_t**)T->data, T->len);	\
   }
 
 #define TABLE_FREE(T, E)			\
@@ -101,7 +101,7 @@ typedef union
 #define ORDERED_TABLE_REHASH(T, E)					\
   void rehash_##T(E##_t **E##s, arity_t len, arity_t cap, ords_t ords)	\
   {									\
-    if (cap < INT8_MAX)							\
+    if (cap <= INT8_MAX)						\
       {									\
 	for (arity_t i=0; i<len; i++)					\
 	  {								\
@@ -112,10 +112,10 @@ typedef union
 	    while (ords.o8[j] == -1)					\
 	      j = (j+1) & m;						\
 	    								\
-	    ords[j] = i;						\
+	    ords.o8[j] = i;						\
 	  }								\
       }									\
-    else if (cap < INT16_MAX)						\
+    else if (cap <= INT16_MAX)						\
       {									\
 	for (arity_t i=0; i<len; i++)					\
 	  {								\
@@ -126,7 +126,7 @@ typedef union
 	    while (ords.o16[j] == -1)					\
 	      j = (j+1) & m;						\
 	    								\
-	    ords[j] = i;						\
+	    ords.o16[j] = i;						\
 	  }								\
       }									\
     else								\
@@ -138,7 +138,7 @@ typedef union
 	    arity_t j = h & m;						\
 	    while (ords.o32[j] == -1)					\
 	      j = (j+1) & m;						\
-	    ords[j] = i;						\
+	    ords.o32[j] = i;						\
 	  }								\
       }									\
   }
@@ -258,7 +258,7 @@ typedef union
 	if (ord==-1)						\
 	  ords[i] = ord = T->len;				\
       }								\
-    if (ord==T->len)						\
+    if ((arity_t)ord==T->len)					\
       {								\
 	o = true;						\
 	E##s[i] = E = new_##E();				\
@@ -333,11 +333,10 @@ typedef union
 	    i = (i+1) & m; 					\
 	  }							\
       }								\
-    if (buf && i != -1)						\
+    if (buf && (ord_t)i != -1)					\
       *buf = E;							\
-    return i != -1;						\
+    return (ord_t)i != -1;					\
   }
-
 
 // forward declarations
 void    init_ords(arity_t ocap, ords_t *ords, arity_t *osize);

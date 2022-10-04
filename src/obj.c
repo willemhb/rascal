@@ -28,7 +28,7 @@ void free_obj(obj_t *obj)
 }
 
 
-void trace_objs(obj_t **objs, size_t n)
+void mark_objs(obj_t **objs, size_t n)
 {
   for (size_t i=0; i<n; i++)
     mark_obj(objs[i]);
