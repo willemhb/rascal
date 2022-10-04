@@ -20,7 +20,7 @@ typedef union
   V *data;						\
   arity_t len;						\
   arity_t cap;						\
-  ords_t  ord;						\
+  ords_t  ords;						\
   arity_t ocap;						\
   arity_t osize
 
@@ -46,14 +46,14 @@ typedef union
     init_obj(&T->obj, type, 0);			\
     T->len = 0;					\
     T->cap = MinCs[type];			\
-    init_ords(T->cap, &T->ord, &T->osize);	\
+    init_ords(T->cap, &T->ords, &T->osize);	\
   }
 
 #define TABLE_TRACE(T, E)			\
   void trace_##T(obj_t *obj)			\
   {						\
     T##_t *T = (T##_t*)obj;			\
-    trace_objs((obj_t**)T->data, T->cap);	\
+    trace_objs((obj_t**)T->data, T->len);	\
   }
 
 #define TABLE_FREE(T, E)			\
@@ -68,7 +68,7 @@ typedef union
   {						\
     T##_t* T = (T##_t*)obj;			\
     dealloc_vec(T->data, T->cap, E##_t*);	\
-    free_ords(T->ord, T->ocap, T->osize );	\
+    free_ords(T->ords, T->ocap, T->osize );	\
   }
 
 #define TABLE_CLEAR(T, E)				\
@@ -99,7 +99,7 @@ typedef union
   }
 
 #define ORDERED_TABLE_REHASH(T, E)					\
-  void rehash_##T(E##_t **E##s, arity_t len, arity_t cap, ord_t ords)	\
+  void rehash_##T(E##_t **E##s, arity_t len, arity_t cap, ords_t ords)	\
   {									\
     if (cap < INT8_MAX)							\
       {									\
@@ -136,10 +136,8 @@ typedef union
 	    hash_t  h = E##s[i]->hash;					\
 	    arity_t m = cap-1;						\
 	    arity_t j = h & m;						\
-	    								\
 	    while (ords.o32[j] == -1)					\
 	      j = (j+1) & m;						\
-									\
 	    ords[j] = i;						\
 	  }								\
       }									\
@@ -292,6 +290,54 @@ typedef union
       *buf = E;						\
     return E != NULL;					\
   }
+
+#define ORDERED_TABLE_GET(T, E, K, key, hashfn, cmpfn)		\
+  bool T##_get(T##_t *T, K key, E##_t **buf)			\
+  {								\
+    hash_t  h  = hashfn(key);					\
+    arity_t m  = T->cap-1;					\
+    arity_t i  = h & m;						\
+    E##_t **E##s = T->data;					\
+    E##_t  *E    = NULL;					\
+    int32_t o    = -1;						\
+    if (T->osize == 1)						\
+      {								\
+	int8_t *ords = t->ords.o8;				\
+	while ((o=ords[i]) != -1)				\
+	  {							\
+	    E = E##s[i];					\
+	    if (E->hash == h && cmpfn(E->key, key) == 0)	\
+	      break;						\
+	    i = (i+1) & m; 					\
+	  }							\
+      }								\
+    else if (T->osize == 2)					\
+      {								\
+	int16_t *ords = t->ords.o16;				\
+	while ((o=ords[i]) != -1)				\
+	  {							\
+	    E = E##s[i];					\
+	    if (E->hash == h && cmpfn(E->key, key) == 0)	\
+	      break;						\
+	    i = (i+1) & m; 					\
+	  }							\
+      }								\
+    else							\
+      {								\
+	int32_t *ords = t->ords.o32;				\
+	while ((o=ords[i]) != -1)				\
+	  {							\
+	    E = E##s[i];					\
+	    if (E->hash == h && cmpfn(E->key, key) == 0)	\
+	      break;						\
+	    i = (i+1) & m; 					\
+	  }							\
+      }								\
+    if (buf && i != -1)						\
+      *buf = E;							\
+    return i != -1;						\
+  }
+
 
 // forward declarations
 void    init_ords(arity_t ocap, ords_t *ords, arity_t *osize);

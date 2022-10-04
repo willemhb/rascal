@@ -9,13 +9,12 @@
 (define-generic-mode
   'rascal-mode
   '(";")
-  '("val" "var" "let"      ;; general binding
+  '("var" "let" "with"     ;; binding
     "fun" "mac" "cntl"     ;; closures
     "type" "data" "union"  ;; types
     "cond" "if" "and" "or" ;; branching
-    "do" "with"            ;; control
     "import" "export"      ;; module system
-    "quote" "c-call")      ;; misc
+    "do" "quote" "c-call") ;; misc
   '(("otherwise" . font-lock-builtin-face)
     ("resume\\W" . font-lock-builtin-face)
     ("escape\\W" . font-lock-builtin-face)

@@ -28,7 +28,8 @@ TABLE_INIT(envt, var, ENVT);
 TABLE_TRACE(envt, var);
 TABLE_FREE(envt, var);
 TABLE_CLEAR(envt, var);
-TABLE_REHASH(envt, var);
+ORDERED_TABLE_REHASH(envt, var);
+
 TABLE_RESIZE(envt, var, ENVT);
 TABLE_PUT(envt, var, atom_t*, name, atom_hash, cmp_atoms);
 TABLE_GET(envt, var, atom_t*, name, atom_hash, cmp_atoms);

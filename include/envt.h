@@ -12,7 +12,7 @@ struct var_t
 struct envt_t
 {
   obj_t obj;
-  TABLE_SLOTS(var_t*);
+  ORDERED_TABLE_SLOTS(var_t*);
 };
 
 // globals
@@ -30,8 +30,8 @@ void    init_envt( envt_t *envt );
 void    trace_envt( obj_t *obj );
 void    free_envt( obj_t *obj );
 void    clear_envt( envt_t *envt );
-void    rehash_envt( var_t **old, size_t oldc, var_t **new, size_t newc );
-void    resize_envt( envt_t *envt, size_t newl );
+void    rehash_envt( var_t **new, arity_t len, arity_t cap, ord_t ords );
+void    resize_envt( envt_t *envt, arity_t newl );
 bool    envt_put( envt_t *envt, atom_t *name, var_t **buf );
 bool    envt_get( envt_t *envt, atom_t *name, var_t **buf );
 
