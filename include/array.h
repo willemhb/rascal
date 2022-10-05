@@ -145,7 +145,14 @@ size_t pad_alist_size(size_t oldl, size_t newl, size_t oldc, size_t minc);
 size_t pad_stack_size(size_t oldl, size_t newl, size_t oldc, size_t minc);
 
 // convenience
-#define as_stack(val)    ((stack_t*)as_ptr(val))
+#define as_stack(val)   ((stack_t*)as_ptr(val))
+#define is_stack(val)   isa(val, STACK)
+#define stack_sp(val)   (as_stack(val)->len)
+#define stack_cap(val)  (as_stack(val)->cap)
+#define stack_vals(val) (as_stack(val)->data)
+#define stack_tos(val)  (stack_vals(val)[stack_sp(val)-1])
 
+#define as_alist(val) ((alist_t*)as_ptr(val))
+#define is_alist(val) isa(val, ALIST)
 
 #endif

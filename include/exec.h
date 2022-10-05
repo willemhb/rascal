@@ -10,12 +10,13 @@ enum
    HALT    =0x00,
 
    // load/store instructions
-   CONSTANT=0x01,
-   GLOBAL  =0x02,
+   LOADC   =0x01,
+   LOADG   =0x02,
+   STOREG  =0x03,
    
    // control flow
-   JUMP    =0x03,
-   CALL    =0x04,
+   JUMP    =0x04,
+   CALL    =0x05,
   };
 
 // vm state type

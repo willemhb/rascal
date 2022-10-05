@@ -19,6 +19,8 @@ typedef uint16_t  op_t;
 typedef struct atom_t atom_t;
 typedef struct cons_t cons_t;
 typedef struct port_t port_t;
+typedef struct func_t func_t;
+typedef struct str_t  str_t;
 
 // vm, environment, and compiler types
 typedef struct vm_t    vm_t;
@@ -28,13 +30,18 @@ typedef struct instr_t instr_t;
 typedef struct code_t  code_t;
 
 // internal types
-typedef struct symt_t     symt_t;
-typedef struct readt_t    readt_t;
-typedef struct rentry_t   rentry_t;
-typedef struct buffer_t   buffer_t;
-typedef struct alist_t    alist_t;
-typedef struct stack_t    stack_t;
-typedef struct heap_t     heap_t;
+typedef struct metht_t  metht_t;
+typedef struct method_t method_t;
+typedef struct mcache_t mcache_t;
+typedef struct mlevel_t mlevel_t;
+typedef struct types_t  types_t;
+typedef struct symt_t   symt_t;
+typedef struct readt_t  readt_t;
+typedef struct rentry_t rentry_t;
+typedef struct buffer_t buffer_t;
+typedef struct alist_t  alist_t;
+typedef struct stack_t  stack_t;
+typedef struct heap_t   heap_t;
 
 // C function typedefs
 typedef void  (*reader_fn_t)(port_t *stream, char32_t dispatch);

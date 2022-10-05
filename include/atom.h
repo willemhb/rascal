@@ -50,5 +50,7 @@ void      atom_init( void );
 #define as_atom(val)     ((atom_t*)as_ptr(val))
 
 #define atom_hash(val)   (as_atom(val)->hash)
+#define atom_name(val)   (as_atom(val)->name)
+#define atom_idno(val)   (as_atom(val)->idno)
 
 #endif

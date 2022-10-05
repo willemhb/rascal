@@ -26,13 +26,15 @@ val_t lisp_exec( vm_t *vm, code_t *code )
 {
   static void* labels[] =
     {
-     [HALT]     = &&halt,
+     [HALT]  = &&halt,
 
-     [CONSTANT] = &&constant, [GLOBAL] = &&global,
+     [LOADC] = &&loadc,
 
-     [JUMP]     = &&jump,
+     [LOADG] = &&loadg, [STOREG] = &&storeg,
 
-     [CALL]     = &&call,
+     [JUMP]  = &&jump,
+
+     [CALL]  = &&call,
     };
 
   vm->code = code;
@@ -52,13 +54,18 @@ val_t lisp_exec( vm_t *vm, code_t *code )
   stack_pop( vm->stack, &tmpx );
   return tmpx;
 
- constant:
+ loadc:
   stack_push( vm->stack, code->constants->data[argx] );
-  
+
   goto dispatch;
 
- global:
+ loadg:
   stack_push( vm->stack, Toplevel.data[argx]->bind );
+
+  goto dispatch;
+
+ storeg:
+  Toplevel.data[argx]->bind = stack_tos(vm->stack);
 
   goto dispatch;
 
@@ -71,6 +78,7 @@ val_t lisp_exec( vm_t *vm, code_t *code )
 // REPL
 #define INPROMPT  "<< "
 #define OUTPROMPT ">> "
+
 void repl( void )
 {
   for (;;)
