@@ -7,11 +7,15 @@
 // opcodes
 enum
   {
-    // load/store instructions
-    HALT    =0x00,
-    CONSTANT=0x01,
-    GLOBAL  =0x02,
-    CALL    =0x03,
+   HALT    =0x00,
+
+   // load/store instructions
+   CONSTANT=0x01,
+   GLOBAL  =0x02,
+   
+   // control flow
+   JUMP    =0x03,
+   CALL    =0x04,
   };
 
 // vm state type
@@ -32,8 +36,8 @@ void free_vm( obj_t *obj );
 extern vm_t Vm;
 
 // forward declarations
-void lisp_exec( vm_t *vm, code_t *code );
-void repl( void );
-void vm_init( void );
+val_t lisp_exec( vm_t *vm, code_t *code );
+void  repl( void );
+void  vm_init( void );
 
 #endif

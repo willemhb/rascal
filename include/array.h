@@ -71,6 +71,22 @@
     return offset;				\
   }
 
+
+#define ARRAY_APPEND(T, V)			\
+  arity_t T##_append( T##_t *T, arity_t n, ...)	\
+  {						\
+    arity_t offset = T->len;			\
+    if (n==0)					\
+      return offset;				\
+    resize_##T( T, T->len+n );			\
+    va_list va;					\
+    va_start(va, n);				\
+    for (arity_t i=0;i<n;i++)			\
+	T->data[offset+i] = va_arg(va, V);	\
+    va_end(va);					\
+    return offset;				\
+  }
+
 #define ARRAY_POP(T, V)				\
   bool T##_pop(T##_t *T, V *buf)		\
   {						\

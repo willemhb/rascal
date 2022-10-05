@@ -1,12 +1,17 @@
 ;;; begin core.rsp
 ;;; rascal basics module.
 
+;;; basic types
 (union list
   (cons nul))
 
-(union num
-  (real int ratio cplx))
-
-(union array)
+(fun prin
+  ((port port) (xs list))
+  (where ((loop port xs)
+  	  (if (cons? xs) (do (prin port (car xs)) (princ port \space) (loop port (cdr xs)))
+	      xs     	 (prins " . #{xs}"))
+	      otherwise  (do-nothing))
+	 (do (princ \()
+	     (loop xs))))
 
 ;;; end core.rsp
