@@ -3,6 +3,7 @@
 
 #include "array.h"
 
+// macros, common table utilities, and table types that don't fit elsewhere
 typedef union ords_t
 {
   int8_t  *o8;
