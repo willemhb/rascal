@@ -29,12 +29,13 @@ typedef struct var_t   var_t;
 typedef struct instr_t instr_t;
 typedef struct code_t  code_t;
 
-// internal types
+// method table and dispatch types
 typedef struct metht_t  metht_t;
-typedef struct method_t method_t;
-typedef struct mcache_t mcache_t;
-typedef struct mlevel_t mlevel_t;
+typedef struct meth_t   meth_t;
+typedef struct typet_t  typet_t;
 typedef struct types_t  types_t;
+
+// internal types
 typedef struct symt_t   symt_t;
 typedef struct readt_t  readt_t;
 typedef struct rentry_t rentry_t;
@@ -48,14 +49,14 @@ typedef void  (*reader_fn_t)(port_t *stream, char32_t dispatch);
 typedef void  (*printer_fn_t)(port_t *stream, val_t val);
 typedef void  (*trace_fn_t)(obj_t *obj);
 typedef void  (*free_fn_t)(obj_t *obj);
-typedef val_t (*native_fn_t)(obj_t *args, arity_t n);
+typedef val_t (*native_fn_t)(val_t *args, arity_t n);
 
 typedef union
 {
-  real_t as_real;
-  val_t  as_val;
-  void  *as_ptr;
-  obj_t *as_obj;
+  real_t  as_real;
+  val_t   as_val;
+  void   *as_ptr;
+  obj_t  *as_obj;
 } val_data_t;
 
 // tags & masks
@@ -69,35 +70,39 @@ typedef union
 #define PMASK     0x0000fffffffffffful
 #define TMASK     0xffff000000000000ul
 
-#define EOS       ((val_t)EOF|CHRTAG)
-#define NUL       ((val_t)0  |NULTAG)
+#define EOS       ((value_t)EOF|CHRTAG)
+#define NUL       ((value_t)0  |NULTAG)
 
 // builtin types
 enum
   {
-    REAL   =0x01,
-    CHRTYPE=0x03,
-    NULTYPE=0x04,
+    REAL    =0x01,
+    INTTYPE =0x02,
+    BOOLTYPE=0x03,
+    CHRTYPE =0x04,
+    NULTYPE =0x05,
 
-    HEAP   =0x10,
-    VM     =0x11,
-    ENVT   =0x12,
-    VAR    =0x13,
-    INSTR  =0x14,
-    CODE   =0x15,
-    CONS   =0x16,
-    ATOM   =0x17,
-    SYMT   =0x18,
+    HEAP    =0x10,
+    VM      =0x11,
+    ENVT    =0x12,
+    VAR     =0x13,
+    INSTR   =0x14,
+    CODE    =0x15,
+
+    CONS    =0x16,
     
-    RENTRY =0x19,
-    READT  =0x1a,
-    PORT   =0x1b,
-    BUFFER =0x1c,
-    ALIST  =0x1d,
-    STACK  =0x1e,
+    ATOM    =0x17,
+    SYMT    =0x18,
+    
+    RENTRY  =0x19,
+    READT   =0x1a,
+    PORT    =0x1b,
+    BUFFER  =0x1c,
+    ALIST   =0x1d,
+    STACK   =0x1e,
  
-    ANY    =0x30,
-    NONE   =0x31,
+    ANY     =0x30,
+    NONE    =0x31,
     N_TYPES
   };
 

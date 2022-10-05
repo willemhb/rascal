@@ -10,7 +10,7 @@
 #define as_val(val)      (((val_data_t)(val)).as_val)
 #define as_ptr(val)					\
   _Generic((val),					\
-	   val_t:((void*)(as_val((val_t)(val))&PMASK)),	\
+	   value_t:((void*)(as_val((val_t)(val))&PMASK)),	\
 	   default:(typeof(val))(val))
 #define tag_ptr(val,tag) ((((val_t)(val))&PMASK)|(tag))
 

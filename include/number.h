@@ -13,4 +13,11 @@
 void      prin_real(port_t *port, val_t val);
 void      prin_chr(port_t *port, val_t val);
 
+// arithmetic functions
+val_t native_add(val_t *args, arity_t n);
+val_t native_sub(val_t *args, arity_t n);
+val_t native_mul(val_t *args, arity_t n);
+val_t native_div(val_t *args, arity_t n);
+val_t native_rem(val_t *args, arity_t n);
+
 #endif

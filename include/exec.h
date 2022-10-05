@@ -16,7 +16,10 @@ enum
 
    // control flow
    JUMP    =0x04,
+
+   // function calls
    CALL    =0x05,
+   DISPATCH=0x06,
   };
 
 // vm state type
