@@ -13,7 +13,7 @@ enum
    LOADC   =0x01,
    LOADG   =0x02,
    STOREG  =0x03,
-   
+
    // control flow
    JUMP    =0x04,
    CALL    =0x05,
