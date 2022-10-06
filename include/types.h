@@ -16,11 +16,12 @@ typedef char      char_t;
 typedef uint16_t  op_t;
 
 // core user object types
-typedef struct atom_t atom_t;
-typedef struct cons_t cons_t;
-typedef struct port_t port_t;
-typedef struct func_t func_t;
-typedef struct str_t  str_t;
+typedef struct atom_t  atom_t;
+typedef struct cons_t  cons_t;
+typedef struct port_t  port_t;
+typedef struct func_t  func_t;
+typedef struct tuple_t tuple_t;
+typedef struct str_t   str_t;
 
 // vm, environment, and compiler types
 typedef struct vm_t    vm_t;
@@ -29,11 +30,14 @@ typedef struct var_t   var_t;
 typedef struct instr_t instr_t;
 typedef struct code_t  code_t;
 
-// method table and dispatch types
-typedef struct metht_t  metht_t;
-typedef struct meth_t   meth_t;
-typedef struct typet_t  typet_t;
-typedef struct types_t  types_t;
+// method and dispatch types
+typedef struct slots_t   slots_t;
+typedef struct slot_t    slot_t;
+typedef struct dtype_t   dtype_t;
+typedef struct utype_t   utype_t;
+typedef struct runtime_t runtime_t;
+typedef struct meth_t    meth_t;
+typedef struct metht_t   metht_t;
 
 // internal types
 typedef struct symt_t   symt_t;
@@ -93,34 +97,34 @@ enum
     NULTYPE =0x05,
     PTRTYPE =0x06,
 
-    TYPE    =0x07,
-    TYPESIG =0x08,
-    TYPET   =0x09,
+    HEAP    =0x07,
+    VM      =0x08,
+    
+    ENVT    =0x09,
+    VAR     =0x0a,
+    SLOT    =0x0b,
+    SLOTS   =0x0c,    
 
-    HEAP    =0x10,
-    VM      =0x11,
-    
-    ENVT    =0x12,
-    VAR     =0x13,
+    FUNC    =0x0d,
+    DTYPE   =0x0e,
+    UTYPE   =0x0f,
+    RUNTIME =0x10,
 
-    FUNC    =0x14,
-    METH    =0x15,
-    METHT   =0x16,
+    INSTR   =0x11,
+    CODE    =0x12,
     
-    INSTR   =0x14,
-    CODE    =0x15,
-
-    CONS    =0x16,
+    TUPLE   =0x13,
+    CONS    =0x14,
     
-    ATOM    =0x17,
-    SYMT    =0x18,
+    ATOM    =0x15,
+    SYMT    =0x16,
     
-    RENTRY  =0x19,
-    READT   =0x1a,
-    PORT    =0x1b,
-    BUFFER  =0x1c,
-    ALIST   =0x1d,
-    STACK   =0x1e,
+    RENTRY  =0x17,
+    READT   =0x18,
+    PORT    =0x19,
+    BUFFER  =0x1a,
+    ALIST   =0x1b,
+    STACK   =0x1c,
  
     ANY     =0x30,
     NONE    =0x31,

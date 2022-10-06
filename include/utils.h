@@ -56,11 +56,11 @@ ord32_t   u16cmp( uint16_t *xb, uint16_t *yb, size_t n );
 ord32_t   u32cmp( uint32_t *xb, uint32_t *yb, size_t n );
 ord64_t   u64cmp( uint64_t *xb, uint64_t *yb, size_t n );
 
-hash64_t hash_wbytes( uint32_t *wchrs, arity32_t cnt );
-hash64_t hash_bytes( byte_t *mem, arity32_t cnt );
+hash64_t hash_wbytes( uint32_t *wchrs, arity_t cnt );
+hash64_t hash_bytes( byte_t *mem, arity_t cnt );
 
-bool  ihash_bytes( byte_t **mem, hash64_t **buf, arity32_t *cnt, arity32_t *cap );
-bool  ihash_wbytes( uint32_t **wchrs, hash64_t **buf, arity32_t *cnt, arity32_t *cap );
+bool  ihash_bytes( byte_t **mem, hash64_t **buf, arity_t *cnt, arity_t *cap );
+bool  ihash_wbytes( uint32_t **wchrs, hash64_t **buf, arity_t *cnt, arity_t *cap );
 
 // forward declarations & generics
 bool     Ctype_fits( Ctype_t Cx, Ctype_t Cy );

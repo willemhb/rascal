@@ -25,8 +25,8 @@ extern mark_fn_t    Mark[N_TYPES];
 extern free_fn_t    Free[N_TYPES];
 
 // florward declarations
-void      init_heap(heap_t *heap);
-void      free_heap(obj_t *obj);
+void   init_heap(heap_t *heap);
+void   free_heap(obj_t *obj);
 
 void  *alloc(size_t n);
 void  *resize(void *p, size_t o, size_t n);

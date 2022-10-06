@@ -27,10 +27,15 @@ typedef union ords_t
 
 // table describe macros
 #define ENTRY_SLOTS(K, key, V, val)			\
-  K        key;						\
-  V        val;						\
-  hash_t hash
+  K      key;						\
+  hash_t hash;						\
+  V      val
 
+#define BIN_ENTRY_SLOTS(K, key, V, val, keylen)		\
+  K       key;						\
+  hash_t  hash;						\
+  V       val;						\
+  arity_t keylen
 
 #define TABLE_INIT(T, E, type)				\
   void init_##T(T##_t *T)				\
@@ -202,6 +207,25 @@ typedef union ords_t
     return o;						\
   }
 
+#define TABLE_GET(T, E, K, key, hashfn, cmpfn)		\
+  bool T##_get(T##_t *T, K key, E##_t **buf)		\
+  {							\
+    hash_t  h  = hashfn(key);				\
+    arity_t m  = T->cap-1;				\
+    arity_t i  = h & m;					\
+    E##_t **E##s = T->data;				\
+    E##_t  *E    = NULL;				\
+    while ((E=E##s[i]) != NULL)				\
+      {							\
+	if (E->hash == h && cmpfn(E->key, key) == 0)	\
+	  break;					\
+	i = (i+1) & m;					\
+      }							\
+    if (buf)						\
+      *buf = E;						\
+    return E != NULL;					\
+  }
+
 #define ORDERED_TABLE_PUT(T, E, K, key, hashfn, cmpfn)		\
   bool T##_put(T##_t *T, K key, E##_t **buf)			\
   {								\
@@ -264,25 +288,6 @@ typedef union ords_t
     return o;							\
   }
 
-#define TABLE_GET(T, E, K, key, hashfn, cmpfn)		\
-  bool T##_get(T##_t *T, K key, E##_t **buf)		\
-  {							\
-    hash_t  h  = hashfn(key);				\
-    arity_t m  = T->cap-1;				\
-    arity_t i  = h & m;					\
-    E##_t **E##s = T->data;				\
-    E##_t  *E    = NULL;				\
-    while ((E=E##s[i]) != NULL)				\
-      {							\
-	if (E->hash == h && cmpfn(E->key, key) == 0)	\
-	  break;					\
-	i = (i+1) & m;					\
-      }							\
-    if (buf)						\
-      *buf = E;						\
-    return E != NULL;					\
-  }
-
 #define ORDERED_TABLE_GET(T, E, K, key, hashfn, cmpfn)		\
   bool T##_get(T##_t *T, K key, E##_t **buf)			\
   {								\
@@ -328,6 +333,53 @@ typedef union ords_t
     if (buf && (ord_t)i != -1)					\
       *buf = E;							\
     return (ord_t)i != -1;					\
+  }
+
+
+#define BIN_TABLE_PUT(T, E, K, key, keylen, hashfn, cmpfn)		\
+  bool T##_put(T##_t *T, K key, arity_t keylen, E##_t **buf)		\
+  {									\
+    hash_t  h  = hashfn(key, keylen);					\
+    bool    o  = false;							\
+    arity_t m  = T->cap-1;						\
+    arity_t i  = h & m;							\
+    E##_t **E##s = T->data;						\
+    E##_t  *E    = NULL;						\
+    while ((E=E##s[i]) != NULL)						\
+      {									\
+	if (cmpfn(E, key, keylen, h) == 0)				\
+	  break;							\
+	i = (i+1) & m;							\
+      }									\
+    if (E == NULL)							\
+      {									\
+	o = true;							\
+	E##s[i] = E = new_##E();					\
+	E->hash = h;							\
+	resize_##T(T, T->len+1);					\
+      }									\
+    if (buf)								\
+      *buf = E;								\
+    return o;								\
+  }
+
+#define BIN_TABLE_GET(T, E, K, key, keylen, hashfn, cmpfn)		\
+  bool T##_get(T##_t *T, K key, arity_t keylen, E##_t **buf)		\
+  {									\
+    hash_t  h  = hashfn(key, keylen);					\
+    arity_t m  = T->cap-1;						\
+    arity_t i  = h & m;							\
+    E##_t **E##s = T->data;						\
+    E##_t  *E    = NULL;						\
+    while ((E=E##s[i]) != NULL)						\
+      {									\
+	if (cmpfn(E, key, keylen, h) == 0)				\
+	  break;							\
+	i = (i+1) & m;							\
+      }									\
+    if (buf)								\
+      *buf = E;								\
+    return E != NULL;							\
   }
 
 // forward declarations

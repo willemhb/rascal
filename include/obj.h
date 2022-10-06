@@ -5,21 +5,16 @@
 #include "val.h"
 
 // common object flags
-typedef enum
-  {
-    obj_fl_traversed=0x8000,
-    obj_fl_frozen   =0x4000,
-  } obj_fl_t;
-
 typedef struct obj_t
 {
   obj_t    *next;
   flags16_t flags;
-  flags8_t  gray;
-  flags8_t  black;
+  uint8_t   black;
+  uint8_t   gray;
   type_t    type;
 } obj_t;
 
+// common flags (these occupy the low bits of obj->next & ) 
 #define is_obj(val)      (((val)&TMASK)==OBJ)
 #define as_obj(val)      ((obj_t*)as_ptr(val))
 

@@ -8,8 +8,9 @@
 
 // macros, globals, common array utilities, and array types that don't fit elsewhere
 #define resize_vec(p, o, n, t) resize((p), (o)*sizeof(t), (n)*sizeof(t))
-#define alloc_vec(n, t)   alloc((n)*sizeof(t))
-#define dealloc_vec(p, n, t) dealloc((p), (n)*sizeof(t))
+#define alloc_vec(n, t)        alloc((n)*sizeof(t))
+#define dealloc_vec(p, n, t)   dealloc((p), (n)*sizeof(t))
+#define duplicate_vec(p, n, t) duplicate_bytes((p), (n) * sizeof(t))
 
 // array describe macros
 #define ARRAY_SLOTS(V)					\
@@ -24,6 +25,15 @@
     T->len   = 0;					\
     T->cap   = MinCs[type];				\
     T->data = alloc_vec( T->cap, V );			\
+  }
+
+#define ARRAY_FREEZE(T, V)			\
+  void freeze_##T( T##_t *T )			\
+  {						\
+    obj_flags(T) |= obj_fl_frozen;		\
+    arity_t o     = T->cap;			\
+    T->cap        = T->len;			\
+    resize_vec(T->data, o, T->cap, V );		\
   }
 
 #define ARRAY_MARK(T, V)					\
@@ -70,7 +80,6 @@
     T->data[offset] = val;			\
     return offset;				\
   }
-
 
 #define ARRAY_APPEND(T, V)			\
   arity_t T##_append( T##_t *T, arity_t n, ...)	\
@@ -127,6 +136,7 @@ alist_t  *new_alist(void);
 void      init_alist(alist_t *alist);
 void      mark_alist(obj_t *obj);
 void      free_alist(obj_t *obj);
+void      freeze_alist(alist_t *alist);
 void      resize_alist(alist_t *alist, size_t newl);
 arity_t   alist_push(alist_t *alist, val_t val);
 arity_t   alist_write(alist_t *alist, val_t *src, arity_t n);
