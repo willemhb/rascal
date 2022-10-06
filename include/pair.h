@@ -32,7 +32,7 @@ cons_t   *new_cons(void);
 cons_t   *new_conses(arity_t n);
 void      init_conses(cons_t *cons, val_t *args, arity_t n);
 void      init_cons(cons_t *cons, val_t car, val_t cdr);
-void      trace_cons(obj_t *obj);
+void      mark_cons(obj_t *obj);
 
 void      prin_list(port_t *port, val_t val);
 

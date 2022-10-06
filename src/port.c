@@ -29,7 +29,7 @@ void init_port(port_t *port, FILE *stream, flags16_t flags)
   init_buffer( port->buffer );
 }
 
-void trace_port(obj_t *obj)
+void mark_port(obj_t *obj)
 {
   port_t *port = (port_t*)obj;
 

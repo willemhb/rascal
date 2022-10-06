@@ -41,7 +41,7 @@ extern vm_t Vm;
 
 // forward declarations
 val_t lisp_exec( vm_t *vm, code_t *code );
-void  repl( void );
-void  vm_init( void );
+void  lisp_repl( void );
+void  exec_init( void );
 
 #endif

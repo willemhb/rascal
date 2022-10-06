@@ -10,9 +10,12 @@ type_t typeof_val(val_t val)
 {
   switch ((val&TMASK))
     {
-    case OBJ:    return as_obj(val)->type;
-    case CHRTAG: return CHRTYPE;
-    case NULTAG: return NULTYPE;
-    default:     return REAL;
+    case OBJ:     return as_obj(val)->type;
+    case CHRTAG:  return CHRTYPE;
+    case NULTAG:  return NULTYPE;
+    case BOOLTAG: return BOOLTYPE;
+    case INTTAG:  return INTTYPE;
+    case PTRTAG:  return PTRTYPE;
+    default:      return REAL;
     }
 }

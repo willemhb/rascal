@@ -9,7 +9,7 @@ typedef uintptr_t    val_t;
 typedef struct obj_t obj_t;
 
 // immediate types
-typedef uint64_t  type_t;
+typedef uint32_t  type_t;
 typedef double    real_t;
 typedef int64_t   int_t;
 typedef char      char_t;
@@ -47,10 +47,11 @@ typedef struct heap_t   heap_t;
 // C function typedefs
 typedef void  (*reader_fn_t)(port_t *stream, char32_t dispatch);
 typedef void  (*printer_fn_t)(port_t *stream, val_t val);
-typedef void  (*trace_fn_t)(obj_t *obj);
+typedef void  (*mark_fn_t)(obj_t *obj);
 typedef void  (*free_fn_t)(obj_t *obj);
 typedef val_t (*native_fn_t)(val_t *args, arity_t n);
 
+// union types
 typedef union
 {
   real_t  as_real;
@@ -59,19 +60,28 @@ typedef union
   obj_t  *as_obj;
 } val_data_t;
 
+typedef union
+{
+  native_fn_t native;
+  code_t     *code;
+} invoke_t;
+
 // tags & masks
 #define QNAN      0x7ffc000000000000ul
 #define SIGN      0x8000000000000000ul
 
 #define CHRTAG    0x7ffd000000000000ul
 #define NULTAG    0x7ffe000000000000ul
+#define BOOLTAG   0x7fff000000000000ul
+#define INTTAG    0xfffd000000000000ul
+#define PTRTAG    0xfffe000000000000ul
 #define OBJ       0xffff000000000000ul
 
 #define PMASK     0x0000fffffffffffful
 #define TMASK     0xffff000000000000ul
 
-#define EOS       ((value_t)EOF|CHRTAG)
-#define NUL       ((value_t)0  |NULTAG)
+#define EOS       ((val_t)EOF|CHRTAG)
+#define NUL       ((val_t)0  |NULTAG)
 
 // builtin types
 enum
@@ -81,11 +91,22 @@ enum
     BOOLTYPE=0x03,
     CHRTYPE =0x04,
     NULTYPE =0x05,
+    PTRTYPE =0x06,
+
+    TYPE    =0x07,
+    TYPESIG =0x08,
+    TYPET   =0x09,
 
     HEAP    =0x10,
     VM      =0x11,
+    
     ENVT    =0x12,
     VAR     =0x13,
+
+    FUNC    =0x14,
+    METH    =0x15,
+    METHT   =0x16,
+    
     INSTR   =0x14,
     CODE    =0x15,
 

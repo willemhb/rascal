@@ -37,7 +37,7 @@ void    prin_var( port_t *port, val_t val );
 
 envt_t *new_envt( void );
 void    init_envt( envt_t *envt );
-void    trace_envt( obj_t *obj );
+void    mark_envt( obj_t *obj );
 void    free_envt( obj_t *obj );
 void    clear_envt( envt_t *envt );
 void    rehash_envt( var_t **new, arity_t len, arity_t cap, ords_t ords );
@@ -50,9 +50,10 @@ void envt_init( void );
 
 // convenience
 #define as_var(val)   ((var_t*)as_ptr(val))
+#define is_var(val)   isa(val, VAR)
 #define var_name(val) (as_var(val)->name)
 #define var_bind(val) (as_var(val)->bind)
-#define is_var(val)   isa(val, VAR)
+
 #define as_envt(val)  ((envt_t*)as_ptr(val))
 #define is_envt(val)  isa(val, ENVT)
 

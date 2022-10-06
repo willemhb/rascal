@@ -26,12 +26,12 @@
     T->data = alloc_vec( T->cap, V );			\
   }
 
-#define ARRAY_TRACE(T, V)					\
-  void trace_##T( obj_t *obj )					\
+#define ARRAY_MARK(T, V)					\
+  void mark_##T( obj_t *obj )					\
   {								\
     T##_t *T = 	(T##_t*)obj;					\
     _Generic(T->data,						\
-	     val_t*:trace_vals((val_t*)T->data, T->len),	\
+	     val_t*:mark_vals((val_t*)T->data, T->len),	\
 	     default:mark_objs((obj_t**)T->data, T->len));	\
   }
 
@@ -125,7 +125,7 @@ struct stack_t
 // forward declarations
 alist_t  *new_alist(void);
 void      init_alist(alist_t *alist);
-void      trace_alist(obj_t *obj);
+void      mark_alist(obj_t *obj);
 void      free_alist(obj_t *obj);
 void      resize_alist(alist_t *alist, size_t newl);
 arity_t   alist_push(alist_t *alist, val_t val);
@@ -133,7 +133,7 @@ arity_t   alist_write(alist_t *alist, val_t *src, arity_t n);
 bool      alist_pop(alist_t *alist, val_t *buf);
 
 stack_t  *new_stack(void);
-void      trace_stack(obj_t *obj);
+void      mark_stack(obj_t *obj);
 void      init_stack(stack_t *stack);
 void      free_stack(obj_t *obj);
 void      resize_stack(stack_t *stack, size_t newl);

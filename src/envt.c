@@ -39,7 +39,7 @@ static inline ord_t cmp_atoms( atom_t *x, atom_t *y )
 
 OBJ_NEW( envt );
 ORDERED_TABLE_INIT( envt, var, ENVT );
-TABLE_TRACE( envt, var );
+TABLE_MARK( envt, var );
 ORDERED_TABLE_FREE( envt, var );
 TABLE_CLEAR( envt, var );
 ORDERED_TABLE_RESIZE( envt, var, ENVT );

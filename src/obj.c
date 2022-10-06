@@ -44,7 +44,7 @@ void mark_obj(obj_t *obj)
 
   type_t t = rtypeof(obj);
 
-  if (Trace[t])
+  if (Mark[t])
     stack_push( Heap.grays, tag_ptr(obj, OBJ) );
 
   else

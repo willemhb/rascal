@@ -50,8 +50,8 @@ typedef union ords_t
     init_ords(T->cap, &T->ords, &T->osize);	\
   }
 
-#define TABLE_TRACE(T, E)			\
-  void trace_##T(obj_t *obj)			\
+#define TABLE_MARK(T, E)			\
+  void mark_##T(obj_t *obj)			\
   {						\
     T##_t *T = (T##_t*)obj;			\
     mark_objs((obj_t**)T->data, T->len);	\
@@ -87,14 +87,11 @@ typedef union ords_t
 	E##_t *E = old[i];						\
 	if (E == NULL)							\
 	  continue;							\
-									\
 	hash_t  h = E->hash;						\
 	arity_t m = newc-1;						\
 	arity_t j = h & m;						\
-									\
 	while (new[j] != NULL)						\
 	  j = (j+1) & m;						\
-									\
 	new[j] = E;							\
       }									\
   }
@@ -157,10 +154,8 @@ typedef union ords_t
 	E##_t **oldspace = T->data;					\
 	E##_t **newspace = alloc_vec(newc, E##_t*);			\
 	rehash_##T(oldspace, oldc, newspace, newc);			\
-									\
 	T->data = newspace;						\
 	T->cap  = newc;							\
-									\
 	dealloc_vec(oldspace, oldc, E##_t*);				\
       }									\
   }
@@ -189,14 +184,12 @@ typedef union ords_t
     arity_t i  = h & m;					\
     E##_t **E##s = T->data;				\
     E##_t  *E    = NULL;				\
-							\
     while ((E=E##s[i]) != NULL)				\
       {							\
 	if (E->hash == h && cmpfn(E->key, key) == 0)	\
 	  break;					\
 	i = (i+1) & m;					\
       }							\
-    							\
     if (E == NULL)					\
       {							\
 	o = true;					\
@@ -279,14 +272,12 @@ typedef union ords_t
     arity_t i  = h & m;					\
     E##_t **E##s = T->data;				\
     E##_t  *E    = NULL;				\
-							\
     while ((E=E##s[i]) != NULL)				\
       {							\
 	if (E->hash == h && cmpfn(E->key, key) == 0)	\
 	  break;					\
 	i = (i+1) & m;					\
       }							\
-    							\
     if (buf)						\
       *buf = E;						\
     return E != NULL;					\

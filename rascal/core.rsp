@@ -5,13 +5,5 @@
 (union list
   (cons nul))
 
-(fun prin
-  ((port port) (xs list))
-  (where ((loop port xs)
-  	  (if (cons? xs) (do (prin port (car xs)) (princ port \space) (loop port (cdr xs)))
-	      xs     	 (prins " . #{xs}"))
-	      otherwise  (do-nothing))
-	 (do (princ \()
-	     (loop xs))))
 
 ;;; end core.rsp

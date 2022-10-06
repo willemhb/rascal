@@ -21,7 +21,7 @@ struct heap_t
 extern heap_t Heap;
 
 extern const size_t BaseSizes[N_TYPES];
-extern trace_fn_t   Trace[N_TYPES];
+extern mark_fn_t    Mark[N_TYPES];
 extern free_fn_t    Free[N_TYPES];
 
 // florward declarations

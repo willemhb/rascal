@@ -36,7 +36,7 @@ size_t pad_stack_size(size_t oldl, size_t newl, size_t oldc, size_t minc)
 // boxed array types
 OBJ_NEW(alist);
 ARRAY_INIT(alist, val_t, Ctype_uint64, ALIST);
-ARRAY_TRACE(alist, val_t);
+ARRAY_MARK(alist, val_t);
 ARRAY_FREE(alist, val_t);
 ARRAY_RESIZE(alist, val_t, ALIST, pad_alist_size);
 ARRAY_WRITE(alist, val_t);
@@ -46,7 +46,7 @@ ARRAY_CLEAR(alist, val_t, ALIST);
 
 OBJ_NEW(stack);
 ARRAY_INIT(stack, val_t, Ctype_uint64, STACK );
-ARRAY_TRACE(stack, val_t);
+ARRAY_MARK(stack, val_t);
 ARRAY_FREE(stack, val_t);
 ARRAY_RESIZE(stack, val_t, STACK, pad_stack_size);
 ARRAY_WRITE(stack, val_t);

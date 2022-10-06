@@ -27,7 +27,7 @@ void prin_atom(port_t *port, val_t val)
 
 TABLE_INIT(symt, atom, SYMT);
 TABLE_FREE(symt, atom);
-TABLE_TRACE(symt, atom);
+TABLE_MARK(symt, atom);
 TABLE_CLEAR(symt, atom);
 TABLE_REHASH(symt, atom); 
 TABLE_RESIZE(symt, atom, SYMT);

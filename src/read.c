@@ -18,7 +18,7 @@ void init_rentry(rentry_t *re, char32_t dispatch, reader_fn_t handler)
 
 TABLE_INIT(readt, rentry, READT);
 TABLE_FREE(readt, rentry);
-TABLE_TRACE(readt, rentry);
+TABLE_MARK(readt, rentry);
 TABLE_CLEAR(readt, rentry);
 TABLE_REHASH(readt, rentry);
 TABLE_RESIZE(readt, rentry, READT);

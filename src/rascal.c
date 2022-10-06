@@ -15,6 +15,8 @@
 #include "envt.h"
 #include "port.h"
 #include "number.h"
+#include "func.h"
+#include "method.h"
 
 // runtime includes
 #include "memory.h"
@@ -31,6 +33,7 @@ symt_t  Symbols;
 heap_t  Heap;
 readt_t Reader;
 envt_t  Toplevel;
+typet_t Types;
 
 // standard streams
 port_t Ins, Outs, Errs;
@@ -74,11 +77,11 @@ const size_t BaseSizes[N_TYPES] =
    [ALIST] =sizeof(alist_t), [STACK]  =sizeof(stack_t),  [BUFFER]=sizeof(buffer_t),
   };
 
-trace_fn_t Trace[N_TYPES] =
+mark_fn_t Mark[N_TYPES] =
   {
-    [READT] = trace_readt, [SYMT]  = trace_symt,
-    [STACK] = trace_stack, [ALIST] = trace_alist,
-    [PORT]  = trace_port,  [CONS]  = trace_cons,
+    [READT] = mark_readt, [SYMT]  = mark_symt,
+    [STACK] = mark_stack, [ALIST] = mark_alist,
+    [PORT]  = mark_port,  [CONS]  = mark_cons,
   };
 
 free_fn_t Free[N_TYPES] =
@@ -88,7 +91,6 @@ free_fn_t Free[N_TYPES] =
    [STACK] =free_stack,  [ALIST] =free_alist,
    [BUFFER]=free_buffer,
   };
-
 
 // initialization and some utilities
 
@@ -111,8 +113,9 @@ static void init_rascal( void )
   read_init();
   port_init();
   envt_init();
+  exec_init();
+  method_init();
 }
-
 
 int main(const int argc, const char *argv[argc])
 {
@@ -120,7 +123,7 @@ int main(const int argc, const char *argv[argc])
 
   init_rascal();
   prin_welcome();
-  repl();
-  
+  lisp_repl();
+
   return 0;
 }

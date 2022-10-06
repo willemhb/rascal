@@ -49,7 +49,7 @@ bool      buffer_pop(buffer_t *buffer, char *buf);
 
 port_t   *new_port(void);
 void      init_port(port_t *port, FILE *stream, flags16_t flags);
-void      trace_port(obj_t *obj);
+void      mark_port(obj_t *obj);
 void      free_port(obj_t *obj);
 void      reset_port(port_t *port);
 void      port_close(port_t *port);

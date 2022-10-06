@@ -33,7 +33,7 @@ void      init_atom(atom_t *atom, symt_t *symt, char *name);
 void      free_atom(obj_t *obj);
 void      prin_atom(port_t *port, val_t val);
 
-void      trace_symt(obj_t *obj);
+void      mark_symt(obj_t *obj);
 void      init_symt(symt_t *symt);
 void      free_symt(obj_t *obj);
 void      clear_symt(symt_t *symt);

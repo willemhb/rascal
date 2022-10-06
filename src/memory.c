@@ -81,8 +81,8 @@ void collect_garbage(void)
     {
       obj_t *obj       = as_obj(buf);
       type_t type      = obj->type;
-      trace_fn_t trace = Trace[type];
-      trace(obj);
+      mark_fn_t mark   = Mark[type];
+      mark(obj);
       obj->gray        = false;
     }
 

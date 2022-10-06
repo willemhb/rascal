@@ -21,7 +21,7 @@ typedef struct readt_t
 extern readt_t Reader;
 
 // forward declarations
-void   trace_readt(obj_t *obj);
+void   mark_readt(obj_t *obj);
 void   init_readt(readt_t *readt);
 void   free_readt(obj_t *obj);
 void   clear_readt(readt_t *readt);
