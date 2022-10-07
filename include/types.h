@@ -31,13 +31,7 @@ typedef struct instr_t instr_t;
 typedef struct code_t  code_t;
 
 // method and dispatch types
-typedef struct slots_t   slots_t;
-typedef struct slot_t    slot_t;
-typedef struct dtype_t   dtype_t;
-typedef struct utype_t   utype_t;
-typedef struct runtime_t runtime_t;
 typedef struct meth_t    meth_t;
-typedef struct metht_t   metht_t;
 
 // internal types
 typedef struct symt_t   symt_t;
@@ -101,30 +95,26 @@ enum
     VM      =0x08,
     
     ENVT    =0x09,
-    VAR     =0x0a,
-    SLOT    =0x0b,
-    SLOTS   =0x0c,    
+    VAR     =0x0a,   
 
     FUNC    =0x0d,
-    DTYPE   =0x0e,
-    UTYPE   =0x0f,
-    RUNTIME =0x10,
+    METH    =0x0e,
 
-    INSTR   =0x11,
-    CODE    =0x12,
+    INSTR   =0x0f,
+    CODE    =0x10,
     
-    TUPLE   =0x13,
-    CONS    =0x14,
+    TUPLE   =0x11,
+    CONS    =0x12,
     
-    ATOM    =0x15,
-    SYMT    =0x16,
+    ATOM    =0x13,
+    SYMT    =0x14,
     
-    RENTRY  =0x17,
-    READT   =0x18,
-    PORT    =0x19,
-    BUFFER  =0x1a,
-    ALIST   =0x1b,
-    STACK   =0x1c,
+    RENTRY  =0x15,
+    READT   =0x16,
+    PORT    =0x17,
+    BUFFER  =0x18,
+    ALIST   =0x19,
+    STACK   =0x1a,
  
     ANY     =0x30,
     NONE    =0x31,

@@ -5,5 +5,27 @@
 (union list
   (cons nul))
 
+;;; map implementations
+(fun map
+  (fn (xs list))
+  (cond (nul? xs) '()
+  	otherwise (cons (fn (hd xs))
+		  	(map fn (tl xs)))))
+
+(fun map
+  (fn (xs str))
+  (str . (map fn (list . xs))))
+
+(fun map
+  (fn (xs vec))
+  (vec . (map fn (list . xs))))
+
+
+(fun filter
+  (p? (xs list))
+  (cond (nul? xs)     '()
+  	(p? (car xs)) (cons (car xs)
+	    	      	    (filter p? (cdr xs)))
+	otherwise     (filter p? (cdr xs))))
 
 ;;; end core.rsp
