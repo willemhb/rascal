@@ -6,13 +6,13 @@
 // read table, reader entry, and reader implementations are here
 typedef struct rentry_t
 {
-  obj_t      obj;
+  object_t      obj;
   ENTRY_SLOTS(char32_t, dispatch, reader_fn_t, handler);
 } rentry_t;
 
 typedef struct readt_t
 {
-  obj_t obj;
+  object_t object;
   TABLE_SLOTS(rentry_t*);
 } readt_t;
 
@@ -21,9 +21,9 @@ typedef struct readt_t
 extern readt_t Reader;
 
 // forward declarations
-void   mark_readt(obj_t *obj);
+void   mark_readt(object_t *obj);
 void   init_readt(readt_t *readt);
-void   free_readt(obj_t *obj);
+void   free_readt(object_t *obj);
 void   clear_readt(readt_t *readt);
 void   resize_readt(readt_t *readt, arity_t newl);
 void   rehash_readt(rentry_t**old,arity_t oldc,rentry_t**new,arity_t newc);
@@ -31,7 +31,7 @@ bool   readt_put(readt_t *readt,char32_t dispatch, rentry_t **buf);
 bool   readt_get(readt_t *readt,char32_t dispatch, rentry_t **buf);
 
 // toplevel read
-val_t  lisp_read(port_t *port);
+value_t  lisp_read(stream_t *port);
 
 // initialization
 void read_init( void );

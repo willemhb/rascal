@@ -35,24 +35,24 @@ size_t pad_stack_size(size_t oldl, size_t newl, size_t oldc, size_t minc)
 // utility array type implementations
 // boxed array types
 OBJ_NEW(alist);
-ARRAY_INIT(alist, val_t, Ctype_uint64, ALIST);
-ARRAY_MARK(alist, val_t);
-ARRAY_FREE(alist, val_t);
-ARRAY_RESIZE(alist, val_t, ALIST, pad_alist_size);
-ARRAY_WRITE(alist, val_t);
-ARRAY_PUSH(alist, val_t);
-ARRAY_POP(alist, val_t);
-ARRAY_CLEAR(alist, val_t, ALIST);
+ARRAY_INIT(alist, value_t, Ctype_uint64, ALIST);
+ARRAY_MARK(alist, value_t);
+ARRAY_FREE(alist, value_t);
+ARRAY_RESIZE(alist, value_t, ALIST, pad_alist_size);
+ARRAY_WRITE(alist, value_t);
+ARRAY_PUSH(alist, value_t);
+ARRAY_POP(alist, value_t);
+ARRAY_CLEAR(alist, value_t, ALIST);
 
 OBJ_NEW(stack);
-ARRAY_INIT(stack, val_t, Ctype_uint64, STACK );
-ARRAY_MARK(stack, val_t);
-ARRAY_FREE(stack, val_t);
-ARRAY_RESIZE(stack, val_t, STACK, pad_stack_size);
-ARRAY_WRITE(stack, val_t);
-ARRAY_PUSH(stack, val_t);
-ARRAY_POP(stack, val_t);
-ARRAY_CLEAR(stack, val_t, STACK);
+ARRAY_INIT(stack, value_t, Ctype_uint64, STACK );
+ARRAY_MARK(stack, value_t);
+ARRAY_FREE(stack, value_t);
+ARRAY_RESIZE(stack, value_t, STACK, pad_stack_size);
+ARRAY_WRITE(stack, value_t);
+ARRAY_PUSH(stack, value_t);
+ARRAY_POP(stack, value_t);
+ARRAY_CLEAR(stack, value_t, STACK);
 
 // 
 

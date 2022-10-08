@@ -7,10 +7,10 @@
 tuple_t *new_tuple(arity_t len)
 {
   assert(len > 0);
-  return alloc(sizeof(tuple_t) + len * sizeof(val_t));
+  return alloc(sizeof(tuple_t) + len * sizeof(value_t));
 }
 
-void init_tuple(tuple_t *tuple, arity_t len, val_t *data)
+void init_tuple(tuple_t *tuple, arity_t len, value_t *data)
 {
   init_obj( &tuple->obj, TUPLE, 0 );
 
@@ -19,10 +19,10 @@ void init_tuple(tuple_t *tuple, arity_t len, val_t *data)
   tuple->hash  = 0;
 
   if (data)
-    memcpy( tuple->data, data, len * sizeof(val_t) );
+    memcpy( tuple->data, data, len * sizeof(value_t) );
 }
 
-ARRAY_MARK(tuple, val_t);
+ARRAY_MARK(tuple, value_t);
 
 // initialization
 tuple_t EmptyTupleObject;

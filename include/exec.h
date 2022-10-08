@@ -25,7 +25,7 @@ enum
 // vm state type
 struct vm_t
 {
-  obj_t    obj;
+  object_t    obj;
   stack_t *stack;
   code_t  *code;
   op_t    *ip;
@@ -33,14 +33,14 @@ struct vm_t
 
 // and methods
 void init_vm( vm_t *vm );
-void trace_vm( obj_t *obj );
-void free_vm( obj_t *obj );
+void trace_vm( object_t *obj );
+void free_vm( object_t *obj );
 
 // globals
 extern vm_t Vm;
 
 // forward declarations
-val_t lisp_exec( vm_t *vm, code_t *code );
+value_t lisp_exec( vm_t *vm, code_t *code );
 void  lisp_repl( void );
 void  exec_init( void );
 

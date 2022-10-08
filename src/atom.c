@@ -6,7 +6,7 @@
 // symbol & symbol table
 OBJ_NEW(atom);
 
-void free_atom(obj_t *obj)
+void free_atom(object_t *obj)
 {
   atom_t *atom = (atom_t*)obj;
   dealloc_vec(atom->name, strlen(atom->name), char );
@@ -20,7 +20,7 @@ void init_atom(atom_t *atom, symt_t *symt, char *name )
   atom->idno = symt->idno++;
 }
 
-void prin_atom(port_t *port, val_t val)
+void prin_atom(stream_t *port, value_t value)
 {
   port_prinf( port, as_atom(val)->name );
 }
@@ -43,7 +43,7 @@ atom_t *symt_intern(symt_t *symt, char *name)
   return buf;
 }
 
-val_t symbol( char *name )
+value_t symbol( char *name )
 {
   atom_t *atom = symt_intern(&Symbols, name );
 

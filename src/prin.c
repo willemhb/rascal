@@ -2,7 +2,7 @@
 
 
 // lisp IO
-val_t lisp_prin(port_t *port, val_t val)
+value_t lisp_prin(stream_t *port, value_t value)
 {
   assert(port_outsp(port));
   

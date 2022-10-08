@@ -36,10 +36,10 @@ envt_t  Toplevel;
 typet_t Types;
 
 // standard streams
-port_t Ins, Outs, Errs;
+stream_t Ins, Outs, Errs;
 
 // famous symbols
-val_t Quote, Error;
+value_t Quote, Error;
 
 // dispatch tables
 const char  *TypeNames[N_TYPES] =
@@ -73,7 +73,7 @@ const size_t BaseSizes[N_TYPES] =
 
    [CONS]  =sizeof(cons_t),
    [ATOM]  =sizeof(atom_t),  [SYMT]   =sizeof(symt_t),   [ENVT]  =sizeof(envt_t),
-   [READT] =sizeof(readt_t), [RENTRY] =sizeof(rentry_t), [PORT]  =sizeof(port_t),
+   [READT] =sizeof(readt_t), [RENTRY] =sizeof(rentry_t), [PORT]  =sizeof(stream_t),
    [ALIST] =sizeof(alist_t), [STACK]  =sizeof(stack_t),  [BUFFER]=sizeof(buffer_t),
   };
 

@@ -3,7 +3,7 @@
 #include "array.h"
 
 // object
-void init_obj( obj_t *obj, type_t type, flags_t flags )
+void init_obj( object_t *obj, type_t type, flags_t flags )
 {
   obj->next    = Heap.objects;
   Heap.objects = obj;
@@ -14,7 +14,7 @@ void init_obj( obj_t *obj, type_t type, flags_t flags )
   obj->flags   = flags;
 }
 
-void free_obj(obj_t *obj)
+void free_obj(object_t *obj)
 {
   if (obj == NULL)
     return;
@@ -28,13 +28,13 @@ void free_obj(obj_t *obj)
 }
 
 
-void mark_objs(obj_t **objs, size_t n)
+void mark_objs(object_t **objs, size_t n)
 {
   for (size_t i=0; i<n; i++)
     mark_obj(objs[i]);
 }
 
-void mark_obj(obj_t *obj)
+void mark_obj(object_t *obj)
 {
   if (obj == NULL)
     return;

@@ -13,15 +13,15 @@ void init_var( var_t *var, atom_t *name )
   var->bind = NUL;
 }
 
-void trace_var( obj_t *obj  )
+void trace_var( object_t *obj  )
 {
   var_t *var = (var_t*)obj;
 
-  mark_obj((obj_t*)var->name);
+  mark_obj((object_t*)var->name);
   mark_val(var->bind);
 }
 
-void prin_var( port_t *port, val_t val )
+void prin_var( stream_t *port, value_t value )
 {
   port_prinf( port, "#'%s", as_var(val)->name );
 }

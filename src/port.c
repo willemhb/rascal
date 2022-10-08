@@ -20,7 +20,7 @@ ARRAY_CLEAR(buffer, char, BUFFER);
 // port type
 OBJ_NEW(port);
 
-void init_port(port_t *port, FILE *stream, flags16_t flags)
+void init_port(stream_t *port, FILE *stream, flags16_t flags)
 {
   init_obj( &port->obj, PORT, flags );
   port->stream = stream;
@@ -29,24 +29,24 @@ void init_port(port_t *port, FILE *stream, flags16_t flags)
   init_buffer( port->buffer );
 }
 
-void mark_port(obj_t *obj)
+void mark_port(object_t *obj)
 {
-  port_t *port = (port_t*)obj;
+  stream_t *port = (stream_t*)obj;
 
-  mark_obj((obj_t*)port->buffer);
+  mark_obj((object_t*)port->buffer);
   mark_val(port->value);
   mark_val(port->temp);
 }
 
-void free_port(obj_t *obj)
+void free_port(object_t *obj)
 {
-  port_t *port = (port_t*)obj;
+  stream_t *port = (stream_t*)obj;
 
   port_close(port);
-  free_obj((obj_t*)port->buffer);
+  free_obj((object_t*)port->buffer);
 }
 
-void port_close(port_t *port)
+void port_close(stream_t *port)
 {
   FILE *stream = port->stream;
 
@@ -57,29 +57,29 @@ void port_close(port_t *port)
 }
 
 // IO predicates
-bool port_eosp(port_t *port)
+bool port_eosp(stream_t *port)
 {
   
   return feof(port->stream);
 }
 
-bool port_insp(port_t *port)
+bool port_insp(stream_t *port)
 {
   return flag_p(port->obj.flags, port_fl_inport);
 }
 
-bool port_outsp(port_t *port)
+bool port_outsp(stream_t *port)
 {
   return flag_p(port->obj.flags, port_fl_outport);
 }
 
-bool port_readyp(port_t *port)
+bool port_readyp(stream_t *port)
 {
   return flag_p(port->obj.flags, port_fl_ready);
 }
 
 // low level IO
-int32_t port_prinf(port_t *port, char *fmt, ...)
+int32_t port_prinf(stream_t *port, char *fmt, ...)
 {
   assert(port_outsp(port));
   va_list va;
@@ -89,12 +89,12 @@ int32_t port_prinf(port_t *port, char *fmt, ...)
   return out;
 }
 
-int32_t port_princ(port_t *port, int32_t ch)
+int32_t port_princ(stream_t *port, int32_t ch)
 {
   return fputc( ch, port->stream);
 }
 
-int32_t port_readc(port_t *port)
+int32_t port_readc(stream_t *port)
 {
   if (port_eosp(port))
     return EOF;
@@ -102,7 +102,7 @@ int32_t port_readc(port_t *port)
   return fgetc(port->stream);
 }
 
-int32_t port_peekc(port_t *port)
+int32_t port_peekc(stream_t *port)
 {
   if (port_eosp(port))
     return EOF;
@@ -112,7 +112,7 @@ int32_t port_peekc(port_t *port)
   return out;
 }
 
-int32_t port_ungetc(port_t *port, int32_t ch)
+int32_t port_ungetc(stream_t *port, int32_t ch)
 {
   if (port_eosp(port))
     return EOF;
@@ -120,12 +120,12 @@ int32_t port_ungetc(port_t *port, int32_t ch)
   return ungetc(ch, port->stream);
 }
 
-val_t  port_take(port_t *port)
+value_t  stream_take(stream_t *port)
 {
   if (port_readyp(port) || port_eosp(port))
     return port->value;
   
-  val_t out      = port->value;
+  value_t out      = port->value;
   port->value    = NUL;
 
   port->obj.flags |= port_fl_ready;
@@ -134,7 +134,7 @@ val_t  port_take(port_t *port)
   return out;
 }
 
-void port_give(port_t *port, val_t val)
+void port_give(stream_t *port, value_t value)
 {
   port->obj.flags &= ~port_fl_ready;
   port->value      = val;

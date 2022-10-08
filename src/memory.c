@@ -39,54 +39,54 @@ void init_heap(heap_t *heap)
 
   gray->len       = 0;
   gray->cap       = MinCs[STACK];
-  gray->data      = alloc_vec(  gray->cap, val_t );
+  gray->data      = alloc_vec(  gray->cap, value_t );
 
   // saved can be initialized the easy way
   heap->saved     = new_stack();
   init_stack(heap->saved);
 }
 
-void free_heap(obj_t *obj)
+void free_heap(object_t *obj)
 {
   heap_t *heap = (heap_t*)obj;
 
-  for (obj_t *obj=heap->objects;obj != NULL;)
+  for (object_t *obj=heap->objects;obj != NULL;)
     {
-      obj_t *tmp = obj;
+      object_t *tmp = obj;
       obj        = tmp->next;
       free_obj( obj );
     }
   
-  free_stack((obj_t*)heap->grays);
+  free_stack((object_t*)heap->grays);
   free( heap->grays );
 }
 
 
 void mark_roots( void )
 {
-  mark_obj((obj_t*)Heap.saved);
-  mark_obj((obj_t*)&Symbols);
-  mark_obj((obj_t*)&Reader);
-  mark_obj((obj_t*)&Ins);
-  mark_obj((obj_t*)&Outs);
-  mark_obj((obj_t*)&Errs);
+  mark_obj((object_t*)Heap.saved);
+  mark_obj((object_t*)&Symbols);
+  mark_obj((object_t*)&Reader);
+  mark_obj((object_t*)&Ins);
+  mark_obj((object_t*)&Outs);
+  mark_obj((object_t*)&Errs);
 }
 
 void collect_garbage(void)
 {
   mark_roots();
 
-  val_t buf;
+  value_t buf;
   while (stack_pop(Heap.grays, &buf))
     {
-      obj_t *obj       = as_obj(buf);
+      object_t *obj       = as_obj(buf);
       type_t type      = obj->type;
       mark_fn_t mark   = Mark[type];
       mark(obj);
       obj->gray        = false;
     }
 
-  obj_t **prev = &Heap.objects, *curr = Heap.objects;
+  object_t **prev = &Heap.objects, *curr = Heap.objects;
   
   while (curr != NULL)
     {
@@ -100,7 +100,7 @@ void collect_garbage(void)
 
       else
 	{
-	  obj_t *obj  = curr;
+	  object_t *obj  = curr;
 	  *prev       = curr->next;
 	  curr        = curr->next;
 

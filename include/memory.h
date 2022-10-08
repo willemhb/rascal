@@ -7,8 +7,8 @@
 // heap type
 struct heap_t
 {
-  obj_t    obj;
-  obj_t   *objects;
+  object_t    obj;
+  object_t   *objects;
 
   stack_t *grays;
   stack_t *saved;
@@ -26,7 +26,7 @@ extern free_fn_t    Free[N_TYPES];
 
 // florward declarations
 void   init_heap(heap_t *heap);
-void   free_heap(obj_t *obj);
+void   free_heap(object_t *obj);
 
 void  *alloc(size_t n);
 void  *resize(void *p, size_t o, size_t n);

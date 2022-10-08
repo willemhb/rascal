@@ -14,15 +14,15 @@ void init_vm(vm_t *vm )
   vm->ip    = NULL;
 }
 
-void trace_vm( obj_t *obj )
+void trace_vm( object_t *obj )
 {
   vm_t *vm = (vm_t*)obj;
-  mark_obj( (obj_t*)vm->stack );
-  mark_obj( (obj_t*)vm->code );
+  mark_obj( (object_t*)vm->stack );
+  mark_obj( (object_t*)vm->code );
 }
 
 // vm entry point
-val_t lisp_exec( vm_t *vm, code_t *code )
+value_t lisp_exec( vm_t *vm, code_t *code )
 {
   static void* labels[] =
     {
@@ -40,7 +40,7 @@ val_t lisp_exec( vm_t *vm, code_t *code )
   vm->code = code;
   vm->ip   = code->instr->data;
 
-  val_t tmpx;
+  value_t tmpx;
   op_t op; int16_t argx;
 
  dispatch:
@@ -83,9 +83,9 @@ void repl( void )
 {
   for (;;)
     {
-      port_take(&Ins);
+      stream_take(&Ins);
       printf(INPROMPT);
-      val_t val = lisp_read(&Ins);
+      value_t value = lisp_read(&Ins);
       printf("\n"OUTPROMPT);
       lisp_prin(&Outs, val);
       printf("\n");

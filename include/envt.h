@@ -10,8 +10,8 @@ typedef enum
 
 struct var_t
 {
-  obj_t obj;
-  ENTRY_SLOTS(atom_t*, name, val_t, bind);
+  object_t object;
+  ENTRY_SLOTS(atom_t*, name, value_t, bind);
 };
 
 // envt_t implementation
@@ -22,7 +22,7 @@ typedef enum
 
 struct envt_t
 {
-  obj_t obj;
+  object_t object;
   ORDERED_TABLE_SLOTS( var_t* );
 };
 
@@ -32,13 +32,13 @@ extern envt_t Toplevel;
 // forward declarations
 var_t  *new_var( void );
 void    init_var( var_t *var, atom_t *name );
-void    trace_var( obj_t *obj );
-void    prin_var( port_t *port, val_t val );
+void    trace_var( object_t *obj );
+void    prin_var( stream_t *port, value_t value );
 
 envt_t *new_envt( void );
 void    init_envt( envt_t *envt );
-void    mark_envt( obj_t *obj );
-void    free_envt( obj_t *obj );
+void    mark_envt( object_t *obj );
+void    free_envt( object_t *obj );
 void    clear_envt( envt_t *envt );
 void    rehash_envt( var_t **new, arity_t len, arity_t cap, ords_t ords );
 void    resize_envt( envt_t *envt, arity_t newl );

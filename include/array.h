@@ -3,7 +3,7 @@
 
 #include <string.h>
 
-#include "obj.h"
+#include "object.h"
 #include "memory.h"
 
 // macros, globals, common array utilities, and array types that don't fit elsewhere
@@ -14,9 +14,9 @@
 
 // array describe macros
 #define ARRAY_SLOTS(V)					\
-  V        *data;					\
+  arity_t   cap;					\
   arity_t   len;					\
-  arity_t   cap
+  V        *data;					\
 
 #define ARRAY_INIT(T, V, Ctype, type)			\
   void init_##T(T##_t *T)				\
@@ -37,16 +37,16 @@
   }
 
 #define ARRAY_MARK(T, V)					\
-  void mark_##T( obj_t *obj )					\
+  void mark_##T( object_t *obj )					\
   {								\
     T##_t *T = 	(T##_t*)obj;					\
     _Generic(T->data,						\
-	     val_t*:mark_vals((val_t*)T->data, T->len),	\
-	     default:mark_objs((obj_t**)T->data, T->len));	\
+	     value_t*:mark_vals((value_t*)T->data, T->len),	\
+	     default:mark_objs((object_t**)T->data, T->len));	\
   }
 
 #define ARRAY_FREE(T, V)			\
-  void free_##T(obj_t *obj)			\
+  void free_##T(object_t *obj)			\
   {						\
     T##_t *T = (T##_t*)obj;			\
     dealloc_vec( T->data, T->cap, V );		\
@@ -119,37 +119,38 @@ extern const size_t MinCs[N_TYPES];
 
 // utility array types
 // array types
-struct alist_t
+
+#define STACK_FL 0x0000000000000004ul
+#define ALIST_FL 0x0000000000000008ul
+
+struct vector_t
 {
-  obj_t obj;
-  ARRAY_SLOTS(val_t);
+  object_t object;
+  arity_t  cap;
+  arity_t  length;
+  value_t *data;
 };
 
-struct stack_t
-{
-  obj_t obj;
-  ARRAY_SLOTS(val_t);
-};
 
 // forward declarations
 alist_t  *new_alist(void);
 void      init_alist(alist_t *alist);
-void      mark_alist(obj_t *obj);
-void      free_alist(obj_t *obj);
+void      mark_alist(object_t *obj);
+void      free_alist(object_t *obj);
 void      freeze_alist(alist_t *alist);
 void      resize_alist(alist_t *alist, size_t newl);
-arity_t   alist_push(alist_t *alist, val_t val);
-arity_t   alist_write(alist_t *alist, val_t *src, arity_t n);
-bool      alist_pop(alist_t *alist, val_t *buf);
+arity_t   alist_push(alist_t *alist, value_t value);
+arity_t   alist_write(alist_t *alist, value_t *src, arity_t n);
+bool      alist_pop(alist_t *alist, value_t *buf);
 
 stack_t  *new_stack(void);
-void      mark_stack(obj_t *obj);
+void      mark_stack(object_t *obj);
 void      init_stack(stack_t *stack);
-void      free_stack(obj_t *obj);
+void      free_stack(object_t *obj);
 void      resize_stack(stack_t *stack, size_t newl);
-arity_t   stack_push(stack_t *stack, val_t val);
-arity_t   stack_write(stack_t *stack, val_t *src, arity_t n);
-bool      stack_pop(stack_t *stack, val_t *buf);
+arity_t   stack_push(stack_t *stack, value_t value);
+arity_t   stack_write(stack_t *stack, value_t *src, arity_t n);
+bool      stack_pop(stack_t *stack, value_t *buf);
 
 size_t pad_alist_size(size_t oldl, size_t newl, size_t oldc, size_t minc);
 size_t pad_stack_size(size_t oldl, size_t newl, size_t oldc, size_t minc);

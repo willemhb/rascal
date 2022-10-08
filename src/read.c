@@ -54,7 +54,7 @@ static reader_fn_t get_reader(int32_t dispatch)
   return buf->handler;
 }
 
-val_t lisp_read(port_t *port)
+value_t lisp_read(stream_t *port)
 {
   while (port_readyp(port))
     {
@@ -93,20 +93,20 @@ static int testrealchr(int32_t chr, char *acc)
   return -1;
 }
 
-static void accumc( port_t *port, char32_t ch )
+static void accumc( stream_t *port, char32_t ch )
 {
   buffer_push( port->buffer, ch );
 }
 
-void read_error(port_t *port, char32_t dispatch)
+void read_error(stream_t *port, char32_t dispatch)
 {
   (void)dispatch;
 
-  val_t errsym = symbol( "error" );
+  value_t errsym = symbol( "error" );
   port_give(port, errsym);
 }
 
-void read_atom(port_t *port, char32_t dispatch)
+void read_atom(stream_t *port, char32_t dispatch)
 {
   dispatch = port_readc(port); // advance
 
@@ -118,11 +118,11 @@ void read_atom(port_t *port, char32_t dispatch)
     }
 
   // printf( "made it through read.\n" );
-  val_t val = symbol(port->buffer->data);
+  value_t value = symbol(port->buffer->data);
   port_give( port, val );
 }
 
-void read_list(port_t *port, char32_t dispatch)
+void read_list(stream_t *port, char32_t dispatch)
 {
   port->temp = NUL;
   port_readc(port);     // advance past opening '('.
@@ -137,7 +137,7 @@ void read_list(port_t *port, char32_t dispatch)
     {
       // printf( "made it to the %dth loop in read_list. Dispatch is %c, aka %d.\n", n++, dispatch, dispatch );
       lisp_read(port);
-      stack_push( Heap.saved, port_take(port) );
+      stack_push( Heap.saved, stream_take(port) );
     }
 
   // printf( "made it this far in read list.\n" );
@@ -146,7 +146,7 @@ void read_list(port_t *port, char32_t dispatch)
     {
       port_readc(port); // advance past '.'
       lisp_read(port);
-      stack_push(Heap.saved, port_take(port) );
+      stack_push(Heap.saved, stream_take(port) );
     }
 
   else
@@ -170,7 +170,7 @@ void read_list(port_t *port, char32_t dispatch)
   port_readc(port); // advance past terminal ')'
 }
 
-void read_real(port_t *port, char32_t dispatch)
+void read_real(stream_t *port, char32_t dispatch)
 {
   accumc(port, dispatch);
 
@@ -195,7 +195,7 @@ void read_real(port_t *port, char32_t dispatch)
     }
 }
 
-void read_quote(port_t *port, char32_t dispatch)
+void read_quote(stream_t *port, char32_t dispatch)
 {
   (void)dispatch;
   port_readc(port); // clear '\''
@@ -203,13 +203,13 @@ void read_quote(port_t *port, char32_t dispatch)
   
 }
 
-void read_comment(port_t *port, char32_t dispatch)
+void read_comment(stream_t *port, char32_t dispatch)
 {
   while ((dispatch=port_readc(port)) != '\n')
     continue;
 }
 
-void read_space(port_t *port, char32_t dispatch)
+void read_space(stream_t *port, char32_t dispatch)
 {
   while (iswspace(dispatch))
     dispatch = port_readc(port);
@@ -218,7 +218,7 @@ void read_space(port_t *port, char32_t dispatch)
   port_ungetc(port, dispatch);
 }
 
-void read_eof(port_t *port, char32_t dispatch)
+void read_eof(stream_t *port, char32_t dispatch)
 {
   (void)dispatch;
 

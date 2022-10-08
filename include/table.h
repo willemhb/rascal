@@ -56,21 +56,21 @@ typedef union ords_t
   }
 
 #define TABLE_MARK(T, E)			\
-  void mark_##T(obj_t *obj)			\
+  void mark_##T(object_t *obj)			\
   {						\
     T##_t *T = (T##_t*)obj;			\
-    mark_objs((obj_t**)T->data, T->len);	\
+    mark_objs((object_t**)T->data, T->len);	\
   }
 
 #define TABLE_FREE(T, E)			\
-  void free_##T(obj_t *obj)			\
+  void free_##T(object_t *obj)			\
   {						\
     T##_t* T = (T##_t*)obj;			\
     dealloc_vec(T->data, T->cap, E##_t*);	\
   }
 
 #define ORDERED_TABLE_FREE(T, E)		\
-  void free_##T(obj_t *obj)			\
+  void free_##T(object_t *obj)			\
   {						\
     T##_t* T = (T##_t*)obj;			\
     dealloc_vec(T->data, T->cap, E##_t*);	\
@@ -381,6 +381,50 @@ typedef union ords_t
       *buf = E;								\
     return E != NULL;							\
   }
+
+// table flags
+#define O8_FL  0x0000000000000001ul
+#define O16_FL 0x0000000000000002ul
+#define O32_FL 0x0000000000000003ul
+
+struct dict_t
+{
+  object_t   object;
+
+  arity_t    length;
+  arity_t    cap;
+  arity_t    ordcap;
+  arity_t    ordsize;
+
+  object_t **data;
+
+  union
+  {
+    int8_t  *o8;
+    int16_t *o16;
+    int32_t *o32;
+  };
+};
+
+struct set_t
+{
+  object_t   object;
+
+  arity_t    length;
+  arity_t    cap;
+  arity_t    ordcap;
+  arity_t    ordsize;
+
+  object_t **data;
+
+  union
+  {
+    int8_t  *o8;
+    int16_t *o16;
+    int32_t *o32;
+  };
+};
+
 
 // forward declarations
 void    init_ords(arity_t ocap, ords_t *ords, arity_t *osize);

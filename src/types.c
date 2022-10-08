@@ -1,12 +1,12 @@
 #include "types.h"
 #include "obj.h"
 
-type_t typeof_obj(obj_t *obj)
+type_t typeof_obj(object_t *obj)
 {
   return obj->type;
 }
 
-type_t typeof_val(val_t val)
+type_t typeof_val(value_t value)
 {
   switch ((val&TMASK))
     {

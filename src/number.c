@@ -1,7 +1,7 @@
 #include "number.h"
 #include "port.h"
 
-void prin_real(port_t *port, val_t val)
+void prin_real(stream_t *port, value_t value)
 {
   port_prinf( port, "%.2F", as_real(val));
 }
@@ -9,7 +9,7 @@ void prin_real(port_t *port, val_t val)
 // character
 #include "chrnames.h"
 
-void prin_chr(port_t *port, val_t val)
+void prin_chr(stream_t *port, value_t value)
 {
   if (val == EOS)
     port_prinf( port, "<eos>");

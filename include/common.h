@@ -8,7 +8,7 @@
 
 // utility & style typedefs
 typedef char     char8_t;
-typedef uint8_t  byte_t;
+typedef uint8_t  byte;
 
 typedef uint8_t  flags8_t;
 typedef uint16_t flags16_t;
