@@ -1,7 +1,7 @@
 #ifndef rascal_atom_h
 #define rascal_atom_h
 
-#include "cvalue.h"
+#include "table.h"
 
 // symbol and symbol table
 typedef enum
@@ -13,19 +13,16 @@ typedef enum
 struct symbol_t
 {
   object_t object;
-  symbol_t *left, *right;
-
   idno_t  idno;
   hash_t  hash;
   char_t *name;
 };
 
-typedef struct
+struct symbol_table_t
 {
-  object_t  object;
-  symbol_t *symbols;
-  idno_t    counter;
-} symbol_table_t;
+  dict_t dict;
+  idno_t counter;
+};
 
 // globals
 extern symbol_table_t *Symbols;
@@ -34,21 +31,21 @@ extern value_t Quote, Error;
 
 // forward declarations
 symbol_t *new_symbol(size_t l);
-void      init_symbol(symbol_t *atom, symbol_table_t *symt, char *name, hash_t hash);
-void      free_atom(object_t *obj);
-void      prin_atom(stream_t *port, value_t value);
+void      init_symbol(symbol_t *atom, symbol_table_t *symt, char *name);
+void      free_symbol(object_t *obj);
+void      prin_symbol(stream_t *port, value_t value);
 
 
 // external API
 value_t     symbol( char *name );
-void      atom_init( void );
+void      symbol_init( void );
 
 // convenience
-#define is_atom(val)     isa(val, ATOM)
-#define as_atom(val)     ((atom_t*)as_ptr(val))
+#define is_symbol(val)     isa(val, SYMBOL)
+#define as_symbol(val)     ((symbol_t*)as_ptr(val))
 
-#define atom_hash(val)   (as_atom(val)->hash)
-#define atom_name(val)   (as_atom(val)->name)
-#define atom_idno(val)   (as_atom(val)->idno)
+#define symbol_hash(val)   (as_symbol(val)->hash)
+#define symbol_name(val)   (as_symbol(val)->name)
+#define symbol_idno(val)   (as_symbol(val)->idno)
 
 #endif

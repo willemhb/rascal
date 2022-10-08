@@ -17,4 +17,6 @@ typedef struct instr_t
   ARRAY_SLOTS(opcode_t);
 } instr_t;
 
+// globals
+
 #endif

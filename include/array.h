@@ -114,14 +114,12 @@
     memset( T->data, 0, MinCs[type] * sizeof(V) );	\
   }
 
-// globals
-extern const size_t MinCs[N_TYPES];
-
 // utility array types
 // array types
 
-#define STACK_FL 0x0000000000000004ul
-#define ALIST_FL 0x0000000000000008ul
+#define FROZEN_FL 0x0000000000000000ul
+#define ALIST_FL  0x0000000000000001ul
+#define STACK_FL  0x0000000000000002ul
 
 struct vector_t
 {
@@ -131,39 +129,13 @@ struct vector_t
   value_t *data;
 };
 
-
 // forward declarations
-alist_t  *new_alist(void);
-void      init_alist(alist_t *alist);
-void      mark_alist(object_t *obj);
-void      free_alist(object_t *obj);
-void      freeze_alist(alist_t *alist);
-void      resize_alist(alist_t *alist, size_t newl);
-arity_t   alist_push(alist_t *alist, value_t value);
-arity_t   alist_write(alist_t *alist, value_t *src, arity_t n);
-bool      alist_pop(alist_t *alist, value_t *buf);
+vector_t  *new_vector(void);
+void       init_vector(vector_t *vector);
+void       mark_vector(object_t *object);
+void       resize_vector(vector_t *vector, arity_t newl);
+void       free_vector(object_t *object);
+void       vector_push(vector_t *vector, value_t value);
 
-stack_t  *new_stack(void);
-void      mark_stack(object_t *obj);
-void      init_stack(stack_t *stack);
-void      free_stack(object_t *obj);
-void      resize_stack(stack_t *stack, size_t newl);
-arity_t   stack_push(stack_t *stack, value_t value);
-arity_t   stack_write(stack_t *stack, value_t *src, arity_t n);
-bool      stack_pop(stack_t *stack, value_t *buf);
-
-size_t pad_alist_size(size_t oldl, size_t newl, size_t oldc, size_t minc);
-size_t pad_stack_size(size_t oldl, size_t newl, size_t oldc, size_t minc);
-
-// convenience
-#define as_stack(val)   ((stack_t*)as_ptr(val))
-#define is_stack(val)   isa(val, STACK)
-#define stack_sp(val)   (as_stack(val)->len)
-#define stack_cap(val)  (as_stack(val)->cap)
-#define stack_vals(val) (as_stack(val)->data)
-#define stack_tos(val)  (stack_vals(val)[stack_sp(val)-1])
-
-#define as_alist(val) ((alist_t*)as_ptr(val))
-#define is_alist(val) isa(val, ALIST)
 
 #endif

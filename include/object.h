@@ -1,7 +1,6 @@
 #ifndef rascal_obj_h
 #define rascal_obj_h
 
-#include "types.h"
 #include "value.h"
 
 // common object flags
@@ -18,7 +17,7 @@ struct object_t
       value_t flags :  2;
       value_t black :  1;
       value_t gray  :  1;
-      value_t pad   : 64;
+      value_t pad   : 60;
     };
   };
 };
@@ -26,13 +25,8 @@ struct object_t
 // convenience
 static inline bool is_obj(value_t value)
 {
-  switch (value&TMASK)
-    {
-    case TAG_ATOM: return !(value&7);
-    case TAG_PNTR: return false;
-    case TAG_LIST: return value != NUL;
-    default:       return true;
-    }
+  return (value&TMASK) > POINTER_TAG
+    && !!(value&PMASK);
 }
 
 #define as_obj(val)      ((object_t*)as_ptr(val))

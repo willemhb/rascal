@@ -1,7 +1,7 @@
 #ifndef rascal_memory_h
 #define rascal_memory_h
 
-#include "obj.h"
+#include "object.h"
 
 // forward declarations, macros, and globals for the memory runtime
 // heap type
@@ -10,8 +10,8 @@ struct heap_t
   object_t    obj;
   object_t   *objects;
 
-  stack_t *grays;
-  stack_t *saved;
+  vector_t *grays;
+  vector_t *saved;
 
   size_t   allocated;
   size_t   alloccap;
@@ -19,10 +19,6 @@ struct heap_t
 
 // globals
 extern heap_t Heap;
-
-extern const size_t BaseSizes[N_TYPES];
-extern mark_fn_t    Mark[N_TYPES];
-extern free_fn_t    Free[N_TYPES];
 
 // florward declarations
 void   init_heap(heap_t *heap);

@@ -1,31 +1,91 @@
 ;;; begin core.rsp
 ;;; rascal basics module.
 
+;;; globals
+(var *syntax* {})
+(var *modules* {})
+
+(mac import
+  (n))
+
 ;;; basic types
 (union list
   (cons nul))
 
+(fun list args args)
+
 ;;; map implementations
 (fun map
   (fn (xs list))
-  (cond (nul? xs) '()
-  	otherwise (cons (fn (hd xs))
-		  	(map fn (tl xs)))))
+  (if (nul? xs)
+      '()
+      (cons (fn xs[:head])
+      	    (map fn xs[:tail]))))
 
 (fun map
-  (fn (xs str))
-  (str . (map fn (list . xs))))
+  (fn (xs string))
+  (str . (map fn
+       	      (list . xs))))
 
 (fun map
-  (fn (xs vec))
-  (vec . (map fn (list . xs))))
+  (fn (xs vector))
+  (vec . (map fn
+       	      (list . xs))))
 
+(fun map
+  (fn (xs dict))
+  (dict . (map fn
+  	       (list . xs))))
 
-(fun filter
-  (p? (xs list))
-  (cond (nul? xs)     '()
-  	(p? (car xs)) (cons (car xs)
-	    	      	    (filter p? (cdr xs)))
-	otherwise     (filter p? (cdr xs))))
+(fun map
+  (fn (xs set))
+  (set . (map fn (list . xs))))
+
+(fun call
+  ((i int) (xs list))
+  (nth xs i))
+
+(fun call
+  ((i int) (xs vector))
+  (nth xs i))
+
+;;; wrappers for common system calls
+(fun exit ()
+  (c-call 'exit void (c-int) (0)))
+
+(fun exit ((x integer))
+  (c-call 'exit void (c-int) (x)))
+
+;;; basic control forms
+(cntl raise (x)
+  (exit x))
+
+(cntl raise (x msg . args)
+  (do (prin msg . args)
+      (exit x)))
+
+(mac catch (handlers . body)
+  `(with (~@handlers)
+  	 (do ~@body)))
+
+(fun safe-div (x y)
+  (if (zero? y)
+      (raise :zero-division "in (/ #{x} #{y})")
+      (/ x y)))
+
+;;; regexp implementation
+(data regex
+  ((:pattern  string)
+   (:flags    integer)
+   (:compiled compiled-regex)))
+
+(data regex-match
+  ((:pattern regex)
+   (:source string)
+   (:start  integer)
+   (:end    integer)
+   (:groups tuple)))
+
+(mac )
 
 ;;; end core.rsp
