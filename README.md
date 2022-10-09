@@ -30,6 +30,9 @@ rascal is a fully user-extensible language, focusing on support for three key fe
   eg `(+ . '(1 2 3 4)) ;; => (apply + '(1 2 3 4))`.
 * Builtin support for exceptions using the `catch` form.
 
+# library modules
+Watch this space.
+
 # planned features
 * Persistent, immutable, HAMT based implementations for the `vector`, `dict`, and `set`.
 * Full support for a complementary serialization format based on edn (.rdn, .rdn.o).
@@ -48,7 +51,7 @@ rascal is a fully user-extensible language, focusing on support for three key fe
 * Builtin support for actor-based `process` form, implemented using builtin effects system.
 * Standard library modules establishing standard interfaces to be used by 3rd party packages (similar to Python DBAPI 2.0).
 
-# planned standard library modules
+# planned library modules
 ## math
 * `math    ` - general mathematics utilities as found in `<math.h>`
 * `stats   ` - statistics and probability
