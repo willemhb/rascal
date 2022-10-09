@@ -1,7 +1,7 @@
 #ifndef rascal_exec_h
 #define rascal_exec_h
 
-#include "obj.h"
+#include "array.h"
 
 // main driver for the VM goes in here, as well as related typedefs, &c
 // opcodes
@@ -23,12 +23,32 @@ enum
   };
 
 // vm state type
+struct control_t
+{
+  object_t     object;
+
+  control_t   *caller;
+  control_t   *prompt;
+
+  stack_t     *stack;
+  bytecode_t  *bytecode;
+  vector_t    *upvals;
+  opcode_t    *ip;
+
+  size_t       base;
+  size_t       size;
+};
+
+#define CALLSTACK_CAP 2048
+
 struct vm_t
 {
-  object_t    obj;
-  stack_t *stack;
-  code_t  *code;
-  op_t    *ip;
+  stack_t    stack;                 // shared values stack
+  value_t    value;                 // transmit return values
+  control_t *control;               // current call frame
+  cons_t    *open_upvals;           // open upvalues (like it says)
+  size_t     frames_used;           // next available frame
+  control_t  frames[CALLSTACK_CAP]; // array of active frames
 };
 
 // and methods
@@ -39,9 +59,11 @@ void free_vm( object_t *obj );
 // globals
 extern vm_t Vm;
 
+extern type_t *VmType, *ControlType;
+
 // forward declarations
-value_t lisp_exec( vm_t *vm, code_t *code );
-void  lisp_repl( void );
-void  exec_init( void );
+value_t lisp_exec( vm_t *vm, bytecode_t *code );
+void    lisp_repl( void );
+void    exec_init( void );
 
 #endif

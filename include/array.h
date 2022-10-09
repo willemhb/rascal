@@ -123,6 +123,12 @@ struct vector_t
   val_alist_t val_alist;
 };
 
+typedef struct stack_t
+{
+  object_t    object;
+  val_stack_t val_stack;
+} stack_t;
+
 // forward declarations
 size_t     pad_alist_size(size_t newl, size_t oldl, size_t oldc, size_t minc);
 size_t     pad_stack_size(size_t newl, size_t oldl, size_t oldc, size_t minc);
