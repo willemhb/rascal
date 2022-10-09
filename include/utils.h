@@ -7,17 +7,10 @@
 // C types
 typedef enum
   {
-    Ctype_sint8=1, Ctype_uint8,
-    Ctype_sint16,  Ctype_uint16,
-    Ctype_sint32,  Ctype_uint32,   Ctype_float32,
-    Ctype_sint64,  Ctype_uint64,   Ctype_pointer, Ctype_float64,
-
-    // encoded types
-    Ctype_ascii=16|Ctype_sint8,
-    Ctype_latin=16|Ctype_uint8,
-    Ctype_utf8 =32|Ctype_sint8,
-    Ctype_utf16=16|Ctype_sint16,
-    Ctype_utf32=16|Ctype_sint32
+    Ctype_sint8=1, Ctype_uint8,  Ctype_utf8,    Ctype_latin1,
+    Ctype_sint16,  Ctype_uint16, Ctype_utf16,
+    Ctype_sint32,  Ctype_uint32, Ctype_utf32,   Ctype_float32,
+    Ctype_sint64,  Ctype_uint64, Ctype_pointer, Ctype_float64,
   } Ctype_t;
 
 typedef union
@@ -57,9 +50,9 @@ ord32_t   u32cmp( uint32_t *xb, uint32_t *yb, size_t n );
 ord64_t   u64cmp( uint64_t *xb, uint64_t *yb, size_t n );
 
 hash64_t hash_wbytes( uint32_t *wchrs, arity_t cnt );
-hash64_t hash_bytes( byte_t *mem, arity_t cnt );
+hash64_t hash_bytes( byte *mem, arity_t cnt );
 
-bool  ihash_bytes( byte_t **mem, hash64_t **buf, arity_t *cnt, arity_t *cap );
+bool  ihash_bytes( byte **mem, hash64_t **buf, arity_t *cnt, arity_t *cap );
 bool  ihash_wbytes( uint32_t **wchrs, hash64_t **buf, arity_t *cnt, arity_t *cap );
 
 // forward declarations & generics

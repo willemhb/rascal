@@ -18,14 +18,16 @@ struct symbol_t
   char_t *name;
 };
 
-struct symbol_table_t
+typedef struct symbol_table_t
 {
-  dict_t dict;
-  idno_t counter;
-};
+  table_t table;
+  idno_t  idno;
+} symbol_table_t;
 
 // globals
-extern symbol_table_t *Symbols;
+extern symbol_table_t Symbols;
+
+extern type_t *SymbolType, *SymbolTableType;
 
 extern value_t Quote, Error;
 
@@ -37,7 +39,7 @@ void      prin_symbol(stream_t *port, value_t value);
 
 
 // external API
-value_t     symbol( char *name );
+symbol_t *symbol( char *name );
 void      symbol_init( void );
 
 // convenience

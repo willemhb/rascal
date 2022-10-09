@@ -100,11 +100,11 @@ int64_t u64cmp(uint64_t *xb, uint64_t *yb, size_t n)
 
 hash64_t hash_string( char *chars )
 {
-  arity32_t n = strlen(chars);
-  return hash_bytes((byte_t*)chars, n);
+  size_t n = strlen(chars);
+  return hash_bytes((byte*)chars, n);
 }
 
-hash64_t hash_wbytes( uint32_t *mem, arity32_t n )
+hash64_t hash_wbytes( uint32_t *mem, size_t n )
 {
   hash64_t  out = FNV64_OFFSET;
   
@@ -127,10 +127,11 @@ hash64_t hash_wbytes( uint32_t *mem, arity32_t n )
       out ^= *mem;
       out *= FNV64_PRIME;
     }
+
   return out;
 }
 
-bool ihash_wbytes( uint32_t **mem, hash64_t **buf, arity32_t *cnt, arity32_t *cap )
+bool ihash_wbytes( uint32_t **mem, hash64_t **buf, size_t *cnt, size_t *cap )
 {
   if (*cnt == 0)
       **buf = FNV64_OFFSET;
@@ -146,7 +147,20 @@ bool ihash_wbytes( uint32_t **mem, hash64_t **buf, arity32_t *cnt, arity32_t *ca
   return true;
 }
 
-hash64_t hash_bytes( byte_t *mem, arity32_t n)
+bool ihash_words( uint64_t *buf, hash64_t *acc, size_t cnt, size_t cap)
+{
+  if (cnt == 0)
+    *acc = FNV64_OFFSET;
+
+  if (cnt == cap)
+    return false;
+
+  *acc   ^= *buf;
+  *acc   *= FNV64_PRIME;
+  return true;
+}
+
+hash64_t hash_bytes( byte *mem, size_t n)
 {
   hash64_t  out = FNV64_OFFSET;
 
@@ -186,7 +200,7 @@ hash64_t hash_bytes( byte_t *mem, arity32_t n)
   return out;
 }
 
-bool ihash_bytes( byte_t **mem, hash64_t **buf, arity32_t *cnt, arity32_t *cap )
+bool ihash_bytes( byte **mem, hash64_t **buf, size_t *cnt, size_t *cap )
 {
   if (*cnt == 0)
       **buf = FNV64_OFFSET;

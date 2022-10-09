@@ -7,18 +7,21 @@
 // heap type
 struct heap_t
 {
-  object_t    obj;
-  object_t   *objects;
+  object_t     object;
 
-  vector_t *grays;
-  vector_t *saved;
+  object_t    *objects;
 
-  size_t   allocated;
-  size_t   alloccap;
+  obj_stack_t  grays;
+  val_stack_t  saved;
+
+  size_t      allocated;
+  size_t      alloccap;
 };
 
 // globals
 extern heap_t Heap;
+
+extern type_t *HeapType;
 
 // florward declarations
 void   init_heap(heap_t *heap);
