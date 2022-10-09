@@ -42,6 +42,7 @@ rascal is a fully user-extensible language, focusing on support for three key fe
 * Pattern/template-based macros using `syntax` form.
 * Decorator/annotation syntax using familiar `@` syntax.
 * Clojure-like function literals, eg `#(+ 1 %) ;; => (fun (%) (+ 1 %))`.
+* Clojure-like ref syntax for non-functions, eg `(1 '(1 2)) ;; => (nth 1 '(1 2))` and `(:car '(1 2)) ;; => (ref :car '(1 2))`.
 * Implementation of STM semantics, implemented using builtin effects system.
 * Builtin support for `yield` and `async/await` form, implemented using builtin effects system.
 * Builtin support for actor-based `process` form, implemented using builtin effects system.
@@ -50,5 +51,9 @@ rascal is a fully user-extensible language, focusing on support for three key fe
 
 # possible features
 * `dict` and `set` types might maintain insertion order (this can be done straightforwardly using a method adapted from the CPython `dict` implementation, but I must verify that the space overhead is acceptable).
-* Support for a non-lisp surface syntax.
 * Incorporation of some of the syntactic innovations of Bel.
+  * dot-application, eg `'(1 2).cdr.car ;; => (car (cdr '(1 2)))`
+  * subscript-application, eg `[1 2 3][1] ;; => (1 [1 2 3])`
+  * colon-composition, eg `(car:cdr '(1 2)) ;; => ((fun (x) (car (cdr x))) '(1 2))`
+* Support for a non-lisp surface syntax.
+
