@@ -1,9 +1,38 @@
 # rascal
 The first serious version of rascal.
 
-# current features
- * Julia-style multimethods
- * Extensible control with algebraic effects
- * Common Lisp style macros
- * simple module/namespace system
- * 
+rascal is intended to be a fully user-extensible language, focusing on support for three key features:
+* macros, for extending syntax
+* first-class generic functions, for extending builtin functionality to user-defined types
+* first-class algebraic effects, for extnding control flow
+
+# key features
+## macros
+* Clojure-inspired macro system with
+  * Common Lisp macros
+  * Practical hygiene is ensured through namespacing and `syntax-quote` form
+  * Syntax quote supports embedded gensyms with `x#` syntax
+  * Namespaces are called modules and have a different surface syntax
+
+## types & multiple dispatch
+* All functions, macros, and effects are generic -- no separate `defmethod`/`defgeneric` forms
+* Practical efficiency is ensured through memoization -- only the first call for a given method signature incurs more-than-constant overhead
+
+## algebraic effects
+* Support for algebraic effects using the `cntl` and `with` forms
+* Algebraic effects allow users to add new control flow to the language -- exceptions, generators, coroutines, actor-based processes, and other control flow can be implemented efficiently in rascal using the builtin effects system
+
+# other features
+* Easy `C` ffi with `c-call` form
+* Users can define new types with the `data` and `union` forms
+* A simple, unobtrusive module/namesapce system requiring only the `import` and `export` forms (with an optional `module` form)
+* Scheme-style rest args, as well as an analogous splatting syntax, eg lisp`(+ . '(1 2 3 4)) ;; => (apply + '(1 2 3 4))`
+* Builtin support for exceptions using the `catch` form
+
+# planned features
+* Extensible reader (similar to Common Lisp)
+* Low latency, concurrent tri-color GC
+* Pattern matching `case` form
+* Builtin support for `yield` and `async/await` form, implemented using builtin effects system
+* Builtin support for actor-based `process` form, implemented using builtin effects system
+* Standard library modules `math`, `regex`, `io`, `net`, and `sys`
