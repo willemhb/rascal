@@ -35,6 +35,7 @@ Watch this space.
 
 # planned features
 * Persistent, immutable, HAMT based implementations for the `vector`, `dict`, and `set`.
+* More FFI forms, minimally, `java-call` and `cpp-call`
 * Full support for a complementary serialization format based on edn (.rdn, .rdn.o).
 * Various performance improvements (the current version of the compiler doesn't perform any optimizations).
 * Extensible reader (similar to Common Lisp).
