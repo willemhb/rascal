@@ -1,10 +1,10 @@
 # rascal
-The first serious version of rascal, a new dialect of lisp inspired by (stealing ideas from) Scheme, Julia, Clojure, Haskell, and Erlang.
+The first serious version of rascal, a new dialect of lisp inspired by (stealing ideas from) Julia, Scheme, Clojure, Haskell, and Erlang.
 
 rascal is a fully user-extensible language, focusing on support for three key features:
-* first-class macros, for adding new syntax
-* first-class generic functions, for extending builtin functionality to user-defined types
-* first-class algebraic effects, for extending control flow
+* first-class macros, for adding new syntax.
+* first-class generic functions, for extending builtin functionality to user-defined types.
+* first-class algebraic effects, for adding new control flow.
 
 # key features
 ## macros
@@ -31,11 +31,24 @@ rascal is a fully user-extensible language, focusing on support for three key fe
 * Builtin support for exceptions using the `catch` form.
 
 # planned features
-* Performance improvements (the current version of the compiler doesn't have perform any optimizations).
+* Persistent, immutable, HAMT based implementations for the `vector`, `dict`, and `set`.
+* Full support for a complementary serialization format based on edn (.rdn, .rdn.o).
+* Various performance improvements (the current version of the compiler doesn't perform any optimizations).
 * Extensible reader (similar to Common Lisp).
 * Low latency, concurrent tri-color GC.
-* Augmenting the bytecode interpreter with a JIT.
+* Augmenting the bytecode interpreter with a JIT compiler producing native code from bytecode.
+* Typeclasses using the `class` form.
 * Pattern matching `case` form.
+* Pattern/template-based macros using `syntax` form.
+* Decorator/annotation syntax using familiar `@` syntax.
+* Clojure-like function literals, eg `#(+ 1 %) ;; => (fun (%) (+ 1 %))`.
+* Implementation of STM semantics, implemented using builtin effects system.
 * Builtin support for `yield` and `async/await` form, implemented using builtin effects system.
 * Builtin support for actor-based `process` form, implemented using builtin effects system.
-* Standard library modules `math`, `regex`, `io`, `net`, and `sys`.
+* Standard library modules `rdn`, `math`, `regex`, `io`, `net`, and `sys`.
+* Standard library modules establishing standard interfaces to be used by 3rd party packages (similar to Python DBAPI 2.0).
+
+# possible features
+* `dict` and `set` types might maintain insertion order (this can be done straightforwardly using a method adapted from the CPython `dict` implementation, but I must verify that the space overhead is acceptable).
+* Support for a non-lisp surface syntax.
+* Incorporation of some of the syntactic innovations of Bel.
