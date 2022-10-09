@@ -1,7 +1,7 @@
 # rascal
-The first serious version of rascal.
+The first serious version of rascal, a new dialect of lisp inspired by (stealing ideas from) Scheme, Julia, Clojure, Haskell, and Erlang.
 
-rascal is intended to be a fully user-extensible language, focusing on support for three key features:
+rascal is a fully user-extensible language, focusing on support for three key features:
 * macros, for extending syntax
 * first-class generic functions, for extending builtin functionality to user-defined types
 * first-class algebraic effects, for extnding control flow
@@ -26,7 +26,8 @@ rascal is intended to be a fully user-extensible language, focusing on support f
 * Easy `C` ffi with `c-call` form
 * Users can define new types with the `data` and `union` forms
 * A simple, unobtrusive module/namesapce system requiring only the `import` and `export` forms (with an optional `module` form)
-* Scheme-style rest args, as well as an analogous splatting syntax, eg lisp`(+ . '(1 2 3 4)) ;; => (apply + '(1 2 3 4))`
+* Scheme-style rest args, as well as an analogous splatting syntax, 
+  eg `(+ . '(1 2 3 4)) ;; => (apply + '(1 2 3 4))`
 * Builtin support for exceptions using the `catch` form
 
 # planned features
