@@ -2,90 +2,91 @@
 ;;; rascal basics module.
 
 ;;; globals
-(var *syntax* {})
-(var *modules* {})
-
-(mac import
-  (n))
-
-;;; basic types
+;;; types
 (union list
-  (cons nul))
+       (cons nul))
 
 (fun list args args)
 
-;;; map implementations
-(fun map
-  (fn (xs list))
-  (if (nul? xs)
-      '()
-      (cons (fn xs[:head])
-      	    (map fn xs[:tail]))))
+(export (list))
 
-(fun map
-  (fn (xs string))
-  (str . (map fn
-       	      (list . xs))))
+;;; basic lisp utilities go heare.
+(fun map "Basic signature for use inside this module."
+     ((fn function) (xs list))
+     (if (id? xs nul)
+     	 '()
+	 (cons (fn (car xs))
+	       (map fn (cdr xs)))))
 
-(fun map
-  (fn (xs vector))
-  (vec . (map fn
-       	      (list . xs))))
+;;; core control flow
+(cntl raise "Pass directly to C exit."
+      ((x int))
+      (c-call :exit :C-void (:C-int-64) (x)))
 
-(fun map
-  (fn (xs dict))
-  (dict . (map fn
-  	       (list . xs))))
+(cntl raise "Show reason."
+      ((x int) msg)
+      (do (prin errs msg)
+      	  (c-call :exit :C-void (:C-int-64) (x))))
 
-(fun map
-  (fn (xs set))
-  (set . (map fn (list . xs))))
+(cntl raise "Ignore."
+      (_)
+      (c-call :exit :C-void (:C-int-64) (1)))
 
-(fun call
-  ((i int) (xs list))
-  (nth xs i))
+(cntl raise "Show reason."
+      (_ msg)
+      (do (prin errs msg)
+      	  (c-call :exit :C-void (:C-int-64) (1))))
 
-(fun call
-  ((i int) (xs vector))
-  (nth xs i))
+(mac try "Wrapper for raise/finally handlers."
+     (handlers . body)
+     `(with (~@(map #(cons 'raise (cdr %))
+     	    	    handlers))
+	    (do ~@body)))
 
-;;; wrappers for common system calls
-(fun exit ()
-  (c-call 'exit void (c-int) (0)))
+(export (try raise))
 
-(fun exit ((x integer))
-  (c-call 'exit void (c-int) (x)))
+;;; Core control syntax
+(mac cond "This signature is only called when exactly
+     	   two arguments are left, ensuring correct usage
+	   of 'otherwise'."
+     (test then)
+     (if (id? test 'otherwise)
+     	 consequent
+	 `(if ~test
+	      ~then
+	      '(raise :unhandled-case-in-cond))))
 
-;;; basic control forms
-(cntl raise (x)
-  (exit x))
+(mac cond "This is the common signature."
+     (test then . else)
+     `(if ~test
+     	  ~then
+	  (cond ~@else)))
 
-(cntl raise (x msg . args)
-  (do (prin msg . args)
-      (exit x)))
+(mac and "base case 1."
+     () true)
 
-(mac catch (handlers . body)
-  `(with (~@handlers)
-  	 (do ~@body)))
+(mac and "base case 2."
+     (x) x)
 
-(fun safe-div (x y)
-  (if (zero? y)
-      (raise :zero-division "in (/ #{x} #{y})")
-      (/ x y)))
+(mac and "inductive case."
+     (x . more)
+     `(let (test# ~x)
+     	   (if test#
+	       (and ~@more)
+	       test#)))
 
-;;; regexp implementation
-(data regex
-  ((:pattern  string)
-   (:flags    integer)
-   (:compiled compiled-regex)))
+(mac or "base case 1."
+     () false)
 
-(data regex-match
-  ((:pattern regex)
-   (:source string)
-   (:start  integer)
-   (:end    integer)
-   (:groups tuple)))
+(mac or "base case 2."
+     (x) x)
 
-(mac )
+(mac or "inductive case."
+     (x . more)
+     `(let (test# ~x)
+     	   (if test#
+	       test#
+	       (or ~@more))))
 
+(export (and or cond))
 ;;; end core.rsp

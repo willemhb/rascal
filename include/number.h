@@ -35,11 +35,4 @@ static inline int_t as_int(value_t value)
 // globals
 extern type_t *RealType, *IntType, *Int64Type, *PointerType, *CTypeType, *BoolType;
 
-// arithmetic functions
-value_t native_add(value_t *args, arity_t n);
-value_t native_sub(value_t *args, arity_t n);
-value_t native_mul(value_t *args, arity_t n);
-value_t native_div(value_t *args, arity_t n);
-value_t native_rem(value_t *args, arity_t n);
-
 #endif

@@ -31,7 +31,12 @@ rascal is a fully user-extensible language, focusing on support for three key fe
 * Builtin support for exceptions using the `catch` form.
 
 # library modules
-Watch this space.
+## math
+* `math` - general mathematics utilities as found in `<math.h>`
+
+## system
+* `os`   - Operating system interface
+
 
 # planned features
 * Persistent, immutable, HAMT based implementations for the `vector`, `dict`, and `set`.
@@ -54,50 +59,48 @@ Watch this space.
 
 # planned library modules
 ## math
-* `math    ` - general mathematics utilities as found in `<math.h>`
-* `stats   ` - statistics and probability
-* `linalg  ` - linear algebra
-* `crypt   ` - hashing, randomization, and number theory utilities
+* `stats`  - statistics and probability
+* `linalg` - linear algebra
+* `crypt`  - hashing, randomization, and number theory utilities
 
 ## text manipulation
-* `regx    ` - regular expressions
+* `regx`     - regular expressions
 * `encoding` - text encoding/decoding utilities
 
 ## algorithms
-* `graph   ` - utilities for working with graph structures
+* `graph` - utilities for working with graph structures
 
 ## parsing and templating
-* `rdn     ` - rascal data notation (native serialization format)
-* `json    ` - .json 
-* `xml     ` - .xml and .svg
-* `htm     ` - .html 
-* `css     ` - .css
+* `rdn`  - rascal data notation (native serialization format)
+* `json` - .json 
+* `xml`  - .xml and .svg
+* `htm`  - .html 
+* `css`  - .css
 
 ## FFIs and interpreters
-* `ecma    ` - a bidirectional javascript reader, writer, and transpiler
+* `ecma` - a bidirectional javascript reader, writer, and transpiler
 
 ## IO & internet
-* `io      ` - local IO
-* `net     ` - network IO and sockets
-* `http    ` - utilities for working with HTTP and making clients/servers
-* `mime    ` - mime types
-* `uri     ` - Tools for building and parsing URIs
+* `io`   - local IO
+* `net`  - network IO and sockets
+* `http` - utilities for working with HTTP and making clients/servers
+* `mime` - mime types
+* `uri`  - Tools for building and parsing URIs
 
 ## internals
-* `reader  ` - interface to the reader
-* `gc      ` - interface to the GC
-* `writer  ` - interface to the printer
+* `reader`   - interface to the reader
+* `gc`        - interface to the GC
+* `writer`   - interface to the printer
 * `expander` - interface to macro expander
 * `compiler` - interface to the compiler
-* `vm      ` - interface to the bytecode interpreter
+* `vm`        - interface to the bytecode interpreter
 
 ## operating system
-* `os      ` - Operating system interface
-* `path    ` - utilities for working with file paths
+* `path` - utilities for working with file paths
 
 ## misc
-* `gui     ` - GUI toolkit (backend not yet determined)
-* `time    ` - various date & time utilities
+* `gui`  - GUI toolkit (backend not yet determined)
+* `time` - various date & time utilities
 
 # possible features
 * `dict` and `set` types might maintain insertion order (this can be done straightforwardly using a method adapted from the CPython `dict` implementation, but I must verify that the space overhead is acceptable).

@@ -9,7 +9,7 @@
 (define-generic-mode
   'rascal-mode
   '(";")
-  '("var" "let" "with" "where" ;; binding
+  '("val" "let" "with" "where" ;; binding
     "fun" "mac" "cntl"         ;; closures
     "type" "data" "union"      ;; types
     "cond" "if" "and" "or"     ;; branching
@@ -26,8 +26,7 @@
     ("\\Wnot\\W" . font-lock-builtin-face)
     ("eos\\W" . font-lock-builtin-face)
     ("any\\W" . font-lock-builtin-face)
-    ("[^a-zA-Z?*+]:[-a-zA-Z?*+]+" . font-lock-builtin-face)
-    ("[A-Z][_a-zA-Z0-9]*" . font-lock-function-name-face))
+    ("[^a-zA-Z?*+]:[-a-zA-Z?*+0-9]+" . font-lock-builtin-face))
   '("\\.rsp$" "\\.rdn$" "\\.rdn.o$") ;; source file, serialization format, object file
   '(rainbow-delimiters-mode)
   "A mode for rascal files.")

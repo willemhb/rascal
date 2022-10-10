@@ -31,7 +31,7 @@ enum
 #define PRIM_TAG     (QNAN|((value_t)PRIMITIVE<<40))
 #define NUL_TAG      (QNAN|((value_t)NUL<<40))
 
-#define EOS_VAL      ((value_t)EOF|CHAR_TAG)
+#define EOS_VAL      ((value_t)EOF|UTF8_TAG)
 #define NUL_VAL      ((value_t)0  |NUL_TAG)
 #define TRUE_VAL     ((value_t)1  |BOOL_TAG)
 #define FALSE_VAL    ((value_t)0  |BOOL_TAG)

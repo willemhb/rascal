@@ -1,9 +1,9 @@
 #include "number.h"
-#include "port.h"
+#include "stream.h"
 
 void prin_real(stream_t *port, value_t value)
 {
-  port_prinf( port, "%.2F", as_real(val));
+  port_prinf( port, "%.2F", as_real(value));
 }
 
 // character
@@ -11,10 +11,12 @@ void prin_real(stream_t *port, value_t value)
 
 void prin_chr(stream_t *port, value_t value)
 {
-  if (val == EOS)
+  if (value == EOS_VAL)
     port_prinf( port, "<eos>");
 
   else
-    port_prinf( port, "\\%s", ChrNames[as_chr(val)&128]);
+    port_prinf( port, "\\%s", ChrNames[as_chr(value)&128]);
 }
 
+// builtin arithmetic
+value_t 
