@@ -4,34 +4,86 @@
 #include "common.h"
 
 // most typedefs, a few macros, and some globals are defined here
+
 // representation types
-typedef uintptr_t value_t;
+typedef uintptr_t       value_t;
+typedef struct box_t    box_t;
+typedef struct object_t object_t;
+typedef struct varobj_t varobj_t;
+
+// typedefs
+typedef double    real_t;
+typedef int64_t   int_t;
+typedef char      char_t;
+typedef bool      bool_t;
+typedef uint16_t  opcode_t;
+typedef uint16_t  primitive_t;
+
+typedef struct symbol_t symbol_t;
+typedef struct cons_t   cons_t;
+typedef struct func_t   func_t;
+typedef struct cntl_t   cntl_t;
+
+typedef struct type_t   type_t;
+typedef struct stream_t stream_t;
+typedef struct tuple_t  tuple_t;
+
+typedef value_t (*native_fn_t)(value_t *args, size_t n);
+typedef void    (*reader_fn_t)(stream_t *stream, char32_t dispatch);
+typedef void    (*printer_fn_t)(stream_t *stream, value_t value);
+typedef void    (*mark_fn_t)(object_t *obj);
+typedef void    (*free_fn_t)(object_t *obj);
+typedef size_t  (*size_fn_t)(object_t *obj);
+
 
 // tags
-#define QNBITS       (0x7ffc>>2)
-#define QNAN         ((value_t)0x7ffc<<48)
-#define SIGN         ((value_t)1<<63)
+#define QNAN_BITS 32764
+#define SIGN_BIT  32768
 
-#define OBJECT_TAG   (SIGN|QNAN)
+#define QNAN ((value_t)QNAN_BITS<<48)
+#define SIGN ((value_t)SIGN_BIT<<48)
 
-enum
+#define SMALL_TAG ((value_t)(QNAN_BITS|0)<<48)
+#define INT_TAG   ((value_t)(QNAN_BITS|1)<<48)
+#define FUNC_TAG  ((value_t)(QNAN_BITS|2)<<48)
+#define CNTL_TAG  ((value_t)(QNAN|BITS|3)<<48)
+
+#define ATOM_TAG  ((value_t)(SIGN_BIT|QNAN_BITS|0)<<48)
+#define CONS_TAG  ((value_t)(SIGN_BIT|QNAN_BITS|1)<<48)
+#define FOBJ_TAG  ((value_t)(SIGN_BIT|QNAN_BITS|2)<<48)
+#define VOBJ_TAG  ((value_t)(SIGN_BIT|QNAN_BITS|3)<<48)
+
+#define REAL_TAG  (SMALL_TAG|((value_t)0<<32))
+#define CHAR_TAG  (SMALL_TAG|((value_t)1<<32))
+#define BOOL_TAG  (SMALL_TAG|((value_t)2<<32))
+#define PRIM_TAG  (SMALL_TAG|((value_t)3<<32))
+#define SLOT_TAG  (SMALL_TAG|((value_t)4<<32))
+
+struct box_t
+{
+  union
   {
-    REAL, INT, BOOL, UTF8, LATIN1, UTF16, UTF32, PRIMITIVE, CTYPE,
+    value_t next;
 
-    NUL, NUM_IMM_TYPES,
+    struct                     // generic flags
+    {
+      value_t flags :  2;
+      value_t black :  1;
+      value_t gray  :  1;
 
-    // these are only here because there's no other practicable way to hash them
-    NONE=NUM_IMM_TYPES, ANY,
+      value_t       : 44;
+      value_t obtag : 16;
+    };
   };
+};
 
-#define REAL_TAG     (QNAN|((value_t)REAL<<40))
-#define INT_TAG      (QNAN|((value_t)INT<<40))
-#define BOOL_TAG     (QNAN|((value_t)BOOL<<40))
-#define UTF8_TAG     (QNAN|((value_t)UTF8<<40))
-#define PRIM_TAG     (QNAN|((value_t)PRIMITIVE<<40))
+#define BOX_HEAD  box_t box;
+#define OBJ_HEAD  BOX_HEAD object_t *type;
+#define VOBJ_HEAD OBJ_HEAD size_t    len;
+
 #define NUL_TAG      (QNAN|((value_t)NUL<<40))
 
-#define EOS_VAL      ((value_t)EOF|UTF8_TAG)
+#define EOS_VAL      ((value_t)EOF|CHAR_TAG)
 #define NUL_VAL      ((value_t)0  |NUL_TAG)
 #define TRUE_VAL     ((value_t)1  |BOOL_TAG)
 #define FALSE_VAL    ((value_t)0  |BOOL_TAG)
@@ -43,43 +95,6 @@ enum
 #define IMASK        (~STMASK)
 #define FLMASK       ((value_t)15)
 #define NPMASK       (PMASK&(~FLMASK))
-
-// typedefs
-typedef double    real_t;
-typedef int64_t   int_t;
-typedef char      char_t;
-typedef bool      bool_t;
-typedef uint16_t  opcode_t;
-typedef uint16_t  primitive_t;
-
-// basic object types
-typedef struct object_t           object_t;
-typedef struct symbol_t           symbol_t;
-typedef struct cons_t             cons_t;
-typedef struct tuple_t            tuple_t;
-typedef struct vector_t           vector_t;
-typedef struct table_t            table_t;
-typedef struct slots_t            slots_t;
-typedef struct set_t              set_t;
-typedef struct stream_t           stream_t;
-typedef struct function_t         function_t;
-typedef struct method_t           method_t;
-typedef struct method_table_t     method_table_t;
-typedef struct control_t          control_t;
-typedef struct bytecode_t         bytecode_t;
-typedef struct type_t             type_t;
-typedef struct data_type_t        data_type_t;
-typedef struct union_type_t       union_type_t;
-typedef struct heap_t             heap_t;
-typedef struct vm_t               vm_t;
-
-// C function typedefs
-typedef value_t (*native_fn_t)(value_t *args, size_t n);
-typedef void    (*reader_fn_t)(stream_t *stream, char32_t dispatch);
-typedef void    (*printer_fn_t)(stream_t *stream, value_t value);
-typedef void    (*mark_fn_t)(object_t *obj);
-typedef void    (*free_fn_t)(object_t *obj);
-typedef size_t  (*size_fn_t)(object_t *obj);
 
 // union types
 typedef union
