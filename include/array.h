@@ -5,6 +5,7 @@
 
 #include "object.h"
 #include "memory.h"
+#include "utils.h"
 
 // macros, globals, common array utilities, and array types that don't fit elsewhere
 #define resize_vec(p, o, n, t) resize((p), (o)*sizeof(t), (n)*sizeof(t))
@@ -13,11 +14,11 @@
 #define duplicate_vec(p, n, t) duplicate_bytes((p), (n) * sizeof(t))
 
 // array describe macros
-#define ARRAY_SLOTS(V)						\
-  size_t   length;						\
-  size_t   capacity;						\
-  V       *data;						\
-  
+#define ARRAY_SLOTS(V)							\
+  arity_t  cap;								\
+  arity_t  len;								\
+  V       *data
+
 #define ARRAY_INIT(T, V, minc)					\
   void init_##T(T##_t *T)					\
   {								\
@@ -113,33 +114,73 @@
 
 // utility array types
 // array types
-#define ALIST_MINC  1
-#define STACK_MINC  128
-#define BUFFER_MINC 512
 
-struct vector_t
+typedef union
 {
-  object_t    object;
-  val_alist_t val_alist;
+  char      *c8;
+  char16_t  *c16;
+  char32_t  *c32;
+
+  byte      *u8;
+  uint16_t  *u16;
+
+  int8_t    *i8;
+  int16_t   *i16;
+  int32_t   *i32;
+
+  object_t **objects;
+  value_t   *values;
+} elements_t;
+
+struct alist_t
+{
+  object_t   object;
+
+  arity_t    len;
+  arity_t    cap;
+  elements_t elements;
+  byte       isStack;
+  byte       isAlist;
+  arity_t    minCap;
 };
 
-typedef struct stack_t
+struct binary_t
 {
-  object_t    object;
-  val_stack_t val_stack;
-} stack_t;
+  object_t   object;
+  arity_t    len;
+  Ctype_t    Ctype;
+  elements_t elements;
+};
+
+struct buffer_t
+{
+  object_t   object;
+  arity_t    len;
+  arity_t    cap;
+  elements_t elements;
+  byte       isStack;
+  byte       isAlist;
+  byte       Ctype;
+  arity_t    minCap;
+};
 
 // forward declarations
-size_t     pad_alist_size(size_t newl, size_t oldl, size_t oldc, size_t minc);
-size_t     pad_stack_size(size_t newl, size_t oldl, size_t oldc, size_t minc);
+alist_t  *new_alist( void );
+void      init_alist( alist_t *alist, bool isStatic, arity_t minCap, bool isStack, bool isAlist );
+void      mark_alist( object_t *object );
+hash_t    hash_alist( object_t *object );
+ord_t     order_alists( object_t *x, object_t *y );
 
+binary_t *new_binary( void );
+void      init_binary( binary_t *binary, bool isStatic, arity_t len, Ctype_t Ctype, void *data );
+void      free_binary( object_t *object );
+hash_t    hash_binary( object_t *object );
+ord_t     order_binaries( object_t *x, object_t *y );
 
-vector_t  *new_vector(void);
-void       init_vector(vector_t *vector);
-void       mark_vector(object_t *object);
-void       resize_vector(vector_t *vector, size_t newl);
-void       free_vector(object_t *object);
-void       vector_push(vector_t *vector, value_t value);
-
+buffer_t *new_buffer( void );
+void      init_buffer( buffer_t *buffer, bool isStatic, arity_t minCap, bool isStack, bool isAlist, Ctype_t Ctype );
+void      free_buffer( object_t *object );
+hash_t    hash_buffer( object_t *object );
+ord_t     order_buffers( object_t *x, object_t *y );
 
 #endif

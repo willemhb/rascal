@@ -22,13 +22,13 @@ typedef uint32_t idno32_t;
 
 typedef ord32_t   ord_t;
 typedef flags32_t flags_t;
+typedef arity32_t arity_t;
 
 typedef int64_t  ord64_t;
 typedef uint64_t arity64_t;
 typedef uint64_t hash64_t;
 typedef uint64_t idno64_t;
 
-typedef size_t   arity_t;
 typedef hash64_t hash_t;
 typedef idno64_t idno_t;
 

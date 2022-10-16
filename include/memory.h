@@ -7,25 +7,20 @@
 // heap type
 struct heap_t
 {
-  object_t     object;
-
   object_t    *objects;
-
-  obj_stack_t  grays;
-  val_stack_t  saved;
+  vector_t    *grays;
 
   size_t      allocated;
   size_t      alloccap;
+
+  bool        readBarrier;
+  bool        writeBarrier;
 };
-
-// globals
-extern heap_t Heap;
-
-extern type_t *HeapType;
 
 // florward declarations
 void   init_heap(heap_t *heap);
-void   free_heap(object_t *obj);
+void   free_heap(heap_t *heap);
+void   add_gray(heap_t *heap, object_t *object);
 
 void  *alloc(size_t n);
 void  *resize(void *p, size_t o, size_t n);

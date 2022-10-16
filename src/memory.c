@@ -1,75 +1,49 @@
 #include <stdlib.h>
 
 #include "memory.h"
-#include "array.h"
 #include "utils.h"
+#include "array.h"
+#include "exec.h"
+#include "symbol.h"
 
 // root-marking includes
-#include "atom.h"
-#include "read.h"
-#include "port.h"
-#include "envt.h"
 
-static const size_t heap_inic     = 8192*sizeof(alist_t);
 static const real_t heap_pressure = 0.75;
+static const size_t heap_startcap = 65536 * 4 * sizeof(value_t);
+static const size_t grays_mincap  = 512;
+
+heap_t Heap;
+
+vector_t GrayStack;
 
 // heap implementation
 void init_heap(heap_t *heap)
 {
-  // initialize heap by hand, since it bypasses the usual protocol
-  heap->obj.next  = NULL;
-  heap->obj.type  = HEAP;
-  heap->obj.gray  = false;
-  heap->obj.black = true;
-  heap->obj.flags = 0;
-
-  heap->allocated = 0;
-  heap->alloccap  = heap_inic;
-
   heap->objects   = NULL;
-  stack_t *gray   = malloc_s( sizeof(alist_t) );
-  heap->grays     = gray;
+  heap->alloccap  = heap_startcap;
+  heap->allocated = 0;
+  heap->grays     = &GrayStack;
 
-  // do the same for the initial part of heap->grays
-  gray->obj.next  = NULL;
-  gray->obj.type  = ALIST;
-  gray->obj.gray  = false;
-  gray->obj.black = true;
-  gray->obj.flags = Ctype_pointer;
-
-  gray->len       = 0;
-  gray->cap       = MinCs[STACK];
-  gray->data      = alloc_vec(  gray->cap, value_t );
-
-  // saved can be initialized the easy way
-  heap->saved     = new_stack();
-  init_stack(heap->saved);
+  init_vector( heap->grays, true, array_shape_stack, grays_mincap );
 }
 
-void free_heap(object_t *obj)
+void free_heap(heap_t *heap)
 {
-  heap_t *heap = (heap_t*)obj;
 
   for (object_t *obj=heap->objects;obj != NULL;)
     {
       object_t *tmp = obj;
-      obj        = tmp->next;
-      free_obj( obj );
+      obj           = as_object(obj_next(tmp));
+      free_object( obj );
     }
-  
-  free_stack((object_t*)heap->grays);
-  free( heap->grays );
-}
 
+  free_vector((object_t*)heap->grays);
+}
 
 void mark_roots( void )
 {
-  mark_obj((object_t*)Heap.saved);
-  mark_obj((object_t*)&Symbols);
-  mark_obj((object_t*)&Reader);
-  mark_obj((object_t*)&Ins);
-  mark_obj((object_t*)&Outs);
-  mark_obj((object_t*)&Errs);
+  symbol_roots();
+  vm_roots();
 }
 
 void collect_garbage(void)

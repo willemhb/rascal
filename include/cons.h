@@ -1,36 +1,48 @@
-#ifndef rascal_pair_h
-#define rascal_pair_h
+#ifndef rascal_cons_h
+#define rascal_cons_h
 
 #include "object.h"
-#include "value.h"
-
-// cons flags
-#define PROPER_FL  0x0000000000000004ul
-#define INLINED_FL 0x0000000000000008ul
 
 struct cons_t
 {
   object_t object;
 
-  type_t   type;
-  arity_t  length;
+  arity_t  len;
+  bool     isProper;
 
-  value_t  space[0];
+  value_t  car;
+
+  union
+  {
+    value_t cdr;
+    cons_t *tail;
+  };
 };
 
-#define is_cons(val)     isa(val, CONS)
-#define as_cons(val)     ((cons_t*)as_ptr(val))
-#define cons_car(val)    (as_cons(val)->car)
-#define cons_cdr(val)    (as_cons(val)->cdr)
+// api
+cons_t *new_cons( void );
+void    init_cons( cons_t *c, value_t car, value_t cdr );
+void    mark_cons( object_t *object );
+hash_t  hash_cons( object_t *object );
+ord_t   order_conses( object_t *x, object_t *y );
 
-// forward declarations
-cons_t   *new_cons(void);
-cons_t   *new_conses(arity_t n);
-void      init_conses(cons_t *cons, value_t *args, arity_t n);
-void      init_cons(cons_t *cons, value_t car, value_t cdr);
-void      mark_cons(object_t *obj);
+// convenience
+#define as_cons(val)   ((cons_t*)as_ptr(val))
 
-void      prin_list(stream_t *port, value_t value);
+#define cons_car(val)      (as_cons(val)->car)
+#define cons_cdr(val)      (as_cons(val)->cdr)
+#define cons_tail(val)     (as_cons(val)->tail)
+#define cons_len(val)      (as_cons(val)->len)
+#define cons_isProper(val) (as_cons(val)->isProper)
 
+
+static inline REPR_PRED(cons, CONS);
+static inline VAL_PRED(nul, NUL_VAL);
+
+static inline bool isProper( value_t x )
+{
+  return is_cons(x)
+    && (is_nul(x) || cons_isProper(x));
+}
 
 #endif

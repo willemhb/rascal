@@ -42,10 +42,10 @@ stream_t Ins, Outs, Errs;
 value_t Quote, Error;
 
 // dispatch tables
-const char  *TypeNames[N_TYPES] =
+const char  *TypeNames[N_REPR] =
   {
     [REAL]    = "real",        [CHRTYPE] = "chr",   [NULTYPE] = "nul",
-    [ATOM]    = "atom",        [SYMT]    = "symt",  [READT]   = "readt",
+    [SYMBOL]    = "atom",        [SYMT]    = "symt",  [READT]   = "readt",
     [RENTRY]  = "readt-entry", [PORT]    = "port",  [CONS]    = "cons",
     [ALIST]   = "alist",       [STACK]   = "stack", [ENVT]    = "envt",
     [VAR]     = "var",         [CODE]    = "code",  [INSTR]   = "instr",
@@ -54,42 +54,41 @@ const char  *TypeNames[N_TYPES] =
     [ANY]     = "any",         [NONE]    = "none",
   };
 
-printer_fn_t Print[N_TYPES] =
+printer_fn_t Print[N_REPR] =
   {
-   [REAL] = prin_real, [ATOM]   = prin_atom, [CHRTYPE] = prin_chr,
+   [REAL] = prin_real, [SYMBOL]   = prin_atom, [CHRTYPE] = prin_chr,
    [CONS] = prin_list, [NULTYPE]= prin_list,
   };
 
-const size_t MinCs[N_TYPES] =
+const size_t BaseSizes[N_REPR] =
   {
-    [ALIST]  = 8,   [SYMT]  = 256, [READT] = 256,
-    [BUFFER] = 128, [STACK] = 64,  [ENVT]  = 8,
-    [INSTR]  = 64,
+   [SYMBOL]  =sizeof(atom_t),     [CONS]   =sizeof(cons_t),
+   [FUNCTION]=sizeof(function_t), [CONTROL]=sizeof(control_t),
+   [BYTECODE]=sizeof(bytecode_t), [STREAM] =sizeof(stream_t),
+   [BINARY]  =sizeof(binary_t),   [ALIST]  =sizeof(alist_t),
+   [BUFFER]  =sizeof(buffer_t),   [ARRAY]  =sizeof(array_t),
+   [TABLE]   =sizeof(table_t),    [ENTRY]  =sizeof(entry_t),
+   [ASSOC]   =sizeof(assoc_t),    [VAR]    =sizeof(var_t),
+   [BIGINT]  =sizeof(bigint_t),
   };
 
-const size_t BaseSizes[N_TYPES] =
+mark_fn_t Mark[N_REPR] =
   {
-   [REAL]  =sizeof(real_t),  [CHRTYPE]=sizeof(char_t),
-
-   [CONS]  =sizeof(cons_t),
-   [ATOM]  =sizeof(atom_t),  [SYMT]   =sizeof(symt_t),   [ENVT]  =sizeof(envt_t),
-   [READT] =sizeof(readt_t), [RENTRY] =sizeof(rentry_t), [PORT]  =sizeof(stream_t),
-   [ALIST] =sizeof(alist_t), [STACK]  =sizeof(stack_t),  [BUFFER]=sizeof(buffer_t),
+    [SYMBOL]  =mark_symbol,   [CONS]   =mark_cons,
+    [FUNCTION]=mark_function, [CONTROL]=mark_control,
+    [BYTECODE]=mark_bytecode, [STREAM] =mark_stream,
+    [ALIST]   =mark_alist,    [ARRAY]  =mark_array,
+    [TABLE]   =mark_table,    [ENTRY]  =mark_entry,
+    [ASSOC]   =mark_assoc,    [VAR]    =mark_var,
+    [RECORD]  =mark_record
   };
 
-mark_fn_t Mark[N_TYPES] =
+free_fn_t Free[N_REPR] =
   {
-    [READT] = mark_readt, [SYMT]  = mark_symt,
-    [STACK] = mark_stack, [ALIST] = mark_alist,
-    [PORT]  = mark_port,  [CONS]  = mark_cons,
-  };
-
-free_fn_t Free[N_TYPES] =
-  {
-   [ATOM]  =free_atom,   [PORT]  =free_port,
-   [SYMT]  =free_symt,   [READT] =free_readt,
-   [STACK] =free_stack,  [ALIST] =free_alist,
-   [BUFFER]=free_buffer,
+   [SYMBOL] =free_atom,   [PORT]  =free_port,
+   [SYMT]   =free_symt,   [READT] =free_readt,
+   [STACK]  =free_stack,  [ALIST] =free_alist,
+   [BUFFER] =free_buffer,
   };
 
 // initialization and some utilities

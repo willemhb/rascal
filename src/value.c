@@ -1,66 +1,110 @@
-#include <stdarg.h>
 #include "value.h"
-#include "array.h"
+#include "object.h"
+#include "utils.h"
 
-data_type_t *typeof_value(value_t value)
+value_t tag_real( real_t real, repr_t repr )
 {
-  if ((value&QNAN) != QNAN)
-    return ImmediateTypes[REAL];
+  (void)repr;
 
-  else if (!(value&SIGN))
-    return ImmediateTypes[value>>40&255];
-
-  else
-    return typeof_object(as_object(value));
+  return ((val_data_t)real).as_val;
 }
 
-data_type_t *typeof_object(object_t *object)
+value_t tag_int( int_t i, repr_t repr )
 {
-  if (!object)
-    return ImmediateTypes[NUL];
-
-  return obj_type(object);
+  (void)repr;
+  return (((value_t)i)&~HTMASK)|INT_TAG;
 }
 
-void mark_value(value_t value)
+value_t tag_imm( uint32_t i, repr_t r )
 {
-  if (is_object(value))
-    mark_object(as_object(value));
+  return (((value_t)i)&~ITMASK)|((value_t)r<<32);
 }
 
-void mark_values(value_t *values, size_t n)
+value_t tag_obj( object_t *obj, repr_t r )
 {
-  for (size_t i=0; i<n; i++)
-    mark_value(values[i]);
+  return ((value_t)obj)|OBJ_TAG|r;
 }
 
-void free_value(value_t value)
+value_t tag_ptr( void *ptr, repr_t r )
 {
-  if (is_object(value))
-    free_object(as_object(value));
+  if (r <= RECORD)
+    return tag_obj(ptr, r);
+
+  return ((value_t)ptr)|PTR_TAG;
 }
 
-// utility array type implementations
-OBJ_NEW(val_alist);
+void *ptr_as_ptr(ptr_t ptr)
+{
+  return ptr;
+}
 
-ARRAY_INIT(val_alist, value_t, ALIST_MINC);
-ARRAY_RESIZE(val_alist, value_t, pad_alist_size, ALIST_MINC);
-ARRAY_CLEAR(val_alist, value_t, ALIST_MINC);
-ARRAY_WRITE(val_alist, value_t);
-ARRAY_APPEND(val_alist, value_t);
-ARRAY_POP(val_alist, value_t);
-ARRAY_PUSH(val_alist, value_t);
-ARRAY_MARK(val_alist, value_t);
-ARRAY_FREE(val_alist, value_t);
+void *val_as_ptr(value_t val)
+{
+  if ((val&HTMASK)==OBJ_TAG)
+    return (void*)(val&OBPTRMASK);
 
-OBJ_NEW(val_stack);
+  return (void*)(val&PTRMASK);
+}
 
-ARRAY_INIT(val_stack, value_t, STACK_MINC);
-ARRAY_RESIZE(val_stack, value_t, pad_stack_size, STACK_MINC);
-ARRAY_CLEAR(val_stack, value_t, STACK_MINC);
-ARRAY_WRITE(val_stack, value_t);
-ARRAY_APPEND(val_stack, value_t);
-ARRAY_POP(val_stack, value_t);
-ARRAY_PUSH(val_stack, value_t);
-ARRAY_MARK(val_stack, value_t);
-ARRAY_FREE(val_stack, value_t);
+repr_t obj_reprof( object_t *obj )
+{
+  assert(obj != NULL);
+
+  return obj->repr;
+}
+
+repr_t val_reprof( value_t val )
+{
+  switch (val&(OBJ_TAG|SIGN))
+    {
+    case IMM_TAG: return val>>32&255;
+    case INT_TAG: return INT;
+    case PTR_TAG: return PTR;
+    case OBJ_TAG: return val&15;
+    default:      return REAL;
+    }
+}
+
+extern size_t     BaseSizes[N_REPR];
+
+size_t val_size( value_t val )
+{
+  if (is_obj(val))
+    return obj_size(as_object(val));
+
+  return BaseSizes[val_reprof(val)];
+}
+
+size_t val_hash( value_t val )
+{
+  if (is_obj(val))
+    return obj_hash(as_object(val));
+
+  return hash_long(val);
+}
+
+extern order_fn_t Order[N_REPR];
+
+ord_t val_order( value_t x, value_t y )
+{
+  if (x == y)
+    return 0;
+
+  repr_t xr = val_reprof(x), yr = val_reprof(y);
+
+  if (xr != yr)
+    return cmp(xr, yr);
+
+  if (xr <= RECORD)
+    return Order[xr](as_object(x), as_object(y));
+
+  switch (xr)
+    {
+    case BOOL: return cmp(as_bool(x), as_bool(y));
+    case CHAR: return cmp(as_chr(x), as_chr(y));
+    case INT:  return cmp(as_int(x), as_int(y));
+    case PTR:  return cmp(as_ptr(x), as_ptr(y));
+    case REAL: return cmp(as_real(x), as_real(y));
+    default:   unreachable();
+    }
+}
