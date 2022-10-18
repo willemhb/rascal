@@ -1,50 +1,34 @@
 #ifndef rascal_function_h
 #define rascal_function_h
 
-#include "obj/object.h"
-#include "obj/record.h"
-#include "obj/array.h"
+#include "obj/type.h"
 
-struct function_t
+typedef struct
 {
-  object_t        object;
+  OBJECT
 
-  symbol_t       *name;
+  object_t *name;
+  object_t *type;     // the type this function is a constructor for (if any)
+  object_t *methods;
+} function_t;
 
-  value_t         method;
-  type_t         *type;
-
-  function_t     *next;
-  function_t     *cache;
-
-  ushort          vargs;
-  ushort          final;
-  arity_t         arity;
-  type_t        **signature;
-};
-
-struct opcodes_t
+typedef struct
 {
-  ARRAY_SLOTS(opcode_t, 2);
-};
+  OBJECT
 
-struct constants_t
+  object_t *cache;   // cache link (methods)
+  object_t *table;   // 
+  object_t *method;
+} methods_t;
+
+typedef struct
 {
-  TABLE_SLOTS(entry_t*);
-};
+  OBJECT
+  value_t   invoke;
 
-struct bytecode_t
-{
-  record_t record;
-
-  arity_t  nArgs;
-  arity_t  nStack;
-
-  // execution state
-  opcodes_t   *instructions;
-  constants_t *constants;
-  namespace_t *namespace;
-  function_t  *function;
-};
+  bool      vargs;
+  arity_t   nargs;
+  object_t *signature[];
+} method_t;
 
 #endif

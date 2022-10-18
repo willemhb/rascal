@@ -13,6 +13,7 @@ typedef uint16_t ushort;
 typedef uint32_t uint;
 typedef uint64_t ulong;
 
+typedef uint8_t  char8_t;
 typedef uint8_t  flags8_t;
 typedef uint16_t flags16_t;
 typedef uint16_t arity16_t;

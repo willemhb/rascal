@@ -1,92 +1,187 @@
 #ifndef rascal_type_h
 #define rascal_type_h
 
-#include "obj/boxed.h"
+#include "rl/value.h"
+#include "describe.h"
 
-// function pointers
-typedef bool       (*isa_t)( type_t *self, value_t val );
-typedef bool       (*has_t)( type_t *self, value_t other );
-typedef value_t    (*box_t)( type_t *self, rl_value_t val );
-typedef size_t     (*unbox_t)( type_t *self, rl_value_t val, size_t size, void *spc );
+typedef struct type_t type_t;
 
-typedef struct dtype_impl_t dtype_impl_t;
-typedef struct utype_impl_t utype_impl_t;
-typedef struct class_impl_t class_impl_t;
+// function pointer types
+typedef bool      (*isa_t)( type_t *type, value_t value );
+typedef bool      (*has_t)( type_t *type, type_t *sub );
+typedef void      (*trace_t)( object_t *obj );
+typedef void      (*free_t)( object_t *obj );
+typedef void      (*init_t)( type_t *type, object_t *self, size_t n, void *data );
+typedef object_t *(*new_t)( type_t *type, size_t n );
 
-typedef struct ar_impl_t ar_impl_t;
-typedef struct tb_impl_t tb_impl_t;
-typedef struct ht_impl_t ht_impl_t;
-typedef struct at_impl_t at_impl_t;
-typedef struct cv_impl_t cv_impl_t;
-typedef struct ob_impl_t ob_impl_t;
+// internal structure types
+typedef enum
+  {
+    NTPTR,
+    NTUNSIGNED,
+    NTSIGNED,
+    NTFLOAT
+  } numtype_t;
+
+typedef struct
+{
+  uint8_t width:5; // size of the field in bytes
+  uint8_t ctype:2; // pointer, unsigned, signed, or float
+  uint8_t boxed:1; // boxed?
+  uint8_t offset;  // offset from object base
+} spec8_t;
+
+typedef struct
+{
+  uint16_t width:13;
+  uint16_t ctype:2;
+  uint16_t boxed:1;
+  uint16_t offset;
+} spec16_t;
+
+typedef struct
+{
+  uint32_t width:29;
+  uint32_t ctype:2;
+  uint32_t boxed:1;
+  uint32_t offset;
+} spec32_t;
+
+typedef struct      // note: header for an array of either spec8, spec16, or spec32
+{
+  size_t base_size; // total size of all fixed fields 
+  size_t n_fields;  // number of slots
+} layout_t;
+
+typedef struct
+{
+  layout_t layout;
+  spec8_t  specs[];
+} layout8_t;
+
+typedef struct
+{
+  OBJECT
+
+  hash_t    hash;
+  size_t    index; // used to look up field and type information
+  value_t   name;
+  object_t *props; // metadata
+} slot_t;
+
+typedef struct
+{
+  Ctype_t   value;       // Ctype of the value representation (no tthe object Ctype)
+  arity_t   data_size;   // size of the value data (not the object size)
+  bool      fits_fixnum; // indicates that the unboxed data fits in a fixnum
+  bool      fits_word;   // indicates that the unboxed data fits in a word
+
+  layout_t *layout;      // description of the object layout
+  value_t   singleton;   // can be only value for type, or an empty collection
+  object_t *slots;       // mapping from names to offsets
+  object_t *types;       // signature; layout depends on type
+
+  trace_t   trace;
+  free_t    free;
+  init_t    init;
+  new_t     new;
+} dtype_impl_t;
+
+typedef struct
+{
+  object_t *members;
+} utype_impl_t;
 
 struct type_t
 {
-  BOX
+  OBJECT
 
-  symbol_t   *name;
-  function_t *constructor;
-  isa_t       isa;
-  has_t       has;
+  object_t *name;
+  object_t *constructor;
+  hash_t    hash;
 
-  hash_t      hash;
-
-  bool        is_ptype; // builtin type?
-  bool        is_dtype; // concrete type?
-  bool        is_utype; // union type?
-  bool        is_class; // type class?
+  isa_t     isa;
+  has_t     has;
 
   union
   {
     dtype_impl_t *dtype;
     utype_impl_t *utype;
-    class_impl_t *class;
-  } impl;
+  };
 };
 
-struct utype_impl_t
-{
-  table_t *members;
-};
-
-struct class_impl_t
-{
-  table_t *members;     // implementing types
-  table_t *supers;      // classes extended
-  table_t *subs;        // classes extending
-  table_t *signatures;  // method signatures
-};
-
-struct dtype_impl_t
-{
-  size_t   base_size;    // base size of the represented data (including header, if object)
-  Ctype_t  Ctype;        // Ctype of the represented data
-  repr_t   repr;         // value type of the represented data
-  value_t  instance;     // singletons and empty instances (for collection types)
-
-  // boxing and unboxing
-  box_t     box;
-  unbox_t   unbox;
-  obfree_t  obfree;
-  obtrace_t obtrace;
-
-  // further implementation methods
-  union
+// immediate typecodes
+typedef enum
   {
-    ar_impl_t *arr;    // array types
-    tb_impl_t *tab;    // table types
-    ht_impl_t *hamt;   // hamt types
-    at_impl_t *amt;    // amt types
-    cv_impl_t *cval;   // cvalue types
-    ob_impl_t *obj;    // other object types (mostly internals)
-  } impl;
-};
+    SINT8, UINT8, ASCII, LATIN1, UTF8,
+
+    SINT16, UINT16, UTF16, OPCODE, PRIMITIVE,
+
+    SINT32, UINT32, UTF32, REAL32, CTYPE, BOOLEAN,
+
+    NUL,
+
+    N_IMM
+  } immtype_t;
+
+// constructor type
+typedef enum
+  {
+    NOCONS=0,
+    PRIMCONS=1,
+    NATIVECONS=2
+  } constype_t;
 
 // globals
-extern type_t *ReprTypes[N_REPR];
+// immediate types
+extern type_t *FixnumType, *RealType, *PointerType, *ImmTypes[N_IMM];
+
+// fucked up types
+extern type_t *NoneType, *AnyType, *NulType;
+
+// metaobject types
+extern type_t *DataType, *UnionType;
+
+// forward declarations
+type_t *val_type( value_t val );
+type_t *obj_type( object_t *obj );
+
+bool isa_none( object_t *object, value_t val );
+bool isa_any( object_t *object, value_t val );
+bool isa_dtype( object_t *object, value_t val );
+bool isa_utype( object_t *object, value_t val );
+
+bool none_has( object_t *self, object_t *other );
+bool any_has( object_t *self, object_t *other );
+bool dtype_has( object_t *self, object_t *other );
+bool utype_has( object_t *self, object_t *other );
+
+type_t *init_dtype( type_t *type, char *name, constype_t constype, size_t n, ... );
+type_t *init_utype( type_t *type, char *name, constype_t constype, size_t n, ... );
 
 // convenience
-#define as_type(x) ((type_t*)as_ptr(x))
-#define is_type(x) is_repr(x, TYPE)
+#define rl_type( x )    GENERIC_2( type, x )
+#define is_type( x, T ) (rl_type(x)==(T))
+#define obtype( x )     ((type_t*)hdr_data(as_obj(x)->type))
+
+static inline bool is_dtype( type_t *type )
+{
+  return obtype(type) == DataType;
+}
+
+static inline bool is_utype( type_t *type )
+{
+  return obtype(type) == UnionType;
+}
+
+static inline bool is_obj_type( type_t *type )
+{
+  return obtype(type) == DataType && !!type->dtype->layout;
+}
+
+static inline bool is_imm_type( type_t *type )
+{
+  return obtype(type) == DataType && type->dtype->layout == NULL;
+}
 
 #endif

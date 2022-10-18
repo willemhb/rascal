@@ -1,0 +1,52 @@
+#ifndef rascal_obj_exec_h
+#define rascal_obj_exec_h
+
+#include "obj/type.h"
+
+typedef struct control_t   control_t;
+typedef struct upvalues_t  upvalues_t;
+typedef struct upvalue_t   upvalue_t;
+typedef struct stack_t     stack_t;
+typedef struct vm_t        vm_t;
+typedef struct closure_t   closure_t;
+
+struct control_t
+{
+  OBJECT
+
+  arity_t   base;     // offset of locals
+  arity_t   size;     // number of locals
+
+  opcode_t *prgc;     // program counter
+
+  object_t *stack;    // value stack
+  object_t *caller;   // calling frame
+  object_t *prompt;   // bottom of current continuation chain 
+  object_t *upvalues; // closed upvalues
+  object_t *code;     // executing code object
+};
+
+struct upvalues_t
+{
+  
+};
+
+// vm state type
+#define CALLSTACK_CAP 2048
+#define VALSTACK_CAP  (UINT16_MAX+1)
+
+struct vm_t
+{
+  OBJECT
+  
+  value_t    value;                 // transmit return values (val register)
+  object_t  *control;
+  object_t  *upvalues;
+  object_t  *stack;
+
+  control_t  framepool[CALLSTACK_CAP];
+  value_t    valpool[VALSTACK_CAP];
+};
+
+
+#endif

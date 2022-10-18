@@ -2,34 +2,8 @@
 #define rascal_memory_h
 
 #include "obj/array.h"
-#include "rl/invoke.h"
 
 // forward declarations, macros, and globals for the memory runtime
-
-
-// heap type
-struct heap_t
-{
-  object_t    *objects;
-  stack_t     *grays;
-
-  size_t      allocated;
-  size_t      alloccap;
-
-  bool        readBarrier;
-  bool        writeBarrier;
-};
-
-struct obj_impl_t
-{
-  // memory methods (construct and init can be overwritten)
-  object_t *construct;
-  object_t *initob;
-  sizeof_t  size;
-  resize_t  resize;
-  trace_t   trace;
-  free_t    free;
-};
 
 // globals
 extern heap_t Heap;
