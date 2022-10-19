@@ -11,6 +11,9 @@ void      init_obj( object_t *self, type_t *type, size_t n, void *data );
 void      obj_mark( object_t *obj );
 void      obj_free( object_t *obj );
 
+void      mark_objs( object_t **obj, size_t n );
+void      mark_vals( value_t *v, size_t n );
+
 // convenience
 #define rl_trace( x ) GENERIC_2( trace, x )
 
