@@ -27,7 +27,7 @@
     ("eos\\W" . font-lock-builtin-face)
     ("any\\W" . font-lock-builtin-face)
     ("[^a-zA-Z?*+]:[-a-zA-Z?*+0-9]+" . font-lock-builtin-face))
-  '("\\.rsp$" "\\.rdn$" "\\.rdn.o$") ;; source file, serialization format, object file
+  '("\\.rl$" "\\.rdn$" "\\.rdn.o$") ;; source file, serialization format, object file
   '(rainbow-delimiters-mode)
   "A mode for rascal files.")
 
