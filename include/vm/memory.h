@@ -1,24 +1,21 @@
 #ifndef rascal_memory_h
 #define rascal_memory_h
 
-#include "obj/array.h"
+#include "obj/memory.h"
 
 // forward declarations, macros, and globals for the memory runtime
 
 // globals
 extern heap_t Heap;
-extern 
 
 // florward declarations
-void   init_heap(heap_t *heap);
-void   free_heap(heap_t *heap);
-
-void  *alloc(size_t n);
-void  *resize(void *p, size_t o, size_t n);
-void   dealloc(void *p, size_t n);
-void   collect_garbage(void);
-void  *duplicate_bytes(void *p, size_t n);
-char  *duplicate_string(char *chars);
+void     *alloc(size_t n);
+object_t *allocob(size_t n);
+void     *resize(void *p, size_t o, size_t n);
+void      dealloc(void *p, size_t n);
+void      collect_garbage(void);
+void     *duplicate_bytes(void *p, size_t n);
+char     *duplicate_string(char *chars);
 
 #define safe_alloc(allcfun, ...)		\
   ({						\
@@ -38,12 +35,12 @@ char  *duplicate_string(char *chars);
 #define calloc_s(n, s)     safe_alloc(calloc, (n), (s))
 #define realloc_s(p, n)    safe_alloc(realloc, (p), (n))
 
-
 #define duplicate(p, ...)						\
   _Generic((p),								\
 	   char*:duplicate_string,					\
 	   default:duplicate_bytes)((p) __VA_OPT__(,) __VA_ARGS__)
 
-void memory_init( void );
+// initialization
+void heap_init( void );
 
 #endif

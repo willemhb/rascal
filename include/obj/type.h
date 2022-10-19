@@ -11,7 +11,7 @@ typedef bool      (*isa_t)( type_t *type, value_t value );
 typedef bool      (*has_t)( type_t *type, type_t *sub );
 typedef void      (*trace_t)( object_t *obj );
 typedef void      (*free_t)( object_t *obj );
-typedef void      (*init_t)( type_t *type, object_t *self, size_t n, void *data );
+typedef void      (*init_t)( object_t *self, type_t *type, size_t n, void *data );
 typedef object_t *(*new_t)( type_t *type, size_t n );
 
 // internal structure types
@@ -22,6 +22,19 @@ typedef enum
     NTSIGNED,
     NTFLOAT
   } numtype_t;
+
+// indicates the C type of the value and how it's boxed
+typedef enum
+  {
+    SINT8, UINT8, ASCII, LATIN1, UTF8,
+
+    SINT16, UINT16, UTF16, OPCODE, PRIMITIVE,
+
+    SINT32, UINT32, UTF32, REAL32, CTYPE, BOOLEAN,
+
+    NUL, FIXNUM, PTR, REAL, OBJ,
+  } repr_t;
+
 
 typedef struct
 {
@@ -72,10 +85,12 @@ typedef struct
 typedef struct
 {
   Ctype_t   value;       // Ctype of the value representation (no tthe object Ctype)
+  repr_t    repr;        // how the value is boxed (also provides builtin typecode)
   arity_t   data_size;   // size of the value data (not the object size)
-  bool      fits_fixnum; // indicates that the unboxed data fits in a fixnum
-  bool      fits_word;   // indicates that the unboxed data fits in a word
-
+  bool      fits_imm;
+  bool      fits_fixnum;
+  bool      fits_word;
+  
   layout_t *layout;      // description of the object layout
   value_t   singleton;   // can be only value for type, or an empty collection
   object_t *slots;       // mapping from names to offsets
@@ -110,19 +125,8 @@ struct type_t
   };
 };
 
-// immediate typecodes
-typedef enum
-  {
-    SINT8, UINT8, ASCII, LATIN1, UTF8,
-
-    SINT16, UINT16, UTF16, OPCODE, PRIMITIVE,
-
-    SINT32, UINT32, UTF32, REAL32, CTYPE, BOOLEAN,
-
-    NUL,
-
-    N_IMM
-  } immtype_t;
+#define N_IMM  (FIXNUM)
+#define N_REPR (OBJ+1)
 
 // constructor type
 typedef enum
@@ -160,9 +164,12 @@ type_t *init_dtype( type_t *type, char *name, constype_t constype, size_t n, ...
 type_t *init_utype( type_t *type, char *name, constype_t constype, size_t n, ... );
 
 // convenience
-#define rl_type( x )    GENERIC_2( type, x )
-#define is_type( x, T ) (rl_type(x)==(T))
-#define obtype( x )     ((type_t*)hdr_data(as_obj(x)->type))
+#define rl_type( x )         GENERIC_2( type, x )
+#define is_type( x, T )      (rl_type(x)==(T))
+#define obtype( x )          ((type_t*)hdr_data(as_obj(x)->type))
+#define obtrace( x )         (type_trace(obtype(x)))
+#define type_trace( t )      ((t)->dtype->trace)
+#define type_base_size( t )  ((t)->dtype->layout->base_size)
 
 static inline bool is_dtype( type_t *type )
 {
@@ -182,6 +189,18 @@ static inline bool is_obj_type( type_t *type )
 static inline bool is_imm_type( type_t *type )
 {
   return obtype(type) == DataType && type->dtype->layout == NULL;
+}
+
+static inline value_t rl_wrap( rl_value_t data, type_t *type )
+{
+  switch (type->dtype->repr)
+    {
+    case OBJ:     return data.as_data|OBJ_TAG;
+    case PTR:     return data.as_data|PTR_TAG;
+    case REAL:    return data.as_data;
+    case FIXNUM:  return data.as_data|FIX_TAG;
+    default:      return data.as_data|IMM_TAG|((value_t)type->dtype->repr<<32);
+    }
 }
 
 #endif

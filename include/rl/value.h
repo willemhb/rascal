@@ -26,6 +26,7 @@ typedef struct
       value_t             : 14;
     };
   };
+  byte space[0];
 } object_t;
 
 #define OBJECT object_t obj;
@@ -36,6 +37,8 @@ typedef struct heap_object_t
   struct heap_object_t *next;
   object_t              object;
 } heap_object_t;
+
+typedef struct type_t type_t;
 
 // immediate types
 typedef int8_t    sint8_t;
@@ -61,6 +64,7 @@ typedef union
   data_t      as_data;
   value_t     as_value;
   object_t   *as_object;
+  type_t     *as_type;
 
   sint8_t     as_sint8;
   uint8_t     as_uint8;
@@ -147,6 +151,6 @@ static inline bool is_fix( value_t val )  { return (val&VT_MASK) == FIX_TAG; }
 static inline bool is_ptr( value_t val )  { return (val&VT_MASK) == PTR_TAG; }
 static inline bool is_hdr( value_t val )  { return (val&VT_MASK) == HDR_TAG; }
 static inline bool is_obj( value_t val )  { return (val&VT_MASK) == OBJ_TAG; }
-static inline bool is_real( value_t val ) { return (val&QNAN) != QNAN; } 
+static inline bool is_real( value_t val ) { return (val&QNAN) != QNAN; }
 
 #endif

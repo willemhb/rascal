@@ -1,7 +1,7 @@
 #ifndef rascal_obj_exec_h
 #define rascal_obj_exec_h
 
-#include "obj/type.h"
+#include "obj/array.h"
 
 typedef struct control_t   control_t;
 typedef struct upvalues_t  upvalues_t;
@@ -28,7 +28,7 @@ struct control_t
 
 struct upvalues_t
 {
-  
+  ARRAY(object_t*);
 };
 
 // vm state type
