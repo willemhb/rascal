@@ -5,14 +5,16 @@
 #include "utils/Ctype.h"
 
 // common utilities and base typedefs go here
-typedef uintptr_t value_t; // tagged
-typedef uintptr_t data_t;  // untagged
+typedef uintptr_t value_t;    // tagged
+typedef uintptr_t data_t;     // untagged
 
+typedef struct type_t type_t; // type information
 // common object type
 typedef struct
 {
   union
   {
+    type_t *dtype;             // the type is always tagged, but this aids static initialization
     value_t type;              // tagged pointer to type object
 
     struct
@@ -35,7 +37,7 @@ typedef struct
 typedef struct heap_object_t
 {
   struct heap_object_t *next;
-  object_t              object;
+  object_t              obj;
 } heap_object_t;
 
 typedef struct type_t type_t;
@@ -87,6 +89,7 @@ typedef union
 
   nul_t       as_nul;
   pointer_t  *as_pointer;
+  char       *as_Cstring;
   fixnum_t    as_fixnum;
   real_t      as_real;
 } rl_value_t;

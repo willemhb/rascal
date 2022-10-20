@@ -1,7 +1,7 @@
-#ifndef rascal_symbol_h
-#define rascal_symbol_h
+#ifndef rascal_obj_symbol_h
+#define rascal_obj_symbol_h
 
-#include "obj/type.h"
+#include "obj/table.h"
 
 typedef struct
 {
@@ -10,23 +10,31 @@ typedef struct
   bool   keyword;
   idno_t idno;
   hash_t hash;
-  char  *name;
+
+  union
+  {
+    char *name;
+    char *key;        // for table compatibility
+  };
 } symbol_t;
 
 typedef struct
 {
-  OBJECT
-
-  object_t **symbols;
-  size_t     length;
-  size_t     capacity;
-  idno_t     counter;
+  TABLE;
 } symbols_t;
 
 // globals
 extern symbols_t Symbols;
+extern type_t SymbolType, SymbolsType;
 
 // forward declarations
+value_t symbol( char *name );
+value_t gensym( char *name );
 
+// register
+void rl_obj_symbol_init( void );
+void rl_obj_symbol_mark( void );
+void rl_obj_symbol_unmark( void );
+void rl_obj_symbol_finalize( void );
 
 #endif

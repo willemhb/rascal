@@ -17,4 +17,14 @@ void      mark_vals( value_t *v, size_t n );
 // convenience
 #define rl_trace( x ) GENERIC_2( trace, x )
 
+static inline void init_static_object( object_t *obj, type_t *type, bool notrace )
+{
+  obj->type      = rl_wrap( (rl_value_t)type, &DataType );
+  obj->permanent = true;
+  obj->allocated = false;
+  obj->notrace   = notrace;
+  obj->black     = true;
+  obj->gray      = false;
+}
+
 #endif

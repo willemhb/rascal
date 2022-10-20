@@ -18,8 +18,8 @@ typedef object_t *(*new_t)( type_t *type, size_t n );
 typedef enum
   {
     NTPTR,
-    NTUNSIGNED,
-    NTSIGNED,
+    NTUINT,
+    NTSINT,
     NTFLOAT
   } numtype_t;
 
@@ -88,13 +88,14 @@ typedef struct
   repr_t    repr;        // how the value is boxed (also provides builtin typecode)
   arity_t   data_size;   // size of the value data (not the object size)
   bool      fits_imm;
-  bool      fits_fixnum;
+  bool      fits_fix;
   bool      fits_word;
   
   layout_t *layout;      // description of the object layout
   value_t   singleton;   // can be only value for type, or an empty collection
   object_t *slots;       // mapping from names to offsets
   object_t *types;       // signature; layout depends on type
+  object_t *impl;        // low level interface methods, eg for table types. Optional.
 
   trace_t   trace;
   free_t    free;
@@ -125,6 +126,14 @@ struct type_t
   };
 };
 
+typedef struct types_t
+{
+  OBJECT
+  size_t   length;
+  size_t   capacity;
+  type_t **data;
+} types_t;
+
 #define N_IMM  (FIXNUM)
 #define N_REPR (OBJ+1)
 
@@ -138,13 +147,13 @@ typedef enum
 
 // globals
 // immediate types
-extern type_t *FixnumType, *RealType, *PointerType, *ImmTypes[N_IMM];
+extern type_t FixnumType, RealType, PointerType, *ImmTypes[N_IMM];
 
 // fucked up types
-extern type_t *NoneType, *AnyType, *NulType;
+extern type_t NoneType, AnyType, NulType;
 
 // metaobject types
-extern type_t *DataType, *UnionType;
+extern type_t DataType, UnionType;
 
 // forward declarations
 type_t *val_type( value_t val );
@@ -160,8 +169,14 @@ bool any_has( object_t *self, object_t *other );
 bool dtype_has( object_t *self, object_t *other );
 bool utype_has( object_t *self, object_t *other );
 
-type_t *init_dtype( type_t *type, char *name, constype_t constype, size_t n, ... );
-type_t *init_utype( type_t *type, char *name, constype_t constype, size_t n, ... );
+void init_dtype( type_t *type, char *name, constype_t constype, size_t n, ... );
+void init_utype( type_t *type, char *name, constype_t constype, size_t n, ... );
+
+// initialization
+void rl_obj_type_init( void );
+void rl_obj_type_mark( void );
+void rl_obj_type_unmark( void );
+void rl_obj_type_finalize( void );
 
 // convenience
 #define rl_type( x )         GENERIC_2( type, x )
@@ -173,22 +188,22 @@ type_t *init_utype( type_t *type, char *name, constype_t constype, size_t n, ...
 
 static inline bool is_dtype( type_t *type )
 {
-  return obtype(type) == DataType;
+  return obtype(type) == &DataType;
 }
 
 static inline bool is_utype( type_t *type )
 {
-  return obtype(type) == UnionType;
+  return obtype(type) == &UnionType;
 }
 
 static inline bool is_obj_type( type_t *type )
 {
-  return obtype(type) == DataType && !!type->dtype->layout;
+  return obtype(type) == &DataType && !!type->dtype->layout;
 }
 
 static inline bool is_imm_type( type_t *type )
 {
-  return obtype(type) == DataType && type->dtype->layout == NULL;
+  return obtype(type) == &DataType && type->dtype->layout == NULL;
 }
 
 static inline value_t rl_wrap( rl_value_t data, type_t *type )

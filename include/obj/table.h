@@ -4,125 +4,148 @@
 #include "obj/object.h"
 
 // general operations on tables & generic table type
-
 #define TABLE					\
   OBJECT					\
   size_t     length;				\
   size_t     capacity;				\
-  object_t **data;
+  object_t **data
+
+#define ENTRY(K, key)				\
+  OBJECT                                        \
+  hash_t     hash;                              \
+  K          key
+
+typedef size_t     (*padfn_t)( size_t oldl, size_t newl, size_t oldc, size_t minc );
+typedef size_t     (*sizeof_t)( rl_value_t x );
+typedef hash_t     (*hashfn_t)( rl_value_t k );
+typedef int        (*cmpfn_t)(  rl_value_t x, rl_value_t y );
+typedef rl_value_t (*getter_t)( object_t *object );
+typedef rl_value_t (*setter_t)( object_t *object, rl_value_t value );
 
 typedef struct
 {
-  TABLE
+  TABLE;
 } table_t;
 
-// table describe macros
-#define TABLE_INIT(T, E, type, minc)		\
-  void init_##T(T##_t *T)			\
-  {						\
-    init_obj(&T->obj, type, 0);			\
-    init_##E(&T->entries);			\
-    init_ords(&T->ords);			\
-  }
+typedef struct
+{
+  ENTRY(rl_value_t, key);
+} entry_t;
 
-#define TABLE_FREE(T, E)			\
-  void free_##T(object_t *obj)			\
-  {						\
-    T##_t* T = (T##_t*)obj;			\
-    dealloc_vec(T->data, T->cap, E##_t*);	\
-  }
+typedef struct
+{
+  rl_value_t key;
+  hash_t     hash;
+} set_init_t;
 
-#define TABLE_CLEAR(T, E)				\
-  void clear_##T(T##_t *T)				\
-  {							\
-    resize_##T( T, 0 );					\
-    memset( T->data, 0, T->cap * sizeof(E##_t*));	\
-  }
+typedef struct
+{
+  rl_value_t key;
+  hash_t     hash;
+  rl_value_t val;
+} map_init_t;
 
-#define TABLE_REHASH(T, E)						\
-  void rehash_##T(E##_t **old,size_t oldc,E##_t **new,size_t newc)	\
-  {									\
-    for (size_t i=0; i<oldc; i++)					\
-      {									\
-	E##_t *E = old[i];						\
-	if (E == NULL)							\
-	  continue;							\
-	hash_t  h = E->hash;						\
-	size_t m = newc-1;						\
-	size_t j = h & m;						\
-	while (new[j] != NULL)						\
-	  j = (j+1) & m;						\
-	new[j] = E;							\
-      }									\
-  }
+typedef struct
+{
+  OBJECT
 
-#define TABLE_RESIZE(T, E, type)					\
-  void resize_##T(T##_t *T, size_t newl)				\
-  {									\
-    size_t oldc = T->cap, oldl = T->len;				\
-    T->len       = newl;						\
-    size_t newc = pad_table_size(oldl, newl, oldc, MinCs[type]);	\
-    T->cap       = newc;						\
-    if (newc != oldc)							\
-      {									\
-	E##_t **oldspace = T->data;					\
-	E##_t **newspace = alloc_vec(newc, E##_t*);			\
-	rehash_##T(oldspace, oldc, newspace, newc);			\
-	T->data = newspace;						\
-	T->cap  = newc;							\
-	dealloc_vec(oldspace, oldc, E##_t*);				\
-      }									\
-  }
+  size_t    minc;
+  padfn_t   padlength;
+  sizeof_t  keysize;
+  hashfn_t  hashkey;
+  cmpfn_t   cmpkeys;
+  getter_t  getkey;
+  getter_t  getvalue;
+  setter_t  setvalue;
+} tb_impl_t;
 
-#define TABLE_PUT(T, E, K, key, hashfn, cmpfn)		\
-  bool T##_put(T##_t *T, K key, E##_t **buf)		\
-  {							\
-    hash_t  h  = hashfn(key);				\
-    bool    o  = false;					\
-    size_t m  = T->cap-1;				\
-    size_t i  = h & m;					\
-    E##_t **E##s = T->data;				\
-    E##_t  *E    = NULL;				\
-    while ((E=E##s[i]) != NULL)				\
-      {							\
-	if (E->hash == h && cmpfn(E->key, key) == 0)	\
-	  break;					\
-	i = (i+1) & m;					\
-      }							\
-    if (E == NULL)					\
-      {							\
-	o = true;					\
-	E##s[i] = E = new_##E();			\
-	E->hash = h;					\
-	resize_##T(T, T->len+1);			\
-      }							\
-    if (buf)						\
-      *buf = E;						\
-    return o;						\
-  }
+static inline types_t *table_signature( object_t *obj )
+{
+  return (types_t*)obtype(obj)->dtype->types;
+}
 
-#define TABLE_GET(T, E, K, key, hashfn, cmpfn)		\
-  bool T##_get(T##_t *T, K key, E##_t **buf)		\
-  {							\
-    hash_t  h  = hashfn(key);				\
-    size_t m  = T->cap-1;				\
-    size_t i  = h & m;					\
-    E##_t **E##s = T->data;				\
-    E##_t  *E    = NULL;				\
-    while ((E=E##s[i]) != NULL)				\
-      {							\
-	if (E->hash == h && cmpfn(E->key, key) == 0)	\
-	  break;					\
-	i = (i+1) & m;					\
-      }							\
-    if (buf)						\
-      *buf = E;						\
-    return E != NULL;					\
-  }
+static inline tb_impl_t *table_impl( object_t *obj )
+{
+  return (tb_impl_t*)obtype(obj)->dtype->impl;
+}
+
+static inline type_t *table_key_type( object_t *obj )
+{
+  return table_signature( obj )->data[0];
+}
+
+static inline type_t *table_value_type( object_t *obj )
+{
+  return table_signature( obj )->data[1];
+}
+
+static inline type_t *table_entry_type( object_t *obj )
+{
+  return table_signature( obj )->data[2];
+}
+
+static inline hash_t table_hash_key( object_t *obj, rl_value_t key )
+{
+  return table_impl( obj )->hashkey( key );
+}
+
+static inline rl_value_t table_get_value( object_t *obj, object_t *entry )
+{
+  return table_impl( obj )->getvalue( entry );
+}
+
+static inline rl_value_t table_get_key( object_t *obj, object_t *entry )
+{
+  return table_impl( obj )->getkey( entry );
+}
+
+static inline rl_value_t table_set_value( object_t *obj, object_t *entry, rl_value_t val )
+{
+  return table_impl( obj )->setvalue( entry, val );
+}
+
+static inline size_t table_keysize( object_t *obj, rl_value_t key )
+{
+  return table_impl( obj )->keysize( key );
+}
+
+static inline size_t table_pad_length( object_t *obj, size_t n )
+{
+  return table_impl( obj )->padlength( ((table_t*)obj)->length,
+				       n,
+				       ((table_t*)obj)->capacity,
+				       table_impl( obj )->minc );
+}
+
+// globals
+extern type_t TableImplType;
+extern layout8_t TableLayout;
 
 // forward declarations
-int    resize_table( table_t **table, size_t newl ); // 0 = no change, 1 = resize, 2 = new table
-size_t pad_table_size( size_t oldl, size_t newl, size_t oldc, size_t newc );
-void   trace_table( object_t *object );
+size_t     pad_table_size( size_t oldl, size_t newl, size_t oldc, size_t newc );
+void       trace_table( object_t *object );
+void       free_table( object_t *object );
+void       resize_table( object_t *object, size_t newl );
+object_t **rehash_table( object_t *object, object_t **news, size_t newc );
+
+bool table_assc( object_t *obj, rl_value_t *buf, rl_value_t key );
+bool table_intern( object_t *obj, rl_value_t *buf, rl_value_t key );
+bool table_popi( object_t *obj, rl_value_t *buf, rl_value_t key );
+
+bool map_get(  object_t *obj, rl_value_t *buf, rl_value_t key );
+bool map_add(  object_t *obj, rl_value_t *buf, rl_value_t key, rl_value_t val );
+bool map_put(  object_t *obj, rl_value_t *buf, rl_value_t key, rl_value_t val );
+bool map_popk( object_t *obj, rl_value_t *buf, rl_value_t key );
+bool map_popi( object_t *obj, rl_value_t *buf, rl_value_t key );
+
+bool set_has( object_t *obj, rl_value_t key );
+bool set_add( object_t *obj, rl_value_t key );
+bool set_rmv( object_t *obj, rl_value_t key );
+
+void init_map( object_t *obj, type_t *type, size_t n, void *data );
+void init_set( object_t *obj, type_t *type, size_t n, void *data );
+
+// silly initialization stuff
+void rl_obj_table_init( void );
 
 #endif

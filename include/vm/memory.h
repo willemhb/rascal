@@ -4,7 +4,6 @@
 #include "obj/memory.h"
 
 // forward declarations, macros, and globals for the memory runtime
-
 // globals
 extern heap_t Heap;
 
@@ -41,6 +40,6 @@ char     *duplicate_string(char *chars);
 	   default:duplicate_bytes)((p) __VA_OPT__(,) __VA_ARGS__)
 
 // initialization
-void heap_init( void );
+void rl_vm_heap_init( void );
 
 #endif

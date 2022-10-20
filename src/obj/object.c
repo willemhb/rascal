@@ -21,7 +21,7 @@ object_t *new_obj( type_t *type, size_t n, void *data )
 
 void init_obj( object_t *self, type_t *type, size_t n, void *data )
 {
-  self->type |= rl_wrap((rl_value_t)type, DataType );
+  self->type |= rl_wrap((rl_value_t)type, &DataType );
 
   if (type->dtype->init)
     type->dtype->init(self, type, n, data);

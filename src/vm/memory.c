@@ -1,138 +1,120 @@
+#include <string.h>
+#include <stdio.h>
 #include <stdlib.h>
 
-#include "memory.h"
-#include "utils.h"
-#include "array.h"
-#include "exec.h"
-#include "symbol.h"
+#include "vm/memory.h"
+#include "obj/memory.h"
 
-// root-marking includes
-
-static const real_t heap_pressure = 0.75;
-static const size_t heap_startcap = 65536 * 4 * sizeof(value_t);
-static const size_t grays_mincap  = 512;
-
+// globals
 heap_t Heap;
+objects_t Grays;
+behaviors_t Inits, Marks, Unmarks, Finalizers;
 
-vector_t GrayStack;
+// memory management
+static const real_t heap_pressure = 0.75;
 
-// heap implementation
-void init_heap(heap_t *heap)
+void *alloc( size_t n )
 {
-  heap->objects   = NULL;
-  heap->alloccap  = heap_startcap;
-  heap->allocated = 0;
-  heap->grays     = &GrayStack;
+  if (Heap.allocated + n > Heap.alloccap)
+    collect_garbage( );
 
-  init_vector( heap->grays, true, array_shape_stack, grays_mincap );
+  Heap.allocated += n;
+
+  void *out = malloc_s( n );
+  memset( out, 0, n );
+  return out;
 }
 
-void free_heap(heap_t *heap)
+object_t *allocob( size_t n )
 {
+  heap_object_t *object = alloc( n + sizeof(heap_object_t*) );
 
-  for (object_t *obj=heap->objects;obj != NULL;)
-    {
-      object_t *tmp = obj;
-      obj           = as_object(obj_next(tmp));
-      free_object( obj );
+  object->obj.allocated = true;
+  object->next          = Heap.live_objects;
+  Heap.live_objects     = object;
+
+  return &object->obj;
+}
+
+void *resize( void *p, size_t o, size_t n )
+{
+  if (o < n)
+    { 
+      if (Heap.allocated + (n-o) > Heap.alloccap)
+	collect_garbage( );
+
+      Heap.allocated += (n-o);
     }
 
-  free_vector((object_t*)heap->grays);
+  else
+    Heap.allocated -= (o-n);
+
+  return realloc_s( p, n );
 }
 
-void mark_roots( void )
+void dealloc( void *p, size_t n )
 {
-  symbol_roots();
-  vm_roots();
+  Heap.allocated -= n;
+  free( p );
 }
 
-void collect_garbage(void)
+void *duplicate_bytes( void *p, size_t n )
 {
-  mark_roots();
+  void *pc = alloc( n );
+  memcpy( pc, p, n );
+  return pc;
+}
 
-  value_t buf;
-  while (stack_pop(Heap.grays, &buf))
+char *duplicate_string( char *chars )
+{
+  assert( chars != NULL );
+  return duplicate_bytes( chars, strlen(chars)+1 );
+}
+
+// gc entry point
+void collect_garbage( void )
+{
+  // mark phase
+  for (size_t i=0; i<Marks.length; i++)
+    Marks.data[i]();
+
+  while (Grays.length > 0)
     {
-      object_t *obj       = as_obj(buf);
-      type_t type      = obj->type;
-      mark_fn_t mark   = Mark[type];
-      mark(obj);
-      obj->gray        = false;
+      object_t *obj   =objects_pop( &Grays.obj );
+      type_t   *type  =obtype(obj);
+
+      obj->gray = false;
+      type->dtype->trace( obj );
     }
 
-  object_t **prev = &Heap.objects, *curr = Heap.objects;
-  
-  while (curr != NULL)
+  // sweep phase
+  heap_object_t **buf = &Heap.live_objects;
+
+  while (*buf != NULL)
     {
-      if (curr->black)
+      heap_object_t *obj = *buf;
+
+      if (obj->obj.permanent)
+	buf = &obj->next;
+
+      else if (obj->obj.black)
 	{
-	  curr->black = false;
-	  curr->gray  = true;
-	  prev        = &curr->next;
-	  curr        = curr->next;
+	  obj->obj.black = false;
+	  buf            = &obj->next;
 	}
 
       else
 	{
-	  object_t *obj  = curr;
-	  *prev       = curr->next;
-	  curr        = curr->next;
-
-	  free_obj(obj);
+	  *buf = obj->next;
+	  obj_free( &obj->obj );
 	}
     }
 
-  if (Heap.allocated * heap_pressure > Heap.alloccap)
+  // unmark phase
+  for (size_t i=0; i<Unmarks.length; i++)
+    Unmarks.data[i]();
+
+  // adjust alloc cap if necessary
+  if (Heap.allocated > Heap.alloccap * heap_pressure)
     Heap.alloccap *= 2;
-}
-
-void *alloc(size_t n)
-{
-  if (Heap.allocated + n > Heap.alloccap)
-    collect_garbage();
-  
-  void *out = malloc_s(n);
-  memset(out, 0, n);
-  return out;
-}
-
-void *duplicate_bytes(void *p, size_t n)
-{
-  void *dup = alloc(n);
-  memcpy(dup, p, n);
-  return dup;
-}
-
-char *duplicate_string(char *chars)
-{
-  return duplicate_bytes(chars, strlen(chars));
-}
-
-void* resize(void *p, size_t o, size_t n)
-{
-  if (o > n)
-    Heap.allocated -= n;
-
-  else
-    {
-      size_t diff = n - o;
-
-      if (Heap.allocated + diff > Heap.alloccap)
-	collect_garbage();
-
-      Heap.allocated += diff;
-    }
-
-  return realloc_s(p, n);
-}
-
-void dealloc(void *p, size_t n)
-{
-  Heap.allocated -= n;
-  free(p);
-}
-
-void memory_init( void )
-{
-  init_heap(&Heap);
 }
