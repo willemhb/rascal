@@ -93,7 +93,7 @@ typedef struct
   Ctype_t   value;       // Ctype of the value representation (no tthe object Ctype)
   repr_t    repr;        // how the value is boxed (also provides builtin typecode)
   size_t    data_size;   // size of the value data (not the object size)
-  value_t   tag;
+  value_t   tag;         // tag
 
   layout_t *layout;      // description of the object layout
   value_t   singleton;   // can be only value for type, or an empty collection

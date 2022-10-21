@@ -53,12 +53,15 @@ extern type_t SInt16Type, UInt16Type, UTF16Type;
 extern type_t SInt32Type, UInt32Type, UTF32Type, Real32Type;
 extern type_t SInt64Type, UInt64Type, Real64Type;
 
+// other primitive immediates
+extern type_t BooleanType, OpcodeType, PrimitiveType;
+
 // special numeric types
 extern type_t FixnumType, RealType, PointerType;
 
 // wrapper types for C strings (distinct from rascal strings)
 // these exist mostly for wrapping ffi values and representing unboxed strings in builtin objects
-extern type_t CStringU8, CStringU16, CStringU32, CStringAscii, CString;
+extern type_t CStringU8Type, CStringU16Type, CStringU32Type, CStringAsciiType, CStringLatin1Type, CString;
 
 // array of immediate types (for looking up type by code)
 extern type_t *ImmTypes[N_IMM];
