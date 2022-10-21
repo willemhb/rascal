@@ -25,7 +25,13 @@ typedef struct
       value_t             : 45;
       value_t black       :  1; // live?
       value_t gray        :  1; // traced?
-      value_t             : 14;
+      value_t             : 14; 
+    };
+
+    struct
+    {
+       value_t       : 48;
+      value_t hdrtag : 16;
     };
   };
   byte space[0];
@@ -59,6 +65,10 @@ typedef void     *nul_t;
 typedef void     *pointer_t;
 typedef uint64_t  fixnum_t;
 typedef double    real_t;
+typedef double    real64_t;
+
+// not immediate, but unboxable into a word
+typedef int64_t   sint64_t;
 
 // union of all value representations
 typedef union
@@ -92,21 +102,29 @@ typedef union
   char       *as_Cstring;
   fixnum_t    as_fixnum;
   real_t      as_real;
+
+  sint64_t    as_sint64;
+  uint64_t    as_uint64;
+  real64_t    as_real64;
 } rl_value_t;
 
 // tags
 #define QNAN_BITS 32764
 #define SIGN_BIT  32768
+#define IMM_BITS  (QNAN_BITS|0)
+#define PTR_BITS  (QNAN_BITS|1)
+#define FIX_BITS  (QNAN_BITS|2)
+#define OBJ_BITS  (QNAN_BITS|3)
+#define HDR_BITS  (SIGN_BIT|QNAN_BITS)
 
 #define QNAN      ((value_t)QNAN_BITS<<48)
 #define SIGN      ((value_t)SIGN_BIT<<48)
 
-#define IMM_TAG   ((value_t)(QNAN_BITS|0)<<48)
-#define PTR_TAG   ((value_t)(QNAN_BITS|1)<<48)
-#define FIX_TAG   ((value_t)(QNAN_BITS|2)<<48)
-#define OBJ_TAG   ((value_t)(QNAN_BITS|3)<<48)
-
-#define HDR_TAG   (QNAN|SIGN)
+#define IMM_TAG   ((value_t)IMM_BITS<<48)
+#define PTR_TAG   ((value_t)PTR_BITS<<48)
+#define FIX_TAG   ((value_t)FIX_BITS<<48)
+#define OBJ_TAG   ((value_t)OBJ_BITS<<48)
+#define HDR_TAG   ((value_t)HDR_BITS<<48)
 
 #define NUL_VAL      (IMM_TAG|((value_t)NUL<<32))
 #define EOS_VAL      (IMM_TAG|((value_t)ASCII<<32)|(value_t)EOF)

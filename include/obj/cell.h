@@ -33,6 +33,6 @@ struct pair_t
 };
 
 // globals
-extern type_t *ConsType, *IConsType, *PairType;
+extern type_t ConsType, IConsType, PairType;
 
 #endif

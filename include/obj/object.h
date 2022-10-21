@@ -9,22 +9,19 @@
 object_t *new_obj( type_t *type, size_t n, void *data );
 void      init_obj( object_t *self, type_t *type, size_t n, void *data );
 void      obj_mark( object_t *obj );
+void      obj_unmark( object_t *obj );
 void      obj_free( object_t *obj );
 
 void      mark_objs( object_t **obj, size_t n );
 void      mark_vals( value_t *v, size_t n );
 
+// common allocator types
+object_t *new_fobj( type_t *type, size_t n );   // ignore n
+object_t *new_seqobj( type_t *type, size_t n ); // n copies of type, or singleton if n is 0
+
 // convenience
 #define rl_trace( x ) GENERIC_2( trace, x )
 
-static inline void init_static_object( object_t *obj, type_t *type, bool notrace )
-{
-  obj->type      = rl_wrap( (rl_value_t)type, &DataType );
-  obj->permanent = true;
-  obj->allocated = false;
-  obj->notrace   = notrace;
-  obj->black     = true;
-  obj->gray      = false;
-}
+
 
 #endif

@@ -9,6 +9,13 @@
 #define gsfmt "%s#%lu"
 #define gs_inline_size 21
 
+typedef struct
+{
+  char   *name;
+  hash_t  hash;
+  bool    gensym;
+} symbol_init_t;
+
 // symbol table implementation
 int cmp_symbols_keys( rl_value_t x, rl_value_t y )
 {
@@ -35,6 +42,11 @@ rl_value_t symbols_get_value( object_t *obj )
   return (rl_value_t) { .as_object=obj };
 }
 
+object_t *symbol_intern( object_t *obj, rl_value_t key, hash_t h, size_t j )
+{
+  symbol_init_t ini = {      };
+}
+
 // globals
 static const size_t SymbolsMinC = 64;
 
@@ -42,15 +54,13 @@ symbols_t Symbols;
 
 tb_impl_t SymbolsMethods =
   {
-    {
-      .dtype=&TableImplType
-    },
+    { .dtype=&TableImplType, .permanent=true, .hdrtag=HDR_BITS },
 
     .minc=SymbolsMinC,
-    .padlength=pad_table_size,
+    .pad=pad_table_size,
     .keysize=symbols_key_size,
-    .hashkey=hash_symbols_key,
-    .cmpkeys=cmp_symbols_keys,
+    .keyhash=hash_symbols_key,
+    .keycmp=cmp_symbols_keys,
     .getkey=symbols_get_key,
     .getvalue=symbols_get_value,
     .setvalue=NULL

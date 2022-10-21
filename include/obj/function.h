@@ -28,7 +28,10 @@ typedef struct
 
   bool      vargs;
   arity_t   nargs;
-  object_t *signature[];
+  object_t *signature;
 } method_t;
+
+// globals
+extern type_t FunctionType, MethodsType, MethodType;
 
 #endif
