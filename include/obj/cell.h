@@ -34,5 +34,13 @@ struct pair_t
 
 // globals
 extern type_t ConsType, IConsType, PairType;
+extern type_t ListType, CellType;
+
+// convenience
+#define is_cons( x )    is_type( x, &ConsType )
+#define as_cons( x )    ( (cons_t*)as_obj( x ) )
+#define rl_head( x )    ( as_cons( x )->head )
+#define rl_tail( x )    ( as_cons( x )->tail )
+#define rl_clength( x ) ( as_cons( x )->length )
 
 #endif

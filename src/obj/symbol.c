@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 #include "obj/symbol.h"
-
+#include "obj/object.h"
 #include "utils/hashing.h"
 
 
@@ -15,6 +15,14 @@ typedef struct
   hash_t  hash;
   bool    gensym;
 } symbol_init_t;
+
+// symbol implementation
+void init_symbol( object_t *self, type_t *type, size_t n, void *data )
+{
+  symbol_init_t *ini = data;
+
+  
+}
 
 // symbol table implementation
 int cmp_symbols_keys( rl_value_t x, rl_value_t y )
@@ -44,7 +52,8 @@ rl_value_t symbols_get_value( object_t *obj )
 
 object_t *symbol_intern( object_t *obj, rl_value_t key, hash_t h, size_t j )
 {
-  symbol_init_t ini = {      };
+  symbol_init_t ini = { .name=key.as_Cstring, .hash=h, .gensym=false };
+  return ( tb_data( obj )[j] = new_obj( &SymbolType, strlen( ini.name )+1, &ini ) );
 }
 
 // globals

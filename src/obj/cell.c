@@ -1,9 +1,28 @@
 #include "obj/cell.h"
+#include "vm/memory.h"
 
 // implementation
 void trace_cons( object_t *obj );
 void trace_icons( object_t *obj );
 void trace_pair( object_t *obj );
+
+// utilities
+object_t *rl_cons( value_t head, object_t *tail )
+{
+  cons_t *out = alloc( sizeof( cons_t ) );
+
+  out->obj.dtype=&ConsType; out->obj.allocated=true; out->obj.hdrtag=HDR_BITS;
+
+  rl_clength( out ) = 1;
+
+  if ( tail )
+    rl_clength( out ) += rl_clength( out );
+
+  rl_head( out ) = head;
+  rl_tail( out ) = as_cons( tail );
+
+  return as_obj( out );
+}
 
 // globals
 extern type_t DataTypeOb;

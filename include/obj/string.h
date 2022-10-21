@@ -16,7 +16,6 @@ typedef struct ascii_buffer_t
   ARRAY( ascii_t );
 } ascii_buffer_t;
 
-
 typedef struct latin1_string_t
 {
   ARRAY( latin1_t );
@@ -63,5 +62,7 @@ extern type_t Latin1StringType, Latin1BufferType;
 extern type_t UTF8StringType, UTF8BufferType;
 extern type_t UTF16StringType, UTF16BufferType;
 extern type_t UTF32StringType, UTF32BufferType;
+
+// 
 
 #endif
