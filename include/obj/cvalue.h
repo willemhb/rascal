@@ -3,69 +3,86 @@
 
 #include "obj/object.h"
 
-// immediate types and object types that represent primitive atomic values
-typedef struct rl_sint64_t
-{
-  OBJECT
-  sint64_t data;
-} rl_sint64_t;
+// immediate and primitive types and primitive types that wrap C values.
+// includes numbers, characters, and wrapped pointer types.
+// metaobject types
 
-typedef struct rl_uint64_t
-{
-  OBJECT
-  uint64_t data;
-} rl_uint64_t;
+// indicates the C type of the value and how it's boxed
+typedef enum repr_t
+  {
+    SINT8, UINT8, ASCII, LATIN1, UTF8,
 
-typedef struct cstring_utf8_t
-{
-  OBJECT
-  utf8_t   *data;
-} cstring_utf8_t;
+    SINT16, UINT16, UTF16, OPCODE, PRIMITIVE,
 
-typedef struct cstring_ascii_t
-{
-  OBJECT
-  ascii_t *data;
-} cstring_ascii_t;
+    SINT32, UINT32, UTF32, REAL32, CTYPE, BOOLEAN,
 
-typedef struct cstring_latin1_t
-{
-  OBJECT
-  latin1_t *data;
-} cstring_latin1_t;
+    NUL, FIXNUM, PTR, REAL, OBJ,
+  } repr_t;
 
-typedef struct cstring_utf16_t
-{
-  OBJECT
-  utf16_t *data;
-} cstring_utf16_t;
+#define N_IMM  ( FIXNUM )
+#define N_REPR ( OBJ+1 )
 
-typedef struct cstring_utf32_t
+typedef rl_value_t  (*unwrap_t)( value_t val );
+typedef value_t     (*wrap_t)( type_t *type, rl_value_t x );
+typedef int         (*unbox_t)( void *dst, value_t src );
+
+// implementer for 
+typedef struct cvalue_impl_t
 {
-  OBJECT
-  utf32_t *data;
-} cstring_utf32_t;
+  OBJECT;
+
+  Ctype_t  Ctype; // C type of the boxed or wrapped value
+  arity_t  size;  // size of the boxed or wrapped data
+
+  wrap_t   wrap;
+  unwrap_t unwrap;
+  unbox_t  unbox;
+} cvalue_impl_t;
+
+// forward declarations
+rl_value_t rl_unwrap( value_t val );
+rl_value_t fixnum_unwrap( value_t val );
+rl_value_t real_unwrap( value_t val );
+rl_value_t imm_unwrap( value_t val );
+rl_value_t cv8_unwrap( value_t val );
+rl_value_t cv16_unwrap( value_t val );
+rl_value_t cv32_unwrap( value_t val );
+rl_value_t cv64_unwrap( value_t val );
+
+value_t rl_wrap( type_t *type, rl_value_t x );
+value_t fixnum_wrap( type_t *type, rl_value_t x );
+value_t nul_wrap( type_t *type, rl_value_t x );
+value_t real_wrap( type_t *type, rl_value_t x );
+value_t imm_wrap( type_t *type, rl_value_t x );
+value_t cv8_wrap( type_t *type, rl_value_t x );
+value_t cv16_wrap( type_t *type, rl_value_t x );
+value_t cv32_wrap( type_t *type, rl_value_t x );
+value_t cv64_wrap( type_t *type, rl_value_t x );
+
+int rl_unbox( void *dst, value_t val );
+int fixnum_unbox( void *dst, value_t val );
+int nul_unbox( void *dst, value_t val );
+int real_unbox( void *dst, value_t val );
+int imm8_unbox( void *dst, value_t val );
+int imm16_unbox( void *dst, value_t val );
+int imm32_unbox( void *dst, value_t val );
+int cv8_unbox( void *dst, value_t val );
+int cv16_unbox( void *dst, value_t val );
+int cv32_unbox( void *dst, value_t val );
+int cv64_unbox( void *dst, value_t val );
 
 // globals
-// primitive numeric and character types
-extern type_t SInt8Type,  UInt8Type, AsciiType, UTF8Type, Latin1Type;
-extern type_t SInt16Type, UInt16Type, UTF16Type;
-extern type_t SInt32Type, UInt32Type, UTF32Type, Real32Type;
-extern type_t SInt64Type, UInt64Type, Real64Type;
-
-// other primitive immediates
-extern type_t BooleanType, OpcodeType, PrimitiveType;
-
-// special numeric types
-extern type_t FixnumType, RealType, PointerType;
-
-// wrapper types for C strings (distinct from rascal strings)
-// these exist mostly for wrapping ffi values and representing unboxed strings in builtin objects
-extern type_t CStringU8Type, CStringU16Type, CStringU32Type, CStringAsciiType, CStringLatin1Type, CString;
+// primitive & immediate types that don't fit elsewhere
+extern type_t CvalueImplType, BooleanType, OpcodeType, PrimitiveType, PointerType;
 
 // array of immediate types (for looking up type by code)
 extern type_t *ImmTypes[N_IMM];
 
 // convenience
+#define cvalue_type_ctype( x )  ( type_cvalue_impl( x )->Ctype )
+#define cvalue_type_size( x )   ( type_cvalue_impl( x )->size )
+#define cvalue_type_wrap( x )   ( type_cvalue_impl( x )->wrap )
+#define cvalue_type_unwrap( x ) ( type_cvalue_impl( x )->unwrap )
+#define cvalue_type_unbox( x )  ( type_cvalue_impl( x )->unbox )
 
 #endif

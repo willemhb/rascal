@@ -12,12 +12,12 @@ typedef void (*behavior_t)( void );
 // heap type
 struct heap_t
 {
-  OBJECT
+  OBJECT;
 
   heap_object_t *live_objects;
 
   object_t      *grays;
-  object_t      *initializers;
+  object_t      *inits;
   object_t      *marks;
   object_t      *unmarks;
   object_t      *finalizers;
@@ -40,19 +40,20 @@ struct behaviors_t
 };
 
 // globals
+extern heap_t Heap;
 extern type_t HeapType, ObjectsType, BehaviorsType;
 
 // forward declarations
-void heap_init( heap_t *heap );
-void heap_free( heap_t *heap );
 void push_gray( heap_t *heap, object_t *obj );
-void register_init( heap_t *heap, behavior_t behavior );
-void register_mark( heap_t *heap, behavior_t behavior );
-void register_unmark( heap_t *heap, behavior_t behavior );
-void register_finalize( heap_t *heap, behavior_t behavior );
+void register_init( behavior_t behavior );
+void register_mark( behavior_t behavior );
+void register_unmark( behavior_t behavior );
+void register_finalize( behavior_t behavior );
 
-void rl_obj_memory_init( void );
-void rl_obj_memory_finalize( void );
+void rl_init_obj_memory( void );
+void rl_mark_obj_memory( void );
+void rl_unmark_obj_memory( void );
+void rl_finalize_obj_memory( void );
 
 // convenience
 

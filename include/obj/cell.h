@@ -6,7 +6,6 @@
 
 typedef struct cons_t  cons_t;
 typedef struct icons_t icons_t;
-typedef struct pair_t  pair_t;
 
 struct cons_t
 {
@@ -24,21 +23,22 @@ struct icons_t
   value_t tail;
 };
 
-struct pair_t
-{
-  OBJECT
-  hash_t  hash;
-  value_t car;
-  value_t cdr;
-};
-
 // globals
-extern type_t ConsType, IConsType, PairType;
+extern type_t ConsType, IConsType, NulType;
 extern type_t ListType, CellType;
+
+// forward declarations
+void rl_init_obj_cell( void );
+void rl_mark_obj_cell( void );
+void rl_unmark_obj_cell( void );
+void rl_finalize_obj_cell( void );
 
 // convenience
 #define is_cons( x )    is_type( x, &ConsType )
+#define is_icons( x )   is_type( x, &IConsType )
+
 #define as_cons( x )    ( (cons_t*)as_obj( x ) )
+#define as_icons( x )   ( (icons_t*)as_obj( x ) )
 #define rl_head( x )    ( as_cons( x )->head )
 #define rl_tail( x )    ( as_cons( x )->tail )
 #define rl_clength( x ) ( as_cons( x )->length )

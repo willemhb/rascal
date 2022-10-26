@@ -141,7 +141,7 @@ typedef union
 void     *val_as_ptr( value_t x );
 object_t *obj_as_ptr( object_t *obj );
 void     *ptr_as_ptr( void *p );
-void      val_mark( value_t val );
+void      mark_val( value_t val );
 
 // convenience
 #define val_tag(x)   ((x)&VT_MASK)

@@ -3,7 +3,12 @@
 
 #include "obj/table.h"
 
-typedef struct
+// symbol and symbol table implemenations
+typedef struct symbol_t    symbol_t;
+typedef struct symbols_t   symbols_t;
+typedef struct atom_impl_t atom_impl_t;
+
+struct symbol_t
 {
   OBJECT
   hash_t  hash;
@@ -11,38 +16,37 @@ typedef struct
   idno_t  idno;
   bool   gensym;
   bool   keyword;
-} symbol_t;
+};
 
-typedef struct
+struct symbols_t
 {
   TABLE;
-} symbols_t;
+};
 
-
-typedef struct
+struct symbol_impl_t
 {
   OBJECT
 
   idno_t     counter; // the id for the type
   symbols_t *table;   // the symbol table for the type
-} symbol_impl_t;
+};
 
 // globals
 extern symbols_t Symbols;
-extern type_t SymbolType, SymbolsType, SymbolImplType;
+extern type_t SymbolType, SymbolsType, AtomImplType;
 
 // forward declarations
 object_t *symbol( char *name );
 object_t *gensym( char *name );
 
 // register
-void rl_obj_symbol_init( void );
-void rl_obj_symbol_mark( void );
-void rl_obj_symbol_unmark( void );
-void rl_obj_symbol_finalize( void );
+void rl_init_obj_symbol( void );
+void rl_mark_obj_symbol( void );
+void rl_unmark_obj_symbol( void );
+void rl_finalize_obj_symbol( void );
 
 // convenience
-#define is_sym( x )      is_type( x, &SymbolType )
+#define is_symbol( x )   is_type( x, &SymbolType )
 #define as_sym( x )      ( (symbol_t*)as_obj( x ) )
 
 #define sym_name( x )    ( as_sym( x )->name )
@@ -50,10 +54,5 @@ void rl_obj_symbol_finalize( void );
 #define sym_idno( x )    ( as_sym( x )->idno )
 #define sym_gensym( x )  ( as_sym( x )->gensym )
 #define sym_keyword( x ) ( as_sym( x )->keyword )
-
-static inline symbol_impl_t *symtype_impl( type_t *type )
-{
-  return (symbol_impl_t*)dtype_impl( type );
-}
 
 #endif
