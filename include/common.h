@@ -5,56 +5,33 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <assert.h>
+#include <stdalign.h>
 
-// utility & style typedefs
-typedef uint8_t  byte;
-typedef unsigned char uchar;
-typedef uint16_t ushort;
-typedef uint32_t uint;
-typedef uint64_t ulong;
+// style typedefs
+typedef uint8_t  Byte;
+typedef char     Char;
+typedef short    Short;
+typedef int      Int;
+typedef long     Long;
 
-typedef uint8_t  char8_t;
-typedef uint8_t  flags8_t;
-typedef uint16_t flags16_t;
-typedef uint16_t arity16_t;
+typedef unsigned char  UChar;
+typedef unsigned short UShort;
+typedef unsigned int   UInt;
+typedef unsigned long  ULong;
 
-typedef int32_t  ord32_t;
-typedef uint32_t arity32_t;
-typedef uint32_t flags32_t;
-typedef uint32_t hash32_t;
-typedef uint32_t idno32_t;
+typedef float Float;
+typedef double Double;
 
-typedef ord32_t   ord_t;
-typedef flags32_t flags_t;
-typedef arity32_t arity_t;
+typedef void Void;
 
-typedef int64_t  ord64_t;
-typedef uint64_t arity64_t;
-typedef uint64_t hash64_t;
-typedef uint64_t idno64_t;
-
-typedef hash64_t hash_t;
-typedef idno64_t idno_t;
+typedef size_t    Size;
+typedef bool      Bool;
+typedef intptr_t  Word;
+typedef intptr_t  UWord;
 
 // general convenience 
 #define unlikely(test) __builtin_expect(0, (test))
 
 #define unreachable __builtin_unreachable
-
-#define dispatch(test, x1, x2)			\
-  (__builtin_choose_expr((test), (x1), (x2)))
-
-#define types_compat(t1, t2)			\
-  (__builtin_types_compatible_p(t1, t2))
-
-static inline bool flag_p( flags32_t fl, flags32_t mask )
-{
-  return !!(fl & mask);
-}
-
-static inline bool mflag_p( flags32_t fl, flags32_t mask, flags32_t val )
-{
-  return (fl&mask) == val;
-}
 
 #endif
