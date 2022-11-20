@@ -51,11 +51,14 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
-# ignore build and runtime directories
+# ignore build and runtime directories, core dumps
 dumps
 dumps/
 build
 build/
+core
+core.*
+cores/
 
 # ignore api key
 .secret.txt
