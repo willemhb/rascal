@@ -9,16 +9,10 @@
 typedef struct Cons
 {
   OBJECT
+
   Value car;
   Value cdr;
 } Cons;
-
-typedef struct Port
-{
-  OBJECT
-
-  FILE *stream;
-} Port;
 
 typedef struct Type
 {
@@ -29,7 +23,7 @@ typedef struct Type
 } Type;
 
 // globals
-extern Type ConsType, PortType, TypeType;
+extern Type ConsType, TypeType;
 
 // forward declarations
 // general constructor
@@ -44,18 +38,10 @@ Cons *newCons( Value car, Value cdr );
 Value cons( Value car, Value cdr );
 Value consn( Size len, ... );
 
-#define listn( len, ... ) consn((len), __VA_ARGS__ __VA_OPT__(,) rlNul)
+#define listn( len, ... ) consn((len)+1, __VA_ARGS__ __VA_OPT__(,) rlNul)
 
 #define asCons( x ) ((Cons*)asObject(x))
 #define isCons( x ) valueIsType( x, &ConsType )
-
-// port api
-Port *createPort( Void );
-Void  initPort( Port *created, FILE *stream );
-Port *newPort( FILE *stream );
-
-#define asPort( x ) ((Port*)asObject(x))
-#define isPort( x ) valueIsType(x, &PortType)
 
 // type api
 Type *createType( Void );

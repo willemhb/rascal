@@ -59,7 +59,7 @@ static inline Bool isReal( Value x ) { return (x&QNAN) != QNAN; }
 static inline Bool isImm( Value x )  { return (x&TAGMASK) == IMMTAG; }
 static inline Bool isFix( Value x )  { return (x&TAGMASK) == FIXTAG; }
 static inline Bool isObj( Value x )  { return (x&TAGMASK) == OBJTAG; }
-static inline Bool IsNul( Value x )  { return x == rlNul; }
+static inline Bool isNul( Value x )  { return x == rlNul; }
 
 static inline Value tagPtr( Void *ptr, Value tag ) { return (Value)ptr | tag; }
 

@@ -7,7 +7,9 @@
 
 // memory api, eventual GC implementation
 Void *allocate( Size nBytes );
+Void *allocArray( Size count, Size elSize );
 Void *reallocate( Void *ptr, Size nBytes );
+Void *reallocArray( Void *ptr, Size count, Size elSize );
 Int   deallocate( Void *ptr );
 
 #define alloc_s( func, ... )						\

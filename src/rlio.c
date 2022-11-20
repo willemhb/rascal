@@ -19,7 +19,7 @@ Void rlPrint( Port *ios, Value x )
     fprintf(ios->stream, "%lu", asFixnum(x));
 
   else if ( xType == &RealType )
-    fprintf(ios->stream, "%.2fl", asReal(x));
+    fprintf(ios->stream, "%.2f", asReal(x));
 
   else
     fprintf(ios->stream, "<%s>", xType->name);
@@ -38,12 +38,12 @@ Void printList( Port *ios, Value x )
 
       x = asCons(x)->cdr;
 
-      if ( x != rlNul )
+      if ( isCons(x) )
 	fprintf(ios->stream, " ");
 
-      if ( !isCons(x) )
+      else if ( !isNul(x) )
 	{
-	  fprintf(ios->stream, ". ");
+	  fprintf(ios->stream, " . ");
 	  rlPrint(ios, x);
 	}
     }
