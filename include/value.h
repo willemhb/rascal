@@ -7,9 +7,11 @@
 #define QNAN     0x7ffc000000000000ul
 #define IMMTAG   0x7ffc000000000000ul
 #define FIXTAG   0x7ffd000000000000ul
-#define OBJTAG   0x7ffe000000000000ul
+#define PTRTAG   0x7ffe000000000000ul
+#define OBJTAG   0x7fff000000000000ul
 
 #define NULTAG   0x7ffc000000000000ul
+#define ASCIITAG 0x7ffc000100000000ul
 
 #define REALTAG  0x0000000000000000ul
 
@@ -23,6 +25,8 @@
 typedef UWord   Value;
 typedef ULong   Fixnum;
 typedef Double  Real;
+typedef Void   *Pointer;
+typedef Char    Ascii;
 
 typedef struct Object
 {
@@ -55,12 +59,20 @@ typedef union RascalData
 #define asObject( x ) ((Object*)asPtr(x))
 
 /* tag predicates */
-static inline Bool isReal( Value x ) { return (x&QNAN) != QNAN; }
-static inline Bool isImm( Value x )  { return (x&TAGMASK) == IMMTAG; }
-static inline Bool isFix( Value x )  { return (x&TAGMASK) == FIXTAG; }
-static inline Bool isObj( Value x )  { return (x&TAGMASK) == OBJTAG; }
-static inline Bool isNul( Value x )  { return x == rlNul; }
+#define TAG_PREDICATE(TYPE, MASK, TAG)					\
+  static inline Bool is##TYPE( Value x ) { return (x&MASK) == TAG; }
 
+TAG_PREDICATE(Imm, TAGMASK, IMMTAG)
+TAG_PREDICATE(Obj, TAGMASK, OBJTAG)
+TAG_PREDICATE(Fix, TAGMASK, FIXTAG)
+TAG_PREDICATE(Ptr, TAGMASK, PTRTAG)
+TAG_PREDICATE(Ascii, WTAGMASK, ASCIITAG)
+
+/* other primitive predicates */
+static inline Bool isNul( Value x )  { return x == rlNul; }
+static inline Bool isReal( Value x ) { return (x&QNAN) != QNAN; }
+
+/* other helpers */
 static inline Value tagPtr( Void *ptr, Value tag ) { return (Value)ptr | tag; }
 
 // forward declarations
