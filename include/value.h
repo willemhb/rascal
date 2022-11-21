@@ -20,6 +20,7 @@
 #define PTRMASK  0x0000fffffffffffful
 
 #define rlNul NULTAG
+#define rlEOS (ASCIITAG|((Value)EOF))
 
 /* basic types recognized by the rascal virtual machine */
 typedef UWord   Value;
@@ -41,6 +42,8 @@ typedef union RascalData
   Fixnum    asFixnum;
   Real      asReal;
   Object   *asObject;
+  Ascii     asAscii;
+  Pointer   asPointer;
 } RascalData;
 
 #define OBJECT Object obj;
@@ -48,6 +51,8 @@ typedef union RascalData
 #define asValue( x )     (((RascalData)(x)).asValue)
 #define asReal( x )      (((RascalData)(x)).asReal)
 #define asFixnum( x )    (asValue(x)&PTRMASK)
+#define asPointer( x )   ((Void*)asFixnum(x))
+#define asAscii( x )     (((RascalData)(x)).asAscii)
 
 #define tagValue( x, t ) (asValue(x)|(t))
 

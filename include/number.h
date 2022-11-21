@@ -6,15 +6,20 @@
 // forward declarations
 Value rlFixnum( Fixnum x );
 Value rlReal( Real x );
+Value rlAscii( Ascii x );
+Value rlPointer( Pointer p );
+
+// utilities
+ULong hashULong( ULong x );
 
 // globals
 typedef struct Type Type;
 
-extern Type RealType, NulType, FixnumType;
+extern Type RealType, NulType, FixnumType, PointerType, AsciiType;
 
 extern Type* ImmediateTypes[];
 
-// convenience & utilities
+// convenience
 #define min( x, y )							\
   ({									\
     typeof(x) _x_ = x;							\
@@ -28,7 +33,6 @@ extern Type* ImmediateTypes[];
     typeof(y) _y_ = y;							\
     ( _x_ < _y_ ? _y_ : _x_ );						\
   })
-
 
 
 #endif

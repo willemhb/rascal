@@ -33,8 +33,9 @@ Object *create( Type *type );
 
 // cons api
 Cons *createCons( Void );
+Int   freeCons( Cons *cons );
 Void  initCons( Cons *created, Value car, Value cdr );
-Cons *newCons( Value car, Value cdr );
+
 Value cons( Value car, Value cdr );
 Value consn( Size len, ... );
 
@@ -45,8 +46,8 @@ Value consn( Size len, ... );
 
 // type api
 Type *createType( Void );
+Int   freeType( Type *type );
 Void  initType( Type *created, Char *name, Size size );
-Type *newType( Char *name, Size size );
 
 #define asType( x ) ((Type*)asObject(x))
 #define isType( x ) valueIsType(x, &TypeType)

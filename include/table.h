@@ -18,8 +18,12 @@ typedef struct ReadTable
 
 // forward declarations
 ReadTable *createReadTable( Void );
-Void       initReadTable( ReadTable *created );
-ReadTable *newReadTable( Void );
+Int        releaseReadTable( ReadTable *table );
+Void       initReadTable( ReadTable *table, Size nKeys );
+ReadTable *newReadTable( Size nKeys );
+
+#define    asReadTable( x ) ((ReadTable*)asObject(x))
+#define    isReadTable( x ) valueIsType(x, &ReadTableType)
 
 Void       resizeReadTable( ReadTable *table, Size newCount );
 Void       resetReadTable( ReadTable *table );

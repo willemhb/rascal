@@ -1,11 +1,13 @@
 #ifndef rascal_common_h
 #define rascal_common_h
+
 #include <uchar.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <assert.h>
 #include <stdalign.h>
+#include <setjmp.h>
 
 // style typedefs
 typedef uint8_t  Byte;
@@ -27,11 +29,15 @@ typedef void Void;
 typedef size_t    Size;
 typedef bool      Bool;
 typedef intptr_t  Word;
-typedef intptr_t  UWord;
+typedef uintptr_t UWord;
+
+typedef Void (*FuncPtr)(Void);
 
 // general convenience 
-#define unlikely(test) __builtin_expect(0, (test))
+#define rl_unlikely( test ) __builtin_expect(0, (test))
 
-#define unreachable __builtin_unreachable
+#define rl_unreachable __builtin_unreachable
+#define rl_cleanup( cleaner ) __attribute__((cleanup(cleaner)))
+
 
 #endif

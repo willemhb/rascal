@@ -62,25 +62,6 @@ Value consn( Size len, ... )
   return out;
 }
 
-// port object implementation
-Port *createPort( Void )
-{
-  return (Port*)create( &PortType );
-}
-
-Void initPort( Port *created, FILE *stream )
-{
-  created->stream = stream;
-}
-
-Port *newPort( FILE *stream )
-{
-  Port *out = createPort( );
-  initPort( out, stream );
-
-  return out;
-}
-
 // type object implementation
 Type *createType( Void )
 {
