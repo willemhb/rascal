@@ -8,17 +8,34 @@ typedef enum OpCodes OpCodes;
 
 enum OpCodes
   {
-    OpNothing,  // noop
-    OpConstant, // load constant value
-    OpHalt,     // end of instruction sequence
+    // misc
+    OpNothing,   // noop
+
+    // load/store
+    OpLoadConst,  // load constant value
+    OpLoadLocal,  // load local variable
+    OpLoadGlobal, // load global variable
+
+    // accessor instructions
+    OpGetf,
+    OpSetf,
+    OpAref,
+    OpAset,
+    OpAlength,
+
+    // constructors
+    OpCons,
+    
+
+    OpHalt,      // end of instruction sequence
   };
 
 static inline Size opArgc( OpCode op )
 {
   switch ( op )
     {
-    case OpConstant: return 1;
-    default:         return 0;
+    case OpLoadConst: return 1;
+    default:          return 0;
     }
 }
 
