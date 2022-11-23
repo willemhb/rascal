@@ -24,36 +24,6 @@ struct vector_t
 
 // implementations
 // buffer
-Buffer *makeBuffer( Void );
-Int     freeBuffer( Buffer *buffer );
-Void    initBuffer( Buffer *created );
-Size    resizeBuffer( Buffer *buffer, Size newCount );
-
-Size    appendToBuffer( Buffer *buffer, Size n, ... );
-Char    getFromBuffer( Buffer *buffer, Long i );
-Buffer *setInBuffer( Buffer *buffer, Long i, Char c );
-Char    popFromBuffer( Buffer *buffer, Size n );
-
-Size    writeToBuffer( Buffer *dst, Char *src, Size n );
-Size    readFromBuffer( Char *dst, Buffer *src, Size n );
-
-#define isBuffer( x )    valueIsType(x, &BufferType)
-#define asBuffer( x )    ((Buffer*)asObject(x))
-#define resetBuffer( x ) resizeBuffer(x, 0)
-
-// instr
-Instr  *makeInstr( Void );
-Int     freeInstr( Instr *instr );
-Void    initInstr( Instr *instr );
-Size    resizeInstr( Instr *instr, Size newCount );
-
-Size    appendToInstr( Instr *instr, Size n, ... );
-UShort  getFromInstr( Instr *instr, Long i );
-Instr  *setInInstr( Instr *instr, Long i, UShort op );
-UShort  popFromInstr( Instr *instr, Size n );
-
-#define isInstr( x ) valueIsType(x, &InstrType)
-#define asInstr( x ) ((Instr*)asObject(x))
 
 // vector
 

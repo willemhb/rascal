@@ -48,15 +48,38 @@ struct atom_t
 // globals
 extern atom_t *SymbolTable;
 
-// forward declarations
-// general constructor
+/* builtin types */
+extern type_t TypeType, NulType, BoolType, RealType, PrimitiveType, ConsType,
+  VectorType, InstructionsType, AtomType, LambdaType, ControlType, ClosureType,
+  EnvironmentType;
+
+
+// external
 object_t *make_obj( type_t *type );
 void      free_obj( object_t *obj );
 void      init_obj( object_t *obj, type_t *type, void *ini );
 
-#define asType( x ) ((Type*)asObject(x))
-#define isType( x ) valueIsType(x, &TypeType)
+cons_t   *make_cons( void );
+void      init_cons( cons_t *cons, value_t car, value_t cdr );
+void      free_cons( cons_t *cons );
 
-#define tagObj( x ) tagPtr( x, OBJTAG )
+atom_t   *make_atom( void );
+void      init_atom( atom_t *atom, char *name );
+void      free_atom( atom_t *atom );
+
+atom_t   *intern_atom( char *name );
+
+type_t   *make_type( void );
+void      free_type( type_t *type );
+void      init_type( type_t *type, char *name, size_t size, primitive_t constructor );
+
+#define tag_obj( x ) tag_ptr( x, OBJTAG )
+
+#define as_type( x ) ((type_t*)as_object(x))
+#define is_type( x ) value_is_type(x, &TypeType)
+#define as_cons( x ) ((cons_t*)as_object(x))
+#define is_cons( x ) value_is_type(x, &ConsType)
+#define as_atom( x ) ((atom_t*)as_object(x))
+#define is_atom( x ) value_is_type(x, &AtomType)
 
 #endif

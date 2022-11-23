@@ -3,6 +3,15 @@
 
 #include "object.h"
 
+struct lambda_t
+{
+  OBJHEAD;
 
+  vector_t       *constants;
+  environment_t  *lenvt;
+  instructions_t *code;
+};
+
+// implementations
 
 #endif
