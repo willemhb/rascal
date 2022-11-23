@@ -17,32 +17,29 @@ typedef enum
 
    op_load_value   = 5, // load from constant store
    op_load_const   = 6,
+   op_load_global  = 7,
+   op_store_global = 8,
 
-   op_load_local   = 7,
-   op_store_local  = 8,
-   op_load_global  = 9,
-   op_store_global =10,
-
-   op_load_closure =11,
-   op_store_closure=12,
+   op_load_closure = 9,
+   op_store_closure=10,
 
    /* jump instructions */
-   op_jump_true    =13,
-   op_jump_false   =14,
-   op_jump         =15,
+   op_jump_true    =11,
+   op_jump_false   =12,
+   op_jump         =13,
    
    /* closure/funcall instructions */
-   
-   op_invoke       =16,
-   op_return       =17,
-   op_closure      =18,
-   
+
+   op_invoke       =14,
+   op_return       =15,
+   op_closure      =16,
+
    /* validation */
-   op_argco        =19,
-   op_vargco       =20,
+   op_argco        =17,
+   op_vargco       =18,
    
    /* miscellaneous */
-   op_halt         =21
+   op_halt         =19
   } opcode_t;
 
 static inline size_t op_argc( opcode_t opcode )

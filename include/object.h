@@ -45,14 +45,8 @@ struct atom_t
   value_t constant; // constant binding
 };
 
-// globals
+/* globals */
 extern atom_t *SymbolTable;
-
-/* builtin types */
-extern type_t TypeType, NulType, BoolType, RealType, PrimitiveType, ConsType,
-  VectorType, InstructionsType, AtomType, LambdaType, ControlType, ClosureType,
-  EnvironmentType;
-
 
 // external
 object_t *make_obj( type_t *type );
