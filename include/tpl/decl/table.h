@@ -1,7 +1,5 @@
-#ifndef rascal_table_h
-#define rascal_table_h
-
-#include "object.h"
+#ifndef rascal_tpl_table_h
+#define rascal_tpl_table_h
 
 // convenience macros
 #define TABLE( E )				\
@@ -9,11 +7,5 @@
   size_t   count;				\
   size_t   capacity;				\
   E      **entries
-
-// C types
-struct table_t
-{
-  TABLE(cons_t);
-};
 
 #endif

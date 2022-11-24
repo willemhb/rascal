@@ -1,21 +1,8 @@
-#ifndef rascal_memory_h
-#define rascal_memory_h
+#ifndef rl_vm_memory_h
+#define rl_vm_memory_h
 
 #include <stdio.h>
 #include "rascal.h"
-
-/* memory & GC */
-/* internal objects */
-typedef struct heap_t
-{
-  vector_t *gray_objects;
-  object_t *live_objects;
-  size_t    bytes_allocated;
-  size_t    next_cycle;
-} heap_t;
-
-/* globals */
-extern heap_t Heap;
 
 /* API */
 void *alloc( size_t n_bytes );

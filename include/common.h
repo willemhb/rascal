@@ -5,6 +5,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
+#include <stdalign.h>
+#include <stdio.h>      // for FILE
 
 // style typedefs
 typedef uint8_t         byte;

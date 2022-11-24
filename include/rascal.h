@@ -3,25 +3,29 @@
 
 #include "common.h"
 
-// value types and tags
+/* type definitions, tags, and common utilities */
+/* tagged value type */
 typedef uword                 value_t;
 
-// core object types are defined here
-typedef struct object_t       object_t;
-
-// immediate types
+/* immediate types */
 typedef void                 *nul_t;
 typedef bool                  bool_t;
 typedef double                real_t;
 typedef value_t             (*primitive_t)(value_t *args, size_t nargs);
 
-// object types
-typedef struct type_t         type_t;
+/*object types */
+/* generic object type (common header) */
+typedef struct object_t       object_t;
+
+/* core user object types */
 typedef struct cons_t         cons_t;
 typedef struct atom_t         atom_t;
 typedef struct vector_t       vector_t;
 typedef struct string_t       string_t;
 typedef struct table_t        table_t;
+
+/* internal object types */
+typedef struct type_t         type_t;
 typedef struct bytecode_t     bytecode_t;
 typedef struct lambda_t       lambda_t;
 typedef struct control_t      control_t;
@@ -29,6 +33,16 @@ typedef struct closure_t      closure_t;
 typedef struct environment_t  environment_t;
 typedef struct namespace_t    namespace_t;
 
+/* internal function pointer types */
+typedef object_t *(*make_fn_t)(type_t *type, size_t n);
+typedef void      (*init_fn_t)(object_t *object, size_t n, void *ini);
+typedef void      (*trace_fn_t)(object_t *object);
+typedef void      (*free_fn_t)(object_t *object);
+typedef size_t    (*sizeof_fn_t)(object_t *object);
+typedef int       (*compare_fn_t)(value_t x, value_t y);
+typedef ulong     (*hash_fn_t)(value_t x);
+
+/* */
 typedef union
 {
   value_t      as_tagged;
@@ -87,7 +101,7 @@ static inline bool rl_to_C_bool( value_t x ) { return !(x == NUL || x == false);
 /* globals */
 /* builtin types */
 extern type_t TypeType, NulType, BoolType, RealType, PrimitiveType, ConsType,
-  VectorType, BytecodeType, AtomType, LambdaType, ControlType, ClosureType,
+  VectorType, StringType, BytecodeType, AtomType, LambdaType, ControlType, ClosureType,
   EnvironmentType;
 
 static inline type_t *rl_typeof( value_t x )
