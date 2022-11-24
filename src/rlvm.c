@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <assert.h>
 
 #include "memory.h"
 #include "opcodes.h"
@@ -6,8 +7,6 @@
 #include "function.h"
 #include "array.h"
 #include "rlvm.h"
-
-
 
 /* vm internal data structures */
 control_t *make_control( void )
@@ -26,9 +25,6 @@ void init_control( control_t *control, closure_t *module, control_t *caller, siz
 
 void free_control( control_t *control )
 {
-  if ( !control->environment->is_captured )
-    free_environment(control->environment);
-
   free_obj(&control->obj);
 }
 
@@ -97,6 +93,54 @@ void envt_capture( environment_t *environment )
     }
 }
 
+/* utilities/convenience */
+size_t rl_push( value_t x )
+{
+  vector_t *locals = Vm.control->environment->binds;
+
+  array_add(locals, 1, x);
+  return locals->count-1;
+}
+
+value_t rl_pop( void )
+{
+  vector_t *locals = Vm.control->environment->binds;
+
+  assert(locals->count > 0);
+  
+  value_t   out    = array_pop(locals, 1);
+
+  return out;
+}
+
+size_t rl_pushn( size_t n )
+{
+  vector_t *locals = Vm.control->environment->binds;
+  size_t    out    = locals->count;
+
+  resize_array(locals, locals->count+n);
+
+  return out;
+}
+
+value_t rl_popn( size_t n )
+{
+  vector_t *locals = Vm.control->environment->binds;
+  value_t   out    = locals->data[locals->count-1];
+
+  assert(n <= locals->count);
+  resize_array(locals, locals->count-n);
+
+  return out;
+}
+
+value_t rl_peek( long i )
+{
+  vector_t *locals = Vm.control->environment->binds;
+
+  return array_ref(locals, i);
+}
+
 /* main interpreter loop */
 value_t rl_exec( closure_t *module )
 {
@@ -139,22 +183,23 @@ value_t rl_exec( closure_t *module )
 
   value_t x, y;
 
-  control_t *control = make_call_frame(NULL, module, 0);
-  environment_t *eframe;
+  environment_t *cenvt; lambda_t *lmb;
+
+  Vm.control = make_call_frame(NULL, module, 0);
 
  label_fetch:
   if ( rl_recover() )
     goto label_halt;
 
-  op   = *(control->ip++);
+  op   = *(Vm.control->ip++);
 
   argc = op_argc(op);
 
   if (argc > 0)
-    argx = *(control->ip++);
+    argx = *(Vm.control->ip++);
 
   if (argc > 1)
-    argy = *(control->ip++);
+    argy = *(Vm.control->ip++);
 
   goto *labels[op];
 
@@ -167,135 +212,141 @@ value_t rl_exec( closure_t *module )
   goto label_fetch;
 
  label_load_nul:
-  rl_push( NUL );
+  rl_push(NUL);
 
   goto label_fetch;
 
  label_load_true:
-  rl_push( TRUE );
+  rl_push(TRUE);
 
   goto label_fetch;
 
  label_load_false:
-  rl_push( FALSE );
+  rl_push(FALSE);
 
   goto label_fetch;
 
  label_load_value:
-  x = control->function->constants->data[argx];
-  
-  rl_push( x );
+  x = lmb_get_value(Vm.control->function, argx);
+
+  rl_push(x);
   
   goto label_fetch;
 
  label_load_const:
-  x = control->function->constants->data[argx];
-  x = as_atom(x)->constant;
+  x = lmb_get_constant(Vm.control->function, argx);
 
-  rl_push( x );
-
-  goto label_fetch;
-
- label_load_local:
-  x = control->locals[argx];
-  
-  rl_push( x );
-
-  goto label_fetch;
-
- label_store_local:
-  x                     = rl_peek(0);
-  control->locals[argx] = x;
+  rl_push(x);
 
   goto label_fetch;
 
  label_load_global:
-  y = control->function->constants->data[argx];
-  x = as_atom(y)->bind;
+  x = lmb_get_constant(Vm.control->function, argx);
 
   rl_push(x);
 
   goto label_fetch;
 
  label_store_global:
-  y                = control->function->constants->data[argx];
-  as_atom(y)->bind = rl_peek(0);
+  lmb_set_constant(Vm.control->function, argx, rl_peek(-1));
 
   goto label_fetch;
 
  label_load_closure:
-  eframe = control->environment;
-
-  while (argx--)
-    eframe = eframe->next;
-
-  x = eframe->binds->data[argy];
+  x = envt_ref(Vm.control->environment, argx, argy);
 
   rl_push(x);
 
   goto label_fetch;
 
  label_store_closure:
-  eframe = control->environment;
-
-  while (argx--)
-    eframe = eframe->next;
-
-  eframe->binds->data[argy] = rl_peek(0);
+  x = envt_set(Vm.control->environment, argx, argy, rl_peek(-1));
 
   goto label_fetch;
 
  label_jump_true:
-  x            = rl_pop();
-  control->ip += argx*rl_to_C_bool(x);
+  x               = rl_pop();
+  Vm.control->ip += argx*rl_to_C_bool(x);
 
   goto label_fetch;
 
  label_jump_false:
-  x            = rl_pop();
-  control->ip += argx*(!rl_to_C_bool(x));
+  x               = rl_pop();
+  Vm.control->ip += argx*(!rl_to_C_bool(x));
 
   goto label_fetch;
 
  label_jump:
-  control->ip += argx;
+  Vm.control->ip += argx;
 
   goto label_fetch;
 
  label_invoke:
-  x = rl_peek(argx);
+  x = rl_peek(-argx);
 
   if ( is_pfunc(x) )
     {
-      x = as_pfunc(x)(Vm.sp-argx, argx);
+      x = as_pfunc(x)(Vm.control->environment->binds->data, argx);
 
       rl_popn(argx);
       rl_push(x);
     }
 
   else if ( is_closure(x) )
-      control = make_control( as_closure(x), control );
+    {
+      Vm.control = make_call_frame(Vm.control, as_closure(x), argx);
+      argy       = argx;
+    }
 
   else
-    rl_panic( "expected a function, got <%s>", rl_typeof(x)->name );
+    rl_panic("expected a function, got <%s>", rl_typeof(x)->name);
 
   goto label_fetch;
 
  label_return:
-  x = rl_popn( control->function->nstack+1 );
+  x = rl_peek(-1);
 
-  free_control( &control );
+  free_call_frame(&Vm.control);
+  rl_push(x);
 
   goto label_fetch;
 
  label_closure:
-  x = rl_pop();  // lambda object
-  
+  x      = rl_pop();  // lambda object
+  lmb    = as_lambda(x);
+  cenvt  = Vm.control->environment;
+  module = make_closure();
+
+  init_closure(module, lmb, cenvt);
+
+  x      = tag_obj(module);
+
+  rl_push(x);
+
+  goto label_fetch;
 
  label_argco:
+  if ( argx != argy )
+    rl_panic("expected %d arguments to #, got %d", argx, argy);
+
+  goto label_fetch;
 
  label_vargco:
+  if ( argx < argy )
+    rl_panic("expected at least %d arguments to #, got %d", argx, argy);
+
+  argc = argy - argx;
+  x    = list_n(argc, envt_at(-argc), argc);
+
+  rl_popn(argc);
+  rl_push(x);
+
+  goto label_fetch;
 
  label_halt:
-  
+  x = rl_peek(-1);
+
+  free_call_frame(&Vm.control);
+
+  return x;
 }

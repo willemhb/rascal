@@ -18,13 +18,16 @@ typedef value_t             (*primitive_t)(value_t *args, size_t nargs);
 // object types
 typedef struct type_t         type_t;
 typedef struct cons_t         cons_t;
-typedef struct vector_t       vector_t;
-typedef struct instructions_t instructions_t;
 typedef struct atom_t         atom_t;
+typedef struct vector_t       vector_t;
+typedef struct string_t       string_t;
+typedef struct table_t        table_t;
+typedef struct instructions_t instructions_t;
 typedef struct lambda_t       lambda_t;
 typedef struct control_t      control_t;
 typedef struct closure_t      closure_t;
 typedef struct environment_t  environment_t;
+typedef struct namespace_t    namespace_t;
 
 typedef union
 {
@@ -63,6 +66,7 @@ static inline bool is_bool( value_t x )      { return (x&TMASK) == FALSE; }
 // static inline bool is_smint( value_t x )     { return (x&TMASK) == SMINT; }
 static inline bool is_pfunc( value_t x )     { return (x&TMASK) == PFUNC; }
 // static inline bool is_stream( value_t x )    { return (x&TMASK) == STREAM; }
+static inline bool is_obj( value_t x )       { return (x&TMASK) == OBJECT; }
 
 static inline bool rl_to_C_bool( value_t x ) { return !(x == NUL || x == false); }
 
@@ -72,6 +76,8 @@ static inline bool rl_to_C_bool( value_t x ) { return !(x == NUL || x == false);
 #define as_ptr( x )    ((void*)_Generic((x),				\
 					value_t:(((value_t)(x))&PMASK),	\
 					default:((typeof(x))(x))))
+
+#define tag_ptr( x, t ) (((value_t)(x))|(t))
 
 #define as_obj( x )  ((object_t*)as_ptr(x))
 #define as_pfunc( x ) ((primitive_t)as_ptr(x))

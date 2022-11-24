@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
 
@@ -6,122 +7,46 @@
 #include "table.h"
 
 
-// general helpers
-Object *create( Type *type )
+/* APIS */
+object_t *make_obj( type_t *type )
 {
-  Size total = type->size;
+  size_t    total = type->size;
+  object_t *new   = alloc(total);
 
-  Object *out = allocate( total );
-  out->dtype = &type->obj;
+  new->type  = type;
+  new->size  = total;
+  new->_meta = NUL;
+  new->black = false;
+  new->gray  = true;
+  new->flags = 0;
 
-  return out;
+  return new;
 }
 
-// cons object implementation
-Cons *makeCons( Void )
+void free_obj( object_t *obj )
 {
-  return (Cons*)create( &ConsType );
-}
+  type_t      *type  = obj->type;
+  fieldspec_t *specs = type->fields;
+  void        *ptr;
 
-Void initCons( Cons *created, Value car, Value cdr )
-{
-  created->car = car;
-  created->cdr = cdr;
-}
-
-Int freeCons( Cons *cons )
-{
-  deallocate( cons, sizeof(Cons));
-  return 0;
-}
-
-Value cons( Value car, Value cdr )
-{
-  Cons *out = makeCons();
-
-  initCons( out, car, cdr );
-  
-  return tagObj( out );
-}
-
-Value consn( Size len, ... )
-{
-  va_list va; va_start(va, len);
-
-  Value buffer[len];
-
-  for (Size i=0; i<len; i++)
-    buffer[i] = va_arg(va, Value);
-
-  va_end(va);
-
-  Value out = buffer[len-1];
-
-  for (Size i=len-1; i>0; i--)
-    out = cons(buffer[i-1], out);
-
-  return out;
-}
-
-// type object implementation
-Type *makeType( Void )
-{
-  return (Type*)create(&TypeType);
-}
-
-Void initType( Type *type, Char *name, Size size )
-{
-  type->name = name;
-  type->size = size;
-}
-
-Int freeType( Type *type )
-{
-  deallocate(type, sizeof(Type));
-  return 0;
-}
-
-// symbol implementation
-Symbol *makeSymbol( Void )
-{
-  return (Symbol*)create(&SymbolType);
-}
-
-Void initSymbol( Symbol *symbol, Char *name, ULong hash )
-{
-  symbol->name  = strdup(name);
-  symbol->hash  = hash;
-  symbol->idno  = ++TheSymbolTable.counter;
-  symbol->value = rlNul;
-}
-
-// globals (mostly metaobjects)
-Type ConsType =
-  {
+  for (size_t i=0; i<type->n_fields; i++)
     {
-      .dtype = &TypeType.obj
-    },
+      fieldspec_t spec = specs[i];
 
-    "cons",
-    sizeof(Cons)
-  };
+      switch ( spec.repr )
+	{
+	case repr_Cdata: case repr_value:
+	  break;
 
-Type SymbolType =
-  {
-    {
-      .dtype = &TypeType.obj
-    },
+	case repr_Cptr:   case repr_Cstring:
+	case repr_values: case repr_objects:
+	  ptr = *(void**)(obj->space + spec.offset);
+	  free(ptr);
+	  break;
+	}
+    }
 
-    "symbol",
-    sizeof(Symbol)
-  };
+  // TODO: this is misleading, since obj->size includes regions that were freed @44-46
+  dealloc(obj, obj->size);
+}
 
-Type TypeType =
-  {
-    {
-      .dtype = &TypeType.obj,
-    },
-
-    "type",
-    sizeof(Type)
-  };

@@ -9,11 +9,42 @@
 
 #define OBJHEAD object_t obj
 
+typedef enum repr_t
+  {
+    repr_Cdata  =1,
+    repr_Cptr   =2,
+    repr_Cstring=3,
+    repr_value  =4,
+    repr_object =5,
+    repr_values =6,
+    repr_objects=7,
+  } repr_t;
+
+typedef struct fieldspec_t
+{
+  uchar  repr     : 3;
+  uchar  free     : 1;
+  uchar  finalize : 1;
+  uchar  trace    : 1;
+  uchar  read     : 1;
+  uchar  write    : 1;
+  uchar  align;
+  ushort width;
+  uint   offset;
+} fieldspec_t;
+
 struct object_t
 {
-  type_t   *type;
-  bool      allocated;
-  uint      size;
+  object_t *next;         // live object list
+  type_t   *type;         // this object's type
+  value_t   _meta;        // association list of object metadata
+  uint      size;         // total object size, including header and associated data
+  uchar     allocated;    // whether the object is allocated (many core Vm objects are not)
+  uchar     gray;         // GC gray bit
+  uchar     black;        // GC black bit
+  uchar     flags;        // discretionary flags
+
+  uchar     space[0];     // beginning of object's own data
 };
 
 struct type_t
@@ -23,6 +54,8 @@ struct type_t
   char        *name;
   size_t       size;
   value_t      constructor;
+  size_t       n_fields;
+  fieldspec_t *fields;
 };
 
 struct cons_t
@@ -38,11 +71,10 @@ struct atom_t
 {
   OBJHEAD;
 
+  char   *name;
+  ulong   hash;
   atom_t *left;
   atom_t *right;
-  char   *name;
-  value_t bind;     // toplevel binding
-  value_t constant; // constant binding
 };
 
 /* globals */
@@ -51,23 +83,20 @@ extern atom_t *SymbolTable;
 // external
 object_t *make_obj( type_t *type );
 void      free_obj( object_t *obj );
-void      init_obj( object_t *obj, type_t *type, void *ini );
 
-cons_t   *make_cons( void );
 void      init_cons( cons_t *cons, value_t car, value_t cdr );
-void      free_cons( cons_t *cons );
+value_t   cons( value_t car, value_t cdr );
+value_t   assoc( value_t key, value_t list );
+value_t   cons_n( size_t n, ... );
+value_t   list_n( size_t n, ... );
 
-atom_t   *make_atom( void );
 void      init_atom( atom_t *atom, char *name );
-void      free_atom( atom_t *atom );
-
 atom_t   *intern_atom( char *name );
+value_t   atom( char *name );
 
-type_t   *make_type( void );
-void      free_type( type_t *type );
 void      init_type( type_t *type, char *name, size_t size, primitive_t constructor );
 
-#define tag_obj( x ) tag_ptr( x, OBJTAG )
+#define tag_obj( x ) tag_ptr( x, OBJECT )
 
 #define as_type( x ) ((type_t*)as_object(x))
 #define is_type( x ) value_is_type(x, &TypeType)
