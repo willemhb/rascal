@@ -22,7 +22,7 @@ typedef struct atom_t         atom_t;
 typedef struct vector_t       vector_t;
 typedef struct string_t       string_t;
 typedef struct table_t        table_t;
-typedef struct instructions_t instructions_t;
+typedef struct bytecode_t     bytecode_t;
 typedef struct lambda_t       lambda_t;
 typedef struct control_t      control_t;
 typedef struct closure_t      closure_t;
@@ -38,9 +38,11 @@ typedef union
   type_t      *as_type;
   cons_t      *as_cons;
   atom_t      *as_atom;
+  vector_t    *as_vector;
+  string_t    *as_string;
+  bytecode_t  *as_bytecode;
   primitive_t  as_primitive;
   lambda_t    *as_lambda;
-  vector_t    *as_vector;
 } rl_data_t;
 
 #define QNAN    0x7ff8000000000000ul
@@ -85,7 +87,7 @@ static inline bool rl_to_C_bool( value_t x ) { return !(x == NUL || x == false);
 /* globals */
 /* builtin types */
 extern type_t TypeType, NulType, BoolType, RealType, PrimitiveType, ConsType,
-  VectorType, InstructionsType, AtomType, LambdaType, ControlType, ClosureType,
+  VectorType, BytecodeType, AtomType, LambdaType, ControlType, ClosureType,
   EnvironmentType;
 
 static inline type_t *rl_typeof( value_t x )

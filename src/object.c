@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <assert.h>
 
 #include "object.h"
 #include "memory.h"
@@ -10,17 +11,27 @@
 /* APIS */
 object_t *make_obj( type_t *type )
 {
-  size_t    total = type->size;
-  object_t *new   = alloc(total);
+  size_t    base  = type->ob_size;
+  object_t *new   = alloc(base);
 
+  /* initialize type, metadata, GC flags */
   new->type  = type;
-  new->size  = total;
   new->_meta = NUL;
-  new->black = false;
   new->gray  = true;
+  new->black = false;
+  new->size  = base;
   new->flags = 0;
 
+  /* return new object */
   return new;
+}
+
+void init_obj( object_t *obj, size_t n, void *ini )
+{
+  if ( obj->type->layout == array_layout )
+    {
+      
+    }
 }
 
 void free_obj( object_t *obj )

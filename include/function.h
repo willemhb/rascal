@@ -5,14 +5,19 @@
 
 /* C types */
 /* lexical environment representation */
+typedef enum
+  {
+   variable_name=1,
+   macro_name   =2,
+   function_name=3,
+  } name_type_t;
+
 struct namespace_t
 {
   OBJHEAD;
 
-  namespace_t *module; // module in which 
   namespace_t *parent;
-  vector_t    *names;
-  table_t     *macros;
+  table_t     *locals;
 };
 
 /* user function representation */
@@ -20,16 +25,15 @@ struct lambda_t
 {
   OBJHEAD;
 
-  namespace_t    *namespace;   // lexical environment
-  vector_t       *constants;   // constant store
-  instructions_t *code;        // instruction sequence
+  namespace_t *namespace;   // lexical environment
+  vector_t    *constants;   // constant store
+  bytecode_t  *bytecode;    // instruction sequence
 };
 
 /* apis and utilities */
 /* lambda */
 lambda_t *make_lambda( void );
 void      init_lambda( lambda_t *lambda, namespace_t *namespace );
-void      free_lambda( lambda_t *lambda );
 
 /* runtime interaction with constant store */
 value_t   lmb_get_value( lambda_t *lambda, size_t n );

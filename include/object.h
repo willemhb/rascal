@@ -22,10 +22,7 @@ typedef enum repr_t
 
 typedef struct fieldspec_t
 {
-  uchar  repr     : 3;
-  uchar  free     : 1;
-  uchar  finalize : 1;
-  uchar  trace    : 1;
+  uchar  repr     : 6;
   uchar  read     : 1;
   uchar  write    : 1;
   uchar  align;
@@ -35,27 +32,44 @@ typedef struct fieldspec_t
 
 struct object_t
 {
-  object_t *next;         // live object list
-  type_t   *type;         // this object's type
-  value_t   _meta;        // association list of object metadata
-  uint      size;         // total object size, including header and associated data
-  uchar     allocated;    // whether the object is allocated (many core Vm objects are not)
-  uchar     gray;         // GC gray bit
-  uchar     black;        // GC black bit
-  uchar     flags;        // discretionary flags
+  object_t *next;           // live object list
+  value_t   _meta;          // association list of object metadata
+  type_t   *type;           // this object's type
+  value_t   size      : 48;
+  value_t   layout    :  3;
+  value_t   gray      :  1;
+  value_t   black     :  1;
+  value_t   allocated :  1;
+  value_t             :  2;
+  value_t   flags     :  8;
 
   uchar     space[0];     // beginning of object's own data
 };
 
+typedef enum layout_t     // layout of a word/object
+  {
+   /* immediate layouts */
+   real_layout      = 1,  // immediate, 64-bit float
+   fixnum_layout    = 2,  // 48-bit unsigned integer (can represent anything)
+   small_layout     = 3,  // 32-bit immediate data with additional type information
+
+   /* common object layouts */
+   record_layout    = 4,  // heterogenous but fixed-size object (arity field can be anything)
+   array_layout     = 5,  // includes a variably-sized portion (arity field is the total allocated size)
+  } layout_t;
+
 struct type_t
 {
   OBJHEAD;
-
-  char        *name;
-  size_t       size;
-  value_t      constructor;
-  size_t       n_fields;
+  // size/layout information
   fieldspec_t *fields;
+  size_t       n_fields;
+  size_t       ob_size;
+  size_t       el_size;     // arrays only
+  layout_t     layout;
+
+  string_t    *name;
+  value_t      constructor;
 };
 
 struct cons_t
@@ -71,10 +85,10 @@ struct atom_t
 {
   OBJHEAD;
 
-  char   *name;
-  ulong   hash;
-  atom_t *left;
-  atom_t *right;
+  string_t *name;
+  ulong     hash;
+  atom_t   *left;
+  atom_t   *right;
 };
 
 /* globals */
@@ -83,8 +97,9 @@ extern atom_t *SymbolTable;
 // external
 object_t *make_obj( type_t *type );
 void      free_obj( object_t *obj );
+void      init_obj( object_t *type, size_t n, void *ini );
+void      obj_size( object_t *obj );
 
-void      init_cons( cons_t *cons, value_t car, value_t cdr );
 value_t   cons( value_t car, value_t cdr );
 value_t   assoc( value_t key, value_t list );
 value_t   cons_n( size_t n, ... );
@@ -93,8 +108,6 @@ value_t   list_n( size_t n, ... );
 void      init_atom( atom_t *atom, char *name );
 atom_t   *intern_atom( char *name );
 value_t   atom( char *name );
-
-void      init_type( type_t *type, char *name, size_t size, primitive_t constructor );
 
 #define tag_obj( x ) tag_ptr( x, OBJECT )
 
