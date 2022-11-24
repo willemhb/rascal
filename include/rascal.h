@@ -3,7 +3,12 @@
 
 #include "common.h"
 
-/* type definitions, tags, and common utilities */
+/* commentary
+
+   basic type definitions for the core rascal types.
+*/
+
+/* C types */
 /* tagged value type */
 typedef uword                 value_t;
 
@@ -11,7 +16,11 @@ typedef uword                 value_t;
 typedef void                 *nul_t;
 typedef bool                  bool_t;
 typedef double                real_t;
-typedef value_t             (*primitive_t)(value_t *args, size_t nargs);
+typedef uint64_t              fixnum_t;
+typedef int32_t               smint_t;
+typedef FILE                  stream_t;
+typedef ascii_t               glyph_t;
+typedef value_t             (*native_fn_t)(value_t *args, size_t nargs);
 
 /*object types */
 /* generic object type (common header) */
@@ -22,7 +31,7 @@ typedef struct cons_t         cons_t;
 typedef struct atom_t         atom_t;
 typedef struct vector_t       vector_t;
 typedef struct string_t       string_t;
-typedef struct table_t        table_t;
+typedef struct map_t          map_t;
 
 /* internal object types */
 typedef struct type_t         type_t;
@@ -42,21 +51,20 @@ typedef size_t    (*sizeof_fn_t)(object_t *object);
 typedef int       (*compare_fn_t)(value_t x, value_t y);
 typedef ulong     (*hash_fn_t)(value_t x);
 
-/* */
+/* union of types a tagged value can be */
 typedef union
 {
-  value_t      as_tagged;
+  value_t      as_value;
   real_t       as_real;
   bool_t       as_bool;
+  fixnum_t     as_fixnum;
+  smint_t      as_smint;
+  glyph_t      as_glyph;
+
+  void        *as_pointer;
+  stream_t    *as_stream;
+  native_fn_t  as_native_fn;
   object_t    *as_object;
-  type_t      *as_type;
-  cons_t      *as_cons;
-  atom_t      *as_atom;
-  vector_t    *as_vector;
-  string_t    *as_string;
-  bytecode_t  *as_bytecode;
-  primitive_t  as_primitive;
-  lambda_t    *as_lambda;
 } rl_data_t;
 
 #define QNAN    0x7ff8000000000000ul
@@ -67,58 +75,28 @@ typedef union
 #define NUL     0x7ffc000000000000ul
 #define TRUE    0x7ffd000000000001ul
 #define FALSE   0x7ffd000000000000ul
-// #define GLYPH   0x7ffe000000000000ul
-// #define FIXNUM  0x7fff000000000000ul
-// #define SMINT   0xfffc000000000000ul
-#define PFUNC   0xfffd000000000000ul
-// #define STREAM  0xfffe000000000000ul
+#define GLYPH   0x7ffe000000000000ul
+#define FIXNUM  0x7fff000000000000ul
+#define SMINT   0xfffc000000000000ul
+#define NATIVE  0xfffd000000000000ul
+#define STREAM  0xfffe000000000000ul
 #define OBJECT  0xffff000000000000ul
 
-static inline bool is_real( value_t x )      { return (x&QNAN) != QNAN; }
-static inline bool is_nul( value_t x )       { return x == NUL; }
-static inline bool is_bool( value_t x )      { return (x&TMASK) == FALSE; }
-// static inline bool is_glyph( value_t x )     { return (x&TMASK) == GLYPH; }
-// static inline bool is_fixnum( value_t x )    { return (x&TMASK) == FIXNUM; }
-// static inline bool is_smint( value_t x )     { return (x&TMASK) == SMINT; }
-static inline bool is_pfunc( value_t x )     { return (x&TMASK) == PFUNC; }
-// static inline bool is_stream( value_t x )    { return (x&TMASK) == STREAM; }
-static inline bool is_obj( value_t x )       { return (x&TMASK) == OBJECT; }
+/* convenience & utilities */
+#define as_value( x )   (((rl_data_t)(x)).as_value)
 
-static inline bool rl_to_C_bool( value_t x ) { return !(x == NUL || x == false); }
+#define as_real( x )    (((rl_data_t)(x)).as_real)
+#define as_fixnum( x )  ((fixnum_t)untag(x))
+#define as_smint( x )   ((smint_t)untag(x))
+#define as_bool( x )    ((bool_t)untag(x))
+#define as_glyph( x )   ((glyph_t)untag(x))
 
-#define as_value( x )  (((rl_data_t)(x)).as_tagged)
-#define as_object( x ) (((rl_data_t)(x)).as_object)
+#define as_pointer( x ) ((void*)untag(x))
+#define as_stream( x )  ((stream_t*)as_pointer(x))
+#define as_object( x )  ((object_t*)as_pointer(x))
+#define as_native( x )  ((native_fn_t)as_pointer(x))
 
-#define as_ptr( x )    ((void*)_Generic((x),				\
-					value_t:(((value_t)(x))&PMASK),	\
-					default:((typeof(x))(x))))
-
-#define tag_ptr( x, t ) (((value_t)(x))|(t))
-
-#define as_obj( x )  ((object_t*)as_ptr(x))
-#define as_pfunc( x ) ((primitive_t)as_ptr(x))
-
-/* globals */
-/* builtin types */
-extern type_t TypeType, NulType, BoolType, RealType, PrimitiveType, ConsType,
-  VectorType, StringType, BytecodeType, AtomType, LambdaType, ControlType, ClosureType,
-  EnvironmentType;
-
-static inline type_t *rl_typeof( value_t x )
-{
-  switch (x&TMASK)
-    {
-    case NUL:    return &NulType;
-    case FALSE:  return &BoolType;
-    case PFUNC:  return &PrimitiveType;
-    case OBJECT: return *(type_t**)as_ptr(x);
-    default:     return &RealType;
-    }
-}
-
-static inline bool value_is_type( value_t x, type_t *type )
-{
-  return rl_typeof(x) == type;
-}
+#define untag( x )     (as_value(x)&PMASK)
+#define tag( x, t )    (untag(x)|(t))
 
 #endif

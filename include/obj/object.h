@@ -5,11 +5,21 @@
 
 #include "rascal.h"
 
-// core object types defined in here
-#define OBJHEAD object_t obj
+/* commentary 
 
-#define OBJINIT(type, size, allocated)				\
-  { NULL, NUL, (type), (size), true, false, (allocated), 0 }
+   Definition of the common object type.
+
+   All values tagged OBJECT have a struct object_t as their first member.
+
+   struct object_t contains:
+
+     - pointer to type
+     - live object pointer (might be null)
+     - metadata list
+     - size of total memory belonging to object
+     - memory flags
+     - discretionary flags
+ */
 
 struct object_t
 {
@@ -24,16 +34,23 @@ struct object_t
   uchar     space[0];     // beginning of object's own data
 };
 
-/* globals */
-// external
-object_t *make_obj( type_t *type );
-void init_obj( object_t *obj, size_t n, void *ini );
-void free_obj( object_t *obj );
+/* API */
+object_t *make_object( type_t *type );
+void init_object( object_t *obj, size_t n, void *ini );
+void free_object( object_t *obj );
+void trace_object( object_t *obj );
 
-/* convenience and utilities */
-#define tag_obj( x ) tag_ptr( x, OBJECT )
+/* convenience & utilities */
+// common object head declaration
+#define OBJHEAD object_t obj
 
-#define as_type( x ) ((type_t*)as_object(x))
-#define is_type( x ) value_is_type(x, &TypeType)
+// apply object tag
+#define tag_object( x ) tag_ptr( x, OBJECT )
+
+// initialize object head, fill in default values
+#define OBJINIT(type, size, allocated)				\
+  { NULL, NUL, (type), (size), true, false, (allocated), 0 }
+
+
 
 #endif

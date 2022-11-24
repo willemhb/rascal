@@ -1,14 +1,7 @@
-#include <stdarg.h>
-#include <string.h>
+#ifndef rl_tpl_impl_array_h
+#define rl_tpl_impl_array_h
 
-#include "array.h"
-#include "number.h"
-#include "memory.h"
-
-static const Size minCap = 8;
-
-// describe macros
-#define MAKEARR(_Type)				\
+#define MAKEARR(T)				\
   _Type *make##_Type( Void )			\
   {						\
     return (_Type*)create(&_Type##Type);	\
@@ -85,94 +78,5 @@ static const Size minCap = 8;
     return array->count;						\
   }
 
-// general array utilities
-Size padArrayLength( Size newCount, Size oldCap )
-{
-  Size newCap = oldCap;
 
-  while ( newCount < newCap/2 ) newCap >>= 1;
-  while ( newCount > newCap ) newCap <<= 1;
-
-  newCap = max(newCap, minCap);
-
-  return newCap;
-}
-
-// buffer implemenation
-MAKEARR(Buffer);
-INITARR(Buffer, Char);
-FREEARR(Buffer, Char);
-RESIZEARR(Buffer, Char, true);
-GETFROMARR(Buffer, Char);
-SETINARR(Buffer, Char);
-APPENDTOARR(Buffer, Char, Int, true);
-POPFROMARR(Buffer, Char);
-
-Size writeToBuffer( Buffer *dst, Char *src, Size n )
-{
-  Size oldCount =dst->count;
-  
-  resizeBuffer(dst, oldCount+n);
-  strcpy(dst->data+oldCount, src);
-
-  return dst->count;
-}
-
-Size readFromBuffer( Char *dst, Buffer *src, Size n )
-{
-  Size totalToWrite = min(n, src->count);
-  strncpy(src->data, dst, totalToWrite);
-
-  return totalToWrite;
-}
-
-// instr implementation
-MAKEARR(Instr);
-INITARR(Instr, UShort);
-FREEARR(Instr, UShort);
-RESIZEARR(Instr, UShort, false);
-GETFROMARR(Instr, UShort);
-SETINARR(Instr, UShort);
-APPENDTOARR(Instr, UShort, Int, false);
-POPFROMARR(Instr, UShort);
-
-// vector implementation
-MAKEARR(Vector);
-INITARR(Vector, Value);
-FREEARR(Vector, Value);
-RESIZEARR(Vector, Value, false);
-GETFROMARR(Vector, Value);
-SETINARR(Vector, Value);
-APPENDTOARR(Vector, Value, Value, false);
-POPFROMARR(Vector, Value);
-
-// globals
-Type BufferType =
-  {
-    {
-      .dtype=&TypeType.obj
-    },
-
-    "buffer",
-    sizeof(Buffer)
-  };
-
-Type InstrType =
-  {
-    {
-      .dtype=&TypeType.obj
-    },
-
-    "instr",
-    sizeof(Instr)
-  };
-
-Type VectorType =
-  {
-    {
-      .dtype=&TypeType.obj
-    },
-
-    "vector",
-    sizeof(Vector)
-  };
+#endif
