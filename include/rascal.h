@@ -48,7 +48,9 @@ typedef void      (*init_fn_t)(object_t *object, size_t n, void *ini);
 typedef void      (*trace_fn_t)(object_t *object);
 typedef void      (*free_fn_t)(object_t *object);
 typedef size_t    (*sizeof_fn_t)(object_t *object);
-typedef int       (*compare_fn_t)(value_t x, value_t y);
+typedef int       (*compare_fn_t)(value_t x, value_t y, bool eq);
+typedef int       (*compare_traverse_fn_t)(value_t x, value_t y, bool eq, );
 typedef ulong     (*hash_fn_t)(value_t x);
+typedef ulong     (*hash_traverse_fn_t)(value_t x, ulong accum, );
 
 #endif

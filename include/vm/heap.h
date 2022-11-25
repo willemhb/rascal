@@ -17,9 +17,10 @@ extern heap_t Heap;
 
 /* API */
 
-/* initialization */
+/* runtime */
 void rl_vm_heap_init( void );
+void rl_vm_heap_mark( void );
 
-/* utilities & convenience */
+/* convenience */
 
 #endif

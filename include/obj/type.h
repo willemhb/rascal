@@ -1,31 +1,28 @@
 #ifndef rl_obj_type_h
 #define rl_obj_type_h
 
+#include "repr.h"
+
 #include "obj/object.h"
 
 /* commentary */
 
 /* C types */
-typedef struct field_t
-{
-  uint   repr     :  6;
-  uint   read     :  1;
-  uint   write    :  1;
-  uint            : 24;
-  uint   offset;
-} field_t;
-
 struct type_t
 {
   OBJHEAD;
-  /* size/layout information */
-  field_t     *fields;      // description of object layout (or NULL)
-  size_t       n_fields;    // total number of distinct fields on the object
-  size_t       ob_size;     // 
-  size_t       el_size;     // base size of the object pointed to by the value
-
+  
   /* misc */
   char        *name;
+  uint64_t     idno;
+
+  /* size/layout/representation information */
+  size_t       ob_size;
+  repr_t       ob_repr;
+  bool         is_leaf;
+  value_t      val_tag;
+
+  /* additional array layout information */
 
   /* internal methods */
   make_fn_t    make_fn;

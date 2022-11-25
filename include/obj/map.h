@@ -13,6 +13,8 @@ struct map_t { TABLE(cons_t); };
 extern type_t MapType;
 
 /* API */
+object_t *make_map( type_t *type, size_t n );
+void      init_map( object_t *object, size_t n, void *ini );
 
 /* runtime */
 void rl_obj_map_init( void );
