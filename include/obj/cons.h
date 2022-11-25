@@ -6,7 +6,8 @@
 /* C type */
 typedef enum cons_fl_t
   {
-    cons_fl_proper = 1,
+   cons_fl_proper = 1,
+   cons_fl_names  = 2,
   } cons_fl_t;
 
 struct cons_t
