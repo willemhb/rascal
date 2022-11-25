@@ -8,15 +8,6 @@
 /* commentary */
 
 /* C types */
-typedef struct field_t
-{
-  uint repr  :  6;
-  uint read  :  1;
-  uint write :  1;
-  uint       : 24;
-  uint offset;
-} field_t;
-
 struct type_t
 {
   OBJHEAD;
@@ -28,19 +19,30 @@ struct type_t
   /* size/layout/representation information */
   size_t       ob_size;
   repr_t       ob_repr;
-  bool         is_leaf; // doesn't contain a pointer to another 
+  bool         is_leaf;     // doesn't contain a pointer to another object
   value_t      val_tag;
+  value_t      constructor; // special constructor (if one exists)
 
   /* internal methods */
-  make_fn_t    make_fn;
-  init_fn_t    init_fn;
-  free_fn_t    free_fn;
-  trace_fn_t   trace_fn;
-  compare_fn_t compare_fn;
-  hash_fn_t    hash_fn;
+  make_fn_t     make_fn;
+  init_obj_fn_t init_fn;
+  init_spc_fn_t cvinit_fn;
+  free_fn_t     free_fn;
+  trace_fn_t    trace_fn;
+  compare_fn_t  compare_fn;
+  hash_fn_t     hash_fn;
 };
 
 /* globals */
+/* builtin type idnos */
+enum
+  {
+    nul_idno, bool_idno, smint_idno, fixnum_idno, real_idno,
+
+    type_idno, atom_idno, cons_idno,
+
+  } type_order;
+
 extern type_t TypeType;
 
 /* API */
@@ -52,32 +54,5 @@ void rl_obj_type_mark( void );
 /* convenience */
 static inline bool    is_type( value_t x ) { return rl_isa(x, &TypeType); }
 static inline type_t *as_type( value_t x ) { return (type_t*)as_object(x); }
-
-// initial object layout (for initializing type->fields)
-#define OBJLAYOUT							\
-  { repr_obj, false, false, offsetof(object_t, next) },			\
-  { repr_val, false, false, offsetof(object_t, _meta) },		\
-  { repr_obj, false, false, offsetof(object_t, type) },			\
-  { repr_uint32, false, false, offsetof(object_t, size) },		\
-  { repr_uint8,  false, false, offsetof(object_t, gray) },		\
-  { repr_uint8,  false, false, offsetof(object_t, black) },		\
-  { repr_uint8,  false, false, offsetof(object_t, allocated) },		\
-  { repr_uint8,  false, false, offsetof(object_t, flags) }
-
-#define TYPEINIT(Ctype, name, fields, n_fields)				\
-  {									\
-    NULL,								\
-      NUL,								\
-      &TypeType,							\
-      sizeof(type_t)+sizeof(field_t)*(n_fields+8)+sizeof(name),		\
-      true,								\
-      false,								\
-      false,								\
-      0									\
-      },								\
-    fields,								\
-    n_fields+8,								\
-    sizeof(Ctype),							\
-    0									\
 
 #endif

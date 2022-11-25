@@ -33,7 +33,7 @@ typedef struct vector_t       vector_t;
 typedef struct string_t       string_t;
 typedef struct map_t          map_t;
 
-/* internal object types */
+/* vm object types */
 typedef struct type_t         type_t;
 typedef struct bytecode_t     bytecode_t;
 typedef struct lambda_t       lambda_t;
@@ -42,13 +42,17 @@ typedef struct closure_t      closure_t;
 typedef struct environment_t  environment_t;
 typedef struct namespace_t    namespace_t;
 
-/* internal function pointer types */
-typedef object_t *(*make_fn_t)(type_t *type, size_t n);
-typedef void      (*init_fn_t)(object_t *object, size_t n, bool validated, void *ini);
-typedef void      (*guard_fn_t)(type_t *type, size_t n, vector_t *ini, uchar **buffer);
-typedef void      (*trace_fn_t)(object_t *object);
-typedef void      (*free_fn_t)(object_t *object);
-typedef int       (*compare_fn_t)(value_t x, value_t y, bool eq);
-typedef ulong     (*hash_fn_t)(value_t x);
+/* internal structure types (no rascal representation) */
+typedef struct vm_t   vm_t;
+typedef struct heap_t heap_t;
+
+/* internal function pointer types (mostly handle object traversal) */
+typedef object_t *(*make_fn_t)( type_t *type, size_t n, uint flags, void *data );
+typedef void      (*init_obj_fn_t)( object_t *object, type_t *type, size_t n, uint flags, void *data );
+typedef void      (*init_spc_fn_t)( type_t *type, value_t ini,  void*spc );
+typedef void      (*trace_fn_t)( object_t *object );
+typedef void      (*free_fn_t)( object_t *object );
+typedef int       (*compare_fn_t)( value_t x, value_t y, bool eq );
+typedef ulong     (*hash_fn_t)( value_t x );
 
 #endif

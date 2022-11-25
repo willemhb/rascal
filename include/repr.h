@@ -74,4 +74,36 @@ static Ctype_t Reprs[] =
     [repr_u32str] = { "utf32-str", repr_u32str, repr_uint64, sizeof(utf32_t*), alignof(utf32_t*) }
   };
 
+#define reprof(Ctype)				\
+  _Generic(((Ctype)0),				\
+	   void:repr_void,			\
+	   ascii_t:repr_ascii,			\
+	   latin1_t:repr_latin1,		\
+	   utf8_t:repr_utf8,			\
+	   utf16_t:repr_utf16,			\
+	   utf32_t:repr_utf32,			\
+	   uint8_t:repr_uint8,			\
+	   uint16_t:repr_uint16,		\
+	   uint32_t:repr_uint32,		\
+	   uint64_t:repr_uint64,		\
+	   int8_t:repr_sint8,			\
+	   int16_t:repr_sint16,			\
+	   int32_t:repr_sint32,			\
+	   int64_t:repr_sint64,			\
+	   float:repr_flo32,			\
+	   double:repr_flo64,			\
+	   value_t:repr_val,			\
+	   object_t*:repr_obj,			\
+	   value_t*:repr_vals,			\
+	   object_t**:repr_objs,		\
+	   void*:repr_vptr,			\
+	   funcptr:repr_fptr,			\
+	   byte*:repr_bptr,			\
+	   FILE*:repr_sptr,			\
+	   ascii_t*:repr_astr,			\
+	   latin1_t*:repr_l1str,		\
+	   utf8_t*:repr_u8str,			\
+	   utf16_t*:repr_u16str,		\
+	   utf32_t*:repr_u32str)
+
 #endif

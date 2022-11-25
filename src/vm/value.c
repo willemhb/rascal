@@ -41,3 +41,12 @@ size_t rl_sizeof( value_t x )
     default:      return sizeof(real_t);
     }
 }
+
+
+bool is_leaf( value_t x )
+{
+  if ( is_object(x) )
+    return flagp(as_object(x)->flags, mem_is_leaf);
+
+  return true;
+}

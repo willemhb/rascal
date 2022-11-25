@@ -31,6 +31,7 @@ typedef union
 /* API */
 type_t *rl_typeof( value_t x );
 size_t  rl_sizeof( value_t x );
+bool    is_leaf( value_t x );
 
 /* utilities & convenience */
 #define QNAN    0x7ff8000000000000ul
@@ -53,7 +54,11 @@ size_t  rl_sizeof( value_t x );
 #define untag( x )      (as_value(x)&PMASK)
 
 #define as_value( x )   (((rl_data_t)(x)).as_value)
-#define as_pointer( x ) ((void*)untag(x))
+
+#define as_pointer( x )					\
+  ((void*)_Generic((x),					\
+		   value_t:(untag((value_t)(x))),	\
+		   default:((typeof(x))(x))))
 
 static inline bool rl_isa( value_t x, type_t *type )
 {

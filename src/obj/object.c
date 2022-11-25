@@ -7,6 +7,8 @@
 #include "obj/type.h"
 #include "obj/stream.h"
 
+#include "vm/vm.h"
+#include "vm/heap.h"
 #include "vm/memory.h"
 
 #include "util/string.h"
@@ -18,44 +20,31 @@
 /* globals */
 
 /* API */
-object_t *make_object( type_t *type, size_t n )
+object_t *make_object( type_t *type, size_t n, uint flags, void *ini )
 {
-  if ( type->make_fn )
-    return type->make_fn(type, n);
-
-  object_t *out = alloc(type->ob_size);
-
-  *out = (object_t) OBJINIT(type, type->ob_size, true);
-
-  return out;
+  return type->make_fn(type, n, flags, ini);
 }
 
-void init_object( object_t *object, size_t n, void *ini )
+void init_object( object_t *object, type_t *type, size_t n, uint flags, void *ini )
 {
-  if ( object->type->init_fn )
-    object->type->init_fn(object, n, ini);
+  flags   |= type->is_leaf * mem_is_leaf;
 
-  else
-    {
-      type_t  *type   = object->type;
+  *object  = (object_t) { Heap.live_objects, NUL, type, flags&(3), type->ob_size, true, false };
 
-      assert( n == type->n_fields );
+  Heap.live_objects = object;
 
-      if ( ini )
-	memcpy(object->space, ini, type->ob_size - sizeof(object_t));
-    }
+  type->init_fn(object, type, n, flags, ini);
 }
 
 void free_object( object_t *object )
 {
-  if ( object == NULL || !object->allocated )
+  if ( object == NULL || !flagp(object->flags, mem_is_alloc) )
     return;
 
   object->type->free_fn(object);
-}
 
-extern void mark_value( value_t x );
-extern void mark_object( object_t *object );
+  dealloc(object, object->type->ob_size);
+}
 
 void trace_object( object_t *object )
 {

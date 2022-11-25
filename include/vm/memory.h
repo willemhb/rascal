@@ -3,15 +3,26 @@
 
 #include "rascal.h"
 
+/* commentary */
+
+/* C types */
+
 /* API */
 void *alloc( size_t n_bytes );
 void *alloc_array( size_t count, size_t ob_size );
+void *alloc_cstring( size_t count, size_t ob_size );
+void *dup( void *ptr, size_t n_bytes );
+void *dup_array( void *ptr, size_t count, size_t ob_size );
+void *dup_cstring( void *ptr, size_t count, size_t ob_size );
 void *resize( void *ptr, size_t n_old, size_t n_new );
 void *resize_array( void *ptr, size_t n_old, size_t n_new, size_t ob_size );
+void *resize_cstring( void *ptr, size_t n_old, size_t n_new, size_t ob_size );
 void  dealloc( void *ptr, size_t size );
 void  dealloc_array( void *ptr, size_t count, size_t ob_size );
+void  dealloc_cstring( void *ptr, size_t count, size_t ob_size );
 void  init_memory( void *ptr, size_t n_bytes );
-void  init_array( void *ptr, size_t count, size_t ob_size );
+void  init_array_memory( void *ptr, size_t count, size_t ob_size );
+void  init_cstring_memory( void *ptr, size_t count, size_t ob_size );
 
 void collect_garbage( void );
 
@@ -31,6 +42,5 @@ void collect_garbage( void );
       }									\
     __out__;								\
   })
-
 
 #endif
