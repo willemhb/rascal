@@ -19,7 +19,6 @@
      - discretionary flags
  */
 
-
 /* C types */
 struct object_t
 {
@@ -38,7 +37,7 @@ struct object_t
 
 /* API */
 object_t *make_object( type_t *type, size_t n );
-void      init_object( object_t *object, size_t n, void *ini );
+void      init_object( object_t *object, size_t n, bool safe, void *ini );
 void      free_object( object_t *object );
 void      trace_object( object_t *object );
 

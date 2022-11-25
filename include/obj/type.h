@@ -8,10 +8,19 @@
 /* commentary */
 
 /* C types */
+typedef struct field_t
+{
+  uint repr  :  6;
+  uint read  :  1;
+  uint write :  1;
+  uint       : 24;
+  uint offset;
+} field_t;
+
 struct type_t
 {
   OBJHEAD;
-  
+
   /* misc */
   char        *name;
   uint64_t     idno;
@@ -19,10 +28,8 @@ struct type_t
   /* size/layout/representation information */
   size_t       ob_size;
   repr_t       ob_repr;
-  bool         is_leaf;
+  bool         is_leaf; // doesn't contain a pointer to another 
   value_t      val_tag;
-
-  /* additional array layout information */
 
   /* internal methods */
   make_fn_t    make_fn;
