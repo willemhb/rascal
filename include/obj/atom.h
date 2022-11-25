@@ -21,11 +21,12 @@ extern atom_t *SymbolTable;
 /* API */
 value_t atom( char *name );
 
-/* initialization */
+/* runtime */
 void rl_obj_atom_init( void );
+void rl_obj_atom_mark( void );
 
-/* utilities & convenience */
-#define as_atom( x ) ((atom_t*)as_object(x))
-#define is_atom( x ) value_is_type(x, &AtomType)
+/* convenience */
+static inline atom_t *as_atom( value_t x ) { return (atom_t*)as_object(x); }
+static inline bool    is_atom( value_t x ) { return rl_isa(x, &AtomType); }
 
 #endif

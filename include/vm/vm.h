@@ -3,6 +3,8 @@
 
 #include "rascal.h"
 
+/* commentary */
+
 /* C types */
 typedef struct vm_t
 {
@@ -17,9 +19,10 @@ extern vm_t Vm;
 
 /* API */
 
-/* initialization */
+/* runtime */
 void rl_vm_vm_init( void );
+void rl_vm_vm_mark( void );
 
-/* convenience & utilities */
+/* convenience */
 
 #endif

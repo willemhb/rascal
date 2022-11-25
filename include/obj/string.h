@@ -13,11 +13,12 @@ extern type_t StringType;
 /* API */
 void resize_string( string_t *string, size_t new_size );
 
-/* initialization */
+/* runtime */
 void rl_obj_string_init( void );
+void rl_obj_string_mark( void );
 
-/* convenience & utilities */
-#define as_string( x ) ((string_t*)as_obj(x))
-#define is_string( x ) value_is_type(x, &StringType)
+/* convenience */
+static inline bool      is_string( value_t x ) { return rl_isa(x, &StringType); }
+static inline string_t *as_string( value_t x ) { return (string_t*)as_object(x); }
 
 #endif

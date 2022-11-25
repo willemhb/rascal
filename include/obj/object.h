@@ -1,9 +1,7 @@
-#ifndef rascal_object_h
-#define rascal_object_h
+#ifndef rl_obj_object_h
+#define rl_obj_object_h
 
-#include <stdio.h>
-
-#include "rascal.h"
+#include "vm/value.h"
 
 /* commentary 
 
@@ -21,6 +19,8 @@
      - discretionary flags
  */
 
+
+/* C types */
 struct object_t
 {
   object_t *next;           // live object list
@@ -34,18 +34,27 @@ struct object_t
   uchar     space[0];     // beginning of object's own data
 };
 
-/* API */
-object_t *make_object( type_t *type );
-void init_object( object_t *obj, size_t n, void *ini );
-void free_object( object_t *obj );
-void trace_object( object_t *obj );
+/* globals */
 
-/* convenience & utilities */
+/* API */
+object_t *make_object( type_t *type, size_t n );
+void      init_object( object_t *object, size_t n, void *ini );
+void      free_object( object_t *object );
+void      trace_object( object_t *object );
+
+/* runtime */
+void rl_obj_object_init( void );
+void rl_obj_object_mark( void );
+
+/* convenience */
 // common object head declaration
 #define OBJHEAD object_t obj
 
 // apply object tag
-#define tag_object( x ) tag_ptr( x, OBJECT )
+#define tag_object( x ) set_tag( x, OBJECT )
+
+static inline object_t *as_object( value_t x ) { return (object_t*)as_pointer(x); }
+static inline bool      is_object( value_t x ) { return get_tag(x) == OBJECT; }
 
 // initialize object head, fill in default values
 #define OBJINIT(type, size, allocated)				\

@@ -17,13 +17,14 @@ struct control_t
 /* globals */
 extern type_t ControlType;
 
-/* initialization */
-void rl_control_init( void );
+/* runtime */
+void rl_obj_control_init( void );
+void rl_obj_control_mark( void );
 
 /* API */
 
-/* convenience & utilities */
-#define is_control( x )      value_is_type(x, &ControlType)
-#define as_control( x )     ((control_t*)as_obj(x))
+/* convenience */
+static inline bool       is_control( value_t x ) { return rl_isa(x, &ControlType); }
+static inline control_t *as_control( value_t x ) { return (control_t*)as_object(x); }
 
 #endif

@@ -1,26 +1,9 @@
-#ifndef rascal_function_h
-#define rascal_function_h
+#ifndef rl_obj_lambda_h
+#define rl_obj_lambda_h
 
-#include "table.h"
+#include "obj/object.h"
 
 /* C types */
-/* lexical environment representation */
-typedef enum
-  {
-   variable_name=1,
-   macro_name   =2,
-   function_name=3,
-  } name_type_t;
-
-struct namespace_t
-{
-  OBJHEAD;
-
-  namespace_t *parent;
-  table_t     *locals;
-};
-
-/* user function representation */
 struct lambda_t
 {
   OBJHEAD;
@@ -30,28 +13,17 @@ struct lambda_t
   bytecode_t  *bytecode;    // instruction sequence
 };
 
-/* apis and utilities */
-/* lambda */
-lambda_t *make_lambda( void );
-void      init_lambda( lambda_t *lambda, namespace_t *namespace );
+/* globals */
+extern type_t LambdaType;
 
-/* runtime interaction with constant store */
-value_t   lmb_get_value( lambda_t *lambda, size_t n );
-value_t   lmb_get_constant( lambda_t *lambda, size_t n );
-value_t   lmb_set_constant( lambda_t *lambda, size_t n, value_t x );
+/* API */
 
-/* namespace */
-namespace_t *make_namespace( void );
-void         init_namespace( namespace_t *namespace, namespace_t *next );
-void         free_namespace( namespace_t *namespace );
+/* runtime */
+void rl_obj_lambda_init( void );
+void rl_obj_lambda_mark( void );
 
-bool         ns_lookup( namespace_t *namespace, size_t *i, size_t *j, object_t **macro );
-void         ns_defvar( namespace_t *namespace, value_t name );
-void         ns_defmac( namespace_t *namespace, value_t name );
-
-
-/* convenience macros */
-#define is_lambda( x ) value_is_type(x, &LambdaType)
-#define as_lambda( x ) ((lambda_t*)as_obj(x))
+/* convenience */
+static inline bool      is_lambda( value_t x ) { return rl_isa(x, &LambdaType); }
+static inline lambda_t *as_lambda( value_t x ) { return (lambda_t*)as_object(x); }
 
 #endif

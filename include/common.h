@@ -1,5 +1,5 @@
-#ifndef rascal_common_h
-#define rascal_common_h
+#ifndef rl_common_h
+#define rl_common_h
 
 #include <uchar.h>
 #include <stdbool.h>
@@ -29,5 +29,7 @@ typedef char32_t        utf32_t;
 
 #define rl_unreachable __builtin_unreachable
 #define rl_cleanup( cleaner ) __attribute__((cleanup(cleaner)))
+
+static inline bool fl_pred( uint64_t fls, uint64_t fl ) { return !!(fls&fl); }
 
 #endif

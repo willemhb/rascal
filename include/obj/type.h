@@ -3,6 +3,8 @@
 
 #include "obj/object.h"
 
+/* commentary */
+
 /* C types */
 typedef struct field_t
 {
@@ -19,13 +21,17 @@ struct type_t
   /* size/layout information */
   field_t     *fields;      // description of object layout (or NULL)
   size_t       n_fields;    // total number of distinct fields on the object
-  size_t       ob_size;     // base size of the object pointed to by the value
+  size_t       ob_size;     // 
+  size_t       el_size;     // base size of the object pointed to by the value
 
   /* misc */
-  string_t    *name;
+  char        *name;
 
   /* internal methods */
+  make_fn_t    make_fn;
   init_fn_t    init_fn;
+  free_fn_t    free_fn;
+  trace_fn_t   trace_fn;
   compare_fn_t compare_fn;
   hash_fn_t    hash_fn;
 };
@@ -33,9 +39,15 @@ struct type_t
 /* globals */
 extern type_t TypeType;
 
-/* convenience & utilities */
-#define as_type( x ) ((type_t*)as_obj(x))
-#define is_type( x ) value_is_type(x, &TypeType)
+/* API */
+
+/* runtime */
+void rl_obj_type_init( void );
+void rl_obj_type_mark( void );
+
+/* convenience */
+static inline bool    is_type( value_t x ) { return rl_isa(x, &TypeType); }
+static inline type_t *as_type( value_t x ) { return (type_t*)as_object(x); }
 
 // initial object layout (for initializing type->fields)
 #define OBJLAYOUT							\
@@ -48,5 +60,20 @@ extern type_t TypeType;
   { repr_uint8,  false, false, offsetof(object_t, allocated) },		\
   { repr_uint8,  false, false, offsetof(object_t, flags) }
 
+#define TYPEINIT(Ctype, name, fields, n_fields)				\
+  {									\
+    NULL,								\
+      NUL,								\
+      &TypeType,							\
+      sizeof(type_t)+sizeof(field_t)*(n_fields+8)+sizeof(name),		\
+      true,								\
+      false,								\
+      false,								\
+      0									\
+      },								\
+    fields,								\
+    n_fields+8,								\
+    sizeof(Ctype),							\
+    0									\
 
 #endif

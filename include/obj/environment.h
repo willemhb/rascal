@@ -1,7 +1,9 @@
-#ifndef rascal_obj_environment_h
-#define rascal_obj_environment_h
+#ifndef rl_obj_environment_h
+#define rl_obj_environment_h
 
 #include "obj/object.h"
+
+/* commentary */
 
 /* C types */
 struct environment_t
@@ -9,12 +11,7 @@ struct environment_t
   OBJHEAD;
 
   environment_t *next;
-
-  union
-  {
-    vector_t    *names;
-    vector_t    *binds;
-  };
+  vector_t      *binds;
 };
 
 /* globals */
@@ -22,8 +19,12 @@ extern type_t EnvironmentType;
 
 /* API */
 
-/* convenience & utilities */
-#define is_environment( x )  value_is_type(x, &EnvironmentType)
-#define as_environment( x ) ((environment_t*)as_obj(x))
+/* runtime */
+void rl_obj_environment_init( void );
+void rl_obj_environment_mark( void );
+
+/* convenience */
+static inline bool           is_environment( value_t x ) { return rl_isa(x, &EnvironmentType); }
+static inline environment_t *as_environment( value_t x ) { return (environment_t*)as_object(x); }
 
 #endif

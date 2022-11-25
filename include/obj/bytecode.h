@@ -13,11 +13,16 @@ extern type_t BytecodeType;
 /* API */
 void resize_bytecode( bytecode_t *bytecode, size_t new_size );
 
-/* initialization */
-void rl_obj_bytecode_init( void );
+ushort bytecode_get( bytecode_t *bytecode, long i );
+ushort bytecode_set( bytecode_t *bytecode, long i );
+size_t bytecode_add( bytecode_t *bytecode, size_t n, ... );
 
-/* convenience & utilities */
-#define as_bytecode( x ) ((bytecode_t*)as_obj(x))
-#define is_bytecode( x ) value_is_type(x, &BytecodeType)
+/* runtime */
+void rl_obj_bytecode_init( void );
+void rl_obj_bytecode_mark( void );
+
+/* convenience */
+static inline bytecode_t *as_bytecode( value_t x ) { return (bytecode_t*)as_object(x); }
+static inline bool        is_bytecode( value_t x ) { return rl_isa(x, &BytecodeType); }
 
 #endif
