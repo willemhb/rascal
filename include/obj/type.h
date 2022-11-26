@@ -3,6 +3,9 @@
 
 #include "obj/object.h"
 
-
+struct type_t
+{
+  OBJHEAD;
+};
 
 #endif

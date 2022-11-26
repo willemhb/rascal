@@ -33,7 +33,6 @@ typedef enum rl_mem_fl_t
 struct object_t
 {
   object_t *next;           // live object list
-  value_t   _meta;          // association list of object metadata
   type_t   *type;           // this object's type
   uint      size;           // object's total size
   ushort    flags;          // mix of VM flags (low part of the range) and discretionary flags

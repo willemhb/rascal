@@ -53,6 +53,7 @@ typedef struct script_t       script_t;
 typedef struct control_t      control_t;
 
 /* vm object types */
+typedef struct type_t         type_t;
 typedef struct bytecode_t     bytecode_t;
 typedef struct closure_t      closure_t;
 typedef struct namespace_t    namespace_t;
