@@ -8,10 +8,8 @@
 /* C types */
 typedef struct vm_t
 {
-  char      *error;       // error message
   bool       panic_mode;  // panicing?
-  control_t *control;     // currently executing function or module
-  closure_t *toplevel;    // toplevel module (at the moment just stores global bindings/namespace)
+  control_t  executing;
 } vm_t;
 
 /* globals */
@@ -21,7 +19,6 @@ extern vm_t Vm;
 
 /* runtime */
 void rl_vm_vm_init( void );
-void rl_vm_vm_mark( void );
 
 /* convenience */
 

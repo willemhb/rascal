@@ -1,82 +1,74 @@
 #ifndef rl_tpl_impl_array_h
 #define rl_tpl_impl_array_h
 
-#define MAKEARR(T)				\
-  _Type *make##_Type( Void )			\
+#include "tpl/impl/type.h"
+
+#define MAKE_ARR( Type, A, X )			\
+  TYPE(A) make_##A( size_t n, X *ini )		\
   {						\
-    return (_Type*)create(&_Type##Type);	\
+    return (TYPE(A))make_array(&Type, n, ini);	\
   }
 
-#define FREEARR(_Type, _ElType)					\
-  Int free##_Type( _Type *array )				\
-  {								\
-    deallocArray(array->data, array->count, sizeof(_ElType));	\
-    deallocate(array, sizeof(_Type));				\
-    return 0;							\
+#define FREE_ARR( A, X )			\
+  void free_##A( TYPE(A) A )			\
+  {						\
+    free_array((array_t)A);			\
   }
 
-#define INITARR(_Type, _ElType)					\
-  Void init##_Type( _Type *array )				\
-  {								\
-    array->count = 0;						\
-    array->capacity = minCap;					\
-    array->data = allocArray(array->capacity, sizeof(_ElType));	\
-  }
-
-#define RESIZEARR(_Type, _ElType, isString)				\
-  Size resize##_Type( _Type *array, Size newCount )			\
-  {									\
-    Size oldCap = array->capacity,					\
-         newCap = padArrayLength(newCount+isString, oldCap);		\
-    if ( oldCap != newCap )						\
-      array->data = reallocArray(array->data, newCap, sizeof(_ElType));	\
-    array->count = newCount;						\
-    array->capacity = newCap;						\
-    return newCount;							\
-  }
-
-#define GETFROMARR(_Type, _ElType)			\
-  _ElType getFrom##_Type( _Type *array, Long i )	\
+#define RESIZE_ARR( A, X )				\
+  size_t resize_##A( TYPE(A) A, size_t new_count )	\
   {							\
+    return resize_array((array_t)A, new_count);		\
+  }
+
+#define ARRAY_REF( A, X )				\
+  X A##_ref( TYPE(A) A, long i )			\
+  {							\
+    struct array_t *header = array_header((array_t)A);	\
+    TYPE(A) A##_data = (TYPE(A))array_data((array_t)A);	\
     if ( i < 0 )					\
-      i += array->count;				\
-    assert(i >= 0 && (Size)i < array->count);		\
-    return array->data[i];				\
+      i += header->len;					\
+    assert(i >= 0 && (size_t)i < header->len);		\
+    return A##_data[i];					\
   }
 
-#define SETINARR(_Type, _ElType)				\
-  _Type *setIn##_Type( _Type *array, Long i, _ElType x )	\
+#define ARRAY_SET( A, X )					\
+  X A##_set( TYPE(A) A, long i, X x )				\
   {								\
+    struct array_t *header = array_header((array_t)A);		\
+    TYPE(A) A##_data = (TYPE(A))array_data((array_t)A);		\
     if ( i < 0 )						\
-      i += array->count;					\
-    assert(i >= 0 && (Size)i < array->count);			\
-    array->data[i] = x;						\
-    return array;						\
+      i += header->len;						\
+    assert(i >= 0 && (size_t)i < header->len);			\
+    A##_data[i] = x;						\
+    return A##_data[i];						\
   }
 
-#define POPFROMARR(_Type, _ElType)			\
-  _ElType popFrom##_Type( _Type *array, Size n )	\
+#define ARRAY_ADD( A, X, V )						\
+  size_t A##_add( TYPE(A) A, size_t n, ... )				\
+  {									\
+    struct array_t *header = array_header((array_t)A);			\
+    bool is_string = header->obj.type->stringp;				\
+    resize_array((array_t)A, header->len+n);				\
+    X buffer[n+is_string];						\
+    va_list va; va_start(va, n);					\
+    for ( size_t i=0; i<n; i++ )					\
+      buffer[i] = va_arg(va, V);					\
+    va_end(va);								\
+    if ( is_string )							\
+      buffer[n] = (X)0;							\
+    memcpy(A##_data(A), buffer, (n+is_string)*sizeof(X));		\
+    return header->len;							\
+  }
+
+#define ARRAY_POP( A, X )				\
+  X A##_pop( TYPE(A) A, size_t n )			\
   {							\
-    assert( n <= array->count);				\
-    _ElType out = array->data[array->count-1];		\
-    resize##_Type(array, array->count-n);		\
+    struct array_t* header = array_header((array_t)A);	\
+    assert( n <= header->len);				\
+    X out = A##_data(A)[header->len-1];			\
+    resize_##A(A, header->len-n);			\
     return out;						\
   }
-
-#define APPENDTOARR(_Type, _ElType, _VaType, isString)			\
-  Size appendTo##_Type( _Type *array, Size n, ... )			\
-  {									\
-    resize##_Type(array, array->count+n);				\
-    _ElType buffer[n+isString];						\
-    va_list va; va_start(va, n);					\
-    for (Size i=0; i<n; i++)						\
-      buffer[i] = va_arg(va, _VaType);					\
-    va_end(va);								\
-    if (isString)							\
-      buffer[n] = (_ElType)0;						\
-    memcpy(array->data+n, buffer, (n+isString)*sizeof(_ElType));	\
-    return array->count;						\
-  }
-
 
 #endif

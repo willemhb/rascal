@@ -4,26 +4,30 @@
 #include "obj/object.h"
 
 /* C types */
+struct lambda_data_t
+{
+  vector_t   values;
+  bytecode_t code;
+};
+
 struct lambda_t
 {
-  OBJHEAD;
-
-  namespace_t *namespace;   // lexical environment
-  vector_t    *constants;   // constant store
-  bytecode_t  *bytecode;    // instruction sequence
+  struct object_t      obj;
+  struct lambda_data_t data;
 };
 
 /* globals */
-extern type_t LambdaType;
+extern struct type_t LambdaType;
 
 /* API */
+lambda_t make_lambda( void );
+value_t  lambda_constant( lambda_t lambda, size_t n );
 
 /* runtime */
 void rl_obj_lambda_init( void );
-void rl_obj_lambda_mark( void );
 
 /* convenience */
-static inline bool      is_lambda( value_t x ) { return rl_isa(x, &LambdaType); }
-static inline lambda_t *as_lambda( value_t x ) { return (lambda_t*)as_object(x); }
+#define is_lambda( x )   (rl_typeof(x)==&LambdaType.data)
+#define as_lambda( x )   ((lambda_t)((x)&PTRMASK))
 
 #endif

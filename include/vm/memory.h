@@ -7,24 +7,22 @@
 
 /* C types */
 
+/* globals */
+
 /* API */
 void *alloc( size_t n_bytes );
 void *alloc_array( size_t count, size_t ob_size );
-void *alloc_cstring( size_t count, size_t ob_size );
-void *dup( void *ptr, size_t n_bytes );
-void *dup_array( void *ptr, size_t count, size_t ob_size );
-void *dup_cstring( void *ptr, size_t count, size_t ob_size );
-void *resize( void *ptr, size_t n_old, size_t n_new );
-void *resize_array( void *ptr, size_t n_old, size_t n_new, size_t ob_size );
-void *resize_cstring( void *ptr, size_t n_old, size_t n_new, size_t ob_size );
-void  dealloc( void *ptr, size_t size );
-void  dealloc_array( void *ptr, size_t count, size_t ob_size );
-void  dealloc_cstring( void *ptr, size_t count, size_t ob_size );
-void  init_memory( void *ptr, size_t n_bytes );
-void  init_array_memory( void *ptr, size_t count, size_t ob_size );
-void  init_cstring_memory( void *ptr, size_t count, size_t ob_size );
 
-void collect_garbage( void );
+void  dealloc( void *ptr, size_t n_bytes );
+void  dealloc_array( void *ptr, size_t count, size_t ob_size );
+
+void *adjust( void *ptr, size_t old_size, size_t new_size );
+void *adjust_array( void *ptr, size_t old_count, size_t new_count, size_t ob_size );
+
+/* runtime */
+void rl_vm_memory_init( void );
+
+/* convenience */
 
 #define alloc_s( func, ... )						\
   ({									\

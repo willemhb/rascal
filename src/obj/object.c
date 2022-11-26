@@ -1,17 +1,10 @@
 #include <assert.h>
 #include <string.h>
 
-#include "repr.h"
-
 #include "obj/object.h"
 #include "obj/type.h"
-#include "obj/stream.h"
 
-#include "vm/vm.h"
-#include "vm/heap.h"
 #include "vm/memory.h"
-
-#include "util/string.h"
 
 /* commentary */
 
@@ -20,38 +13,25 @@
 /* globals */
 
 /* API */
-object_t *make_object( type_t *type, size_t n, uint flags, void *ini )
+object_t make_object( struct type_t *type )
 {
-  return type->make_fn(type, n, flags, ini);
+  struct object_t *object = alloc(type->obsize);
+
+  object->type = type;
+  object->size = type->obsize;
+
+  /* return pointer to object data */
+  return object->space;
 }
 
-void init_object( object_t *object, type_t *type, size_t n, uint flags, void *ini )
+void free_object( object_t object )
 {
-  flags   |= type->is_leaf * mem_is_leaf;
+  struct object_t *header = obj_head(object);
 
-  *object  = (object_t) { Heap.live_objects, NUL, type, flags&(3), type->ob_size, true, false };
-
-  Heap.live_objects = object;
-
-  type->init_fn(object, type, n, flags, ini);
-}
-
-void free_object( object_t *object )
-{
-  if ( object == NULL || !flagp(object->flags, mem_is_alloc) )
-    return;
-
-  object->type->free_fn(object);
-
-  dealloc(object, object->type->ob_size);
-}
-
-void trace_object( object_t *object )
-{
-  object->type->trace_fn(object);
-  object->gray = false;
+  dealloc(header, header->size);
 }
 
 /* runtime */
 void rl_obj_object_init( void ) {}
-void rl_obj_object_mark( void ) {}
+
+/* convenience */

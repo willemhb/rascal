@@ -1,5 +1,5 @@
-#ifndef rl_vm_read_h
-#define rl_vm_read_h
+#ifndef rl_vm_prin_h
+#define rl_vm_prin_h
 
 #include "rascal.h"
 
@@ -10,9 +10,7 @@
 /* globals */
 
 /* API */
-value_t read( stream_t stream );
-
-/* runtime */
+void prin( stream_t stream, value_t x );
 
 /* convenience */
 

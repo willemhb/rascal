@@ -1,26 +1,41 @@
 #ifndef rl_obj_vector_h
 #define rl_obj_vector_h
 
-#include "obj/object.h"
+#include "obj/array.h"
 #include "tpl/decl/array.h"
 
 /* commentary */
 
 /* C types */
-struct vector_t { ARRAY(value_t); };
+struct vector_t
+{
+  ARRHEAD;
+  value_t space[];
+};
 
 /* globals */
-extern type_t VectorType;
+extern struct type_t VectorType;
 
 /* API */
-void resize_vector( vector_t *vector, size_t new_size );
+vector_t make_vector( size_t n, value_t *ini );
+void     free_vector( vector_t vector );
+size_t   resize_vector( vector_t vector, size_t new_count );
+
+value_t  vector_ref( vector_t vector, long i );
+value_t  vector_set( vector_t vector, long i, value_t x );
+size_t   vector_add( vector_t vector, size_t n, ... );
+value_t  vector_pop( vector_t vector, size_t n );
 
 /* runtime */
 void rl_obj_vector_init( void );
-void rl_obj_vector_mark( void );
 
-/* convenience & utilities */
-static inline bool      is_vector( value_t x ) { return rl_isa(x, &VectorType); }
-static inline vector_t *as_vector( value_t x ) { return (vector_t*)as_object(x); }
+/* convenience */
+#define is_vector( x ) (rl_typeof(x)==&VectorType.data)
+#define as_vector( x ) ((vector_t)((x)&PMASK))
+
+#define vector_header( x ) ((struct vector_t*)array_header((array_t)(x)))
+#define vector_data( x )   ((vector_t)array_data((array_t)(x)))
+#define vector_len( x )    (vector_header(x)->len)
+#define vector_alloc( x )  (vector_header(x)->alloc)
 
 #endif
