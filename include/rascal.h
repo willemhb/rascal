@@ -17,8 +17,7 @@ typedef void                 *nul_t;
 typedef bool                  bool_t;
 typedef double                real_t;
 typedef uint64_t              fixnum_t;
-typedef int32_t               smint_t;
-typedef FILE                  stream_t;
+typedef int32_t               small_t;
 typedef ascii_t               glyph_t;
 typedef value_t             (*native_fn_t)(value_t *args, size_t nargs);
 
@@ -26,33 +25,41 @@ typedef value_t             (*native_fn_t)(value_t *args, size_t nargs);
 /* generic object type (common header) */
 typedef struct object_t       object_t;
 
-/* core user object types */
+/* user object types */
+typedef struct symbol_t       symbol_t;
 typedef struct cons_t         cons_t;
-typedef struct atom_t         atom_t;
 typedef struct vector_t       vector_t;
 typedef struct string_t       string_t;
+typedef struct bytes_t        bytes_t;
 typedef struct map_t          map_t;
+typedef struct set_t          set_t;
+typedef struct bigint_t       bigint_t;
+typedef struct ratio_t        ratio_t;
+typedef struct record_t       record_t;
+
+/* IO object types */
+typedef struct stream_t        stream_t;
+typedef struct text_buffer_t   text_buffer_t;
+typedef struct binary_buffer_t binary_buffer_t;
+typedef struct read_table_t    read_table_t;
+typedef struct reader_t        reader_t;
+
+/* function object types */
+typedef struct function_t     function_t;
+typedef struct method_t       method_t;
+typedef struct native_t       native_t;
+typedef struct lambda_t       lambda_t;
+typedef struct script_t       script_t;
+typedef struct control_t      control_t;
 
 /* vm object types */
-typedef struct type_t         type_t;
 typedef struct bytecode_t     bytecode_t;
-typedef struct lambda_t       lambda_t;
-typedef struct control_t      control_t;
 typedef struct closure_t      closure_t;
-typedef struct environment_t  environment_t;
 typedef struct namespace_t    namespace_t;
+typedef struct environment_t  environment_t;
 
 /* internal structure types (no rascal representation) */
 typedef struct vm_t   vm_t;
 typedef struct heap_t heap_t;
-
-/* internal function pointer types (mostly handle object traversal) */
-typedef object_t *(*make_fn_t)( type_t *type, size_t n, uint flags, void *data );
-typedef void      (*init_obj_fn_t)( object_t *object, type_t *type, size_t n, uint flags, void *data );
-typedef void      (*init_spc_fn_t)( type_t *type, value_t ini,  void*spc );
-typedef void      (*trace_fn_t)( object_t *object );
-typedef void      (*free_fn_t)( object_t *object );
-typedef int       (*compare_fn_t)( value_t x, value_t y, bool eq );
-typedef ulong     (*hash_fn_t)( value_t x );
 
 #endif

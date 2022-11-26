@@ -19,23 +19,30 @@ typedef enum
    op_load_variable = 6,
    op_store_variable= 7,
 
+   /* accessor instructions */
+   op_getf          = 8,
+   op_setf          = 9,
+   op_aref          =10,
+   op_aset          =11,
+
    /* jump instructions */
    op_jump_true     = 8,
    op_jump_false    = 9,
    op_jump          =10,
-   
-   /* closure/funcall instructions */
 
-   op_invoke        =11,
-   op_return        =12,
-   op_closure       =13,
+   /* closure/funcall instructions */
+   op_construct     =11,
+   op_invoke        =12,
+   op_return        =13,
+   op_closure       =14,
 
    /* validation */
-   op_argco         =14,
-   op_vargco        =15,
+   op_argco         =15,
+   op_vargco        =16,
+   op_argtype       =17,
    
    /* miscellaneous */
-   op_halt          =16
+   op_halt          =18
   } opcode_t;
 
 static inline size_t op_argc( opcode_t opcode )
