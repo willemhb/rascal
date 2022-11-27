@@ -6,19 +6,6 @@
 #include "memory.h"
 
 
-// print
-void rl_print( value_t x )
-{
-  if (is_real(x))
-    printf("%.2f", as_real(x));
-}
-
-void rl_println( value_t x )
-{
-  rl_print( x );
-  printf("\n");
-}
-
 // entry point, version information
 #define VMAJOR     0
 #define VMINOR     0
@@ -37,7 +24,10 @@ void rl_goodbye( void )
   printf( "Exiting normally.\n" );
 }
 
-void rl_init(  void ) {}
+void rl_init( void )
+{
+  
+}
 
 void rl_main( void )
 {

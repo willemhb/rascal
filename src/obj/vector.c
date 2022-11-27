@@ -1,7 +1,3 @@
-#include <assert.h>
-#include <string.h>
-#include <stdarg.h>
-
 #include "obj/vector.h"
 #include "obj/array.h"
 #include "obj/type.h"

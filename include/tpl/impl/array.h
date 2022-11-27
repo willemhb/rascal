@@ -1,6 +1,11 @@
 #ifndef rl_tpl_impl_array_h
 #define rl_tpl_impl_array_h
 
+#include <assert.h>
+#include <string.h>
+#include <stdarg.h>
+
+#include "tpl/undef/array.h"
 #include "tpl/impl/type.h"
 
 #define MAKE_ARR( Type, A, X )			\
@@ -50,14 +55,14 @@
     struct array_t *header = array_header((array_t)A);			\
     bool is_string = header->obj.type->stringp;				\
     resize_array((array_t)A, header->len+n);				\
-    X buffer[n+is_string];						\
+    X buf[n+is_string];						\
     va_list va; va_start(va, n);					\
     for ( size_t i=0; i<n; i++ )					\
-      buffer[i] = va_arg(va, V);					\
+      buf[i] = va_arg(va, V);					\
     va_end(va);								\
     if ( is_string )							\
-      buffer[n] = (X)0;							\
-    memcpy(A##_data(A), buffer, (n+is_string)*sizeof(X));		\
+      buf[n] = (X)0;							\
+    memcpy(A##_data(A), buf, (n+is_string)*sizeof(X));		\
     return header->len;							\
   }
 
