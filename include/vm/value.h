@@ -26,8 +26,9 @@ typedef union
 /* value tags */
 /* immediate tags */
 #define REAL        0x0000000000000000ul
-#define STREAM      0x7ffc000000000000ul
-#define OBJECT      0x7ffd000000000000ul
+#define NUL         0x7ffc000000000000ul
+#define STREAM      0x7ffd000000000000ul
+#define OBJECT      0x7ffe000000000000ul
 
 /* masks */
 #define TAGMASK     0xffff000000000000ul

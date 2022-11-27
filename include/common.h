@@ -18,6 +18,10 @@ typedef intptr_t        word;
 typedef uintptr_t       uword;
 typedef void          (*funcptr)(void);
 
+// C 23 typedefs
+typedef void           *nullptr_t;
+
+// character encoding typedefs
 typedef uchar           ascii_t;
 typedef uchar           latin1_t;
 typedef uchar           utf8_t;

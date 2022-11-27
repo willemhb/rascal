@@ -49,6 +49,16 @@ void dealloc_array( void *ptr, size_t count, size_t ob_size )
   dealloc(ptr, count * ob_size);
 }
 
+void clear_memory( void *ptr, size_t n_bytes )
+{
+  memset(ptr, 0, n_bytes);
+}
+
+void clear_array( void *ptr, size_t count, size_t ob_size )
+{
+  memset(ptr, 0, count * ob_size);
+}
+
 /* runtime */
 void rl_vm_memory_init( void ) {}
 

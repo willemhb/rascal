@@ -19,8 +19,9 @@ typedef FILE  *stream_t;
 /* generic object type (more type information before header) */
 typedef uchar *object_t;
 
-/* generic array type (extended object) */
+/* generic array & table types (extended object) */
 typedef uchar *array_t;
+typedef object_t *table_t;
 
 /* vm object types */
 typedef struct lambda_data_t *lambda_t;
@@ -31,6 +32,9 @@ typedef struct type_data_t *type_t;
 typedef value_t *vector_t;
 typedef ushort *bytecode_t;
 typedef char *buffer_t;
+
+/* table types */
+typedef table_t read_table_t;
 
 /* internal structure types (no rascal representation) */
 typedef struct vm_t  vm_t;

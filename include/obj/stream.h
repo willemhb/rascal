@@ -12,6 +12,9 @@ extern struct type_t StreamType;
 extern stream_t Ins, Outs, Errs;
 
 /* API */
+int peekc( stream_t stream );
+int skipws( stream_t stream );
+int strskip( stream_t stream, const char *chars );
 
 /* runtime */
 void rl_obj_stream_init( void );

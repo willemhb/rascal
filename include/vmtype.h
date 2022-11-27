@@ -16,6 +16,7 @@ typedef struct vmtype_spec_t vmtype_spec_t;
 
 enum vmtype_t
   {
+    vmtype_nulptr,
     vmtype_flo64,
     vmtype_stream,
     vmtype_object,

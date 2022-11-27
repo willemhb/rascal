@@ -34,7 +34,7 @@ void rl_obj_buffer_init( void );
 
 #define buffer_header( x ) ((struct buffer_t*)array_header((array_t)(x)))
 #define buffer_data( x )   ((buffer_t)array_data((array_t)(x)))
-#define buffer_len( x )    (buffer_header(x)->len)
-#define buffer_alloc( x )  (buffer_header(x)->alloc)
+#define buffer_len( x )    (buffer_header(x)->arr.len)
+#define buffer_alloc( x )  (buffer_header(x)->arr.alloc)
 
 #endif

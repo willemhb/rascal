@@ -1,30 +1,39 @@
 #include "obj/buffer.h"
+#include "obj/stream.h"
 
 #include "vm/reader.h"
+#include "vm/memory.h"
 
 /* commentary */
 
 /* C types */
-typedef enum token_t
-  {
-   token_ready=0,
-   token_real =1,
-   token_eos  =2,
-   token_error=3,
-  } token_t;
-
-struct reader_t
-{
-  stream_t stream;
-  buffer_t buffer;
-  token_t  token;
-  value_t  value;
-};
 
 /* globals */
-extern reader_t Reader;
+reader_t Reader;
+
+/* API */
+void clear_reader( reader_t *reader )
+{
+  reader->token = token_ready;
+  reader->value = NUL;
+
+  clear_array(reader->buffer, buffer_len(reader->buffer), sizeof(char));
+}
+
+void reset_reader( reader_t *reader, stream_t stream )
+{
+  clear_reader(reader);
+
+  reader->stream = stream;
+}
 
 /* runtime */
-void rl_vm_reader_init( void );
+void rl_vm_reader_init( void )
+{
+  Reader.stream = Ins;
+  Reader.buffer = make_buffer(0, NULL);
+  Reader.token  = token_ready;
+  Reader.value  = NUL;
+}
 
 /* convenience */
