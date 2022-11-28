@@ -5,13 +5,20 @@
 
 /* API signatures */
 
-#define HTABLE(HT, K, V )					\
-  void  *HT##_get( htable_t *h, K key );			\
-  bool   HT##_put( htable_t *h, K key, V val );			\
-  bool   HT##_adjoin( htable_t *h, K key, V val );		\
-  bool   HT##_has( htable_t *h, K key, V val );			\
-  bool   HT##_remove( htable_t *h, K key );			\
-  bool   HT##_pop( htable_t *h, K key, V *buf );		\
-  void **HT##_bp( htable_t *h, K key )
+#define HASHMAP( HM, K, V )					\
+  long  *HM##_locate( hashmap_t *h, K key );			\
+  V      HM##_get( hashmap_t *h, K key );			\
+  V      HM##_set( hashmap_t *h, K key, V val );		\
+  bool   HM##_put( hashmap_t *h, K key, V val );		\
+  V      HM##_pop( hashmap_t *h, K key );			\
+  bool   HM##_has( hashmap_t *h, K key );			\
+  bool   HM##_remove( hashmap_t *h, K key );			\
+  void **HM##_bp( hashmap_t *h, K key )
+
+#define HASHSET( HS, K )				\
+  long *HS##_locate( hashset_t *h, K key );		\
+  bool  HS##_has( hashset_t *h, K key );		\
+  bool  HS##_add( hashset_t *h, K key );		\
+  bool  HS##_remove( hashset_t *h, K key )
 
 #endif
