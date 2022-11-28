@@ -27,21 +27,4 @@ void rl_vm_memory_init( void );
 
 /* convenience */
 
-#define alloc_s( func, ... )						\
-  ({									\
-    void *__out__ = func(__VA_ARGS__);					\
-									\
-    if ( __out__ == NULL )						\
-      {									\
-	fprintf( stderr,						\
-		 "Allocation failed at %s:%d in %s calling %s.\n",	\
-		 __FILE__,						\
-		 __LINE__,						\
-		 __func__,						\
-		 #func );						\
-	abort();							\
-      }									\
-    __out__;								\
-  })
-
 #endif

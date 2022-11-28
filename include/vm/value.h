@@ -12,10 +12,15 @@
 typedef union
 {
   value_t      as_value;
+
+  ascii_t      as_ascii;
   real_t       as_real;
+
+  nullptr_t    as_nul;
   stream_t     as_stream;
+  funcptr      as_funcptr;
+  
   object_t     as_object;
-  array_t      as_array;
 } rl_data_t;
 
 /* globals */
@@ -26,12 +31,19 @@ typedef union
 /* value tags */
 /* immediate tags */
 #define REAL        0x0000000000000000ul
-#define NUL         0x7ffc000000000000ul
-#define STREAM      0x7ffd000000000000ul
-#define OBJECT      0x7ffe000000000000ul
+#define SMALL       0x7ffc000000000000ul
+#define NUL         0x7ffd000000000000ul
+#define STREAM      0x7ffe000000000000ul
+#define FUNPTR      0x7fff000000000000ul
+#define OBJECT      0xfffc000000000000ul
+
+#define ASCII       0x7ffc000100000000ul
+#define OPCODE      0x7ffc000200000000ul
+#define BOOLEAN     0x7ffc000300000000ul
 
 /* masks */
 #define TAGMASK     0xffff000000000000ul
+#define WTAGMASK    0xffffffff00000000ul
 #define PTRMASK     (~TAGMASK)
 
 /* API */

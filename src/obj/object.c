@@ -13,25 +13,32 @@
 /* globals */
 
 /* API */
-object_t make_object( struct type_t *type )
+object_t make_object( type_t type, size_t extra )
 {
-  struct object_t *object = alloc(type->obsize);
+  size_t base_size = type_base_size(type);
+  object_t out     = (uchar*)alloc(base_size + extra) + type->hdsize;
 
-  object->type = type;
-  object->size = type->obsize;
+  obj_type(out) = type;
+  obj_size(out) = base_size + extra;
 
-  /* return pointer to object data */
-  return object->space;
+  return out;
 }
 
 void free_object( object_t object )
 {
-  struct object_t *header = obj_head(object);
+  uchar *space = object - obj_type(object)->hdsize;
+  size_t alloc = obj_size(object);
 
-  dealloc(header, header->size);
+  dealloc(space, alloc);
 }
 
 /* runtime */
 void rl_obj_object_init( void ) {}
 
 /* convenience */
+void *obj_start( object_t object )
+{
+  /* get start of hidden fields. */
+  
+  return object - obj_type(object)->hdsize;
+}

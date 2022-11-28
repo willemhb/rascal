@@ -8,13 +8,13 @@
 #include "tpl/undef/array.h"
 #include "tpl/impl/type.h"
 
-#define MAKE_ARR( Type, A, X )			\
+#define MAKE_ARRAY( Type, A, X )		\
   TYPE(A) make_##A( size_t n, X *ini )		\
   {						\
     return (TYPE(A))make_array(&Type, n, ini);	\
   }
 
-#define FREE_ARR( A, X )			\
+#define FREE_ARRAY( A, X )			\
   void free_##A( TYPE(A) A )			\
   {						\
     free_array((array_t)A);			\

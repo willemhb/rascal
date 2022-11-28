@@ -13,77 +13,64 @@
 /* C types */
 
 /* globals */
-const size_t min_cap = 8;
 
 /* API */
-
-array_t make_array( type_t type, size_t n, void *ini )
+array_t make_array( type_t type, size_t len, size_t cap, void *ini )
 {
-  size_t cap   = pad_array_size(n+type->stringp, 0);
-  size_t base  = type->obsize + sizeof(void*);
-  size_t data  = cap * type->elsize;
-  size_t total = base + data;
+  assert(cap >= len);
 
-  struct array_t *out = alloc(base);
+  type_t eltype  = type->signature[ELTYPE];
+  size_t elsize  = type_vmtype_spec(eltype).size;
+  size_t arrsize = cap * elsize;
+  size_t total   = type->obsize + arrsize;
 
-  out->len      = n;
-  out->alloc    = cap;
-  out->inlinep  = false;
-  out->dynamicp = true;
+  struct array_t *out = alloc(total);
+
+  out->len      = len;
+  out->cap      = cap;
   out->obj.type = type;
   out->obj.size = total;
 
-  void *space   = alloc(data);
-
   if (ini)
-    memcpy(space, ini, n * type->elsize);
+    memcpy(out->space, ini, arrsize);
 
-  *(void**)(out->obj.space) = space;
-
-  return space;
+  return out->space;
 }
 
-size_t resize_array( array_t array, size_t new_count )
+array_t resize_array( array_t array, size_t new_cap )
 {
-  struct array_t *header = array_header(array);
-  type_t          type   = header->obj.type;
+  size_t old_cap = array_cap(array);
+  size_t elsize  = array_elsize(array);
 
-  assert(header->dynamicp);
+  struct array_t *adjusted = adjust( array_header(array), old_cap * elsize, new_cap * elsize);
 
-  size_t new_cap         = pad_array_size(new_count+type->stringp, header->alloc);
+  adjusted->cap = new_cap;
 
-  if ( new_cap != header->alloc )
-      *(void**)array = adjust_array(array, header->len, new_count, type->elsize);
+  if ( new_cap < adjusted->len )
+    adjusted->len = new_cap;
 
-  header->len   = new_count;
-  header->alloc = new_cap;
-
-  return header->len;
+  return adjusted->space;
 }
 
 void free_array( array_t array )
 {
-  struct array_t *header = array_header(array);
-
-  if (!header->inlinep)
-    {
-      array_t data = array_data(array);
-      dealloc(data, header->alloc * header->obj.type->elsize);
-    }
-
-  dealloc(header, sizeof(struct array_t));
+  dealloc(array_header(array), obj_size(array));
 }
 
+/* runtime */
+
 /* convenience */
-size_t pad_array_size( size_t new_count, size_t old_cap )
+type_t array_eltype( array_t array )
 {
-  size_t new_cap = max(old_cap, min_cap);
+  return obj_type(array)->signature[ELTYPE];
+}
 
-  while ( new_count < new_cap/2 )
-    new_cap >>= 1;
-  
-  while ( new_count > new_cap )
-    new_cap <<= 1;
+size_t array_elsize( array_t array )
+{
+  return type_vmtype_spec(array_eltype(array)).size;
+}
 
-  return max(new_cap, min_cap);
+bool array_stringp( array_t array )
+{
+  return obj_type(array)->stringp;
 }
