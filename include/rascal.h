@@ -14,9 +14,12 @@ typedef uword value_t;
 /* immediate types */
 typedef double real_t;
 typedef FILE *stream_t;
+typedef value_t (*native_t)(value_t *args, size_t n_args);
 
 /* object types */
 typedef struct object_t    object_t;
+typedef struct symbol_t    symbol_t;
+typedef struct cons_t      cons_t;
 typedef struct type_t      type_t;
 typedef struct datatype_t  datatype_t;
 typedef struct uniontype_t uniontype_t;

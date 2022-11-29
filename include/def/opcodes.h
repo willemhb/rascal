@@ -1,4 +1,3 @@
-
 #ifndef rascal_opcode_h
 #define rascal_opcode_h
 

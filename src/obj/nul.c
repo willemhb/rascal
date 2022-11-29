@@ -29,6 +29,14 @@ struct datatype_t NulType =
 /* API */
 
 /* runtime */
-void rl_obj_nul_init( void ) {}
+void rl_obj_nul_init( void )
+{
+  init_object(&NulType.type.obj);
+}
+
+void rl_obj_nul_mark( void )
+{
+  mark_object(&NulType.type.obj);
+}
 
 /* convenience */
