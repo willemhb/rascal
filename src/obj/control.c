@@ -79,12 +79,12 @@ void free_control( object_t *object )
 /* runtime */
 void rl_obj_control_init( void )
 {
-  init_object(&ControlType.type.obj);
+  gl_init_type(ControlType);
 }
 
 void rl_obj_control_mark( void )
 {
-  init_object(&ControlType.type.obj);
+  gl_mark_type(ControlType);
 }
 
 /* convenience */

@@ -1,4 +1,4 @@
-#include "path.h"
+#include "%path%.h"
 
 /* commentary */
 
@@ -9,6 +9,6 @@
 /* API */
 
 /* runtime */
-void rl_path_init( void ) {}
-void rl_path_mark( void ) {}
+void rl_%name%_init( void ) {}
+void rl_%name%_mark( void ) {}
 

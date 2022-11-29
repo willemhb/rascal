@@ -9,20 +9,25 @@
 /* C types */
 
 /* globals */
-struct type_t StreamType =
+struct vtable_t StreamMethods =
+  {
+    NULL, NULL, NULL
+  };
+
+struct layout_t StreamLayout =
+  {
+    .vmtype=vmtype_stream
+  };
+
+struct datatype_t StreamType =
   {
     {
-      .type=&TypeType.data,
-      .size=sizeof(struct type_t)
+      .obj=obj_init(&TypeType, sizeof(datatype_t), object_fl_static),
+      .name="stream"
     },
 
-    {
-      .name="stream",
-      .vmtype=vmtype_object,
-      .obsize=sizeof(stream_t),
-      .elsize=0,
-      .stringp=false
-    }
+    .layout=&StreamLayout,
+    .methods=&StreamMethods
   };
 
 stream_t Ins, Outs, Errs;
@@ -63,6 +68,13 @@ void rl_obj_stream_init( void )
   Ins  = stdin;
   Outs = stdout;
   Errs = stderr;
+
+  gl_init_type(StreamType);
+}
+
+void rl_obj_stream_mark( void )
+{
+  gl_mark_type(StreamType);
 }
 
 /* convenience */

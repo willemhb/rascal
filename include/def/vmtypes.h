@@ -40,6 +40,7 @@ enum vmtype_t
     vmtype_flo32,
     vmtype_flo64,
 
+    vmtype_boolean,
     vmtype_value,
 
     vmtype_nulptr,

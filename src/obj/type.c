@@ -56,12 +56,12 @@ void free_type( object_t *object )
 /* runtime */
 void rl_obj_type_init( void )
 {
-  init_type((object_t*)&TypeType);
+  gl_init_type(TypeType);
 }
 
 void rl_obj_type_mark( void )
 {
-  mark_object((object_t*)&TypeType);
+  gl_mark_type(TypeType);
 }
 
 /* convenience */

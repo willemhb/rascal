@@ -20,6 +20,11 @@ datatype_t *rl_typeof( value_t x )
     }
 }
 
+bool rl_isa( value_t x, datatype_t *type )
+{
+  return rl_typeof(x) == type;
+}
+
 void mark_value( value_t x )
 {
   if ( is_object(x) )

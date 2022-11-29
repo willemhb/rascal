@@ -1,4 +1,4 @@
-#include "vmtype.h"
+#include "def/vmtypes.h"
 #include "rascal.h"
 
 /* commentary */

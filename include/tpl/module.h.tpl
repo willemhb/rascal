@@ -1,5 +1,5 @@
-#ifndef rl_path_h
-#define rl_path_h
+#ifndef rl_%name%_h
+#define rl_%name%_h
 
 /* commentary */
 
@@ -10,7 +10,7 @@
 /* API */
 
 /* runtime */
-void rl_path_init( void );
-void rl_path_mark( void );
+void rl_%name%_init( void );
+void rl_%name%_mark( void );
 
 #endif

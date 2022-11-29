@@ -22,8 +22,8 @@ extern datatype_t SymbolType;
 
 /* API */
 symbol_t *make_symbol( char *name );
-symbol_t *intern_string( char *name );
 value_t   symbol( char *name );
+void      define( char *name, value_t value );
 
 /* runtime */
 void rl_obj_symbol_init( void );

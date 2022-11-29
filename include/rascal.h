@@ -12,8 +12,9 @@
 typedef uword value_t;
 
 /* immediate types */
-typedef double real_t;
-typedef FILE *stream_t;
+typedef double    real_t;
+typedef bool      bool_t;
+typedef FILE     *stream_t;
 typedef value_t (*native_t)(value_t *args, size_t n_args);
 
 /* object types */

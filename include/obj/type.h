@@ -1,7 +1,7 @@
 #ifndef rl_obj_type_h
 #define rl_obj_type_h
 
-#include "def/datatypes.h"
+#include "def/vmtypes.h"
 
 #include "vm/object.h"
 
@@ -67,5 +67,8 @@ void rl_obj_type_mark( void );
 #define type_init( x )   (((datatype_t*)(x))->methods->init)
 #define type_trace( x )  (((datatype_t*)(x))->methods->trace)
 #define type_free( x )   (((datatype_t*)(x))->methods->free)
+
+#define gl_init_type( x ) init_object(&(x).type.obj)
+#define gl_mark_type( x ) mark_object(&(x).type.obj)
 
 #endif

@@ -13,6 +13,7 @@
 extern datatype_t NativeType;
 
 /* API */
+void define_native( char *name, native_t fn );
 
 /* runtime */
 void rl_obj_native_init( void );

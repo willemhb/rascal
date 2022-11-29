@@ -72,10 +72,10 @@ value_t cons_n( size_t n, ... )
 /* runtime */
 void rl_obj_cons_init( void )
 {
-  init_object(&ConsType.type.obj);
+  gl_init_type(ConsType);
 }
 
 void rl_obj_cons_mark( void )
 {
-  mark_object(&ConsType.type.obj);
+  gl_mark_type(ConsType);
 }

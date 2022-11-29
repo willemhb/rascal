@@ -8,5 +8,5 @@
 # echo "Relative script dir: $SCRIPT_DIR_REL"
 # echo "Absolute script dir: $SCRIPT_DIR_ABS"
 
-cat "/home/willem/Programming/C/include/tpl/module.c.tpl"
-cat "/home/willem/Programming/C/include/tpl/module.h.tpl"
+cat "/home/willem/Programming/C/rascal/include/tpl/module.c.tpl"
+cat "/home/willem/Programming/C/rascal/include/tpl/module.h.tpl"

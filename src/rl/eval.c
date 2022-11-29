@@ -1,9 +1,17 @@
-#include "vm/error.h"
-#include "vm/value.h"
+#include "obj/symbol.h"
+#include "obj/cons.h"
 
+#include "vm/error.h"
+#include "vm/object.h"
+
+#include "rl/compile.h"
+#include "rl/exec.h"
 #include "rl/eval.h"
 
-/* commentary */
+/* commentary
+
+   This crude definition of eval is included mostly for convenience,
+   and to simplify the implementation of repl(). */
 
 /* C types */
 
@@ -12,23 +20,24 @@
 /* API */
 value_t eval( value_t x )
 {
-  if ( is_literal(x) )
-    return x;
+  if ( is_symbol(x ) )
+    return as_symbol(x)->bind;
+
+  else if ( is_cons(x) )
+    {
+      lambda_t *compiled = compile(x);
+      value_t   value    = exec(compiled);
+      return value;
+    }
 
   else
-    {
-      panic("Unrecognized expression type.");
-      return NUL;
-    }
+      return x;
 }
 
 bool is_literal( value_t x )
 {
-  (void)x;
-
-  return true;
+  return !(is_symbol(x) || is_cons(x));
 }
-
 
 /* runtime */
 void rl_rl_eval_init( void ) {}

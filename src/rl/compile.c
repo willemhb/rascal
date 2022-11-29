@@ -1,4 +1,6 @@
 #include "obj/lambda.h"
+#include "obj/symbol.h"
+#include "obj/cons.h"
 
 #include "vm/error.h"
 #include "vm/obj/heap.h"
@@ -14,6 +16,8 @@
 
 /* API */
 void compile_expression( lambda_t *lambda, value_t x );
+void compile_funcall( lambda_t *lambda, value_t x );
+void compile_variable( lambda_t *lambda, value_t x );
 void compile_literal( lambda_t *lambda, value_t x );
 
 lambda_t *compile( value_t x )
@@ -32,11 +36,14 @@ lambda_t *compile( value_t x )
 
 void compile_expression( lambda_t *lambda, value_t x )
 {
-  if ( is_literal(x) )
-    compile_literal(lambda, x);
+  if ( is_symbol(x) )
+    compile_variable(lambda, x);
+
+  else if ( is_cons(x) )
+    compile_funcall(lambda, x);
 
   else
-      panic("Unknown expression type.");
+    compile_literal(lambda, x);
 }
 
 void compile_literal( lambda_t *lambda, value_t x )

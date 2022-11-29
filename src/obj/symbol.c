@@ -79,17 +79,29 @@ symbol_t *make_symbol( char *name )
   return symbol;
 }
 
+value_t symbol( char *name )
+{
+  symbol_t *interned = intern_string(name);
+  return tag_object(interned);
+}
+
+void define( char *name, value_t value )
+{
+  symbol_t *interned = intern_string(name);
+  interned->bind     = value;
+}
+
 /* runtime */
 
 void rl_obj_symbol_init( void )
 {
   /* initialize type */
-  init_object(&SymbolType.type.obj);
+  gl_init_type(SymbolType);
 }
 
 void rl_obj_symbol_mark( void )
 {
-  
+  gl_mark_type(SymbolType);
 }
 
 /* convenience */

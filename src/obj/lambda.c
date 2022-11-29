@@ -134,12 +134,12 @@ void finalize_lambda( lambda_t *lambda )
 /* runtime */
 void rl_obj_lambda_init( void )
 {
-  init_object(&LambdaType.type.obj);
+  gl_init_type(LambdaType);
 }
 
 void rl_obj_lambda_mark( void )
 {
-  mark_object(&LambdaType.type.obj);
+  gl_mark_type(LambdaType);
 }
 
 /* convenience */

@@ -12,6 +12,7 @@ void rl_obj_init( void )
   rl_obj_cons_init();
   rl_obj_symbol_init();
   rl_obj_native_init();
+  rl_obj_bool_init();
 }
 
 void rl_obj_mark( void )
@@ -25,4 +26,5 @@ void rl_obj_mark( void )
   rl_obj_cons_mark();
   rl_obj_symbol_mark();
   rl_obj_native_mark();
+  rl_obj_bool_mark();
 }

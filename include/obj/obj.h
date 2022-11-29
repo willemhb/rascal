@@ -11,6 +11,7 @@
 #include "obj/symbol.h"
 #include "obj/cons.h"
 #include "obj/native.h"
+#include "obj/bool.h"
 
 /* runtime */
 void rl_obj_init( void );

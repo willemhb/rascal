@@ -31,12 +31,12 @@ struct datatype_t NulType =
 /* runtime */
 void rl_obj_nul_init( void )
 {
-  init_object(&NulType.type.obj);
+  gl_init_type(NulType);
 }
 
 void rl_obj_nul_mark( void )
 {
-  mark_object(&NulType.type.obj);
+  gl_mark_type(NulType);
 }
 
 /* convenience */
