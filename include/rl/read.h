@@ -3,9 +3,13 @@
 
 #include "rascal.h"
 
+#include "vm/obj/reader.h"
+
 /* commentary */
 
 /* C types */
+/* signature for procedures that go in the readtable */
+typedef void (*reader_dispatch_t)(reader_t *reader, int dispatch);
 
 /* globals */
 
