@@ -2,29 +2,36 @@
 #define rl_util_alist_h
 
 #include "common.h"
-#include "util/tpl/decl/alist.h"
 
 /* commentary
 
-   generic alist type. */
+   Generic alist type.
+
+   See util/tpl/?/alist.h for specialization macros. */
 
 /* C types */
-typedef ALIST(void*) alist_t;
+typedef struct alist_t
+{
+  size_t  len;
+  size_t  cap;
+  void  **elements;
+} alist_t;
 
 /* API */
-MAKE_ALIST(alist, void*);
-RESIZE_ALIST(alist, void*);
-FREE_ALIST(alist, void*);
-ALIST_PUSH(alist, void*);
-ALIST_POP(alist, void*);
-ALIST_PUSHN(alist, void*);
-ALIST_POPN(alist, void*);
-ALIST_REF(alist, void*);
-ALIST_SET(alist, void*);
-ALIST_SWAP(alist, void*);
+
+alist_t *make_alist( size_t len, funcptr padfn );
+void     resize_alist( alist_t *alist, size_t new_len, funcptr padfn );
+void     reset_alist( alist_t *alist, funcptr padfn );
+void     free_alist( alist_t *alist );
+void     mark_object_alist( alist_t *alist );
+void     mark_value_alist( alist_t *alist );
 
 /* runtime */
 
 /* convenience */
+#define alist_member(alist, i, X)				\
+  (*(X*)(_Generic((alist),					\
+		  alist_t*:((alist_t*)(alist))->elements,	\
+		  default:(typeof(alist))(alist))+(i)))
 
 #endif

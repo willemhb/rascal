@@ -11,6 +11,7 @@ typedef uint64_t hash_t;
 /* globals */
 
 /* API */
+hash_t hash_int32( int32_t x );
 hash_t hash_int( int64_t x );
 hash_t hash_uint( uint64_t x );
 hash_t hash_double( double x );

@@ -17,29 +17,22 @@ typedef ascii_t glyph_t;
 typedef FILE *stream_t;
 
 /* object types */
-/* generic object type (more type information before header) */
-typedef uchar *object_t;
+typedef struct object_t    object_t;
+typedef struct type_t      type_t;
+typedef struct datatype_t  datatype_t;
+typedef struct uniontype_t uniontype_t;
+typedef struct control_t   control_t;
+typedef struct lambda_t    lambda_t;
 
-/* vm object types */
-typedef struct lambda_data_t *lambda_t;
-typedef struct control_data_t *control_t;
-typedef struct type_data_t *type_t;
+/* internal structure/array types types */
+typedef struct alist_t  stack_t;
 
-/* array types */
+typedef ushort  *bytecode_t;
 typedef value_t *vector_t;
-typedef ushort *bytecode_t;
-typedef ascii_t *string_t;
+typedef char    *string_t;
 
-/* alist types */
-typedef vector_t *stack_t;
-typedef string_t *buffer_t;
-
-/* table & entry types */
-typedef struct readtable_entry_data_t *readtable_entry_t;
-typedef readtable_entry_t *readtable_t;
-
-/* internal structure types (no rascal representation) */
 typedef struct vm_t  vm_t;
 typedef struct reader_t reader_t;
+typedef struct heap_t heap_t;
 
 #endif

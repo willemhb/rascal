@@ -8,12 +8,13 @@
 /* C types */
 
 /* globals */
-extern struct type_t NulType;
+extern datatype_t NulType;
 
 /* API */
 
 /* runtime */
 void rl_obj_nul_init( void );
+void rl_obj_nul_mark( void );
 
 /* convenience */
 #define is_nul( x ) ((x)==NUL)

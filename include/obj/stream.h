@@ -8,7 +8,7 @@
 /* C types */
 
 /* globals */
-extern struct type_t StreamType;
+extern datatype_t StreamType;
 extern stream_t Ins, Outs, Errs;
 
 /* API */
@@ -18,6 +18,7 @@ int strskip( stream_t stream, const char *chars );
 
 /* runtime */
 void rl_obj_stream_init( void );
+void rl_obj_stream_mark( void );
 
 /* convenience */
 #define is_stream( x ) (((x)&TAGMASK)==STREAM)

@@ -20,7 +20,7 @@ typedef union
   stream_t     as_stream;
   funcptr      as_funcptr;
   
-  object_t     as_object;
+  object_t    *as_object;
 } rl_data_t;
 
 /* globals */
@@ -31,23 +31,21 @@ typedef union
 /* value tags */
 /* immediate tags */
 #define REAL        0x0000000000000000ul
-#define SMALL       0x7ffc000000000000ul
-#define NUL         0x7ffd000000000000ul
-#define STREAM      0x7ffe000000000000ul
-#define FUNPTR      0x7fff000000000000ul
-#define OBJECT      0xfffc000000000000ul
-
-#define ASCII       0x7ffc000100000000ul
-#define OPCODE      0x7ffc000200000000ul
-#define BOOLEAN     0x7ffc000300000000ul
+#define NUL         0x7ffc000000000000ul
+#define STREAM      0x7ffd000000000000ul
+#define OBJECT      0x7ffe000000000000ul
 
 /* masks */
 #define TAGMASK     0xffff000000000000ul
-#define WTAGMASK    0xffffffff00000000ul
 #define PTRMASK     (~TAGMASK)
 
 /* API */
-type_t rl_typeof( value_t x );
+datatype_t *rl_typeof( value_t x );
+void   mark_value( value_t x );
+
+/* runtime */
+void rl_vm_value_init( void );
+void rl_vm_value_mark( void );
 
 /* convenience */
 #define as_value( x ) (((rl_data_t)(x)).as_value)

@@ -18,13 +18,23 @@
 #define min_cap     8ul
 #define load_factor 0.50
 
-size_t pad_buffer_size( size_t new_count, size_t old_cap )
+size_t pad_array_size( size_t new_count, size_t old_count, size_t old_cap )
 {
-  return pad_alist_size(new_count+1, old_cap);
+  (void)old_count;
+  (void)old_cap;
+
+  return new_count;
 }
 
-size_t pad_alist_size( size_t new_count, size_t old_cap )
+size_t pad_string_size( size_t new_count, size_t old_count, size_t old_cap )
 {
+  return pad_array_size( new_count+1, old_count, old_cap );
+}
+
+size_t pad_stack_size( size_t new_count, size_t old_count, size_t old_cap )
+{
+  (void)old_count;
+  
   size_t new_cap = max(old_cap, min_cap);
   
   if ( new_count > new_cap )
@@ -46,7 +56,12 @@ size_t pad_alist_size( size_t new_count, size_t old_cap )
   return new_cap;
 }
 
-size_t pad_py_alist_size( size_t new_count, size_t old_count, size_t old_cap )
+size_t pad_buffer_size( size_t new_count, size_t old_count, size_t old_cap )
+{
+  return pad_stack_size(new_count+1, old_count, old_cap);
+}
+
+size_t pad_alist_size( size_t new_count, size_t old_count, size_t old_cap )
 {
   if ( new_count < old_cap && new_count > (old_cap>>1))
     return old_cap;
@@ -59,8 +74,10 @@ size_t pad_py_alist_size( size_t new_count, size_t old_count, size_t old_cap )
   return max(new_cap, min_cap);
 }
 
-size_t pad_table_size( size_t new_count, size_t old_cap )
+size_t pad_table_size( size_t new_count, size_t old_count, size_t old_cap )
 {
+  (void)old_count;
+
   size_t new_cap = old_cap ? : 1;
   
   if ( new_count > 0 && new_count > new_cap * load_factor )

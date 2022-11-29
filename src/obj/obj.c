@@ -1,0 +1,23 @@
+#include "obj/obj.h"
+
+
+/* runtime */
+void rl_obj_init( void )
+{
+  rl_obj_control_init();
+  rl_obj_lambda_init();
+  rl_obj_nul_init();
+  rl_obj_real_init();
+  rl_obj_stream_init();
+  rl_obj_type_init();
+}
+
+void rl_obj_mark( void )
+{
+  rl_obj_control_mark();
+  rl_obj_lambda_mark();
+  rl_obj_nul_mark();
+  rl_obj_real_mark();
+  rl_obj_stream_mark();
+  rl_obj_type_mark();
+}

@@ -3,9 +3,7 @@
 #include "obj/stream.h"
 
 #include "vm/error.h"
-#include "vm/vm.h"
-
-
+#include "vm/obj/vm.h"
 
 /* commentary */
 
@@ -35,5 +33,6 @@ bool recover( void )
 
 /* runtime */
 void rl_vm_error_init( void ) {}
+void rl_vm_error_mark( void ) {}
 
 /* convenience */
