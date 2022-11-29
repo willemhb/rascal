@@ -45,6 +45,14 @@
     ARR##_header(*ARR)->len = new_len;					\
   }									\
   									\
+  void trim_##ARR( TYPE(ARR) *ARR )					\
+  {									\
+    *ARR = adjust_table(ARR##_header(*ARR),				\
+			sizeof(HEADER(ARR)),				\
+			ARR##_len(*ARR),				\
+			sizeof(X));					\
+  }									\
+  									\
   TYPE(ARR) dup_##ARR( TYPE(ARR) ARR )					\
   {									\
     return make_##ARR(ARR##_len(ARR), ARR);				\

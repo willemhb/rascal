@@ -13,7 +13,6 @@ typedef uword value_t;
 
 /* immediate types */
 typedef double real_t;
-typedef ascii_t glyph_t;
 typedef FILE *stream_t;
 
 /* object types */

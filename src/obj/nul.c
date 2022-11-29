@@ -6,19 +6,24 @@
 /* C types */
 
 /* globals */
-struct type_t NulType =
+struct vtable_t NulMethods = { NULL, NULL, NULL };
+
+struct layout_t NulLayout =
   {
-    {
-      .type=&TypeType.data,
-      .size=sizeof(struct  type_t)
-    },
-    {
-      .name="nul",
-      .vmtype=vmtype_nulptr,
-      .obsize=0,
-      .elsize=0,
-      .stringp=false
-    }
+   .vmtype=vmtype_nulptr,
+   .flags=0,
+   .obsize=0
+  };
+
+struct datatype_t NulType =
+  {
+   {
+    .obj=obj_init(&TypeType, sizeof(datatype_t), object_fl_static),
+    .name="nul"
+   },
+
+   .methods=&NulMethods,
+   .layout=&NulLayout
   };
 
 /* API */
