@@ -14,7 +14,7 @@
 #define HASHMAP( HM, K, V, padfn, hashfn, cmpfn, nokey, noval )		\
   hmap_t *make_##HM( size_t n_keys, void **ini )			\
   {									\
-    hmap_t *hmap = make_hmap(n_keys, (funcptr)padfn);			\
+    hmap_t *hmap = make_hmap(n_keys, padfn);				\
     /* initialize empty cells */					\
     init_##HM(hmap);							\
     if ( ini )								\
@@ -86,7 +86,7 @@
   									\
   void clear_##HM( hmap_t *hmap )					\
   {									\
-    clear_hmap(hmap, (funcptr)padfn);					\
+    clear_hmap(hmap, padfn);						\
     init_##HM(hmap);							\
   }									\
 									\

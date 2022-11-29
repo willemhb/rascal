@@ -9,7 +9,7 @@
 #define HASHSET( HS, M, padfn, hashfn, cmpfn, nomember )		\
   hset_t *make_##HS( size_t n_keys, void **ini )			\
   {									\
-    hset_t *hset = make_hset(n_keys);					\
+    hset_t *hset = make_hset(n_keys, padfn);				\
     /* initialize empty cells */					\
     init_##HS(hset);							\
     if ( ini )								\

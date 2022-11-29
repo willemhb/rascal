@@ -3,7 +3,9 @@
 
 #include "rascal.h"
 
-/* commentary */
+/* commentary
+
+   Type for builtin functions represented by C function pointers. */
 
 /* C types */
 
@@ -17,7 +19,7 @@ void rl_obj_native_init( void );
 void rl_obj_native_mark( void );
 
 /* convenience */
-#define is_nul( x ) ((x)==NUL)
-#define as_nul( x ) (NULL)
+#define is_native( x ) (tagof(x)==NATIVE)
+#define as_native( x ) ((native_t)dataof(x))
 
 #endif

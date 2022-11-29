@@ -20,14 +20,17 @@ struct cons_t
 extern datatype_t ConsType;
 
 /* API */
-cons_t *cons(value_t car, value_t cdr);
+value_t cons(value_t car, value_t cdr);
+value_t cons_n(size_t n, ...);
+
+#define list_n( n, ... ) cons_n((n) __VA_ARGS__ __VA_OPT__(,) NUL )
 
 /* runtime */
-void rl_obj_nul_init( void );
-void rl_obj_nul_mark( void );
+void rl_obj_cons_init( void );
+void rl_obj_cons_mark( void );
 
 /* convenience */
-#define is_nul( x ) ((x)==NUL)
-#define as_nul( x ) (NULL)
+#define is_cons( x ) (rl_typeof(x)==&ConsType)
+#define as_cons( x ) ((cons_t*)as_object(x))
 
 #endif

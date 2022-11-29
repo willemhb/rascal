@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+# echo $SCRIPT_DIR
+
+HEADER_TEMPLATE="../include/tpl/module.h.tpl"
+CFILE_TEMPLATE="../include/tpl/module.c.tpl"
+
+PATH=$1
+FILE=$2
+PATH_="${PATH//\//_}"
+HPATH="include/$PATH/$FILE.h"
+CPATH="src/$PATH/$FILE.c"
+
+cat $HEADER_TEMPLATE >> sed 's/path/$PATH_/g' # >> $HPATH
+cat $CFILE_TEMPLATE >> sed 's/path/$PATH_/g' # >> $CPATH
+
+echo "created $HPATH and $CPATH."

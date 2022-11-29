@@ -13,13 +13,12 @@ typedef union
 {
   value_t      as_value;
 
-  ascii_t      as_ascii;
   real_t       as_real;
 
   nullptr_t    as_nul;
   stream_t     as_stream;
-  funcptr      as_funcptr;
-  
+  native_t     as_native;
+
   object_t    *as_object;
 } rl_data_t;
 
@@ -33,7 +32,8 @@ typedef union
 #define REAL        0x0000000000000000ul
 #define NUL         0x7ffc000000000000ul
 #define STREAM      0x7ffd000000000000ul
-#define OBJECT      0x7ffe000000000000ul
+#define NATIVE      0x7ffe000000000000ul
+#define OBJECT      0x7fff000000000000ul
 
 /* masks */
 #define TAGMASK     0xffff000000000000ul
@@ -48,7 +48,7 @@ void rl_vm_value_init( void );
 void rl_vm_value_mark( void );
 
 /* convenience */
-#define as_value( x ) (((rl_data_t)(x)).as_value)
+#define as_value( x )  (((rl_data_t)(x)).as_value)
 
 #define tagof( x )  ((x)&TAGMASK)
 #define dataof( x ) ((x)&PTRMASK)

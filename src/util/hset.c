@@ -3,9 +3,7 @@
 
 #include "vm/memory.h"
 
-#include "util/collection.h"
 #include "util/hset.h"
-
 
 /* commentary */
 
@@ -14,15 +12,21 @@
 /* globals */
 
 /* API */
-hset_t *make_hset( size_t n_keys, funcptr padfn )
+hset_t *make_hset( size_t n_keys, padfn_t padfn )
 {
-  size_t cap  = ((size_t (*)(size_t, size_t, size_t))padfn)(n_keys, 0, 0);
   hset_t *out = alloc(sizeof(hset_t));
-  out->len    = 0;
-  out->cap    = cap;
-  out->table  = alloc_array(cap, sizeof(void*));
+
+  if ( padfn != NULL )
+    init_hset(out, n_keys, padfn);
 
   return out;
+}
+
+void init_hset( hset_t *hset, size_t n_keys, padfn_t padfn )
+{
+  hset->len   = 0;
+  hset->cap   = padfn(n_keys, 0, 0);
+  hset->table = alloc_array(hset->cap, sizeof(void*));
 }
 
 void free_hset( hset_t *hset )
@@ -31,9 +35,9 @@ void free_hset( hset_t *hset )
   dealloc(hset, sizeof(hset_t));
 }
 
-void clear_hset( hset_t *hset, funcptr padfn )
+void clear_hset( hset_t *hset, padfn_t padfn )
 {
-  hset->cap          = ((size_t (*)(size_t, size_t, size_t))padfn)(0, 0, hset->cap);
+  hset->cap          = padfn(0, 0, hset->cap);
   free(hset->table);
   hset->table        = alloc_array(hset->cap, sizeof(void*));
 }

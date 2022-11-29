@@ -3,6 +3,8 @@
 
 #include "common.h"
 
+#include "util/collection.h"
+
 /* commentary */
 
 /* C types */
@@ -16,9 +18,10 @@ typedef struct
 /* globals */
 
 /* API */
-hset_t *make_hset( size_t n_keys, funcptr padfn );
+hset_t *make_hset( size_t n_keys, padfn_t padfn );
+void    init_hset( hset_t *hset, size_t n_keys, padfn_t padfn );
 void    free_hset( hset_t *hset );
-void    clear_hset( hset_t *hset, funcptr padfn );
+void    clear_hset( hset_t *hset, padfn_t padfn );
 
 /* runtime */
 

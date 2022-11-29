@@ -35,6 +35,7 @@ void rl_vm_init( void )
   rl_vm_obj_support_vector_init();
 
   rl_vm_obj_support_readtable_init();
+  rl_vm_obj_support_symbol_table_init();
 }
 
 void rl_vm_mark( void )
@@ -63,6 +64,7 @@ void rl_vm_mark( void )
   rl_vm_obj_support_vector_mark();
 
   rl_vm_obj_support_readtable_mark();
+  rl_vm_obj_support_symbol_table_mark();
 }
 
 /* convenience */

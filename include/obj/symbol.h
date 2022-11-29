@@ -14,21 +14,23 @@ struct symbol_t
   string_t name;
   ulong    hash;
   ulong    idno;
+  value_t  bind; /* toplevel binding -- will eventually be superceded by toplevel namespaces */
 };
 
 /* globals */
 extern datatype_t SymbolType;
 
 /* API */
-symbol_t *symbol( char *name );
-symbol_t *gensym( char *name );
+symbol_t *make_symbol( char *name );
+symbol_t *intern_string( char *name );
+value_t   symbol( char *name );
 
 /* runtime */
-void rl_obj_nul_init( void );
-void rl_obj_nul_mark( void );
+void rl_obj_symbol_init( void );
+void rl_obj_symbol_mark( void );
 
 /* convenience */
-#define is_nul( x ) ((x)==NUL)
-#define as_nul( x ) (NULL)
+#define is_symbol( x ) ((x)==NUL)
+#define as_symbol( x ) ((symbol_t*)as_object(x))
 
 #endif

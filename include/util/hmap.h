@@ -3,6 +3,8 @@
 
 #include "common.h"
 
+#include "util/collection.h"
+
 /* commentary
 
    A basic generic hash table type.
@@ -20,9 +22,10 @@ typedef struct
 /* globals */
 
 /* API */
-hmap_t *make_hmap( size_t n_keys, funcptr padfn );
+hmap_t *make_hmap( size_t n_keys, padfn_t padfn );
+void    init_hmap( hmap_t *hmap, size_t n_keys, padfn_t padfn );
 void    free_hmap( hmap_t *hmap );
-void    clear_hmap( hmap_t *hmap, funcptr padfn );
+void    clear_hmap( hmap_t *hmap, padfn_t padfn );
 
 /* runtime */
 

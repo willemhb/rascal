@@ -2,9 +2,9 @@
 #include <stdio.h>
 #include <stdalign.h>
 
-#include "object.h"
-#include "memory.h"
-
+#include "obj/obj.h"
+#include "vm/vm.h"
+#include "rl/rl.h"
 
 // entry point, version information
 #define VMAJOR     0
@@ -26,15 +26,12 @@ void rl_goodbye( void )
 
 void rl_init( void )
 {
-  
+  rl_vm_init();
+  rl_obj_init();
+  rl_rl_init();
 }
 
-void rl_main( void )
-{
-  real_t real_val = 12.4;
-  
-  rl_println(as_value(real_val));
-}
+void rl_main( void ) {}
 
 void rl_post( void ) {}
 

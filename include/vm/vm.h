@@ -28,6 +28,7 @@
 #include "vm/obj/support/vector.h"
 
 #include "vm/obj/support/readtable.h"
+#include "vm/obj/support/symbol_table.h"
 
 /* commentary
 

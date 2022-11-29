@@ -41,8 +41,10 @@ void rl_vm_object_mark( void );
 
 /* convenience */
 
-#define is_object( x ) (((x)&TAGMASK) == OBJECT)
-#define as_object( x ) ((object_t*)((x)&PTRMASK))
+#define is_object( x ) (tagof(x)==OBJECT)
+#define as_object( x ) ((object_t*)dataof(x))
+
+#define tag_object( x ) tag((object_t*)(x), OBJECT)
 
 #define obj_init( _type, _size, _flags ) { .black=false, .gray=true, .size=_size, .type=_type, .flags=_flags }
 

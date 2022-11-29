@@ -8,6 +8,9 @@
 #include "obj/real.h"
 #include "obj/stream.h"
 #include "obj/type.h"
+#include "obj/symbol.h"
+#include "obj/cons.h"
+#include "obj/native.h"
 
 /* runtime */
 void rl_obj_init( void );
