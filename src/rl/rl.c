@@ -9,6 +9,7 @@ void rl_rl_init( void )
   rl_rl_exec_init();
   rl_rl_prin_init();
   rl_rl_read_init();
+  rl_rl_repl_init();
 
   rl_rl_read_list_init();
   rl_rl_read_atom_init();
@@ -26,6 +27,7 @@ void rl_rl_mark( void )
   rl_rl_exec_mark();
   rl_rl_prin_mark();
   rl_rl_read_mark();
+  rl_rl_repl_mark();
 
   rl_rl_read_list_mark();
   rl_rl_read_atom_mark();

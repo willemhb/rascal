@@ -11,6 +11,7 @@
 
 /* API */
 void prin( stream_t stream, value_t x );
+void prinln( stream_t stream, value_t x );
 
 /* convenience */
 void rl_rl_prin_init( void );

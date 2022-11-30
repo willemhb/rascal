@@ -8,6 +8,7 @@
 #include "rl/exec.h"
 #include "rl/prin.h"
 #include "rl/read.h"
+#include "rl/repl.h"
 
 /* readers */
 #include "rl/read/list.h"

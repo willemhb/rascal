@@ -126,7 +126,7 @@ value_t exec( lambda_t *code )
 }
 
 /* runtime */
-void rl_vm_exec_init( void ) {}
-void rl_vm_exec_mark( void ) {}
+void rl_rl_exec_init( void ) {}
+void rl_rl_exec_mark( void ) {}
 
 /* convenience */

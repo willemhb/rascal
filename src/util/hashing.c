@@ -13,6 +13,11 @@
 #define FNV_64_PRIME  1099511628211ul
 
 /* API */
+hash_t hash_int32( int32_t x )
+{
+  
+}
+
 hash_t hash_int( int64_t x )
 {
   return hash_uint((uint64_t)x);

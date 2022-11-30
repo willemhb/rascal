@@ -17,6 +17,10 @@ bool   streq32( const utf32_t *stringX, const utf32_t *stringY );
 
 #define streq(x, y) _Generic((x), char*: streq8, utf16_t*: streq16, utf32_t*: streq32)((x), (y))
 
+int    strcmp8( const char *a, const char *b );
+int    strcmp16( const utf16_t *a, const utf16_t *b );
+int    strcmp32( const utf32_t *a, const utf32_t *b );
+
 size_t strlen8( const char *string );
 size_t strlen16( const utf16_t *u16string );
 size_t strlen32( const utf32_t *u32string );

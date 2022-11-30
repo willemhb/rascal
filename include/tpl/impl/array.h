@@ -49,6 +49,7 @@
   {									\
     *ARR = adjust_table(ARR##_header(*ARR),				\
 			sizeof(HEADER(ARR)),				\
+			ARR##_cap(*ARR),				\
 			ARR##_len(*ARR),				\
 			sizeof(X));					\
   }									\

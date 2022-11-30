@@ -166,35 +166,11 @@ vmtype_spec_t TypeSpecs[] =
     },
 
     /* common object case */
-    [vmtype_array]  =
+    [vmtype_objptr] =
     {
-      .name="array",
-      .size=sizeof(object_t),
-      .align=alignof(object_t),
-      .numtype=numtype_unsigned
-    },
-
-    [vmtype_string] =
-    {
-      .name="string",
-      .size=sizeof(object_t),
-      .align=alignof(object_t),
-      .numtype=numtype_unsigned
-    },
-
-    [vmtype_table] =
-    {
-      .name="table",
-      .size=sizeof(object_t),
-      .align=alignof(object_t),
-      .numtype=numtype_unsigned
-    },
-
-     [vmtype_record] =
-    {
-      .name="record",
-      .size=sizeof(object_t),
-      .align=alignof(object_t),
+      .name="objptr",
+      .size=sizeof(object_t*),
+      .align=alignof(object_t*),
       .numtype=numtype_unsigned
     }
   };

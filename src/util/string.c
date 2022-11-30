@@ -11,8 +11,23 @@
 
 /* globals */
 
-
 /* API */
+
+bool streq8( const char *a, const char *b )
+{
+  return strcmp(a, b) == 0;
+}
+
+bool streq16( const utf16_t *a, const utf16_t *b )
+{
+  return strcmp16(a, b) == 0;
+}
+
+bool streq32( const utf32_t *a, const utf32_t *b )
+{
+  return strcmp32(a, b) == 0;
+}
+
 size_t strlen8( const char *s ) { return strlen(s); }
 
 size_t strlen16( const utf16_t *s )
@@ -31,6 +46,51 @@ size_t strlen32( const utf32_t *s )
   for (n=0; !*s; s++) n++;
 
   return n;
+}
+
+int strcmp8( const char *a, const char *b )
+{
+  return strcmp(a, b);
+}
+
+int strcmp16( const utf16_t *a, const utf16_t *b )
+{
+  uint out = 0;
+
+  while (*a && *b )
+    if ((out=*(a++)- *(b++)))
+      break;
+
+  if (out)
+    return out;
+
+  if (*a)
+    return 1;
+
+  if (*b)
+  return -1;
+
+  return 0;
+}
+
+int strcmp32( const utf32_t *a, const utf32_t *b )
+{
+  uint out = 0;
+
+  while (*a && *b)
+    if ((out=*(a++)-*(b++)))
+      break;
+
+  if (out)
+    return out;
+
+  if (*a)
+    return 1;
+
+  if (*b)
+    return -1;
+
+  return 0;
 }
 
 int memcmp8( const byte *a, const byte *b, size_t max_cmp )

@@ -24,6 +24,12 @@ void prin( stream_t stream, value_t x )
     }
 }
 
+void prinln( stream_t stream, value_t x )
+{
+  prin(stream, x);
+  fprintf(stream, "\n");
+}
+
 /* runtime */
 void rl_rl_prin_init( void ) {}
 void rl_rl_prin_mark( void ) {}

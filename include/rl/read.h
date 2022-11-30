@@ -14,6 +14,7 @@ typedef void (*reader_dispatch_t)(reader_t *reader, int dispatch);
 /* globals */
 
 /* API */
+value_t readln( stream_t stream );
 value_t read( stream_t stream );
 
 /* runtime */

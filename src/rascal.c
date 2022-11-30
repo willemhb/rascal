@@ -12,7 +12,6 @@
 #define VPATCH     0
 #define VDEV       "a"
 #define VFMT       "%d.%d.%d.%s"
-#define PROMPT     ">>>"
 
 void rl_welcome( void )
 {
@@ -31,7 +30,10 @@ void rl_init( void )
   rl_rl_init();
 }
 
-void rl_main( void ) {}
+void rl_main( void )
+{
+  repl();
+}
 
 void rl_post( void ) {}
 

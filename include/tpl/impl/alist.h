@@ -107,7 +107,7 @@
     return alist_member(alist, i, X);					\
   }									\
 									\
-  X A##_set( alist_t *alist, long i, X x )				\
+  X AL##_set( alist_t *alist, long i, X x )				\
   {									\
     if ( i < 0 )							\
       i += alist->len;							\
@@ -116,7 +116,7 @@
     return x;								\
   }									\
   									\
-  X A##_swap( alist_t *alist, long i, X x )				\
+  X AL##_swap( alist_t *alist, long i, X x )				\
   {									\
     if ( i < 0 )							\
       i += alist->len;							\
