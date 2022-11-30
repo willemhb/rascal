@@ -31,7 +31,8 @@ void rl_obj_real_init( void );
 void rl_obj_real_mark( void );
 
 /* convenience */
-#define is_real( x ) (((x)&QNAN) != QNAN)
-#define as_real( x ) (((rl_data_t)(x)).as_real)
+#define is_real( x )  (((x)&QNAN) != QNAN)
+#define as_real( x )  (((rl_data_t)(x)).as_real)
+#define tag_real( x ) (as_value(x))
 
 #endif

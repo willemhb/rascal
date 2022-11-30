@@ -22,16 +22,17 @@ typedef void          (*funcptr)(void);
 typedef void           *nullptr_t;
 
 // character encoding typedefs
-typedef uchar           ascii_t;
-typedef uchar           latin1_t;
-typedef uchar           utf8_t;
+typedef char            ascii_t;
+typedef char            latin1_t;
+typedef char            utf8_t;
 typedef char16_t        utf16_t;
 typedef char32_t        utf32_t;
 
 // general convenience
 #define rl_unlikely( test ) __builtin_expect(0, (test))
-
+#define rl_fallthrough __attribute__((fallthrough))
 #define rl_unreachable __builtin_unreachable
+#define rl_attr( ... ) __attribute__((__VA_ARGS__))
 #define rl_cleanup( cleaner ) __attribute__((cleanup(cleaner)))
 
 static inline bool flagp( uint64_t fls, uint64_t fl ) { return !!(fls&fl); }

@@ -10,14 +10,15 @@ typedef enum
     op_invalid       = 0,
     op_halt          = 1,
     op_nothing       = 2,  // noop
+    op_pop           = 3,
     
     /* load/store instructions */
-    op_load_const    = 3, // load from constant store
-    op_load_global   = 4,
-    op_store_global  = 5,
+    op_load_const    = 4, // load from constant store
+    op_load_global   = 5,
+    op_store_global  = 6,
 
     /* control flow */
-    op_invoke        = 6
+    op_invoke        = 7
   } opcode_t;
 
 static inline size_t op_argc( opcode_t opcode )

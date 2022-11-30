@@ -1,7 +1,11 @@
-#include "obj/stream.h"
+#include <stdarg.h>
 
-#include "vm/obj/reader.h"
+#include "vm/error.h"
 #include "vm/memory.h"
+#include "vm/obj/reader.h"
+
+
+#include "obj/stream.h"
 
 /* commentary */
 
@@ -15,9 +19,8 @@ reader_t Reader;
 /* API */
 void clear_reader( reader_t *reader )
 {
-  reader->readstate = readstate_ready;
   reader->value = NUL;
-
+  set_status(reader, readstate_ready, NULL);
   reset_ascii_buffer(reader->buffer);
 }
 
@@ -33,14 +36,46 @@ void set_reader_macro( reader_t *reader, int dispatch, reader_fn_t handler )
   readtable_add(reader->readtable, dispatch, handler);
 }
 
-int peek_character( reader_t *reader )
+void set_reader_macros( reader_t *reader, char *dispatches, reader_fn_t handler )
 {
-  return peekc(reader->stream);
+  for (size_t i=0; dispatches[i] != '\0'; i++)
+    set_reader_macro(reader, dispatches[i], handler);
 }
 
 void accumulate_character( reader_t *reader, int character )
 {
   ascii_buffer_push(reader->buffer, character);
+}
+
+void give_value( reader_t *reader, value_t value )
+{
+  reader->value = value;
+  set_status( reader, readstate_expr, NULL );
+}
+
+value_t take_value( reader_t *reader )
+{
+  value_t out = reader->value;
+  clear_reader(reader);
+  return out;
+}
+
+void set_status( reader_t *reader, readstate_t status, const char *fmt, ... )
+{
+  reader->readstate = status;
+
+  if ( fmt != NULL )
+    {
+      va_list va; va_start(va, fmt);
+
+      if ( status == readstate_error )
+	vpanic(fmt, va);
+
+      else
+	vfprintf(Outs, fmt, va);
+
+      va_end(va);
+    }
 }
 
 /* runtime */

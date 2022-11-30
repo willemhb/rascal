@@ -14,6 +14,7 @@
 
 /* API */
 void panic( const char *fmt, ... );
+void vpanic( const char *fmt, va_list va );
 bool recover( void );
 
 void check_argco( const char *fname, size_t expect, size_t got );

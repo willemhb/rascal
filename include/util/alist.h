@@ -34,4 +34,9 @@ void     mark_value_alist( alist_t *alist );
 		  alist_t*:((alist_t*)(alist))->elements,	\
 		  default:(typeof(alist))(alist))+(i)))
 
+#define alist_at(alist, i, X)					\
+  ((X*)(_Generic((alist),					\
+		 alist_t*:((alist_t*)((alist)))->elements,	\
+		 default:(typeof(alist))(alist))+(i)))
+
 #endif

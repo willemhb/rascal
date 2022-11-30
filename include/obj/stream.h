@@ -15,7 +15,8 @@ extern stream_t Ins, Outs, Errs;
 int  peekc( stream_t stream );
 int  skipws( stream_t stream );
 int  strskip( stream_t stream, const char *chars );
-bool issep( stream_t stream );
+bool issep( int character ); // whitespace or ','
+bool isdlm( int character ); // '()', '[]', or '{}'
 
 /* runtime */
 void rl_obj_stream_init( void );

@@ -1,9 +1,13 @@
+#include <assert.h>
+#include <stdlib.h>
 #include <ctype.h>
 
 #include "vm/obj/reader.h"
 
 #include "obj/stream.h"
+#include "obj/real.h"
 
+#include "rl/read/atom.h"
 #include "rl/read/number.h"
 
 /* commentary */
@@ -17,12 +21,86 @@ void read_signed_number( reader_t *reader, int dispatch )
 {
   accumulate_character(reader, dispatch);
 
-  
+  bool dot = false;
+
+  while ( !issep(dispatch=fgetc(reader->stream)) )
+    {
+      switch (dispatch)
+	{
+	case '0' ... '9':
+	  accumulate_character(reader, dispatch);
+	  break;
+
+	case '.':
+	  if ( !dot )
+	    {
+	      dot = true;
+	      accumulate_character(reader, dispatch);
+	      break;
+	    }
+
+	  rl_attr(fallthrough);
+
+	default:
+	  read_atom(reader, dispatch);
+	  return;
+	}
+    }
+
+  if ( ascii_buffer_ref(reader->buffer, -1) == '.' || reader->buffer->len == 1 )
+    {
+      read_atom(reader, 0);
+      return;
+    }
+
+  char *buf;
+  real_t num = strtod((const char *restrict)reader->buffer->elements, &buf);
+
+  assert(*buf == '\0');
+  give_value( reader, tag_real(num));
 }
 
 void read_unsigned_number( reader_t *reader, int dispatch )
 {
-  
+  accumulate_character(reader, dispatch);
+
+  bool dot = false;
+
+  while ( !issep(dispatch=fgetc(reader->stream)) )
+    {
+      switch (dispatch)
+	{
+	case '0' ... '9':
+	  accumulate_character(reader, dispatch);
+	  break;
+
+	case '.':
+	  if ( !dot )
+	    {
+	      dot = true;
+	      accumulate_character(reader, dispatch);
+	      break;
+	    }
+
+	  rl_attr(fallthrough);
+
+	default:
+	  read_atom(reader, dispatch);
+	  return;
+	}
+    }
+
+  if ( ascii_buffer_ref(reader->buffer, -1) == '.' )
+    {
+      read_atom(reader, 0);
+      return;
+    }
+
+  char *buf;
+  real_t num = strtod((const char *restrict)reader->buffer->elements, &buf);
+
+  assert(*buf == '\0');
+  give_value( reader, tag_real(num));  
 }
 
 /* runtime */

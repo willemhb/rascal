@@ -11,6 +11,12 @@
    unicode strings.
  */
 
+bool   streq8( const char *stringX, const char *stringY );
+bool   streq16( const utf16_t *stringX, const utf16_t *stringY );
+bool   streq32( const utf32_t *stringX, const utf32_t *stringY );
+
+#define streq(x, y) _Generic((x), char*: streq8, utf16_t*: streq16, utf32_t*: streq32)((x), (y))
+
 size_t strlen8( const char *string );
 size_t strlen16( const utf16_t *u16string );
 size_t strlen32( const utf32_t *u32string );

@@ -25,6 +25,8 @@ value_t cons_n(size_t n, ...);
 
 #define list_n( n, ... ) cons_n((n) __VA_ARGS__ __VA_OPT__(,) NUL )
 
+value_t cons_v( value_t *args, size_t n);
+
 /* runtime */
 void rl_obj_cons_init( void );
 void rl_obj_cons_mark( void );

@@ -62,6 +62,11 @@ int strskip( stream_t stream, const char *chars )
   return ch;
 }
 
+bool issep( int character )
+{
+  return isspace(character) || character == ',' || character == EOF;
+}
+
 /* runtime */
 void rl_obj_stream_init( void )
 {
