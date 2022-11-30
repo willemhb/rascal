@@ -8,6 +8,8 @@
 /* commentary */
 
 /* C types */
+typedef void (*reader_fn_t)(reader_t *reader, int dispatch);
+
 typedef enum readstate_t
   {
    readstate_ready=0,
@@ -31,6 +33,8 @@ extern reader_t Reader;
 /* API */
 void reset_reader( reader_t *reader, stream_t stream );
 void clear_reader( reader_t *reader );
+void set_reader_macro( reader_t *reader, int dispatch, reader_fn_t handler);
+void accumulate_character( reader_t *reader, int character );
 
 /* runtime */
 void rl_vm_obj_reader_init( void );

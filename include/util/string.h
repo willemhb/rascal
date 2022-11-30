@@ -1,6 +1,8 @@
 #ifndef rl_util_string_h
 #define rl_util_string_h
 
+#include <string.h>
+
 #include "common.h"
 
 /* commentary

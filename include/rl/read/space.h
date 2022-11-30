@@ -10,6 +10,9 @@
 /* globals */
 
 /* API */
+void read_space( reader_t *reader, int dispatch );
+void read_comment( reader_t *reader, int dispatch );
+void read_eos( reader_t *reader, int dispatch );
 
 /* runtime */
 void rl_rl_read_space_init( void );

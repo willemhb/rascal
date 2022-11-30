@@ -28,6 +28,21 @@ void reset_reader( reader_t *reader, stream_t stream )
   reader->stream = stream;
 }
 
+void set_reader_macro( reader_t *reader, int dispatch, reader_fn_t handler )
+{
+  readtable_add(reader->readtable, dispatch, handler);
+}
+
+int peek_character( reader_t *reader )
+{
+  return peekc(reader->stream);
+}
+
+void accumulate_character( reader_t *reader, int character )
+{
+  ascii_buffer_push(reader->buffer, character);
+}
+
 /* runtime */
 void rl_vm_reader_init( void )
 {

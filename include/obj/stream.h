@@ -12,9 +12,10 @@ extern datatype_t StreamType;
 extern stream_t Ins, Outs, Errs;
 
 /* API */
-int peekc( stream_t stream );
-int skipws( stream_t stream );
-int strskip( stream_t stream, const char *chars );
+int  peekc( stream_t stream );
+int  skipws( stream_t stream );
+int  strskip( stream_t stream, const char *chars );
+bool issep( stream_t stream );
 
 /* runtime */
 void rl_obj_stream_init( void );
