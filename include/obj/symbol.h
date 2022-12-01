@@ -14,7 +14,6 @@ struct symbol_t
   string_t name;
   ulong    hash;
   ulong    idno;
-  value_t  bind; /* toplevel binding -- will eventually be superceded by toplevel namespaces */
 };
 
 /* globals */
@@ -29,8 +28,6 @@ value_t   symbol( char *name );
 string_t  get_symbol_name( symbol_t *symbol );
 ulong     get_symbol_hash( symbol_t *symbol );
 ulong     get_symbol_idno( symbol_t *symbol );
-value_t   get_symbol_bind( symbol_t *symbol );
-value_t   set_symbol_bind( symbol_t *symbol, value_t x );
 
 /* runtime */
 void rl_obj_symbol_init( void );

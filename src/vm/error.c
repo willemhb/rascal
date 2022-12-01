@@ -13,48 +13,58 @@
 /* globals */
 
 /* API */
-void vpanic( const char *fmt, va_list va );
+int vpanic( const char *fmt, va_list va );
 
-void panic( const char *fmt, ... )
+int panic( const char *fmt, ... )
 {
   va_list va; va_start(va, fmt);
-  vpanic(fmt, va);
+  int status = vpanic(fmt, va);
   va_end(va);
+
+  return status;
 }
 
-void vpanic( const char *fmt, va_list va )
+int vpanic( const char *fmt, va_list va )
 {
   vfprintf(Errs, fmt, va);
-  Vm.panic_mode = true;
+  Vm.panicking = true;
+
+  return -1;
 }
 
 bool panicking( void )
 {
-  return Vm.panic_mode;
+  return Vm.panicking;
 }
 
 bool recover( void )
 {
-  bool out      = Vm.panic_mode;
-  Vm.panic_mode = false;
+  bool out      = Vm.panicking;
+  Vm.panicking  = false;
 
   return out;
 }
 
-void check_argco( const char *fname, size_t expect, size_t got )
+int check_argco( const char *fname, size_t expect, size_t got )
 {
-  if ( Vm.panic_mode )
-    return;
+  int status = 0 - panicking();
+  if ( status < 0 )
+    return status;
 
   if ( expect != got )
-    panic("%s wanted %zu inputs, got %zu.\n", fname, expect, got);
+    return panic("%s wanted %zu inputs, got %zu.\n", fname, expect, got);
+
+  return got;
 }
 
-void check_argtypes( const char *fname, value_t *args, size_t n_args, ... )
+int check_argtypes( const char *fname, value_t *args, size_t n_args, ... )
 {
   static const char *fmt = "%s wanted a %s for its %zu-th input, but got a %s.\n";
-  if ( Vm.panic_mode )
-    return;
+
+  int status = 0 - panicking();
+  
+  if ( status < 0 )
+    return status;
 
   va_list va; va_start(va, n_args);
 
@@ -67,16 +77,22 @@ void check_argtypes( const char *fname, value_t *args, size_t n_args, ... )
 
       if ( !rl_isa(args[i], type) )
 	{
-	  panic(fmt, fname, type_name(type), i, type_name(rl_typeof(args[i])));
-	  break;
+	  return panic(fmt,
+		       fname,
+		       get_datatype_name(type),
+		       i,
+		       get_datatype_name(rl_typeof(args[i])));
 	}
     }
 
   va_end(va);
+
+  return n_args;
 }
 
 /* runtime */
-void rl_vm_error_init( void ) {}
-void rl_vm_error_mark( void ) {}
+void rl_vm_error_init( void )    {}
+void rl_vm_error_mark( void )    {}
+void rl_vm_error_cleanup( void ) {}
 
 /* convenience */
