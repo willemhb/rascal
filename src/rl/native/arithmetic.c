@@ -40,15 +40,15 @@ void guard_division( const char *fname, value_t *args )
     return fname##_reals(args[0], args[1]);			\
   }
 
-#define native_pred(fname, op, guard)			\
-  value_t native_##fname(value_t *args, size_t n_args )	\
-  {							\
-    check_argco(#op, 2, n_args);			\
-    check_argtypes(#op, args, 2, &RealType, &RealType);	\
-    guard(#op, args);					\
-    							\
-    return fname##_reals(args[0], args[1]);		\
-  }							\
+#define native_pred(fname, op, guard)					\
+  value_t native_##fname( value_t *args, size_t n_args )		\
+  {									\
+    check_argco(#op, 2, n_args);					\
+    check_argtypes(#op, args, 2, &RealType, &RealType);			\
+    guard(#op, args);							\
+    									\
+    return fname##_reals(args[0], args[1]);				\
+  }									\
 
 native_op(add, +, empty_guard);
 native_op(sub, -, empty_guard);

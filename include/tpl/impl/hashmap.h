@@ -135,6 +135,22 @@
     return val;								\
   }									\
   									\
+  V HM##_intern( hmap_t *hmap, K key, V val )				\
+  {									\
+    void **cell = HM##_locate(hmap, key);				\
+    if ( *(K*)cell == nokey )						\
+      {									\
+	hmap_key(cell, 0, K) = key;					\
+	hmap_val(cell, 0, V) = val;					\
+	resize_##HM(hmap, hmap->len+1);					\
+      }									\
+    else								\
+      {									\
+	val = hmap_val(cell, 0, V);					\
+      }									\
+    return val;								\
+  }									\
+  									\
   bool HM##_add( hmap_t *hmap, K key, V val )				\
   {									\
     void **cell = HM##_locate(hmap, key);				\

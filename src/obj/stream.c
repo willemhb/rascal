@@ -67,6 +67,11 @@ bool issep( int character )
   return isspace(character) || character == ',' || character == EOF;
 }
 
+bool isdlm( int character )
+{
+  return strchr("(){}[]", character);
+}
+
 /* runtime */
 void rl_obj_stream_init( void )
 {
@@ -81,5 +86,7 @@ void rl_obj_stream_mark( void )
 {
   gl_mark_type(StreamType);
 }
+
+void rl_obj_stream_cleanup( void ) {}
 
 /* convenience */

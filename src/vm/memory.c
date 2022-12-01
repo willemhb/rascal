@@ -132,8 +132,8 @@ extern void rl_obj_mark( void );
 void rl_gc_mark( void )
 {
   rl_vm_mark();
-  rl_rl_mark();
   rl_obj_mark();
+  rl_rl_mark();
 }
 
 void rl_gc_trace( void )
@@ -187,7 +187,19 @@ void rl_gc_finalize( void )
 }
 
 /* runtime */
-void rl_vm_memory_init( void ) {}
-void rl_vm_memory_mark( void ) {}
+void rl_vm_memory_init( void )    {}
+void rl_vm_memory_mark( void )    {}
+void rl_vm_memory_cleanup( void )
+{
+  /* free live objects */
+  object_t *live = Heap.live;
+
+  while (live)
+    {
+      object_t *tmp = live->next;
+      free_object(live);
+      live = tmp;
+    }
+}
 
 /* convenience */

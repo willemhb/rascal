@@ -31,23 +31,28 @@ struct reader_t
 extern reader_t Reader;
 
 /* API */
+/* high level */
 void        reset_reader( reader_t *reader, stream_t stream );
 void        clear_reader( reader_t *reader );
-void        accumulate_character( reader_t *reader, int character );
-reader_fn_t get_dispatch_fn( reader_t *reader, int character );
-
-bool        is_eos( reader_t *reader );
-
-void        set_reader_macro( reader_t *reader, int dispatch, reader_fn_t handler);
-void        set_reader_macros( reader_t *reader, char *dispatches, reader_fn_t handler);
-
 void        give_value( reader_t *reader, value_t value );
 value_t     take_value( reader_t *reader );
 void        set_status( reader_t *reader, readstate_t status, const char *fmt, ... );
 
+/* buffer interface */
+void        accumulate_character( reader_t *reader, int character );
+
+/* stream interface */
+bool        is_eos( reader_t *reader );
+
+/* readtable interface */
+reader_fn_t get_dispatch_fn( reader_t *reader, int character );
+void        set_reader_macro( reader_t *reader, int dispatch, reader_fn_t handler);
+void        set_reader_macros( reader_t *reader, char *dispatches, reader_fn_t handler);
+
 /* runtime */
 void        rl_vm_obj_reader_init( void );
 void        rl_vm_obj_reader_mark( void );
+void        rl_vm_obj_reader_cleanup( void );
 
 /* convenience */
 

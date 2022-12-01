@@ -9,7 +9,6 @@
 
 /* C types */
 /* signature for procedures that go in the readtable */
-typedef void (*reader_dispatch_t)(reader_t *reader, int dispatch);
 
 /* globals */
 
@@ -20,6 +19,7 @@ value_t read( stream_t stream );
 /* runtime */
 void rl_rl_read_init( void );
 void rl_rl_read_mark( void );
+void rl_rl_read_cleanup( void );
 
 /* convenience */
 

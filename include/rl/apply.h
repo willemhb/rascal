@@ -15,6 +15,7 @@ value_t apply( value_t f, value_t args );
 /* runtime */
 void rl_rl_apply_init( void );
 void rl_rl_apply_mark( void );
+void rl_rl_apply_cleanup( void );
 
 /* convenience */
 

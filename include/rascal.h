@@ -13,6 +13,7 @@ typedef uword value_t;
 
 /* immediate types */
 typedef double    real_t;
+typedef uint64_t  fixnum_t; // 48-bit unsigned integer (defines size limit)
 typedef bool      bool_t;
 typedef FILE     *stream_t;
 typedef value_t (*native_t)(value_t *args, size_t n_args);
@@ -26,6 +27,7 @@ typedef struct datatype_t  datatype_t;
 typedef struct uniontype_t uniontype_t;
 typedef struct control_t   control_t;
 typedef struct lambda_t    lambda_t;
+typedef struct closure_t   closure_t;
 
 /* internal structure/array types types */
 typedef struct alist_t  stack_t;
@@ -34,8 +36,15 @@ typedef ushort  *bytecode_t;
 typedef value_t *vector_t;
 typedef char    *string_t;
 
+typedef struct namespc_t namespc_t;
+typedef struct envt_t    envt_t;
+
 typedef struct vm_t  vm_t;
 typedef struct reader_t reader_t;
 typedef struct heap_t heap_t;
+
+/* internal function pointer types */
+typedef int  (*reader_dispatch_fn_t)(reader_t *reader, int dispatch);
+typedef void (*object_runtime_fn_t)(object_t *object);
 
 #endif

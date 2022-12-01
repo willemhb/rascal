@@ -36,6 +36,7 @@
   X           ARR##_pop( TYPE(ARR) *ARR );				\
   size_t      ARR##_pushn( TYPE(ARR) *ARR, size_t n, ... );		\
   X           ARR##_popn( TYPE(ARR) *ARR, size_t n );			\
+  X	     *ARR##_at( TYPE(ARR) ARR, long i );		        \
   X           ARR##_ref( TYPE(ARR) ARR, long i );                       \
   X           ARR##_set( TYPE(ARR) ARR, long i, X x );			\
   X           ARR##_swap( TYPE(ARR) ARR, long i, X x )

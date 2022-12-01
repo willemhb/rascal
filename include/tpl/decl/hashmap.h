@@ -18,6 +18,7 @@
   V        HM##_get( hmap_t *hmap, K key );				\
   V        HM##_set( hmap_t *hmap, K key, V val );			\
   V        HM##_put( hmap_t *hmap, K key, V val );			\
+  V        HM##_intern( hmap_t *hmap, K key, V val );			\
   bool     HM##_add( hmap_t *hmap, K key, V val );			\
   bool     HM##_has( hmap_t *hmap, K key );				\
   bool     HM##_remove( hmap_t *hmap, K key )

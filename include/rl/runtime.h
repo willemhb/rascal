@@ -10,17 +10,14 @@
 #include "rl/read.h"
 #include "rl/repl.h"
 
-/* readers */
-#include "rl/read/list.h"
-#include "rl/read/atom.h"
-#include "rl/read/number.h"
-#include "rl/read/space.h"
-
-/* native functions */
-#include "rl/native/arithmetic.h"
+/* subdirectories */
+#include "rl/readers/runtime.h"
+#include "rl/native/runtime.h"
+#include "rl/stx/runtime.h"
 
 /* runtime */
 void rl_rl_init( void );
 void rl_rl_mark( void );
+void rl_rl_cleanup( void );
 
 #endif

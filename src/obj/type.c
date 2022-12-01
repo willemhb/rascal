@@ -36,6 +36,7 @@ datatype_t TypeType =
   };
 
 /* API */
+/* object runtime methods */
 void init_type( object_t *object )
 {
   datatype_t *datatype = (datatype_t*)object;
@@ -50,7 +51,41 @@ void init_type( object_t *object )
 
 void free_type( object_t *object )
 {
-  free_string(type_name(object));
+  free_string(get_datatype_name(object));
+}
+
+/* accessors */
+#include "tpl/impl/record.h"
+GET(type, name, string_t);
+
+object_runtime_fn_t get_datatype_init( datatype_t *datatype )
+{
+  return datatype->methods->init;
+}
+
+object_runtime_fn_t get_datatype_trace( datatype_t *datatype )
+{
+  return datatype->methods->trace;
+}
+
+object_runtime_fn_t get_datatype_free( datatype_t *datatype )
+{
+  return datatype->methods->free;
+}
+
+size_t get_datatype_obsize( datatype_t *datatype )
+{
+  return datatype->layout->obsize;
+}
+
+uint get_datatype_flags( datatype_t *datatype )
+{
+  return datatype->layout->flags;
+}
+
+vmtype_t get_datatype_vmtype( datatype_t *datatype )
+{
+  return datatype->layout->vmtype;
 }
 
 /* runtime */

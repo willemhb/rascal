@@ -13,15 +13,24 @@
 /* globals */
 
 /* API */
+void vpanic( const char *fmt, va_list va );
+
 void panic( const char *fmt, ... )
 {
   va_list va; va_start(va, fmt);
-
-  vfprintf(Errs, fmt, va);
-
+  vpanic(fmt, va);
   va_end(va);
+}
 
+void vpanic( const char *fmt, va_list va )
+{
+  vfprintf(Errs, fmt, va);
   Vm.panic_mode = true;
+}
+
+bool panicking( void )
+{
+  return Vm.panic_mode;
 }
 
 bool recover( void )

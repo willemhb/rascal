@@ -16,7 +16,8 @@ ARRAY(bytecode, ushort, uint, pad_alist_size);
 /* API */
 
 /* runtime */
-void rl_vm_obj_support_ascii_bytecode_init( void ) {}
-void rl_vm_obj_support_ascii_bytecode_mark( void ) {}
+void rl_vm_obj_support_bytecode_init( void )    {}
+void rl_vm_obj_support_bytecode_mark( void )    {}
+void rl_vm_obj_support_bytecode_cleanup( void ) {}
 
 /* convenience */

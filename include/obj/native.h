@@ -13,11 +13,13 @@
 extern datatype_t NativeType;
 
 /* API */
+/* toplevel binding */
 void define_native( char *name, native_t fn );
 
 /* runtime */
 void rl_obj_native_init( void );
 void rl_obj_native_mark( void );
+void rl_obj_native_cleanup( void );
 
 /* convenience */
 #define is_native( x ) (tagof(x)==NATIVE)

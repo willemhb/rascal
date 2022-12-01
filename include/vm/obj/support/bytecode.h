@@ -19,6 +19,7 @@ ARRAY(bytecode, ushort);
 /* runtime */
 void rl_vm_obj_support_bytecode_init( void );
 void rl_vm_obj_support_bytecode_mark( void );
+void rl_vm_obj_support_bytecode_cleanup( void );
 
 /* convenience */
 

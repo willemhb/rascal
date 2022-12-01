@@ -41,6 +41,7 @@ struct datatype_t LambdaType =
   };
 
 /* API */
+/* object runtime methods */
 void init_lambda( object_t *object )
 {
   lambda_t *lambda = (lambda_t*)object;
@@ -64,22 +65,24 @@ void trace_lambda( object_t *object )
   mark_vector(lambda->constants);
 }
 
+/* constructors */
 lambda_t *make_lambda( void )
 {
   return (lambda_t*)make_object(&LambdaType);
 }
 
-value_t get_const( lambda_t *lambda, size_t n )
-{
-  return lambda->constants[n];
-}
-
+/* constant store interface */
 static inline bool compare_consts( value_t x, value_t y )
 {
   return x == y;
 }
 
-size_t put_const( lambda_t *lambda, value_t x )
+value_t get_lambda_const( lambda_t *lambda, size_t n )
+{
+  return lambda->constants[n];
+}
+
+size_t put_lambda_const( lambda_t *lambda, value_t x )
 {
   size_t i;
   
@@ -95,7 +98,13 @@ size_t put_const( lambda_t *lambda, value_t x )
   return i;
 }
 
-void emit_instr( lambda_t *lambda, opcode_t op, ... )
+void finalize_lambda_const( lambda_t *lambda )
+{
+  trim_vector(&lambda->constants);
+}
+
+/* instructions interface */
+size_t emit_lambda_instr( lambda_t *lambda, opcode_t op, ... )
 {
   va_list va; va_start(va, op);
 
@@ -122,12 +131,25 @@ void emit_instr( lambda_t *lambda, opcode_t op, ... )
     }
 
   va_end(va);
+  
+  return bytecode_len(lambda->instructions);
 }
 
-void finalize_lambda( lambda_t *lambda )
+size_t fill_lambda_instr( lambda_t *lambda, int offset, int arg )
 {
-  emit_instr(lambda, op_halt);
-  trim_vector(&lambda->constants);
+  /* for filling in jump instructions that can't be computed when they
+
+     need to be emitted. */
+
+  ushort *location = bytecode_at(lambda->instructions, offset);
+  *location        = arg;
+
+  return offset;
+}
+
+void finalize_lambda_instr( lambda_t *lambda )
+{
+  emit_lambda_instr(lambda, op_halt);
   trim_bytecode(&lambda->instructions);
 }
 
@@ -141,5 +163,7 @@ void rl_obj_lambda_mark( void )
 {
   gl_mark_type(LambdaType);
 }
+
+void rl_obj_lambda_cleanup( void ) {}
 
 /* convenience */

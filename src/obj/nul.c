@@ -39,4 +39,6 @@ void rl_obj_nul_mark( void )
   gl_mark_type(NulType);
 }
 
+void rl_obj_nul_cleanup( void ) {}
+
 /* convenience */

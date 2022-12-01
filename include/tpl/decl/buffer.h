@@ -25,6 +25,7 @@
   size_t writeto_##B( TYPE(B) *dst, X *src, size_t n ); \
   size_t appendto_##B( TYPE(B) *dst, X *src, size_t n );	\
   size_t readfrom_##B( X *dst, TYPE(B) *src, size_t n ); \
+  X* B##_at( TYPE(B) *B, long i );		 \
   X B##_ref( TYPE(B) *B, long i ); \
   X B##_set( TYPE(B) *B, long i, X x ); \
   X B##_swap( TYPE(B) *B, long i, X x )

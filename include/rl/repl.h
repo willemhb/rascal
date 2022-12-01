@@ -15,6 +15,7 @@ void repl(void);
 /* runtime */
 void rl_rl_repl_init( void );
 void rl_rl_repl_mark( void );
+void rl_rl_repl_cleanup( void );
 
 /* convenience */
 

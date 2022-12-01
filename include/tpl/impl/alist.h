@@ -99,30 +99,31 @@
     return wlen;							\
   }									\
   									\
-  X AL##_ref( alist_t *alist, long i )					\
+  X* AL##_at( alist_t *alist, long i )					\
   {									\
     if ( i < 0 )							\
       i += alist->len;							\
-    assert(i > 0 && (size_t)i < alist->len);				\
-    return alist_member(alist, i, X);					\
+    assert(i >= 0 && (size_t)i < alist->len);				\
+    return (X*)(alist->elements+i);					\
+  }									\
+  									\
+  X AL##_ref( alist_t *alist, long i )					\
+  {									\
+    return *AL##_at(alist, i);						\
   }									\
 									\
   X AL##_set( alist_t *alist, long i, X x )				\
   {									\
-    if ( i < 0 )							\
-      i += alist->len;							\
-    assert(i > 0 && (size_t)i < alist->len);				\
-    alist_member(alist, i, X) = x;					\
+    X* spc = AL##_at(alist, i);						\
+    *spc = x;								\
     return x;								\
   }									\
   									\
   X AL##_swap( alist_t *alist, long i, X x )				\
   {									\
-    if ( i < 0 )							\
-      i += alist->len;							\
-    assert(i > 0 && (size_t)i < alist->len);				\
-    X out = alist_member(alist, i, X);					\
-    alist_member(alist, i, X) = x;					\
+    X* spc = AL##_at(alist, i);						\
+    X  out = *spc;							\
+    *spc   = x;								\
     return out;								\
   }
 

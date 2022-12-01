@@ -18,6 +18,7 @@ void mark_stack( stack_t *stack );
 /* runtime */
 void rl_vm_obj_support_stack_init( void );
 void rl_vm_obj_support_stack_mark( void );
+void rl_vm_obj_support_stack_cleanup( void );
 
 /* convenience */
 

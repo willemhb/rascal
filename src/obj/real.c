@@ -63,4 +63,6 @@ void rl_obj_real_mark( void )
   gl_mark_type(RealType);
 }
 
+void rl_obj_real_cleanup( void ) {}
+
 /* convenience */

@@ -14,8 +14,8 @@
 struct heap_t Heap =
 {
   .grays=NULL,
-  .preserve_objs=NULL,
-  .preserve_vals=NULL,
+  .object_frames=NULL,
+  .value_frames=NULL,
   .live=NULL,
   .n_alloc=0,
   .n_collect=HEAP_INI
@@ -27,23 +27,12 @@ struct heap_t Heap =
 void rl_vm_obj_heap_init( void )
 {
   Heap.grays = make_objects(0, NULL);
-  Heap.preserve_objs = make_objects(0, NULL);
-  Heap.preserve_vals = make_values(0, NULL);
 }
 
 void rl_vm_obj_heap_mark( void )
 {
-  for ( size_t i=0; i<Heap.preserve_objs->len; i++ )
-    {
-      object_t *object  = alist_member(Heap.preserve_objs, i, object_t*);
-      mark_object(object);
-    }
-
-  for ( size_t i=0; i<Heap.preserve_vals->len; i++ )
-    {
-      value_t value = alist_member(Heap.preserve_vals, i, value_t);
-      mark_value(value);
-    }
+  mark_gc_object_frames(Heap.object_frames);
+  mark_gc_value_frames(Heap.value_frames);
 }
 
 /* convenience */

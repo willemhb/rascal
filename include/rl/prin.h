@@ -16,5 +16,6 @@ void prinln( stream_t stream, value_t x );
 /* convenience */
 void rl_rl_prin_init( void );
 void rl_rl_prin_mark( void );
+void rl_rl_prin_cleanup( void );
 
 #endif

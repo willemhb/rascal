@@ -142,33 +142,31 @@
     return out;								\
   }									\
   									\
+  X* ARR##_at( TYPE(ARR) ARR, long i )					\
+  {									\
+    if ( i < 0 )							\
+      i += ARR##_len(ARR);						\
+    assert(i >= 0 && (size_t)i < ARR##_len(ARR));			\
+    return ARR + i;							\
+  }									\
+  									\
   X ARR##_ref( TYPE(ARR) ARR, long i )					\
   {									\
-    size_t len = ARR##_len(ARR);					\
-    if (i < 0)								\
-      i += len;								\
-    assert(i >= 0 && (size_t)i < len);					\
-    return ARR[i];							\
+    return *ARR##_at(ARR, i);						\
   }									\
   									\
   X ARR##_set( TYPE(ARR) ARR, long i, X x )				\
   {									\
-    size_t len = ARR##_len(ARR);					\
-    if (i < 0)								\
-      i += len;								\
-    assert(i >= 0 && (size_t)i < len);					\
-    ARR[i] = x;								\
+    X* spc = ARR##_at(ARR, i);						\
+    *spc   = x;								\
     return x;								\
   }									\
   									\
   X ARR##_swap( TYPE(ARR) ARR, long i, X x )				\
   {									\
-    size_t len = ARR##_len(ARR);					\
-    if (i < 0)								\
-      i += len;								\
-    assert(i >= 0 && (size_t)i < len);					\
-    X out = ARR[i];							\
-    ARR[i] = x;								\
+    X* spc  = ARR##_at(ARR, i);						\
+    X out   = *spc;							\
+    *spc    = x;							\
     return out;								\
   }
 

@@ -20,5 +20,6 @@ void mark_vector( vector_t vector );
 /* runtime */
 void rl_vm_obj_support_vector_init( void );
 void rl_vm_obj_support_vector_mark( void );
+void rl_vm_obj_support_vector_cleanup( void );
 
 #endif

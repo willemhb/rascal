@@ -13,16 +13,17 @@
 /* globals */
 
 /* API */
-void panic( const char *fmt, ... );
-void vpanic( const char *fmt, va_list va );
+int  panic( const char *fmt, ... );
+bool panicking( void );
 bool recover( void );
 
-void check_argco( const char *fname, size_t expect, size_t got );
-void check_argtypes( const char *fname, value_t *args, size_t n_args, ... );
+int check_argco( const char *fname, size_t expect, size_t got );
+int check_argtypes( const char *fname, value_t *args, size_t n_args, ... );
 
 /* runtime */
 void rl_vm_error_init( void );
 void rl_vm_error_mark( void );
+void rl_vm_error_cleanup( void );
 
 /* convenience */
 #define safe_call( f, sentinel, ... )		\

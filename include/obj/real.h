@@ -15,6 +15,7 @@
 extern datatype_t RealType;
 
 /* API */
+/* convenience functions for floating point arithmetic */
 value_t add_reals( value_t x, value_t y );
 value_t sub_reals( value_t x, value_t y );
 value_t mul_reals( value_t x, value_t y );
@@ -29,6 +30,7 @@ value_t neq_reals( value_t x, value_t y );
 /* runtime */
 void rl_obj_real_init( void );
 void rl_obj_real_mark( void );
+void rl_obj_real_cleanup( void );
 
 /* convenience */
 #define is_real( x )  (((x)&QNAN) != QNAN)

@@ -19,6 +19,7 @@
   size_t   appendto_##AL( alist_t *alist, X *src, size_t n );	\
   size_t   writeto_##AL( alist_t *alist, X *src, size_t n );	\
   size_t   readfrom_##AL( alist_t *alist, X *dst, size_t n );	\
+  X       *AL##_at( alist_t *alist, long i );			\
   X        AL##_ref( alist_t *alist, long i );			\
   X        AL##_set( alist_t *alist, long i, X x );		\
   X        AL##_swap( alist_t *alist, long i, X x )

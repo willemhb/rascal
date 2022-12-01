@@ -4,4 +4,5 @@ functions of a complete lisp system. Eg, `read`, `eval`,
 `prin`, `apply`, &c.
 
 Subdirectories contain reader dispatch functions, native
-functions, and other mid-level interpreter components.
+functions, syntax validation & handling functions, and other 
+mid-level interpreter components.

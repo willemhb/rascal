@@ -25,5 +25,6 @@ void      mark_symbol_table(symbol_table_t *symbol_table);
 /* runtime */
 void rl_vm_obj_support_symbol_table_init( void );
 void rl_vm_obj_support_symbol_table_mark( void );
+void rl_vm_obj_support_symbol_table_cleanup( void );
 
 #endif

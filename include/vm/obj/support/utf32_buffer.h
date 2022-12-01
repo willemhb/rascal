@@ -19,6 +19,7 @@ BUFFER(utf32_buffer, utf32_t);
 /* runtime */
 void rl_vm_obj_support_utf32_buffer_init( void );
 void rl_vm_obj_support_utf32_buffer_mark( void );
+void rl_vm_obj_support_utf32_buffer_cleanup( void );
 
 /* convenience */
 

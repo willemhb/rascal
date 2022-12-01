@@ -80,7 +80,7 @@
     ulong hash  = hashfn(member);					\
     ulong index = hash & (hset->cap-1);					\
     M hmember;								\
-    while ( (hmember=hset_member(hset, index, M)) != nokey )		\
+    while ( (hmember=hset_member(hset, index, M)) != nomember )		\
       {									\
 	if ( cmpfn(hmember, member) )					\
 	  break;							\

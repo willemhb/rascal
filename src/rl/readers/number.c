@@ -7,8 +7,8 @@
 #include "obj/stream.h"
 #include "obj/real.h"
 
-#include "rl/read/atom.h"
-#include "rl/read/number.h"
+#include "rl/readers/atom.h"
+#include "rl/readers/number.h"
 
 /* commentary */
 
@@ -104,7 +104,7 @@ void read_unsigned_number( reader_t *reader, int dispatch )
 }
 
 /* runtime */
-void rl_rl_read_number_init( void )
+void rl_rl_readers_number_init( void )
 {
   set_reader_macro(&Reader, '+', read_signed_number);
   set_reader_macro(&Reader, '-', read_signed_number);
@@ -121,5 +121,6 @@ void rl_rl_read_number_init( void )
   set_reader_macro(&Reader, '0', read_unsigned_number);
 }
 
-void rl_rl_read_number_mark( void ) {}
+void rl_rl_readers_number_mark( void ) {}
 
+void rl_rl_readers_number_cleanup( void ) {}

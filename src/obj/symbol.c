@@ -47,6 +47,7 @@ struct datatype_t SymbolType =
   };
 
 /* API */
+/* object runtime methods */
 void init_symbol(object_t *object)
 {
   symbol_t *symbol = (symbol_t*)object;
@@ -68,6 +69,7 @@ void free_symbol(object_t *object)
   free_string(symbol->name);
 }
 
+/* constructors */
 symbol_t *make_symbol( char *name )
 {
   symbol_t *symbol = (symbol_t*)make_object(&SymbolType);
@@ -85,14 +87,16 @@ value_t symbol( char *name )
   return tag_object(interned);
 }
 
-void define( char *name, value_t value )
-{
-  symbol_t *interned = intern_string(name);
-  interned->bind     = value;
-}
+/* accessors */
+#include "tpl/impl/record.h"
 
-/* runtime */
+GET(symbol, name, string_t);
+GET(symbol, hash, ulong);
+GET(symbol, idno, ulong);
+GET(symbol, bind, value_t);
+SET(symbol, bind, value_t);
 
+/* runtime dispatch */
 void rl_obj_symbol_init( void )
 {
   /* initialize type */
@@ -104,4 +108,15 @@ void rl_obj_symbol_mark( void )
   gl_mark_type(SymbolType);
 }
 
+void rl_obj_symbol_cleanup( void )
+{
+  gl_free_type(SymbolType);
+}
+
 /* convenience */
+/* global binding */
+void define( char *name, value_t value )
+{
+  symbol_t *interned = intern_string(name);
+  interned->bind     = value;
+}

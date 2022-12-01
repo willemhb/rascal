@@ -19,6 +19,7 @@ BUFFER(utf8_buffer, utf8_t);
 /* runtime */
 void rl_vm_obj_support_utf8_buffer_init( void );
 void rl_vm_obj_support_utf8_buffer_mark( void );
+void rl_vm_obj_support_utf8_buffer_cleanup( void );
 
 /* convenience */
 

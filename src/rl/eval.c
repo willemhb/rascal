@@ -20,8 +20,8 @@
 /* API */
 value_t eval( value_t x )
 {
-  if ( is_symbol(x ) )
-    return as_symbol(x)->bind;
+  if ( is_symbol(x) )
+    return get_symbol_bind(as_symbol(x));
 
   else if ( is_cons(x) )
     {
@@ -40,7 +40,8 @@ bool is_literal( value_t x )
 }
 
 /* runtime */
-void rl_rl_eval_init( void ) {}
-void rl_rl_eval_mark( void ) {}
+void rl_rl_eval_init( void )    {}
+void rl_rl_eval_mark( void )    {}
+void rl_rl_eval_cleanup( void ) {}
 
 /* convenience */

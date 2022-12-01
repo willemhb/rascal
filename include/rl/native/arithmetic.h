@@ -24,5 +24,6 @@ value_t native_neq( value_t *args, size_t n_args );
 /* runtime */
 void rl_rl_native_arithmetic_init( void );
 void rl_rl_native_arithmetic_mark( void );
+void rl_rl_native_arithmetic_cleanup( void );
 
 #endif

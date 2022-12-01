@@ -22,6 +22,7 @@ void mark_values( values_t *values );
 /* runtime */
 void rl_vm_obj_support_values_init( void );
 void rl_vm_obj_support_values_mark( void );
+void rl_vm_obj_support_values_cleanup( void );
 
 /* convenience */
 

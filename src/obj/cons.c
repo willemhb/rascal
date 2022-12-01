@@ -1,8 +1,10 @@
+#include <assert.h>
 #include <stdarg.h>
 
 #include "obj/cons.h"
 #include "obj/type.h"
 
+#include "vm/memory.h"
 
 /* commentary */
 
@@ -34,6 +36,13 @@ struct datatype_t ConsType =
   };
 
 /* API */
+/* runtime methods */
+void init_cons( cons_t *cons, value_t car, value_t cdr )
+{
+  cons->car = car;
+  cons->cdr = cdr;
+}
+
 void trace_cons( object_t *object )
 {
   cons_t *cons = (cons_t*)object;
@@ -42,7 +51,8 @@ void trace_cons( object_t *object )
   mark_value(cons->cdr);
 }
 
-value_t cons( value_t car, value_t cdr )
+/* constructors */
+value_t make_cons( value_t car, value_t cdr )
 {
   cons_t *out = (cons_t*)make_object(&ConsType);
   out->car    = car;
@@ -51,9 +61,10 @@ value_t cons( value_t car, value_t cdr )
   return tag_object(out);
 }
 
-value_t cons_n( size_t n, ... )
+value_t make_conses( size_t n, ... )
 {
-  value_t out = NUL, buf[n];
+  value_t buf[n];
+  
   va_list va; va_start(va, n);
 
   for ( size_t i=0; i<n; i++ )
@@ -61,12 +72,70 @@ value_t cons_n( size_t n, ... )
 
   va_end(va);
 
-  out = buf[n-1];
+  return vec_to_cons(buf, n);
+}
 
-  for ( size_t i=n-1; i>0; i-- )
-    out = cons(buf[i-1], out);
+value_t make_list( size_t n, ... )
+{
+  if ( n == 0 )
+    return NUL;
+
+  value_t buf[n];
+
+  va_list va; va_start(va, n);
+
+  for ( size_t i=0; i<n; i++ )
+    buf[i] = va_arg(va, value_t);
+
+  va_end(va);
+
+  return vec_to_list(buf, n);
+}
+
+value_t vec_to_cons( value_t *args, size_t n_args )
+{
+  assert(n_args >= 2);
+
+  value_t out = args[n_args-1];
+
+  save_values(1, &out);
+
+  for (size_t i=n_args-1; i>0; i--)
+    out = make_cons(args[i-1], out);
 
   return out;
+}
+
+value_t vec_to_list( value_t *args, size_t n_args )
+{
+  assert(n_args >= 1);
+
+  value_t out = NUL;
+
+  save_values(1, &out);
+
+  for (size_t i=n_args; i>0; i--)
+    out = make_cons(args[i-1], out);
+
+  return out;
+}
+
+/* accessors */
+#include "tpl/impl/record.h"
+
+GET(cons, car, value_t);
+SET(cons, car, value_t);
+GET(cons, cdr, value_t);
+SET(cons, cdr, value_t);
+
+value_t get_cons_head( cons_t *cons )
+{
+  return get_cons_car(cons);
+}
+
+cons_t *get_cons_tail( cons_t *cons )
+{
+  return as_cons(get_cons_cdr(cons));
 }
 
 /* runtime */
@@ -78,4 +147,20 @@ void rl_obj_cons_init( void )
 void rl_obj_cons_mark( void )
 {
   gl_mark_type(ConsType);
+}
+
+void rl_obj_cons_cleanup( void ) {}
+
+/* convenience */
+size_t cons_len( cons_t *cons )
+{
+  size_t out = 0;
+
+  while (cons)
+    {
+      out++;
+      cons = get_cons_tail(cons);
+    }
+
+  return out;
 }

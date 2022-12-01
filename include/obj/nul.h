@@ -15,6 +15,7 @@ extern datatype_t NulType;
 /* runtime */
 void rl_obj_nul_init( void );
 void rl_obj_nul_mark( void );
+void rl_obj_nul_cleanup( void );
 
 /* convenience */
 #define is_nul( x ) ((x)==NUL)

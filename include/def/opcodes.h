@@ -13,20 +13,41 @@ typedef enum
     op_pop           = 3,
     
     /* load/store instructions */
-    op_load_const    = 4, // load from constant store
-    op_load_global   = 5,
-    op_store_global  = 6,
+    // special constant loads
+    op_load_nul      = 4,
+
+    // general load/store
+    op_load_const    = 5,
+    op_load_global   = 6,
+    op_store_global  = 7,
+    op_load_local    = 8,
+    op_store_local   = 9,
+    op_load_nonlocal =10,
+    op_store_nonlocal=11,
 
     /* control flow */
-    op_invoke        = 7
+    op_jump_true     =12,
+    op_jump_false    =13,
+    op_jump          =14,
+    op_invoke        =15,
+    op_return        =16,
+
+    /* closures and environments */
+    op_make_closure  =17,
+    
   } opcode_t;
 
 static inline size_t op_argc( opcode_t opcode )
 {
   switch (opcode)
     {
-    case op_load_const ... op_invoke:
+    case op_load_const ... op_store_local:
+    case op_jump_true ... op_invoke:
       return 1;
+
+    case op_load_nonlocal:
+    case op_store_nonlocal:
+      return 2;
 
     default:
       return 0;

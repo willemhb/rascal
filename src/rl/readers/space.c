@@ -4,7 +4,7 @@
 
 #include "obj/stream.h"
 
-#include "rl/read/space.h"
+#include "rl/readers/space.h"
 
 #include "util/string.h"
 
@@ -47,7 +47,7 @@ void read_eos( reader_t *reader, int dispatch )
 }
 
 /* runtime */
-void rl_rl_read_space_init( void )
+void rl_rl_readers_space_init( void )
 {
   /* whitespace and separators */
   set_reader_macro(&Reader, '\n', read_space);
@@ -62,5 +62,6 @@ void rl_rl_read_space_init( void )
   set_reader_macro(&Reader, EOF, read_eos);
 }
 
-void rl_rl_read_space_mark( void ) {}
+void rl_rl_readers_space_mark( void ) {}
 
+void rl_rl_readers_space_cleanup( void ) {}

@@ -48,4 +48,6 @@ void rl_obj_native_mark( void )
   gl_mark_type(NativeType);
 }
 
+void rl_obj_native_cleanup( void ) {}
+
 /* convenience */

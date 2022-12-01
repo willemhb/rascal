@@ -21,16 +21,27 @@ struct symbol_t
 extern datatype_t SymbolType;
 
 /* API */
+/* constructors */
 symbol_t *make_symbol( char *name );
 value_t   symbol( char *name );
-void      define( char *name, value_t value );
+
+/* accessors */
+string_t  get_symbol_name( symbol_t *symbol );
+ulong     get_symbol_hash( symbol_t *symbol );
+ulong     get_symbol_idno( symbol_t *symbol );
+value_t   get_symbol_bind( symbol_t *symbol );
+value_t   set_symbol_bind( symbol_t *symbol, value_t x );
 
 /* runtime */
 void rl_obj_symbol_init( void );
 void rl_obj_symbol_mark( void );
+void rl_obj_symbol_cleanup( void );
 
 /* convenience */
 #define is_symbol( x ) ((x)==NUL)
 #define as_symbol( x ) ((symbol_t*)as_object(x))
+
+void define( char *name, value_t value );
+
 
 #endif

@@ -48,3 +48,4 @@ void rl_obj_bool_mark( void )
   gl_mark_type(BoolType);
 }
 
+void rl_obj_bool_cleanup( void ) {}

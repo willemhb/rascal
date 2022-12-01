@@ -19,6 +19,7 @@ BUFFER(utf16_buffer, utf16_t);
 /* runtime */
 void rl_vm_obj_support_utf16_buffer_init( void );
 void rl_vm_obj_support_utf16_buffer_mark( void );
+void rl_vm_obj_support_utf16_buffer_cleanup( void );
 
 /* convenience */
 

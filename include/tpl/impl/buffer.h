@@ -105,29 +105,28 @@
     memcpy(dst, B->elements, n * sizeof(X));				\
     return n;								\
   }									\
+  X *B##_at( TYPE(B) *B, long i )					\
+  {									\
+    if ( i < 0 )							\
+      i += B->len;							\
+    assert(i >= 0 && (size_t)i < B->len);				\
+    return B->elements+i;						\
+  }									\
   X B##_ref( TYPE(B) *B, long i )					\
   {									\
-    if ( i < 0 )							\
-      i += B->len;							\
-    assert(i > 0 && (size_t)i < B->len);				\
-    return B->elements[i];						\
+    return *B##_at(B, i);						\
   }									\
-  									\
   X B##_set( TYPE(B) *B, long i, X x )					\
   {									\
-    if ( i < 0 )							\
-      i += B->len;							\
-    assert(i > 0 && (size_t)i < B->len);				\
-    B->elements[i] = x;							\
+    X* spc = B##_at(B, i);						\
+    *spc = x;								\
     return x;								\
   }									\
   X B##_swap( TYPE(B) *B, long i, X x )					\
   {									\
-    if ( i < 0 )							\
-      i += B->len;							\
-    assert(i > 0 && (size_t)i < B->len);				\
-    X out = B->elements[i];						\
-    B->elements[i] = x;							\
+    X* spc = B##_at(B, i);						\
+    X out = *spc;							\
+    *spc = x;								\
     return out;								\
   }
 

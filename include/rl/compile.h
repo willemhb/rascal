@@ -15,6 +15,7 @@ lambda_t *compile( value_t x );
 /* runtime */
 void rl_rl_compile_init( void );
 void rl_rl_compile_mark( void );
+void rl_rl_compile_cleanup( void );
 
 /* convenience */
 

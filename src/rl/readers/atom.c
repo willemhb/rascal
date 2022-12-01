@@ -4,7 +4,7 @@
 #include "obj/stream.h"
 #include "obj/symbol.h"
 
-#include "rl/read/atom.h"
+#include "rl/readers/atom.h"
 
 #include "util/string.h"
 
@@ -51,5 +51,5 @@ void rl_rl_read_atom_init( void )
   set_reader_macros(&Reader, "\\^_|", read_atom);
 }
 
-void rl_rl_read_atom_mark( void ) {}
-
+void rl_rl_readers_atom_mark( void ) {}
+void rl_rl_readers_atom_cleanup( void ) {}

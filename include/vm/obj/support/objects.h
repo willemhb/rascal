@@ -21,6 +21,7 @@ void mark_objects( objects_t *objects );
 /* runtime */
 void rl_vm_obj_support_objects_init( void );
 void rl_vm_obj_support_objects_mark( void );
+void rl_vm_obj_support_objects_cleanup( void );
 
 /* convenience */
 
