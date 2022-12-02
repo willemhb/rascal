@@ -14,7 +14,7 @@
 /* globals */
 
 /* API */
-hmap_t *make_hmap( size_t n_keys, padfn_t padfn )
+hmap_t *make_hmap( size_t n_keys, pad_array_size_fn_t padfn )
 {
   
   hmap_t *out = alloc(sizeof(hmap_t));
@@ -25,7 +25,7 @@ hmap_t *make_hmap( size_t n_keys, padfn_t padfn )
   return out;
 }
 
-void init_hmap( hmap_t *hmap, size_t n_keys, padfn_t padfn )
+void init_hmap( hmap_t *hmap, size_t n_keys, pad_array_size_fn_t padfn )
 {
   
   hmap->len    = 0;
@@ -40,7 +40,7 @@ void free_hmap( hmap_t *hmap )
   dealloc(hmap, sizeof(hmap_t));
 }
 
-void clear_hmap( hmap_t *hmap, padfn_t padfn )
+void clear_hmap( hmap_t *hmap, pad_array_size_fn_t padfn )
 {
   hmap->cap          = padfn(0, 0, hmap->cap);
   free(hmap->table);

@@ -5,7 +5,8 @@
 #include "rl/stx/if.h"
 #include "rl/stx/fun.h"
 #include "rl/stx/do.h"
-#include "rl/stx/var.h"
+#include "rl/stx/val.h"
+#include "rl/stx/def.h"
 
 /* runtime dispatch module for stx subdirectory */
 

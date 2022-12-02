@@ -20,7 +20,7 @@ void empty_guard( const char *fname, value_t *args )
 
 void guard_division( const char *fname, value_t *args )
 {
-  if ( Vm.panic_mode )
+  if ( panicking() )
     return;
 
   if ( as_real(args[1]) == 0.0 )
@@ -28,22 +28,22 @@ void guard_division( const char *fname, value_t *args )
 }
 
 #define native_op(fname, op, guard)				\
-  value_t native_##fname( value_t *args, size_t n_args )	\
+  value_t native_##fname( value_t *args, int nargs )	\
   {								\
-    check_argco(#op, 2, n_args);				\
+    check_argco(#op, 2, nargs);					\
     check_argtypes(#op, args, 2, &RealType, &RealType);		\
     guard(#op, args);						\
     								\
-    if (Vm.panic_mode)						\
+    if ( panicking() )						\
       return NUL;						\
     								\
     return fname##_reals(args[0], args[1]);			\
   }
 
 #define native_pred(fname, op, guard)					\
-  value_t native_##fname( value_t *args, size_t n_args )		\
+  value_t native_##fname( value_t *args, int nargs )			\
   {									\
-    check_argco(#op, 2, n_args);					\
+    check_argco(#op, 2, nargs);					\
     check_argtypes(#op, args, 2, &RealType, &RealType);			\
     guard(#op, args);							\
     									\

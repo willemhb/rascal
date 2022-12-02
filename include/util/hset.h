@@ -1,7 +1,7 @@
 #ifndef rl_util_hset_h
 #define rl_util_hset_h
 
-#include "common.h"
+#include "rascal.h"
 
 #include "util/collection.h"
 
@@ -18,10 +18,10 @@ typedef struct
 /* globals */
 
 /* API */
-hset_t *make_hset( size_t n_keys, padfn_t padfn );
-void    init_hset( hset_t *hset, size_t n_keys, padfn_t padfn );
+hset_t *make_hset( size_t n_keys, pad_array_size_fn_t padfn );
+void    init_hset( hset_t *hset, size_t n_keys, pad_array_size_fn_t padfn );
 void    free_hset( hset_t *hset );
-void    clear_hset( hset_t *hset, padfn_t padfn );
+void    clear_hset( hset_t *hset, pad_array_size_fn_t padfn );
 
 /* runtime */
 

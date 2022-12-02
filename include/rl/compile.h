@@ -11,6 +11,7 @@
 
 /* API */
 lambda_t *compile( value_t x );
+lambda_t *compile_file( const char *fname );
 
 /* runtime */
 void rl_rl_compile_init( void );

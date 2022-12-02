@@ -12,8 +12,6 @@
 /* API */
 value_t eval( value_t x );
 
-bool    is_literal( value_t x );
-
 /* runtime */
 void rl_rl_eval_init( void );
 void rl_rl_eval_mark( void );

@@ -12,7 +12,7 @@
 /* globals */
 
 /* API */
-void read_atom( reader_t *reader, int dispatch );
+int read_atom( reader_t *reader, int dispatch );
 
 /* runtime */
 void rl_rl_readers_atom_init( void );

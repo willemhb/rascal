@@ -12,7 +12,7 @@
 bool ns_compare( symbol_t *x, symbol_t *y ) { return x == y; }
 
 #include "tpl/impl/hashmap.h"
-HASHMAP(ns_mapping, symbol_t*, value_t, pad_table_size, get_symbol_hash, ns_compare, NULL, NUL);
+HASHMAP(ns_mapping, symbol_t*, int, pad_table_size, get_symbol_hash, ns_compare, NULL, -1);
 
 /* C types */
 
@@ -37,43 +37,25 @@ void free_namespc( namespc_t *namespc )
   dealloc(namespc, sizeof(namespc_t));
 }
 
-int lookup( namespc_t *namespc, symbol_t *key, size_t *i, value_t *bind )
+int get_namespc_ref( namespc_t *namespc, symbol_t *name, int *offset )
 {
-  *i    = 0;
-  *bind = NUL;
+  *offset=0; int status;
 
   while ( namespc )
     {
-      void **space = ns_mapping_locate(namespc->locals, key);
+      if ( (status=ns_mapping_get(namespc->locals, name)) > -1 )
+	break;
 
-      if ( hmap_key(space, 0, symbol_t*) != NULL )
-	{
-	  *bind = hmap_val(space, 0, value_t);
-	  return 1;
-	}
-
-      (*i)++;
+      (*offset)++;
       namespc = namespc->next;
     }
 
-  return -1;
+  return status;
 }
 
-int define_variable( namespc_t *namespc, symbol_t *varname )
+int def_namespc_ref( namespc_t *namespc, symbol_t *name )
 {
-  value_t location = fixnum(namespc->n_vars);
-  value_t result   = ns_mapping_intern(namespc->locals, varname, location );
-
-  if ( !is_fixnum(result) ) // name was already bound to a macro
-    return -1;
-
-  return as_fixnum(result);
-}
-
-int define_macro( namespc_t *namespc, symbol_t *macroname, lambda_t *macro )
-{
-  ns_mapping_intern(namespc->locals, macroname, tag_object(macro));
-  return 0;
+  return ns_mapping_intern(namespc->locals, name, namespc->locals->len);
 }
 
 /* runtime dispatch */

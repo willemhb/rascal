@@ -1,6 +1,7 @@
 
 #include "vm/error.h"
 #include "vm/value.h"
+#include "vm/memory.h"
 
 #include "vm/obj/reader.h"
 #include "vm/obj/heap.h"
@@ -19,70 +20,68 @@
 
 /* API */
 /* internal read procedure; exposed here so that reader and dispatch may be passed. */
-extern void read_expression( reader_t *reader, int dispatch );
+extern int read_expression( reader_t *reader, int dispatch );
 
-void read_list( reader_t *reader, int dispatch )
+int read_list( reader_t *reader, int dispatch )
 {
-  size_t n = 0;
+  int status; value_t out = NUL, last = NUL, old_last, value;
+
+  save_values(1, &out);
   
   while ((dispatch=fgetc(reader->stream)) != EOF && dispatch != ')' && dispatch != '.')
     {
-      read_expression(reader, dispatch);
-      save_vals(1, take_value(reader));
-      n++;
+      if ( (status=read_expression(reader, dispatch)) < 0 )
+	return status;
+
+      value = take_value(reader);
+
+      if ( last == NUL )
+	last = out = make_cons(value, NUL);
+
+      else
+	{
+	  old_last = last;
+	  last     = make_cons(value, NUL);
+
+	  set_cons_cdr(as_cons(old_last), last);
+	}
     }
 
   if ( dispatch == EOF )
-    {
-      set_status(reader, readstate_error, "Unexpected EOS reading list.");
-      return;
-    }
+      return set_status(reader, readstate_error, "Unexpected EOS reading list.");
 
   else if ( dispatch == '.' )
     {
-      read_expression(reader, dispatch);
-
-      if ( is_eos(reader) )
-	{
-	  set_status(reader, readstate_error, "Unexpected EOS reading dotted list.");
-	  return;
-	}
-
-      save_vals(1, take_value(reader));
+      read_expression(reader, 0);
 
       if ( (dispatch=skipws(reader->stream)) == EOF )
-	{
-	  set_status(reader, readstate_error, "Unexpected EOS reading dotted list.");
-	  return;
-	}
+	  return set_status(reader, readstate_error, "Unexpected EOS reading dotted list.");
 
       else if ( dispatch != ')' )
-	{
-	  set_status(reader, readstate_error, "Unexpected token reading dotted list.");
-	  return;
-	}
+	return set_status(reader, readstate_error, "Unexpected token reading dotted list.");
+
+      else
+	set_cons_cdr(as_cons(last), take_value(reader));
     }
 
-  else
-    save_vals(1, NUL); // list tail
+  else if ( dispatch != ')' )
+    return set_status(reader, readstate_error, "Unexpected token reading dotted list.");
 
-  fgetc(reader->stream); // clear ')'
-  give_value(reader, cons_v((value_t*)Heap.preserve_vals-n, n)); // build list
-  unsave_vals(n);
+  return give_value(reader, out); // build list
 }
 
-void read_list_rpar_error( reader_t *reader, int dispatch )
+int read_list_rpar_error( reader_t *reader, int dispatch )
 {
   (void)dispatch;
 
-  set_status(reader, readstate_error, "unexpected ')'.\n");
+  return set_status(reader, readstate_error, "unexpected ')'.\n");
 }
 
-void read_list_dot_error( reader_t *reader, int dispatch )
+int read_list_dot_error( reader_t *reader, int dispatch )
 {
   (void)dispatch;
 
-  set_status(reader, readstate_error, "unexpected '.'.\n");
+  return set_status(reader, readstate_error, "unexpected '.'.\n");
 }
 
 /* runtime */

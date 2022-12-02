@@ -15,7 +15,7 @@
 /* globals */
 
 /* API */
-void read_atom( reader_t *reader, int dispatch )
+int read_atom( reader_t *reader, int dispatch )
 {
   if ( dispatch != '\0' ) // sentinel for no accumulate
     accumulate_character(reader, dispatch);
@@ -36,6 +36,8 @@ void read_atom( reader_t *reader, int dispatch )
 
   else
     give_value(reader, symbol(name));
+
+  return 1;
 }
 
 /* runtime */

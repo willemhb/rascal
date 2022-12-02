@@ -19,7 +19,7 @@
 
 /* instantiations */
 #include "tpl/decl/hashmap.h"
-HASHMAP(ns_mapping, symbol_t*, value_t);
+HASHMAP(ns_mapping, symbol_t*, int);
 
 /* C types */
 typedef struct namespc_t namespc_t;
@@ -28,7 +28,6 @@ struct namespc_t
 {
   namespc_t  *next;
   ns_mapping_t *locals;
-  size_t        n_vars;
 };
 
 /* globals */
@@ -40,10 +39,8 @@ void       init_namespc( namespc_t *namespc, namespc_t *parent );
 void       free_namespc( namespc_t *namespc );
 
 /* accessors and lookup */
-int        lookup( namespc_t *namespc, symbol_t *key, size_t *i, value_t *bind );
-bool       namespc_has_macro( namespc_t *namespc, symbol_t *macroname );
-int        define_variable( namespc_t *namespc, symbol_t *varname );
-int        define_macro( namespc_t *namespc, symbol_t *macroname, lambda_t *macro );
+int        get_namespc_ref( namespc_t *namespc, symbol_t *name, int *offset );
+int        def_namespc_ref( namespc_t *namespc, symbol_t *name );
 
 /* runtime dispatch */
 void rl_vm_obj_support_namespc_init( void );

@@ -12,7 +12,7 @@
 /* globals */
 
 /* API */
-hset_t *make_hset( size_t n_keys, padfn_t padfn )
+hset_t *make_hset( size_t n_keys, pad_array_size_fn_t padfn )
 {
   hset_t *out = alloc(sizeof(hset_t));
 
@@ -22,7 +22,7 @@ hset_t *make_hset( size_t n_keys, padfn_t padfn )
   return out;
 }
 
-void init_hset( hset_t *hset, size_t n_keys, padfn_t padfn )
+void init_hset( hset_t *hset, size_t n_keys, pad_array_size_fn_t padfn )
 {
   hset->len   = 0;
   hset->cap   = padfn(n_keys, 0, 0);
@@ -35,7 +35,7 @@ void free_hset( hset_t *hset )
   dealloc(hset, sizeof(hset_t));
 }
 
-void clear_hset( hset_t *hset, padfn_t padfn )
+void clear_hset( hset_t *hset, pad_array_size_fn_t padfn )
 {
   hset->cap          = padfn(0, 0, hset->cap);
   free(hset->table);

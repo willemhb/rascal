@@ -9,7 +9,6 @@
    functions are defined here. */
 
 /* C types */
-typedef size_t (*padfn_t)(size_t new_count, size_t old_count, size_t old_cap);
 
 /* globals */
 

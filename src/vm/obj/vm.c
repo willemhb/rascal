@@ -21,15 +21,6 @@ vm_t Vm =
   };
 
 /* API */
-value_t get_toplevel_var( symbol_t *name )
-{
-  value_t val = ns_mapping_get(Vm.toplevel_names->locals, name);
-
-  if ( is_fixnum(val) )
-    return vector_ref(Vm.toplevel_binds->binds, as_fixnum(val));
-
-  return val;
-}
 
 /* runtime */
 void rl_vm_obj_vm_init( void )

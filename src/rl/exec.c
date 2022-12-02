@@ -7,6 +7,8 @@
 #include "obj/symbol.h"
 #include "obj/native.h"
 #include "obj/type.h"
+#include "obj/closure.h"
+#include "obj/bool.h"
 
 #include "vm/error.h"
 #include "vm/value.h"
@@ -23,40 +25,42 @@
 /* globals */
 
 /* API */
+void push_call_frame( vm_t *vm, closure_t *closure, int nargs );
 
 value_t exec( lambda_t *code )
 {
   static void *labels[] =
     {
-     [op_invalid]     = &&label_invalid,
-     [op_halt]        = &&label_halt,
-     [op_nothing]     = &&label_noop,
-     [op_pop]         = &&label_pop,
-     [op_load_const]  = &&label_load_const,
-     [op_load_global] = &&label_load_global,
-     [op_store_global]= &&label_store_global,
-     [op_invoke]      = &&label_invoke
+     [op_invalid]       = &&label_invalid,
+     [op_halt]          = &&label_halt,
+     [op_nothing]       = &&label_noop,
+     [op_pop]           = &&label_pop,
+     [op_load_const]    = &&label_load_const,
+     [op_load_variable] = &&label_load_variable,
+     [op_store_variable]= &&label_store_variable,
+     [op_jump_true]     = &&label_jump_true,
+     [op_jump_false]    = &&label_jump_false,
+     [op_jump]          = &&label_jump,
+     [op_invoke]        = &&label_invoke,
+     [op_return]        = &&label_return,
+     [op_make_closure]  = &&label_make_closure,
     };
 
   opcode_t op;
 
   size_t argc;
   
-  ushort argx;
+  int argx, argy;
 
   value_t x, y, v, *a;
 
-  Vm.executing = make_control(code);
+  Vm.executing = make_control(code, Vm.toplevel_binds, NULL, 0, NULL);
 
  label_dispatch:
   if ( recover() )
     goto label_abort;
-  
-  op   = *Vm.executing->ip++;
-  argc = op_argc(op);
 
-  if (argc > 0)
-    argx = *Vm.executing->ip++;
+  op = control_fetch(Vm.executing, &argx, &argy);
 
   goto *labels[op];
 
@@ -65,68 +69,129 @@ value_t exec( lambda_t *code )
   abort();
 
  label_abort:
-  free_object((object_t*)Vm.executing);
-  Vm.executing = NULL;
+  Vm.executing = Vm.executing->caller;
   return NUL;
 
  label_halt:
-  v = stack_pop(Vm.executing->stack);
-  free_object((object_t*)Vm.executing);
-  Vm.executing = NULL;
+  v = pop_from_control_stack(Vm.executing);
+  Vm.executing = Vm.executing->caller;
   return v;
 
  label_noop:
   goto label_dispatch;
 
  label_pop:
-  stack_pop(Vm.executing->stack);
+  pop_from_control_stack(Vm.executing);
 
   goto label_dispatch;
 
  label_load_const:
-  x = get_const(Vm.executing->function, argx);
-  stack_push(Vm.executing->stack, x);
+  x = get_control_const(Vm.executing, argx);
+  push_to_control_stack(Vm.executing, x);
 
   goto label_dispatch;
 
- label_load_global:
-  y = get_const(Vm.executing->function, argx);
-  x = as_symbol(y)->bind;
-  stack_push(Vm.executing->stack, x);
+ label_load_variable:
+  x = get_control_envt_ref(Vm.executing, argx, argy);
+  push_to_control_stack(Vm.executing, x);
 
   goto label_dispatch;
 
- label_store_global:
-  y = get_const(Vm.executing->function, argx);
-  x = stack_ref(Vm.executing->stack, -1);
-  as_symbol(y)->bind = x;
+ label_store_variable:
+  x = peek_from_control_stack(Vm.executing, -1);
+  set_control_envt_ref(Vm.executing, argx, argy, x);
+
+  goto label_dispatch;
+
+ label_jump_true:
+  x = pop_from_control_stack(Vm.executing);
+
+  if ( as_cbool(x) )
+    control_jump(Vm.executing, argx);
+
+  goto label_dispatch;
+
+ label_jump_false:
+  x = pop_from_control_stack(Vm.executing);
+
+  if ( !as_cbool(x) )
+    control_jump(Vm.executing, argx);
+
+  goto label_dispatch;
+
+ label_jump:
+  control_jump(Vm.executing, argx);
+
+  goto label_dispatch;
+
+ label_make_closure:
+  y = pop_from_control_stack(Vm.executing);
+  x = capture_closure(as_lambda(y), Vm.executing->envt);
+
+  push_to_control_stack(Vm.executing, x);
 
   goto label_dispatch;
 
  label_invoke:
-  x = stack_ref(Vm.executing->stack, -argx-1);
+  x = peek_from_control_stack(Vm.executing, -(argx+1));
 
   if ( is_native(x) )
     goto label_invoke_native;
 
-  panic("Don't know how to apply value of type %s.\n", type_name(rl_typeof(x)));
+  if ( is_closure(x) )
+    goto label_invoke_closure;
+
+  if ( is_control(x) )
+    {
+      v = pop_from_control_stack(Vm.executing);
+      goto label_invoke_control;
+    }
+
+  panic("Don't know how to apply value of type %s", get_datatype_name(rl_typeof(x)));
   goto label_dispatch;
 
  label_invoke_native:
-  a = (value_t*)Vm.executing->stack+Vm.executing->stack->len-argx-1;
+  a = control_stack_at(Vm.executing, -(argx+1));
   y = as_native(x)(a, argx);
-
-  stack_popn(Vm.executing->stack, argx);
+  
+  popn_from_control_stack(Vm.executing, argx);
 
   if ( recover() )
     goto label_abort;
   
   stack_push(Vm.executing->stack, y);
   goto label_dispatch;
+
+ label_invoke_closure:
+  argc = argx;
+
+  check_closure_argco(as_closure(x), argc);
+
+  if ( !panicking() )
+    push_call_frame(&Vm, as_closure(x), argc);
+
+  goto label_dispatch;
+
+ label_return:
+  v            = pop_from_control_stack(Vm.executing);
+  Vm.executing = Vm.executing->caller;
+  
+  push_to_control_stack(Vm.executing, v);
+
+  goto label_dispatch;
+
+ label_invoke_control:
+  v            = pop_from_control_stack(Vm.executing);
+  Vm.executing = as_control(x);
+
+  push_to_control_stack(Vm.executing, v);
+
+  goto label_dispatch;
 }
 
 /* runtime */
-void rl_rl_exec_init( void ) {}
-void rl_rl_exec_mark( void ) {}
+void rl_rl_exec_init( void )    {}
+void rl_rl_exec_mark( void )    {}
+void rl_rl_exec_cleanup( void ) {}
 
 /* convenience */

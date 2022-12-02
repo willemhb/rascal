@@ -10,9 +10,9 @@
 /* globals */
 
 /* API */
-void read_list( reader_t *reader, int dispatch );
-void read_list_rpar_error( reader_t *reader, int dispatch );
-void read_list_dot_error( reader_t *reader, int dispatch );
+int read_list( reader_t *reader, int dispatch );
+int read_list_rpar_error( reader_t *reader, int dispatch );
+int read_list_dot_error( reader_t *reader, int dispatch );
 
 /* runtime */
 void rl_rl_readers_list_init( void );

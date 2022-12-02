@@ -3,6 +3,7 @@
 
 #include "vm/error.h"
 #include "vm/object.h"
+#include "vm/obj/vm.h"
 
 #include "rl/compile.h"
 #include "rl/exec.h"
@@ -21,22 +22,31 @@
 value_t eval( value_t x )
 {
   if ( is_symbol(x) )
-    return get_symbol_bind(as_symbol(x));
+    {
+      value_t out = toplevel_lookup(as_symbol(x));
+
+      if ( panicking() )
+	return NUL;
+
+      return out;
+    }
 
   else if ( is_cons(x) )
     {
       lambda_t *compiled = compile(x);
-      value_t   value    = exec(compiled);
+
+      if ( panicking() )
+	return NUL;
+      
+      value_t value = exec(compiled);
+
+      if ( panicking() )
+	return NUL;
       return value;
     }
 
   else
       return x;
-}
-
-bool is_literal( value_t x )
-{
-  return !(is_symbol(x) || is_cons(x));
 }
 
 /* runtime */

@@ -16,7 +16,7 @@ typedef double    real_t;
 typedef uint64_t  fixnum_t; // 48-bit unsigned integer (defines size limit)
 typedef bool      bool_t;
 typedef FILE     *stream_t;
-typedef value_t (*native_t)(value_t *args, size_t n_args);
+typedef value_t (*native_t)(value_t *args, int nargs);
 
 /* object types */
 typedef struct object_t    object_t;
@@ -44,7 +44,9 @@ typedef struct reader_t reader_t;
 typedef struct heap_t heap_t;
 
 /* internal function pointer types */
-typedef int  (*reader_dispatch_fn_t)(reader_t *reader, int dispatch);
-typedef void (*object_runtime_fn_t)(object_t *object);
+typedef int    (*validate_syntax_fn_t)(cons_t *form, int fl);
+typedef int    (*reader_dispatch_fn_t)(reader_t *reader, int dispatch);
+typedef size_t (*pad_array_size_fn_t)(size_t new_len, size_t old_len, size_t old_cap);
+typedef void   (*object_runtime_fn_t)(object_t *object);
 
 #endif

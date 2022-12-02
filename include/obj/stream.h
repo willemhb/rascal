@@ -27,10 +27,13 @@ int  skipws( stream_t stream );
 int  strskip( stream_t stream, const char *chars );
 bool issep( int character ); // whitespace or ','
 bool isdlm( int character ); // '()', '[]', or '{}'
+void cleanup_stream(stream_t *ref);
 
 static inline bool is_std_stream( stream_t x )
 {
   return x == stdin || x == stdout || x == stderr;
 }
+
+#define rl_stream_ref stream_t rl_cleanup(cleanup_stream)
 
 #endif

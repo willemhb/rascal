@@ -26,7 +26,7 @@ extern datatype_t ControlType;
 
 /* API */
 /* constructors */
-control_t *make_control( lambda_t *function );
+control_t *make_control( lambda_t *function, envt_t *envt, value_t *args, size_t n_args, control_t *caller );
 
 /* accessors */
 control_t *get_control_caller( control_t *control );
@@ -38,13 +38,15 @@ value_t    get_control_envt_ref( control_t *control, size_t i, size_t j );
 value_t    set_control_envt_ref( control_t *control, size_t i, size_t j, value_t val );
 
 /* stack interface */
-size_t     control_push( control_t *control, value_t x );
-value_t    control_pop( control_t *control );
-value_t    control_peek( control_t *control, long i );
-value_t   *control_at( control_t *control, long i );
+size_t     push_to_control_stack( control_t *control, value_t x );
+value_t    pop_from_control_stack( control_t *control );
+value_t    popn_from_control_stack( control_t *control, size_t n );
+value_t    peek_from_control_stack( control_t *control, long i );
+value_t   *control_stack_at( control_t *control, long i );
 
 /* ip interface */
-ushort     control_fetch( control_t *control, int *argx );
+ushort  control_fetch( control_t *control, int *argx, int *argy );
+ushort *control_jump( control_t *control, int argx );
 
 /* runtime */
 void rl_obj_control_init( void );

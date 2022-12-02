@@ -13,7 +13,8 @@ BUFFER(latin1_buffer, latin1_t, uint, pad_buffer_size);
 /* globals */
 
 /* runtime */
-void rl_vm_obj_support_latin1_buffer_init( void ) {}
-void rl_vm_obj_support_latin1_buffer_mark( void ) {}
+void rl_vm_obj_support_latin1_buffer_init( void )    {}
+void rl_vm_obj_support_latin1_buffer_mark( void )    {}
+void rl_vm_obj_support_latin1_buffer_cleanup( void ) {}
 
 /* convenience */

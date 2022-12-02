@@ -7,7 +7,7 @@
 /* instantiations */
 bool equal_chars( int x, int y );
 
-HASHMAP(readtable, int, reader_fn_t, pad_table_size, hash_int32 , equal_chars, EOF, NULL);
+HASHMAP(readtable, int, reader_dispatch_fn_t, pad_table_size, hash_int32 , equal_chars, EOF, NULL);
 
 /* C types */
 

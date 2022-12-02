@@ -2,9 +2,9 @@
 #include <stdio.h>
 #include <stdalign.h>
 
-#include "obj/obj.h"
-#include "vm/vm.h"
-#include "rl/rl.h"
+#include "vm.h"
+#include "obj.h"
+#include "rl.h"
 
 // entry point, version information
 #define VMAJOR     0

@@ -15,7 +15,14 @@
 /* API */
 hash_t hash_int32( int32_t x )
 {
-  
+    x = (x+0x7ed55d16) + (x<<12);
+    x = (x^0xc761c23c) ^ (x>>19);
+    x = (x+0x165667b1) + (x<<5);
+    x = (x+0xd3a2646c) ^ (x<<9);
+    x = (x+0xfd7046c5) + (x<<3);
+    x = (x^0xb55a4f09) ^ (x>>16);
+
+    return x;
 }
 
 hash_t hash_int( int64_t x )
