@@ -33,11 +33,12 @@ typedef union
 /* immediate tags */
 #define REAL        0x0000000000000000ul
 #define FIXNUM      0x7ffc000000000000ul
-#define BOOL        0x7ffd000000000000ul
-#define NUL         0x7ffe000000000000ul
-#define STREAM      0x7fff000000000000ul
-#define NATIVE      0xfffc000000000000ul
-#define OBJECT      0xfffd000000000000ul
+#define GLYPH       0x7ffd000000000000ul
+#define BOOL        0x7ffe000000000000ul
+#define NUL         0x7fff000000000000ul
+#define STREAM      0xfffc000000000000ul
+#define NATIVE      0xfffd000000000000ul
+#define OBJECT      0xfffe000000000000ul
 
 /* masks */
 #define TAGMASK     0xffff000000000000ul
@@ -49,7 +50,7 @@ typedef union
 
 /* API */
 datatype_t *rl_typeof( value_t x );
-bool        rl_isa( value_t x, datatype_t *type );
+bool        rl_isa( value_t x, type_t *type );
 void        mark_value( value_t x );
 void       *toptr( value_t x );
 

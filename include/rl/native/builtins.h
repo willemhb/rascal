@@ -12,14 +12,14 @@
 /* globals */
 
 /* API */
-value_t native_idp( value_t *args, size_t nargs );
-value_t native_isap( value_t *args, size_t nargs );
-value_t native_not( value_t *args, size_t nargs );
-value_t native_typeof( value_t *args, size_t nargs );
-value_t native_lookup( value_t *args, size_t nargs );
-value_t native_boundp( value_t *args, size_t nargs );
-value_t native_panic( value_t *args, size_t nargs );
-value_t native_exit( value_t *args, size_t nargs );
+value_t native_idp( value_t *args, int nargs );
+value_t native_isap( value_t *args, int nargs );
+value_t native_not( value_t *args, int nargs );
+value_t native_typeof( value_t *args, int nargs );
+value_t native_lookup( value_t *args, int nargs );
+value_t native_boundp( value_t *args, int nargs );
+value_t native_panic( value_t *args, int nargs );
+value_t native_exit( value_t *args, int nargs );
 
 /* runtime dispatch */
 void rl_rl_native_builtins_init( void );

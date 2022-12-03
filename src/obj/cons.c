@@ -3,6 +3,8 @@
 
 #include "obj/cons.h"
 #include "obj/type.h"
+#include "obj/symbol.h"
+#include "obj/nul.h"
 
 #include "vm/memory.h"
 
@@ -12,27 +14,15 @@
 
 /* globals */
 void trace_cons(object_t* object);
+value_t native_cons(value_t *args, int nargs);
 
-struct vtable_t ConsMethods =
+datatype_t ConsType =
   {
-    .trace=trace_cons
-  };
+    { gl_datatype_head, "cons", datatype_isa, native_cons },
 
-struct layout_t ConsLayout =
-  {
     .vmtype=vmtype_objptr,
-    .obsize=sizeof(cons_t)
-  };
-
-struct datatype_t ConsType =
-  {
-    {
-      .obj= obj_init(&TypeType, sizeof(datatype_t), object_fl_static),
-      .name="cons"
-    },
-
-    .methods=&ConsMethods,
-    .layout=&ConsLayout
+    .obsize=sizeof(cons_t),
+    .trace=trace_cons
   };
 
 /* API */
@@ -41,6 +31,12 @@ void init_cons( cons_t *cons, value_t car, value_t cdr )
 {
   cons->car = car;
   cons->cdr = cdr;
+
+  if ( is_proper(cdr) )
+    set_object_flags((object_t*)cons, cons_fl_proper);
+
+  if ( is_arglist(cdr) && is_symbol(car) )
+    set_object_flags((object_t*)cons, cons_fl_arglist);
 }
 
 void trace_cons( object_t *object )
@@ -55,8 +51,7 @@ void trace_cons( object_t *object )
 value_t make_cons( value_t car, value_t cdr )
 {
   cons_t *out = (cons_t*)make_object(&ConsType);
-  out->car    = car;
-  out->cdr    = cdr;
+  init_cons(out, car, cdr);
 
   return tag_object(out);
 }
@@ -135,6 +130,7 @@ value_t get_cons_head( cons_t *cons )
 
 cons_t *get_cons_tail( cons_t *cons )
 {
+  assert(flagp(cons->obj.flags, cons_fl_proper));
   return as_cons(get_cons_cdr(cons));
 }
 
@@ -156,11 +152,21 @@ size_t cons_len( cons_t *cons )
 {
   size_t out = 0;
 
-  while (cons)
+  while ( cons )
     {
       out++;
       cons = get_cons_tail(cons);
     }
 
   return out;
+}
+
+bool is_proper( value_t x )
+{
+  return is_nul(x) || (is_cons(x) && flagp(get_object_flags(as_object(x)), cons_fl_proper));
+}
+
+bool is_arglist( value_t x )
+{
+  return is_nul(x) || (is_cons(x) && flagp(get_object_flags(as_object(x)), cons_fl_arglist));
 }

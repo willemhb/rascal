@@ -23,6 +23,6 @@ void rl_vm_obj_support_string_mark( void );
 void rl_vm_obj_support_string_cleanup( void );
 
 /* convenience */
-#define rl_string(name) (struct string_header_t) { sizeof(name)-1, sizeof(name), { name } }
+// #define rl_string(name) (struct string_header_t) { sizeof(name)-1, sizeof(name), { name } }
 
 #endif

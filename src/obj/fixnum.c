@@ -6,25 +6,10 @@
 /* C types */
 
 /* globals */
-vtable_t FixnumMethods =
-  {
-    NULL, NULL, NULL
-  };
-
-layout_t FixnumLayout =
-  {
-    .vmtype=vmtype_uint64
-  };
-
 datatype_t FixnumType =
   {
-    {
-      .obj=gl_type_head,
-      .name="fixnum",
-    },
-
-    .layout=&FixnumLayout,
-    .methods=&FixnumMethods
+    .type   = { gl_datatype_head, "fixnum", datatype_isa, NULL },
+    .vmtype = vmtype_uint64
   };
 
 /* API */
@@ -45,4 +30,3 @@ void rl_obj_fixnum_mark( void )
 }
 
 void rl_obj_fixnum_cleanup( void ) {}
-

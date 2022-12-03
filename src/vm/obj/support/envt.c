@@ -48,6 +48,9 @@ value_t set_envt_ref( envt_t *envt, size_t i, size_t j, value_t x )
   while ( i-- )
     envt = get_envt_next(envt);
 
+  if (j >= vector_len(get_envt_binds(envt)) )
+    resize_vector(&envt->binds, j+1);
+
   return vector_set(get_envt_binds(envt), j, x);
 }
 

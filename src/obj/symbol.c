@@ -3,6 +3,7 @@
 #include "obj/symbol.h"
 #include "obj/type.h"
 
+#include "vm/obj/vm.h"
 #include "vm/obj/support/string.h"
 #include "vm/obj/support/symbol_table.h"
 
@@ -19,13 +20,12 @@
 
 /* globals */
 void init_symbol(object_t *object);
-void trace_symbol(object_t *object);
 void free_symbol(object_t *object);
 
 struct vtable_t SymbolMethods =
   {
     .init=init_symbol,
-    .trace=trace_symbol,
+    .trace=NULL,
     .free=free_symbol
   };
 
@@ -55,13 +55,6 @@ void init_symbol(object_t *object)
   symbol->idno = ++SymbolCounter;
 }
 
-void trace_symbol(object_t *object)
-{
-  symbol_t *symbol = (symbol_t*)object;
-
-  mark_value(symbol->bind);
-}
-
 void free_symbol(object_t *object)
 {
   symbol_t *symbol = (symbol_t*)object;
@@ -70,20 +63,19 @@ void free_symbol(object_t *object)
 }
 
 /* constructors */
-symbol_t *make_symbol( char *name )
+symbol_t *make_symbol( const char *name )
 {
   symbol_t *symbol = (symbol_t*)make_object(&SymbolType);
 
-  symbol->name = make_string(strlen8(name), name);
+  symbol->name = make_string(strlen8(name), (char*)name);
   symbol->hash = hash_str8(name);
-  symbol->bind = NUL;
 
   return symbol;
 }
 
-value_t symbol( char *name )
+value_t symbol( const char *name )
 {
-  symbol_t *interned = intern_string(name);
+  symbol_t *interned = intern_string((char*)name);
   return tag_object(interned);
 }
 
@@ -93,8 +85,6 @@ value_t symbol( char *name )
 GET(symbol, name, string_t);
 GET(symbol, hash, ulong);
 GET(symbol, idno, ulong);
-GET(symbol, bind, value_t);
-SET(symbol, bind, value_t);
 
 /* runtime dispatch */
 void rl_obj_symbol_init( void )
@@ -118,5 +108,5 @@ void rl_obj_symbol_cleanup( void )
 void define( char *name, value_t value )
 {
   symbol_t *interned = intern_string(name);
-  interned->bind     = value;
+  define_at_toplevel( interned, value );
 }

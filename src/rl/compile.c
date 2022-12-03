@@ -15,7 +15,7 @@
 #include "rl/stx/if.h"
 #include "rl/stx/quote.h"
 #include "rl/stx/fun.h"
-#include "rl/stx/val.h"
+#include "rl/stx/setv.h"
 #include "rl/stx/do.h"
 #include "rl/stx/def.h"
 
@@ -36,7 +36,7 @@ int compile_funcall( lambda_t *lambda, cons_t *x );
 int compile_quote( lambda_t *lambda, cons_t *x );
 int compile_if( lambda_t *lambda, cons_t *x );
 int compile_do( lambda_t *lambda, cons_t *x );
-int compile_val( lambda_t *lambda, cons_t *x );
+int compile_setv( lambda_t *lambda, cons_t *x );
 int compile_def( lambda_t *lambda, cons_t *x );
 int compile_fun( lambda_t *lambda, cons_t *x );
 

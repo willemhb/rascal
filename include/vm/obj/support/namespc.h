@@ -39,6 +39,8 @@ void       init_namespc( namespc_t *namespc, namespc_t *parent );
 void       free_namespc( namespc_t *namespc );
 
 /* accessors and lookup */
+int        get_namespc_locals_count( namespc_t *namespc );
+bool       is_bound_in_namespc( namespc_t *namespc, symbol_t *name );
 int        get_namespc_ref( namespc_t *namespc, symbol_t *name, int *offset );
 int        def_namespc_ref( namespc_t *namespc, symbol_t *name );
 

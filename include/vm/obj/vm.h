@@ -20,8 +20,9 @@ extern vm_t Vm;
 
 /* API */
 /* basic environment utilities */
-value_t toplevel_lookup( symbol_t *name );
-value_t toplevel_define( symbol_t *name, value_t value );
+bool    is_bound_at_toplevel( symbol_t *name );
+value_t lookup_at_toplevel( symbol_t *name );
+value_t define_at_toplevel( symbol_t *name, value_t value );
 
 /* runtime */
 void rl_vm_obj_vm_init( void );

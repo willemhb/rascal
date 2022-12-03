@@ -7,7 +7,9 @@
 #include "obj/symbol.h"
 #include "obj/type.h"
 
+#include "vm/memory.h"
 #include "vm/obj/support/stack.h"
+#include "vm/obj/support/envt.h"
 
 /* commentary */
 
@@ -18,29 +20,15 @@ void init_control( object_t *object );
 void trace_control( object_t *object );
 void free_control( object_t *object );
 
-struct vtable_t ControlMethods =
+datatype_t ControlType =
   {
-    .init=init_control,
-    .trace=trace_control,
-    .free=free_control
-  };
+    .type   = { gl_datatype_head, "control", datatype_isa, NULL },
 
-struct layout_t ControlLayout =
-  {
-    .vmtype=vmtype_objptr,
-    .flags=0,
-    .obsize=sizeof(control_t)
-  };
-
-struct datatype_t ControlType =
-  {
-    {
-      .obj=obj_init( &TypeType, sizeof(struct datatype_t), object_fl_static ),
-      .name="control"
-    },
-
-    .methods=&ControlMethods,
-    .layout=&ControlLayout
+    .vmtype = vmtype_objptr,
+    .obsize = sizeof(control_t),
+    .init   = init_control,
+    .trace  = trace_control,
+    .free   = free_control
   };
 
 /* API */
@@ -70,12 +58,15 @@ void free_control( object_t *object )
 }
 
 /* constructors */
-control_t *make_control( lambda_t *function )
+control_t *make_control( lambda_t *func, envt_t *envt, value_t *args, int nargs, control_t *caller )
 {
   control_t *control = (control_t*)make_object(&ControlType);
 
-  control->function = function;
-  control->ip       = function->instructions;
+  control->function = func;
+  control->ip       = func->instructions;
+  control->envt     = envt;
+  control->stack    = make_stack(nargs, args);
+  control->caller   = caller;
 
   return control;
 }
@@ -86,55 +77,55 @@ value_t get_control_const( control_t *control, uint i )
   return get_lambda_const(control->function, i);
 }
 
-value_t get_control_global( control_t *control, uint i )
+value_t get_control_envt_ref( control_t *control, size_t i, size_t j )
 {
-  value_t name = get_lambda_const(control->function, i);
-  
-  assert(is_symbol(name));
-
-  return get_symbol_bind(as_symbol(name));
+  return get_envt_ref(control->envt, i, j);
 }
 
-value_t set_control_global( control_t *control, uint i, value_t x )
+value_t set_control_envt_ref( control_t *control, size_t i, size_t j, value_t bind )
 {
-  value_t name = get_lambda_const(control->function, i);
-
-  assert(is_symbol(name));
-
-  return set_symbol_bind(as_symbol(name), x);
+  return set_envt_ref(control->envt, i, j, bind);
 }
 
 /* stack interface */
-size_t control_push( control_t *control, value_t x )
+size_t push_to_control_stack( control_t *control, value_t x )
 {
   return stack_push(control->stack, x);
 }
 
-value_t control_pop( control_t *control )
+value_t pop_from_control_stack( control_t *control )
 {
   return stack_pop(control->stack);
 }
 
-value_t control_peek( control_t *control, long i )
+value_t peek_from_control_stack( control_t *control, long i )
 {
   return stack_ref(control->stack, i);
 }
 
-value_t *control_at( control_t *control, long i )
+value_t *control_stack_at( control_t *control, long i )
 {
   return stack_at(control->stack, i);
 }
 
 /* ip interface */
-ushort control_fetch( control_t *control, int *argx )
+ushort control_fetch( control_t *control, int *argx, int *argy )
 {
   opcode_t out = *control->ip++;
   size_t  argc = op_argc(out);
 
-  if (argc > 0)
+  if ( argc > 0 )
     *argx = *control->ip++;
 
+  if ( argc > 1 )
+    *argy = *control->ip++;
+
   return out;  
+}
+
+ushort *control_jump( control_t *control, int argx )
+{
+  return (control->ip += argx);
 }
 
 /* runtime */

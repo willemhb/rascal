@@ -6,25 +6,11 @@
 /* C types */
 
 /* globals */
-vtable_t BoolMethods =
-  {
-    NULL, NULL, NULL
-  };
-
-layout_t BoolLayout =
-  {
-    .vmtype=vmtype_boolean
-  };
-
 datatype_t BoolType =
   {
-    {
-      .obj=obj_init(&TypeType, sizeof(datatype_t), object_fl_static),
-      .name="bool"
-    },
-
-    .layout=&BoolLayout,
-    .methods=&BoolMethods
+    { gl_datatype_head, "bool", datatype_isa, NULL },
+    
+    .vmtype=vmtype_boolean,
   };
 
 /* API */

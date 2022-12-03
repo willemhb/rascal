@@ -1,4 +1,4 @@
-#ifndef rl_vm_obj_reader_h
+ #ifndef rl_vm_obj_reader_h
 #define rl_vm_obj_reader_h
 
 #include "rascal.h"

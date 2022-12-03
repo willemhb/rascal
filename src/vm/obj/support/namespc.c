@@ -37,18 +37,26 @@ void free_namespc( namespc_t *namespc )
   dealloc(namespc, sizeof(namespc_t));
 }
 
-int get_namespc_ref( namespc_t *namespc, symbol_t *name, int *offset )
+bool is_bound_in_namespc( namespc_t *namespc, symbol_t *name )
 {
-  *offset=0; int status;
+  return ns_mapping_has(namespc->locals, name);
+}
+
+int get_namespc_ref( namespc_t *namespc, symbol_t *name, int *buf )
+{
+  int offset=0, status;
 
   while ( namespc )
     {
       if ( (status=ns_mapping_get(namespc->locals, name)) > -1 )
 	break;
 
-      (*offset)++;
+      offset++;
       namespc = namespc->next;
     }
+
+  if (buf)
+    *buf = offset;
 
   return status;
 }

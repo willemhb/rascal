@@ -8,26 +8,13 @@
 /* globals */
 void trace_closure(object_t *object);
 
-vtable_t ClosureMethods =
-  {
-    .trace=trace_closure
-  };
-
-layout_t ClosureLayout =
-  {
-    .vmtype=vmtype_objptr,
-    .obsize=sizeof(closure_t)
-  };
-
 datatype_t ClosureType =
   {
-    {
-      .obj=gl_type_head,
-      .name="closure"
-    },
+    { gl_datatype_head, "closure", datatype_isa, NULL },
 
-    .layout=&ClosureLayout,
-    .methods=&ClosureMethods
+    .vmtype=vmtype_objptr,
+    .obsize=sizeof(closure_t),
+    .trace=trace_closure
   };
 
 /* API */

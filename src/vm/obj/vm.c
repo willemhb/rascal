@@ -21,6 +21,22 @@ vm_t Vm =
   };
 
 /* API */
+/* basic toplevel environment utilities */
+bool is_bound_at_toplevel( symbol_t *name )
+{
+  return is_bound_in_namespc(Vm.toplevel_names, name);
+}
+
+value_t lookup_at_toplevel( symbol_t *name )
+{
+  int location = get_namespc_ref(Vm.toplevel_names, name, NULL);
+  return get_envt_ref(Vm.toplevel_binds, 0, location);
+}
+
+value_t define_at_toplevel( symbol_t *name, value_t value )
+{
+  
+}
 
 /* runtime */
 void rl_vm_obj_vm_init( void )

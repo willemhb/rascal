@@ -70,7 +70,7 @@ int check_argtypes( const char *fname, value_t *args, size_t n_args, ... )
 
   for ( size_t i=0; i<n_args; i++ )
     {
-      datatype_t *type = va_arg(va, datatype_t*);
+      type_t *type = va_arg(va, type_t*);
 
       if ( type == NULL )
 	continue;

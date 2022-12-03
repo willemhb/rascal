@@ -12,81 +12,117 @@
 void init_type( object_t *object );
 void free_type( object_t *object );
 
-vtable_t TypeMethods =
+bool datatype_isa( type_t *self, value_t x );
+bool uniontype_isa( type_t *self, value_t x );
+bool nonetype_isa( type_t *self, value_t x );
+bool anytype_isa( type_t *self, value_t x );
+
+datatype_t DataTypeType =
   {
+    .type={ gl_datatype_head, "data-type", datatype_isa, NULL },
+
+    .vmtype=vmtype_objptr,
+    .obsize=sizeof(datatype_t),
     .init=init_type,
-    .free=free_type
+    .free=free_type,
+    .trace=NULL
   };
 
-layout_t TypeLayout =
+datatype_t UnionTypeType =
   {
-    vmtype_objptr,
-    0,
-    sizeof(datatype_t)
+    .type={ gl_datatype_head, "union-type", datatype_isa, NULL },
+
+    .vmtype=vmtype_objptr,
+    .obsize=sizeof(uniontype_t),
+    .init=init_type,
+    .free=free_type,
+    .trace=NULL
   };
 
-datatype_t TypeType =
+uniontype_t TypeType =
   {
-    {
-      obj_init( &TypeType, sizeof(datatype_t), object_fl_static ),
-      "type"
-    },
-    &TypeLayout,
-    &TypeMethods
+    .type={ gl_uniontype_head, "type", uniontype_isa, NULL },
+
+    .left =&DataTypeType.type,
+    .right=&UnionTypeType.type
+  };
+
+uniontype_t NoneType =
+  {
+    .type={ gl_uniontype_head, "none", nonetype_isa, NULL },
+
+    .left=NULL,
+    .right=NULL
+  };
+
+uniontype_t AnyType =
+  {
+    .type={ gl_uniontype_head, "any", anytype_isa, NULL },
+
+    .left=NULL,
+    .right=NULL
   };
 
 /* API */
+/* isa methods */
+bool nonetype_isa( type_t *self, value_t x )
+{
+  (void)self;
+  (void)x;
+  return false;
+}
+
+bool anytype_isa( type_t *self, value_t x )
+{
+  (void)self;
+  (void)x;
+  return true;
+}
+
+bool datatype_isa( type_t *self, value_t x )
+{
+  return (type_t*)rl_typeof(x) == self;
+}
+
+bool uniontype_isa( type_t *self, value_t x )
+{
+  type_t *left = get_union_left((uniontype_t*)self),
+    *right = get_union_right((uniontype_t*)self);
+
+  return left->isa(left, x) || right->isa(right, x);
+}
+
 /* object runtime methods */
 void init_type( object_t *object )
 {
-  datatype_t *datatype = (datatype_t*)object;
+  type_t *type = (type_t*)object;
 
   if ( flagp(object->flags, object_fl_static) )
-      datatype->type.name = make_string(strlen8(datatype->type.name),
-					datatype->type.name);
-  
+    type->name = make_string(strlen8(type->name), type->name);
+
   else
-      datatype->type.name = make_string(strlen8("<type>"), "<type>");
+      type->name = make_string(strlen8("<type>"), "<type>");
 }
 
 void free_type( object_t *object )
 {
-  free_string(get_datatype_name(object));
+  free_string(get_type_name((type_t*)object));
 }
 
 /* accessors */
 #include "tpl/impl/record.h"
 GET(type, name, string_t);
+GET(type, isa, isa_fn_t);
+GET(type, constructor, native_t);
 
-object_runtime_fn_t get_datatype_init( datatype_t *datatype )
-{
-  return datatype->methods->init;
-}
+GET(datatype, vmtype, vmtype_t);
+GET(datatype, obsize, size_t);
+GET(datatype, init, object_runtime_fn_t);
+GET(datatype, free, object_runtime_fn_t);
+GET(datatype, trace, object_runtime_fn_t);
 
-object_runtime_fn_t get_datatype_trace( datatype_t *datatype )
-{
-  return datatype->methods->trace;
-}
-
-object_runtime_fn_t get_datatype_free( datatype_t *datatype )
-{
-  return datatype->methods->free;
-}
-
-size_t get_datatype_obsize( datatype_t *datatype )
-{
-  return datatype->layout->obsize;
-}
-
-uint get_datatype_flags( datatype_t *datatype )
-{
-  return datatype->layout->flags;
-}
-
-vmtype_t get_datatype_vmtype( datatype_t *datatype )
-{
-  return datatype->layout->vmtype;
-}
+GET(uniontype, left, type_t*);
+GET(uniontype, right, type_t*);
 
 /* runtime */
 void rl_obj_type_init( void )

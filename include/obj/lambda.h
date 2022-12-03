@@ -28,7 +28,7 @@ extern datatype_t LambdaType;
 
 /* API */
 /* constructors */
-lambda_t *make_lambda( symbol_t *name, namespc_t *parent_ns, cons_t *formals );
+lambda_t *make_lambda( symbol_t *name, namespc_t *namespc, cons_t *formals );
 
 /* accessors */
 /* miscellaneous accessors */

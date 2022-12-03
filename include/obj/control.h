@@ -26,7 +26,7 @@ extern datatype_t ControlType;
 
 /* API */
 /* constructors */
-control_t *make_control( lambda_t *function, envt_t *envt, value_t *args, size_t n_args, control_t *caller );
+control_t *make_control( lambda_t *func, envt_t *envt, value_t *args, int nargs, control_t *caller );
 
 /* accessors */
 control_t *get_control_caller( control_t *control );

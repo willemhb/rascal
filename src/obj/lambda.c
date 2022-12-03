@@ -2,6 +2,13 @@
 
 #include "obj/lambda.h"
 #include "obj/type.h"
+#include "obj/symbol.h"
+#include "obj/cons.h"
+
+#include "vm/error.h"
+
+#include "vm/obj/vm.h"
+#include "vm/obj/support/namespc.h"
 
 /* commentary */
 
@@ -42,12 +49,14 @@ struct datatype_t LambdaType =
 
 /* API */
 /* object runtime methods */
+
 void init_lambda( object_t *object )
 {
   lambda_t *lambda = (lambda_t*)object;
 
   lambda->constants = make_vector(N_CONSTANTS, NULL);
   lambda->instructions = make_bytecode(N_INSTRUCTIONS, NULL);
+  lambda->nargs = 0;
 }
 
 void free_lambda( object_t *object )
@@ -66,9 +75,38 @@ void trace_lambda( object_t *object )
 }
 
 /* constructors */
-lambda_t *make_lambda( void )
-{
-  return (lambda_t*)make_object(&LambdaType);
+lambda_t *make_lambda( symbol_t *name, namespc_t *namespc, cons_t *formals )
+{ 
+  lambda_t *lambda = (lambda_t*)make_object(&LambdaType);
+  lambda->name     = name;
+  lambda->nargs    = 0;
+
+  if ( namespc == NULL )
+    lambda->namespc = Vm.toplevel_names;
+
+  else
+    {
+      lambda->namespc = make_namespc();
+      init_namespc(lambda->namespc, namespc);
+
+      while ( formals ) // NB: formals has already been validated for type
+	{
+	  symbol_t *formal = as_symbol(get_cons_car(formals));
+	  int expected     = get_namespc_locals_count(lambda->namespc);
+	  int location     = def_namespc_ref(lambda->namespc, formal);
+
+	  if ( location != expected )
+	    {
+	      panic("Formal %s appears twice", get_symbol_name(formal));
+	      return NULL;
+	    }
+
+	  lambda->nargs++;
+	  formals = get_cons_tail(formals);
+	}
+    }
+
+  return lambda;
 }
 
 /* constant store interface */
