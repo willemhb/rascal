@@ -3,7 +3,6 @@
 
 #include "vm/object.h"
 
-#include "vm/obj/support/envt.h"
 #include "vm/obj/support/stack.h"
 
 
@@ -17,13 +16,14 @@
 /* C types */
 struct rl_control_t
 {
-  rl_object_t  obj;
+  rl_object_t obj;
 
-  stack_t     *stack;
-  envt_t      *envt;
-  ushort      *ip;
+  stack_t *stack;
+  ushort *ip;
 
-  rl_control_t   *next;
+  rl_control_t *caller;
+  rl_environment_t *environment;
+  rl_bytecode_t *bytecode;
 };
 
 /* globals */

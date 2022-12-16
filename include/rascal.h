@@ -31,12 +31,12 @@ typedef struct rl_vector_t    rl_vector_t;
 typedef struct rl_map_t       rl_map_t;
 typedef struct rl_set_t       rl_set_t;
 typedef struct rl_u16_array_t rl_u16_array_t;
+typedef struct rl_record_t    rl_record_t;
 
 /* metaobject types */
 typedef struct rl_type_t      rl_type_t;
 typedef struct rl_datatype_t  rl_datatype_t;
 typedef struct rl_uniontype_t rl_uniontype_t;
-typedef struct rl_enumtype_t  rl_enumtype_t;
 
 /* VM types */
 typedef struct rl_control_t     rl_control_t;
