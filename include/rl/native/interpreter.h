@@ -13,7 +13,7 @@
 value_t native_eval( value_t *args, int nargs );
 value_t native_apply( value_t *args, int nargs );
 value_t native_exec( value_t *args, int nargs );
-value_t native_compile( value_t *args, int nargs );
+value_t native_comp( value_t *args, int nargs );
 value_t native_read( value_t *args, int nargs );
 value_t native_prin( value_t *args, int nargs );
 value_t native_repl( value_t *args, int nargs );

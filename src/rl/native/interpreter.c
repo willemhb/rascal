@@ -4,6 +4,7 @@
 
 #include "obj/lambda.h"
 #include "obj/closure.h"
+#include "obj/native.h"
 
 #include "rl/eval.h"
 #include "rl/exec.h"
@@ -45,11 +46,26 @@ value_t native_exec( value_t *args, int nargs )
 
 value_t native_apply( value_t *args, int nargs )
 {
+  int status;
+
+  if ( (status=check_argco("apply", 2, nargs)) < 0 )
+    return NUL;
+
   
 }
 
 /* runtime dispatch */
-void rl_rl_native_interpreter_init( void ) {}
+void rl_rl_native_interpreter_init( void )
+{
+  define_native("eval", native_eval);
+  define_native("apply", native_apply);
+  define_native("exec", native_exec);
+  define_native("comp", native_comp);
+  define_native("read", native_read);
+  define_native("prin", native_prin);
+  define_native("repl", native_repl);
+}
+
 void rl_rl_native_interpreter_mark( void ) {}
 void rl_rl_native_interpreter_cleanup( void ) {}
 

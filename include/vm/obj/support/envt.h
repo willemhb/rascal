@@ -24,14 +24,14 @@ struct envt_t
 
 /* API */
 envt_t *make_envt( void );
-void    init_envt( envt_t *envt, envt_t *parent, size_t n_binds, value_t *binds );
+void    init_envt( envt_t *envt, envt_t *parent, size_t n_binds, rl_value_t *binds );
 void    free_envt( envt_t *envt );
 
 /* accessors */
 envt_t   *get_envt_next( envt_t *envt );
 vector_t  get_envt_binds( envt_t *envt );
-value_t   get_envt_ref( envt_t *envt, size_t i, size_t j );
-value_t   set_envt_ref( envt_t *envt, size_t i, size_t j, value_t bind );
+rl_value_t   get_envt_ref( envt_t *envt, size_t i, size_t j );
+rl_value_t   set_envt_ref( envt_t *envt, size_t i, size_t j, rl_value_t bind );
 
 /* runtime dispatch */
 void rl_vm_obj_support_envt_init( void );

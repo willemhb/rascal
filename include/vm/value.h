@@ -11,17 +11,15 @@
 // union of types a tagged value can be
 typedef union
 {
-  value_t      as_value;
-
-  real_t       as_real;
-  fixnum_t     as_fixnum;
-  bool_t       as_bool;
-
-  nullptr_t    as_nul;
-  stream_t     as_stream;
-  native_t     as_native;
-
-  object_t    *as_object;
+  rl_value_t as_value;
+  rl_real_t as_real;
+  rl_fixnum_t as_fixnum;
+  rl_small_t as_small;
+  rl_bool_t as_bool;
+  rl_nul_t as_nul;
+  rl_stream_t as_stream;
+  rl_native_t as_native;
+  rl_object_t *as_object;
 } rl_data_t;
 
 /* globals */
@@ -32,13 +30,14 @@ typedef union
 /* value tags */
 /* immediate tags */
 #define REAL        0x0000000000000000ul
-#define FIXNUM      0x7ffc000000000000ul
-#define GLYPH       0x7ffd000000000000ul
-#define BOOL        0x7ffe000000000000ul
-#define NUL         0x7fff000000000000ul
-#define STREAM      0xfffc000000000000ul
-#define NATIVE      0xfffd000000000000ul
-#define OBJECT      0xfffe000000000000ul
+#define SMALL       0x7ffc000000000000ul
+#define FIXNUM      0x7ffd000000000000ul
+#define GLYPH       0x7ffe000000000000ul
+#define BOOL        0x7fff000000000000ul
+#define NUL         0xfffc000000000000ul
+#define STREAM      0xfffd000000000000ul
+#define NATIVE      0xfffe000000000000ul
+#define OBJECT      0xffff000000000000ul
 
 /* masks */
 #define TAGMASK     0xffff000000000000ul
@@ -49,10 +48,10 @@ typedef union
 #define FALSE       0x7ffc000000000000ul
 
 /* API */
-datatype_t *rl_typeof( value_t x );
-bool        rl_isa( value_t x, type_t *type );
-void        mark_value( value_t x );
-void       *toptr( value_t x );
+rl_datatype_t *rl_typeof( rl_datatype_t x );
+bool rl_isa( rl_value_t x, rl_type_t *type );
+void mark_value( rl_value_t x );
+void *toptr( rl_value_t x );
 
 /* runtime */
 void rl_vm_value_init( void );
@@ -60,9 +59,9 @@ void rl_vm_value_mark( void );
 void rl_vm_value_cleanup( void );
 
 /* convenience */
-#define as_value( x )  (((rl_data_t)(x)).as_value)
+#define as_value( x ) (((rl_data_t)(x)).as_value)
 
-#define tagof( x )  ((x)&TAGMASK)
+#define tagof( x ) ((x)&TAGMASK)
 #define dataof( x ) ((x)&PTRMASK)
 #define tag( x, t ) (dataof(as_value(x))|(t))
 

@@ -17,6 +17,17 @@ bool   streq32( const utf32_t *stringX, const utf32_t *stringY );
 
 #define streq(x, y) _Generic((x), char*: streq8, utf16_t*: streq16, utf32_t*: streq32)((x), (y))
 
+bool   str_contains_substr( const char *string, const char *substring );
+bool   str_contains_char( const char *string, int ch );
+bool   str_starts_with_substr( const char *string, const char *substring );
+bool   str_starts_with_char( const char *string, int ch );
+bool   str_ends_with_substr( const char *string, const char *substring );
+bool   str_ends_with_char( const char *string, int ch );
+
+#define str_contains( s, x ) _Generic((x), char*: str_contains_substr, default: str_contains_char )((s), (x))
+#define str_starts_with( s, x ) _Generic((x), char*: str_starts_with_substr, default: str_starts_with_char )((s), (x))
+#define str_ends_with( s, x ) _Generic((x), char*: str_ends_with_substr, default: str_ends_with_char )((s), (x))
+
 int    strcmp8( const char *a, const char *b );
 int    strcmp16( const utf16_t *a, const utf16_t *b );
 int    strcmp32( const utf32_t *a, const utf32_t *b );

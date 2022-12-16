@@ -18,7 +18,7 @@ bool panicking( void );
 bool recover( void );
 
 int check_argco( const char *fname, size_t expect, size_t got );
-int check_argtypes( const char *fname, value_t *args, size_t n_args, ... );
+int check_argtypes( const char *fname, rl_value_t *args, size_t n_args, ... );
 
 /* runtime */
 void rl_vm_error_init( void );

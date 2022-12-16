@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <string.h>
 
 
@@ -5,9 +6,7 @@
 
 /* commentary */
 
-
 /* C types */
-
 
 /* globals */
 
@@ -26,6 +25,52 @@ bool streq16( const utf16_t *a, const utf16_t *b )
 bool streq32( const utf32_t *a, const utf32_t *b )
 {
   return strcmp32(a, b) == 0;
+}
+
+bool str_contains_substr( const char *string, const char *substring )
+{
+  return strstr(string, substring) != NULL;
+}
+
+bool str_contains_char( const char *string, int ch )
+{
+  return strchr(string, ch) != NULL;
+}
+
+bool str_starts_with_substr( const char *string, const char *substring )
+{
+  char *location = strstr(string, substring);
+
+  return location == string;
+}
+
+bool str_starts_with_char( const char *string, int ch )
+{
+  assert(string);
+
+  return string[0] == ch;
+}
+
+bool str_ends_with_substr( const char *string, const char *substring )
+{
+  char *location = strstr(string, substring);
+
+  if ( location == NULL )
+    return false;
+
+  return streq(location, substring);
+}
+
+bool str_ends_with_char( const char *string, int ch )
+{
+  assert(string);
+
+  size_t l = strlen(string);
+
+  if ( l == 0 )
+    return ch == '\0';
+
+  return string[l-1] == ch;
 }
 
 size_t strlen8( const char *s ) { return strlen(s); }

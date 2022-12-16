@@ -8,10 +8,6 @@
 /* commentary */
 
 /* C types */
-typedef struct vtable_t vtable_t;
-typedef struct layout_t layout_t;
-
-
 struct type_t
 {
   object_t obj;
@@ -44,7 +40,7 @@ struct uniontype_t
 };
 
 /* globals */
-extern datatype_t DataTypeType, UnionType;
+extern datatype_t DataType, UnionType;
 
 extern uniontype_t TypeType, NoneType, AnyType;
 
@@ -81,11 +77,12 @@ void rl_obj_type_mark( void );
 void rl_obj_type_cleanup( void );
 
 /* convenience */
-#define is_datatype( x )  (rl_typeof(x)==&TypeType)
-#define as_datatype( x )  ((type_t*)((x)&PTRMASK))
+#define is_datatype( x )  (rl_typeof(x)==&DataType)
+#define is_uniontype( x ) (rl_typeof(x)==&UnionType)
+#define as_datatype( x )  ((datatype_t*)((x)&PTRMASK))
 
-#define gl_datatype_head  obj_init(&DataTypeType, sizeof(datatype_t), object_fl_static)
-#define gl_uniontype_head obj_init(&UnionTypeType, sizeof(uniontype_t), object_fl_static)
+#define gl_datatype_head  obj_init(&DataType, sizeof(datatype_t), object_fl_static)
+#define gl_uniontype_head obj_init(&UnionType, sizeof(uniontype_t), object_fl_static)
 
 #define gl_init_type( x ) init_object(&(x).type.obj)
 #define gl_mark_type( x ) mark_object(&(x).type.obj)

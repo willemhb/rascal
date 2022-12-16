@@ -153,6 +153,12 @@ int compile_literal( lambda_t *lambda, value_t x )
 {
   if ( x == NUL )
     return emit_lambda_instr(lambda, op_load_nul);
+
+  else if ( x == TRUE )
+    return emit_lambda_instr(lambda, op_load_true);
+
+  else if ( x == FALSE )
+    return emit_lambda_instr(lambda, op_load_false);
   
   size_t loc = put_lambda_const(lambda, x);
 
@@ -182,8 +188,8 @@ int compile_combination( lambda_t *lambda, cons_t *form )
   if ( is_do_form(form) )
     return compile_do(lambda, form);
 
-  if ( is_val_form(form) )
-    return compile_val(lambda, form);
+  if ( is_setv_form(form) )
+    return compile_setv(lambda, form);
 
   if ( is_def_form(form) )
     return compile_def(lambda, form);
@@ -267,20 +273,20 @@ int compile_do( lambda_t *lambda, cons_t *form )
 
 int compile_val( lambda_t *lambda, cons_t *form )
 {
-  int status = check_val_syntax(form), offset, location;
+  int status = check_setv_syntax(form), offset, location;
 
   if ( status < 0 )
     return status;
 
-  value_t name = val_name(form, status);
-  value_t bind = val_bind(form, status);
+  value_t name = setv_name(form, status);
+  value_t bind = setv_bind(form, status);
   
   location = lookup_in_lambda_namespc(lambda, as_symbol(name), &offset);
 
   if ( location < 0 )
     return location;
 
-  if ( (status=compile_expression(lambda, bind)) )
+  if ( (status=compile_expression(lambda, bind)) < 0 )
     return status;
 
   return emit_lambda_instr(lambda, op_store_variable, offset, location);

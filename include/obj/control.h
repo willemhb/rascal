@@ -3,6 +3,11 @@
 
 #include "vm/object.h"
 
+#include "vm/obj/support/envt.h"
+#include "vm/obj/support/stack.h"
+
+
+
 /* commentary
 
    Basically a first class callstack frame.
@@ -10,15 +15,15 @@
    For the time being, this seems like the most straightforward way to implement effects. */
 
 /* C types */
-struct control_t
+struct rl_cntl_t
 {
-  object_t   obj;
+  rl_object_t  obj;
 
-  control_t *caller;
-  stack_t   *stack;
-  envt_t    *envt;
-  lambda_t  *function;
-  ushort    *ip;
+  stack_t     *stack;
+  envt_t      *envt;
+  ushort      *ip;
+
+  rl_cntl_t   *next;
 };
 
 /* globals */

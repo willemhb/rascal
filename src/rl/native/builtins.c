@@ -40,7 +40,7 @@ value_t native_isap( value_t *args, int nargs )
   if ( (status=check_argtypes("isa?", args, 2, NULL, &TypeType)) )
     return NUL;
 
-  return rl_isa(args[0], as_type(args[1])) ? TRUE : FALSE;
+  return rl_isa(args[0], as_datatype(args[1])) ? TRUE : FALSE;
 }
 
 value_t native_not( value_t *args, int nargs )

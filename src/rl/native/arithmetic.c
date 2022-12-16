@@ -18,7 +18,7 @@ void empty_guard( const char *fname, value_t *args )
   (void)args;
 }
 
-void guard_division( const char *fname, value_t *args )
+void division_guard( const char *fname, value_t *args )
 {
   if ( panicking() )
     return;
@@ -53,7 +53,7 @@ void guard_division( const char *fname, value_t *args )
 native_op(add, +, empty_guard);
 native_op(sub, -, empty_guard);
 native_op(mul, *, empty_guard);
-native_op(div, /, guard_division);
+native_op(div, /, division_guard);
 
 native_pred(eq, =, empty_guard);
 native_pred(lt, <, empty_guard);

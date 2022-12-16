@@ -18,7 +18,7 @@ envt_t *make_envt( void )
   return alloc(sizeof(envt_t));
 }
 
-void    init_envt( envt_t *envt, envt_t *parent, size_t n_binds, value_t *binds )
+void    init_envt( envt_t *envt, envt_t *parent, size_t n_binds, rl_value_t *binds )
 {
   envt->next  = parent;
   envt->binds = make_vector(n_binds, binds);
@@ -35,7 +35,7 @@ void    free_envt( envt_t *envt )
 GET(envt, next, envt_t*);
 GET(envt, binds, vector_t);
 
-value_t get_envt_ref( envt_t *envt, size_t i, size_t j )
+rl_value_t get_envt_ref( envt_t *envt, size_t i, size_t j )
 {
   while ( i-- )
     envt = get_envt_next(envt);
@@ -43,7 +43,7 @@ value_t get_envt_ref( envt_t *envt, size_t i, size_t j )
   return vector_ref(get_envt_binds(envt), j);
 }
 
-value_t set_envt_ref( envt_t *envt, size_t i, size_t j, value_t x )
+rl_value_t set_envt_ref( envt_t *envt, size_t i, size_t j, rl_value_t x )
 {
   while ( i-- )
     envt = get_envt_next(envt);
