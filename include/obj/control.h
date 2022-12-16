@@ -15,7 +15,7 @@
    For the time being, this seems like the most straightforward way to implement effects. */
 
 /* C types */
-struct rl_cntl_t
+struct rl_control_t
 {
   rl_object_t  obj;
 
@@ -23,7 +23,7 @@ struct rl_cntl_t
   envt_t      *envt;
   ushort      *ip;
 
-  rl_cntl_t   *next;
+  rl_control_t   *next;
 };
 
 /* globals */
