@@ -22,6 +22,18 @@ typedef union
   rl_object_t *as_object;
 } rl_data_t;
 
+typedef enum
+  {
+    real_value_type,
+    fixnum_value_type,
+    small_value_type,
+    bool_value_type,
+    nul_value_type,
+    stream_value_type,
+    native_value_type,
+    object_value_type
+  } value_type_t;
+
 /* globals */
 /* tags */
 #define QNAN        0x7ff8000000000000ul
@@ -48,7 +60,7 @@ typedef union
 #define FALSE       0x7ffc000000000000ul
 
 /* API */
-rl_datatype_t *rl_typeof( rl_datatype_t x );
+rl_type_t *rl_typeof( rl_value_t x );
 bool rl_isa( rl_value_t x, rl_type_t *type );
 void mark_value( rl_value_t x );
 void *toptr( rl_value_t x );

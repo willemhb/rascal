@@ -3,10 +3,7 @@
 
 #include "vm/object.h"
 
-#include "vm/obj/support/envt.h"
 #include "vm/obj/support/stack.h"
-
-
 
 /* commentary
 
@@ -17,41 +14,25 @@
 /* C types */
 struct rl_control_t
 {
-  rl_object_t  obj;
+  rl_object_t   obj;
 
-  stack_t     *stack;
-  envt_t      *envt;
-  ushort      *ip;
-
-  rl_control_t   *next;
+  rl_control_t *caller;
+  rl_closure_t *callee;
+  rl_module_t *module;
+  stack_t *stack;
+  ushort *ip;
 };
 
 /* globals */
-extern datatype_t ControlType;
+extern rl_datatype_t ControlType;
 
 /* API */
 /* constructors */
-control_t *make_control( lambda_t *func, envt_t *envt, value_t *args, int nargs, control_t *caller );
 
 /* accessors */
-control_t *get_control_caller( control_t *control );
-symbol_t  *get_control_fname( control_t *control );
-
 /* function interface (interact with constant store) */
-value_t    get_control_const( control_t *control, uint i );
-value_t    get_control_envt_ref( control_t *control, size_t i, size_t j );
-value_t    set_control_envt_ref( control_t *control, size_t i, size_t j, value_t val );
 
 /* stack interface */
-size_t     push_to_control_stack( control_t *control, value_t x );
-value_t    pop_from_control_stack( control_t *control );
-value_t    popn_from_control_stack( control_t *control, size_t n );
-value_t    peek_from_control_stack( control_t *control, long i );
-value_t   *control_stack_at( control_t *control, long i );
-
-/* ip interface */
-ushort  control_fetch( control_t *control, int *argx, int *argy );
-ushort *control_jump( control_t *control, int argx );
 
 /* runtime */
 void rl_obj_control_init( void );

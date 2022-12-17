@@ -10,7 +10,7 @@
    Underlying array type for arrays of tagged values. */
 
 /* instantiations */
-ARRAY(vector, value_t);
+ARRAY(vector, rl_value_t);
 
 /* C types */
 

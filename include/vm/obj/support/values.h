@@ -10,7 +10,7 @@
    Differs from stack in that it uses a more conservative overallocation scheme. */
 
 /* instantiations */
-ALIST(values, value_t);
+ALIST(values, rl_value_t);
 
 /* C types */
 

@@ -6,10 +6,10 @@
 /* commentary
 
    Alist type for untagged objects (various and sundry applications in
-   memory management). */
+   memory management and for internal types). */
 
 /* instantiations */
-ALIST(objects, object_t*);
+ALIST(objects, rl_object_t*);
 
 /* C types */
 

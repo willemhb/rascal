@@ -22,28 +22,30 @@ typedef nullptr_t    rl_nul_t;
 typedef rl_value_t (*rl_native_t)(rl_value_t *args, size_t nargs);
 
 /* user object types */
-typedef struct rl_object_t    rl_object_t;
-typedef struct rl_symbol_t    rl_symbol_t;
-typedef struct rl_function_t  rl_function_t;
-typedef struct rl_cons_t      rl_cons_t;
-typedef struct rl_string_t    rl_string_t;
-typedef struct rl_vector_t    rl_vector_t;
-typedef struct rl_map_t       rl_map_t;
-typedef struct rl_set_t       rl_set_t;
+typedef struct rl_object_t rl_object_t;
+typedef struct rl_symbol_t rl_symbol_t;
+typedef struct rl_function_t rl_function_t;
+typedef struct rl_cons_t rl_cons_t;
+typedef struct rl_string_t rl_string_t;
+typedef struct rl_vector_t rl_vector_t;
+typedef struct rl_table_t rl_table_t;
 typedef struct rl_u16_array_t rl_u16_array_t;
+typedef struct rl_record_t rl_record_t;
 
 /* metaobject types */
-typedef struct rl_type_t      rl_type_t;
-typedef struct rl_datatype_t  rl_datatype_t;
-typedef struct rl_uniontype_t rl_uniontype_t;
-typedef struct rl_enumtype_t  rl_enumtype_t;
+typedef struct rl_type_t rl_type_t;
+typedef struct rl_alias_type_t rl_alias_type_t;
+typedef struct rl_union_type_t rl_union_type_t;
+typedef struct rl_data_type_t rl_data_type_t;
+typedef struct rl_data_type_t rl_primitive_type_t;
+typedef struct rl_record_type_t rl_record_type_t;
 
 /* VM types */
 typedef struct rl_control_t     rl_control_t;
 typedef struct rl_bytecode_t    rl_bytecode_t;
 typedef struct rl_closure_t     rl_closure_t;
-typedef struct rl_environment_t rl_environment_t;
-typedef struct rl_module_t      rl_module_t;
+typedef struct rl_namespace_t   rl_namespace_t;
+typedef struct rl_variable_t    rl_variable_t;
 
 /* internal structure/array types types */
 typedef struct alist_t stack_t;
@@ -51,6 +53,7 @@ typedef struct alist_t stack_t;
 typedef ushort     *bytecode_t;
 typedef rl_value_t *vector_t;
 typedef ascii_t    *string_t;
+typedef rl_type_t  *signature_t;
 
 typedef struct vm_t     vm_t;
 typedef struct reader_t reader_t;

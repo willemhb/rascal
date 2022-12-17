@@ -3,8 +3,9 @@
 
 #include "rascal.h"
 
-
 #include "vm/object.h"
+
+#include "vm/obj/support/objects.h"
 
 /* commentary */
 
@@ -13,7 +14,9 @@ struct rl_closure_t
 {
   RL_OBJ_HEADER;
 
+  rl_string_t *name;
   rl_bytecode_t *bytecode;
+  rl_namespace_t *namespace;
   rl_environment_t *environment;
 };
 
@@ -22,7 +25,6 @@ extern rl_datatype_t ClosureType;
 
 /* API */
 /* constructors */
-
 
 /* accessors */
 
