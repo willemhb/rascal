@@ -14,7 +14,7 @@
     "data" "union" "enum" "type" "struct" "record"
     "if" "cond" "case" "and" "or"
     "quote" "do" "do*"
-    "import" "export"
+    "require" "provide"
     ;; for notional infix syntax
     "then" "else" "end" "return" "op" "is" "as")
   '(("otherwise" . font-lock-builtin-face)

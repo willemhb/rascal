@@ -1,112 +1,35 @@
 # rascal
 The first serious version of rascal, a new dialect of lisp inspired by (stealing ideas from) Julia, Scheme, Clojure, Haskell, and Erlang.
 
-rascal is a fully user-extensible language, focusing on support for three key features:
-* first-class macros, for adding new syntax.
-* first-class generic functions, for extending builtin functionality to user-defined types.
-* first-class algebraic effects, for adding new control flow.
+## key features
+   * `clojure` style macros.
+   * `julia` style multiple dispatch - all functions are generic (no separate `defgeneric`/`defmethod`).
+   * algebraic effects for extensible control flow.
+   * simple module system.
+   * user-extensible type system with support for unions, records, and type aliases.
+   
+## in-depth tour
+### types
+#### types are sets
+Types denote a (possibly infinite) set of values. The upshot of this is that all types have a uniform representation. 
 
-# key features
-## macros
-* Clojure-inspired macro system.
-  * Common Lisp macros.
-  * Practical hygiene is ensured through namespacing and `syntax-quote` form.
-  * Syntax quote supports embedded gensyms with `x#` syntax.
-  * Namespaces are called modules and have a different surface syntax.
+#### types are represented by constructors
+Every type has a constructor, a pure function that returns values from the set associated to the type, or signals an error if no such value can be found. The constructor
+is the value used to represent the type within rascal. Eg, the function `typeof` returns a function object, not a type object.
 
-## types & multiple dispatch
-* All functions, macros, and effects are generic -- no separate `defmethod`/`defgeneric` forms.
-* Practical efficiency is ensured through memoization -- only the first call for a given method signature incurs more-than-constant overhead.
+The default behavior of a constructor `C` for type `T` with argument `x` is to return `x` if `x` is a member of `T`, and to signal an error otherwise.
 
-## algebraic effects
-* Support for algebraic effects using the `cntl` and `with` forms.
-* Algebraic effects allow users to add new control flow to the language -- exceptions, generators, coroutines, actor-based processes, and other control flow can be implemented efficiently in rascal using the builtin effects system.
+#### primitive types
 
-# other features
-* Easy `C` ffi with `c-call` form.
-* Users can define new types with the `data` and `union` forms.
-* A simple, unobtrusive module/namesapce system requiring only the `import` and `export` forms (with an optional `module` form).
-* Scheme-style rest args, as well as an analogous splatting syntax,
-  eg `(+ . '(1 2 3 4)) ;; => (apply + '(1 2 3 4))`.
-* Builtin support for exceptions using the `catch` form.
+#### union types
 
-# library modules
-## math
-* `math` - general mathematics utilities as found in `<math.h>`
+#### record types
 
-## system
-* `os`   - Operating system interface
+### multiple dispatch
 
+### macros
 
-# planned features
-* Persistent, immutable, HAMT based implementations for the `vector`, `dict`, and `set`.
-* More FFI forms, minimally, `java-call` and `cpp-call`
-* Full support for a complementary serialization format based on edn (.rdn, .rdn.o).
-* Various performance improvements (the current version of the compiler doesn't perform any optimizations).
-* Extensible reader (similar to Common Lisp).
-* Low latency, concurrent tri-color GC.
-* Augmenting the bytecode interpreter with a JIT compiler producing native code from bytecode.
-* Typeclasses using the `class` form.
-* Pattern matching `case` form.
-* Pattern/template-based macros using `syntax` form.
-* Decorator/annotation syntax using familiar `@` syntax.
-* Clojure-like function literals, eg `#(+ 1 %) ;; => (fun (%) (+ 1 %))`.
-* Clojure-like ref syntax for non-functions, eg `(1 '(1 2)) ;; => (nth 1 '(1 2))` and `(:car '(1 2)) ;; => (ref :car '(1 2))`.
-* Implementation of STM semantics, implemented using builtin effects system.
-* Builtin support for `yield` and `async/await` form, implemented using builtin effects system.
-* Builtin support for actor-based `process` form, implemented using builtin effects system.
-* Standard library modules establishing standard interfaces to be used by 3rd party packages (similar to Python DBAPI 2.0).
+### effect system
 
-# planned library modules
-## math
-* `stats`  - statistics and probability
-* `linalg` - linear algebra
-* `crypt`  - hashing, randomization, and number theory utilities
-
-## text manipulation
-* `regx`     - regular expressions
-* `encoding` - text encoding/decoding utilities
-
-## algorithms
-* `graph` - utilities for working with graph structures
-
-## parsing and templating
-* `rdn`  - rascal data notation (native serialization format)
-* `json` - .json 
-* `xml`  - .xml and .svg
-* `htm`  - .html 
-* `css`  - .css
-
-## FFIs and interpreters
-* `ecma` - a bidirectional javascript reader, writer, and transpiler
-
-## IO & internet
-* `io`   - local IO
-* `net`  - network IO and sockets
-* `http` - utilities for working with HTTP and making clients/servers
-* `mime` - mime types
-* `uri`  - Tools for building and parsing URIs
-
-## internals
-* `reader`   - interface to the reader
-* `gc`        - interface to the GC
-* `writer`   - interface to the printer
-* `expander` - interface to macro expander
-* `compiler` - interface to the compiler
-* `vm`        - interface to the bytecode interpreter
-
-## operating system
-* `path` - utilities for working with file paths
-
-## misc
-* `gui`  - GUI toolkit (backend not yet determined)
-* `time` - various date & time utilities
-
-# possible features
-* `dict` and `set` types might maintain insertion order (this can be done straightforwardly using a method adapted from the CPython `dict` implementation, but I must verify that the space overhead is acceptable).
-* Incorporation of some of the syntactic innovations of Bel.
-  * dot-application, eg `'(1 2).cdr.car ;; => (car (cdr '(1 2)))`
-  * subscript-application, eg `[1 2 3][1] ;; => (1 [1 2 3])`
-  * colon-composition, eg `(car:cdr '(1 2)) ;; => ((fun (x) (car (cdr x))) '(1 2))`
-* Support for a non-lisp surface syntax.
-
+### module system
+#### importing and exporting

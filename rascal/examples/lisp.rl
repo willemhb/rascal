@@ -1,31 +1,43 @@
 ;; examples of lisp syntax
 
 ;;; type declarations
-(type time real)                            ;; type alias
-(type number {real, small, complex, ratio}) ;; union type
+(type time real)                            ;; aliased type
+(type number {real, small, complex})        ;; union type
 (type person [name, age, gender, student?]) ;; record type
-(type tree                                  ;; algebraic type (just a bunch of syntactic sugar)
-      (empty [])
-      (leaf  [key, val])
-      (node  [left, right]))
+(type list {nul, cons})                     ;; pseudo-algebraic type
 
-;;; method definition examples
-(fun length [(tr tree)]
-     (case tr
-     	   [(empty)        0]
-	   [(leaf  [k, v]) 1]
-	   [(node  [l, r]) (+ (length l) (length r))]))
+(provide [list, length, filter, map, reduce])
 
-(fun map [(fn Call), (tr tree)]
-     (case tr
-     	   [(empty) tr]
-	   [(leaf [k, v]) (leaf k v.fn)]
-	   [(node [l, r]) (node (map fn l) (map fn r))]))
+(fun first [(xs cons)] (car xs))
+(fun rest [(xs cons)] (cdr xs))
 
-(fun filter [(fn? Call), (tr tree)]
-     (case tr
-     	   [(empty) tr]
-	   [(leaf [k, v]) (if (fn? k) tr (empty))]
-	   [(node [l, r]) (node (filter fn? l) (filter fn? r))]))
+(fun length "Implement for list type."
+     [(xs list)]
+     (if (nul? xs)
+          0 (inc (length (first xs)))))
 
-(export [time, number, person, tree, length, filter])
+(fun map "Implement for list type."
+     [fn, (xs list)]
+     (if (nul? xs)
+          () (cons (fn (first xs)) (map fn (rest xs)))))
+
+(fun filter "Implement for list type."
+     [fn?, (xs list)]
+     (cond (nul? xs) ()
+           (fn? (first xs))
+            (cons (first xs) (filter fn? (rest xs)))
+           otherwise (filter fn? (rest xs))))
+
+(fun reduce "Implement for list type (with no initial)."
+     [fn, (xs cons)]
+     (reduce fn (rest xs) (first xs)))
+
+(fun reduce "Implement for list type (initial supplied)."
+     [fn, (xs list), acc]
+     (if (nul? xs)
+          acc (reduce fn (rest xs) ())))
+
+(mac catch "Syntactic sugar for handling raise effect."
+     [irritant, handlers, & body]
+     (fun transform [irritant, handlers] ...)
+     `(with ~(transform irritant handlers) ~@body))

@@ -30,36 +30,8 @@ struct rl_function_t {
   RL_OBJ_HEADER;
 
   rl_string_t *name;
-  rl_type_t *type;
+  type_t *type;
   method_t *methods;
-};
-
-struct method_signature_t {
-  uint arity;
-  bool allow_vargs;
-  ulong  hash;
-  rl_type_t *return_type;
-  rl_type_t **arg_types;
-};
-
-struct method_cache_t {
-  /* for now cache is a doubly linked list that uses the "most recent to front"
-     caching strategy. Amortized, this orders applicable methods by frequency of
-     call. */
-
-  method_cache_t *next;
-  method_cache_t *prev;
-  method_t       *method;
-  method_t       *table;
-};
-
-struct method_t
-{
-  method_t *next;
-
-  method_cache_t *cache;
-  method_signature_t *signature;
-  rl_value_t method_handler;
 };
 
 /* globals */

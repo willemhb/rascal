@@ -9,10 +9,7 @@ type list = nul | cons
 fun list() = nul
 fun list(x, rest..) = cons(x, list(..rest))
 
-type empty = ()
-type leaf = { key, val }
-type node = { left, right }
-type tree = empty | leaf | node
+type tree = empty {} | leaf { key, val } | node { left, right }
 
 type regexp = { pattern, flags, compiled }
 
@@ -22,7 +19,7 @@ fun regexp(pattern, flags) = regexp(pattern, flags, comp_re(pattern, flags))
 fun map (fn, xs:list)
     cond
         xs == ()  => ()
-        otherwise => cons(fn(xs.car), map(fn, xs.cdr))
+        otherwise => fn(xs.car) cons map(fn, xs.cdr)
     end
 end
 

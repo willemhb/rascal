@@ -12,20 +12,19 @@
 typedef uword rl_value_t;
 
 /* immediate types */
-typedef double       rl_real_t;
-typedef uint64_t     rl_fixnum_t; // 48-bit unsigned integer (defines size limit)
-typedef bool         rl_bool_t;
-typedef ascii_t      rl_glyph_t;
-typedef int          rl_small_t;
-typedef FILE        *rl_stream_t;
-typedef nullptr_t    rl_nul_t;
+typedef double rl_real_t;
+typedef uint64_t rl_fixnum_t; // 48-bit unsigned integer (defines size limit)
+typedef bool rl_bool_t;
+typedef ascii_t rl_glyph_t;
+typedef int rl_small_t;
+typedef FILE *rl_stream_t;
+typedef nullptr_t rl_nul_t;
 typedef rl_value_t (*rl_native_t)(rl_value_t *args, size_t nargs);
 
 /* user object types */
 typedef struct rl_object_t rl_object_t;
 typedef struct rl_symbol_t rl_symbol_t;
 typedef struct rl_function_t rl_function_t;
-typedef struct rl_function_t rl_type_t;
 typedef struct rl_cons_t rl_cons_t;
 typedef struct rl_string_t rl_string_t;
 typedef struct rl_vector_t rl_vector_t;
@@ -34,25 +33,31 @@ typedef struct rl_set_t rl_set_t;
 typedef struct rl_u16_array_t rl_u16_array_t;
 typedef struct rl_record_t rl_record_t;
 
-/* metaobject types */
 /* VM types */
-typedef struct rl_control_t     rl_control_t;
-typedef struct rl_bytecode_t    rl_bytecode_t;
-typedef struct rl_closure_t     rl_closure_t;
-typedef struct rl_namespace_t   rl_namespace_t;
-typedef struct rl_variable_t    rl_variable_t;
+typedef struct rl_control_t rl_control_t;
+typedef struct rl_bytecode_t rl_bytecode_t;
+typedef struct rl_closure_t rl_closure_t;
+typedef struct rl_namespace_t rl_namespace_t;
+typedef struct rl_variable_t rl_variable_t;
+
+/* special cases of the above types */
+typedef struct rl_function_t rl_type_t;
+typedef struct rl_function_t rl_macro_t;
+typedef struct rl_closure_t  rl_module_t;
+typedef struct rl_namespace_t rl_slots_t;
+typedef struct rl_vqriable_t rl_slot_t;
 
 /* internal structure/array types types */
 typedef struct alist_t stack_t;
 
-typedef ushort     *bytecode_t;
+typedef ushort *bytecode_t;
 typedef rl_value_t *vector_t;
-typedef ascii_t    *string_t;
-typedef rl_type_t  *signature_t;
+typedef ascii_t *string_t;
+typedef rl_type_t *signature_t;
 
-typedef struct vm_t     vm_t;
+typedef struct vm_t vm_t;
 typedef struct reader_t reader_t;
-typedef struct heap_t   heap_t;
+typedef struct heap_t heap_t;
 
 /* internal function pointer types */
 typedef int    (*validate_syntax_fn_t)(rl_cons_t *form, int fl);
