@@ -11,12 +11,12 @@
   '(";")
   '("set" "def"
     "fun" "mac" "let" "with"
-    "data" "union" "enum" "type"
+    "data" "union" "enum" "type" "struct" "record"
     "if" "cond" "case" "and" "or"
     "quote" "do" "do*"
     "import" "export"
     ;; for notional infix syntax
-    "then" "else" "end" "return" "op")
+    "then" "else" "end" "return" "op" "is" "as")
   '(("otherwise" . font-lock-builtin-face)
     ("resume\\W" . font-lock-builtin-face)
     ("escape\\W" . font-lock-builtin-face)

@@ -14,13 +14,14 @@
 /* C types */
 struct rl_control_t
 {
-  rl_object_t   obj;
+  rl_object_t obj;
 
-  rl_control_t *caller;
-  rl_closure_t *callee;
-  rl_module_t *module;
   stack_t *stack;
   ushort *ip;
+
+  rl_control_t *caller;
+  rl_environment_t *environment;
+  rl_bytecode_t *bytecode;
 };
 
 /* globals */

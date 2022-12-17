@@ -25,21 +25,16 @@ typedef rl_value_t (*rl_native_t)(rl_value_t *args, size_t nargs);
 typedef struct rl_object_t rl_object_t;
 typedef struct rl_symbol_t rl_symbol_t;
 typedef struct rl_function_t rl_function_t;
+typedef struct rl_function_t rl_type_t;
 typedef struct rl_cons_t rl_cons_t;
 typedef struct rl_string_t rl_string_t;
 typedef struct rl_vector_t rl_vector_t;
-typedef struct rl_table_t rl_table_t;
+typedef struct rl_dict_t rl_dict_t;
+typedef struct rl_set_t rl_set_t;
 typedef struct rl_u16_array_t rl_u16_array_t;
 typedef struct rl_record_t rl_record_t;
 
 /* metaobject types */
-typedef struct rl_type_t rl_type_t;
-typedef struct rl_alias_type_t rl_alias_type_t;
-typedef struct rl_union_type_t rl_union_type_t;
-typedef struct rl_data_type_t rl_data_type_t;
-typedef struct rl_data_type_t rl_primitive_type_t;
-typedef struct rl_record_type_t rl_record_type_t;
-
 /* VM types */
 typedef struct rl_control_t     rl_control_t;
 typedef struct rl_bytecode_t    rl_bytecode_t;
@@ -64,6 +59,5 @@ typedef int    (*validate_syntax_fn_t)(rl_cons_t *form, int fl);
 typedef int    (*reader_dispatch_fn_t)(reader_t *reader, int dispatch);
 typedef size_t (*pad_array_size_fn_t)(size_t new_len, size_t old_len, size_t old_cap);
 typedef void   (*object_runtime_fn_t)(rl_object_t *object);
-typedef bool   (*isa_fn_t)(rl_type_t *self, rl_value_t x);
 
 #endif
