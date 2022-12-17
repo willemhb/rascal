@@ -17,7 +17,7 @@ struct heap_t
   objects_t         *grays;
   gc_object_frame_t *object_frames;
   gc_value_frame_t  *value_frames;
-  object_t          *live;
+  rl_object_t       *live;
 
   bool               collecting;
   

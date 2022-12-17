@@ -8,7 +8,6 @@
 /* C types */
 
 /* globals */
-extern rl_datatype_t BoolType;
 
 /* API */
 bool as_cbool( rl_value_t x );
@@ -19,7 +18,6 @@ void rl_obj_bool_mark( void );
 void rl_obj_bool_cleanup( void );
 
 /* convenience */
-#define is_bool( x ) (tagof(x)==BOOL)
-#define as_bool( x ) as_cbool(x)
+#define is_bool( x ) has_value_type(x, bool_value)
 
 #endif

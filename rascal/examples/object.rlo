@@ -1,0 +1,7 @@
+#fn{
+	object, ;;; name
+	{ },    ;;; exports
+	{ },    ;;; namespace
+	{ },    ;;; constants
+	[ ]     ;;; instructions
+   }

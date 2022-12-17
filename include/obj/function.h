@@ -14,24 +14,28 @@
    functions are also the common way of referring to types. */
 
 /* C types */
-typedef struct method_t method_t;
-typedef struct method_signature_t method_signature_t;
-typedef enum method_type_t method_type_t;
-typedef struct method_cache_t method_cache_t;
+typedef enum fn_flags_t fn_flags_t;
 
-enum method_type_t {
-    invalid_method_type=-1,
-    primitive_method_type,
-    native_method_type,
-    user_method_type,
+enum fn_flags_t {
+    is_primitive_method,
+    is_native_method,
+    is_compiled_method,
+    is_constructor=4,
+    is_macro=8,
+    is_vargs=16,
   };
 
 struct rl_function_t {
   RL_OBJ_HEADER;
 
-  rl_string_t *name;
+  rl_function_t *next; // method table is an invasive linked list
+  rl_symbol_t *name;
   type_t *type;
-  method_t *methods;
+  signature_t *signature;
+
+  union {
+    
+  };
 };
 
 /* globals */

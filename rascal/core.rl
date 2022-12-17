@@ -3,37 +3,32 @@
 
 ;;; globals
 ;;; example of defining a custom type and implementing methods
-(enum Tree
-      [(Empty) :as EmptyTree
-       (Leaf key val)
-       (Node (left Tree) (right Tree))])
+(type list {nul, cons})
 
-(export [Tree length map filter])
+(provide [list, head, tail, length, map, filter, reduce])
 
-(fun length "Implement for Tree()."
-  [(tree Tree)]
-  (case tree
-    [EmptyTree  0]
-    [(Leaf _ _) 1]
-    [(Node l r)
-     (+ (length l) (length r))]))
+(fun head "Get the first element."
+     [(xs cons)] (car xs))
 
-(fun map "Implement for Tree()."
-  [fn (tree Tree)]
-  (case tree
-    [EmptyTree  EmptyTree]
-    [(Leaf k v) (Leaf k (fn v))]
-    [(Node l r) (Node (map fn l)
-    	     	      (map fn r))]))
+(fun tail "Get the list tail."
+     [(xs cons)] (cdr xs))
 
-(fun filter "Implement for Tree()."
-  [p? (tree Tree)]
-  (case tree
-    [EmptyTree  EmptyTree]
-    [(Leaf k v) (if (p? k) tree EmptyTree)]
-    [(Node l r) (Node (filter p? l)
-    	     	      (filter p? r))]))
+(fun length "Find the length of the list."
+     [(xs list)]
+     (if (nul? xs)
+     	 0 (+ 1 (length (tail xs)))))
 
+(fun map "Return a list derived by applying fn to each element in turn."
+     [fn (xs list)]
+     (if (nul? xs)
+     	 () (cons (fn (head xs)) (map fn (tail xs)))))
 
+(fun fiter "Return a list derived by removing in turn elements for which fn? is false."
+     [fn? (xs list)]
+     (if (nul? xs)
+     	 () (let [[head, tail] xs]
+	    	 (if (fn? head)
+		     (cons head (filter fn? tail))
+		     (filter fn? tail)))))
 
 ;;; end core.rl

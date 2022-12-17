@@ -3,21 +3,9 @@
 
 #include "rascal.h"
 
-#include "vm/object.h"
-
 /* commentary */
 
-/* instantiations */
-#include "tpl/decl/hashmap.h"
-HASHMAP(ns_mapping, rl_symbol_t*, rl_value_t);
-
 /* C types */
-struct rl_namespace_t
-{
-  RL_OBJ_HEADER;
-
-  ns_mapping_t *table;
-};
 
 /* globals */
 

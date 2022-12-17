@@ -3,31 +3,37 @@
 
 #include "rascal.h"
 
-#include "vm/obj/support/vector.h"
 #include "vm/obj/support/bytecode.h"
+#include "vm/obj/support/namespace.h"
 
 /* commentary
 
    holds state during compilation */
 
 /* C types */
-typedef struct compiler_t      compiler_t;
-typedef enum   compiler_type_t compiler_type_t;
+typedef struct compiler_t compiler_t;
+typedef enum compiler_phase_t compiler_phase_t;
 
-enum compiler_type_t
-  {
-    compiler_type_lambda,
-    compiler_type_script
-  };
+enum compiler_phase_t {
+  resolving_imports,
+  compiling_macros,
+  expanding_macros,
+  resolving_namespace,
+  resolving_exports, /* determine external visibility of names */
+  compiling_unit, /* main compiler phase */
+  finalizing_unit /* */
+};
 
 struct compiler_t
 {
-  compiler_t      *enclosing;
-  compiler_type_t  type;
-  bytecode_t       instructions;
-  vector_t         constants;
-  vector_t         locals;
-  vector_t         exports;
+  compiler_t *enclosing;
+  rl_symbol_t *name; /* name of the compiling code unit (function name, macro name, or file name) */
+  rl_string_t *path; /* full path name to the compiling code unit (functions use the convention <file-path>:<function-name+>) */
+  int scope_depth; /* 0 = module, 1 = toplevel function, 2+ = nested function */
+  compiler_phase_t phase;
+  namespace_t *namespace;
+  instructions_t instructions;
+  constants_t constants;
 };
 
 /* globals */

@@ -3,6 +3,9 @@
 
 #include "rascal.h"
 
+#include "vm/obj/support/namespace.h"
+#include "vm/obj/support/var.h"
+
 /* commentary 
 
    Internal type representation (within the language types are represented by
@@ -14,67 +17,82 @@
 
 /* C types */
 typedef struct type_t type_t;
-typedef struct data_t data_t;
-typedef struct union_t union_t;
-typedef struct alias_t alias_t;
+typedef struct alias_type_t alias_type_t;
+typedef struct data_type_t data_type_t;
+typedef struct primitive_type_t primitive_type_t;
+typedef struct record_type_t record_type_t;
+typedef struct union_type_t union_type_t;
 typedef enum kind_t kind_t;
-typedef enum runtime_t runtime_t;
 
-enum kind_t { no_kind=-1, none_kind, data_kind, alias_kind, union_kind, any_kind };
-
-/* dispatch key for fundamental data type */
-enum runtime_t {
-  stream_runtime, native_runtime, nul_runtime, bool_runtime, glyph_runtime,
-  small_runtime, fixnum_runtime, real_runtime,
-
-  symbol_runtime, function_runtime, cons_runtime, string_runtime, vector_runtime,
-  dict_runtime, set_runtime, u16_array_runtime, record_runtime, control_runtime,
-  closure_runtime, bytecode_runtime, namespace_runtime, variable_runtime
+enum kind_t { none_kind,
+	      primitive_alias_kind,
+	      primitive_kind,
+	      record_alias_kind,
+	      record_kind,
+	      union_alias_kind,
+	      union_kind,
+	      any_kind
 };
 
-#define TYPE_HEADER                             \
-  rl_function_t *constructor;                   \
-  ulong hash, idno;                             \
-  kind_t kind;                                  \
-  ushort builtin
-
-struct type_t
-{
-  TYPE_HEADER;
+struct type_t {
+  ulong hash, idno;
+  kind_t kind;
+  bool builtin; // if true don't free on cleanup
 };
 
-struct data_t
-{
-  TYPE_HEADER;
-  ushort runtime_type;
+struct alias_type_t {
+  type_t type;
+  rl_function_t *constructor;
+  type_t *aliased;
+  type_t *root; /* if aliased is also an alias this points to the underlying data type */
+};
+
+struct data_type_t {
+  type_t type;
+  value_type_t value_type;
+  object_type_t object_type;
+  int flags; /* default flags */
+  int layout; /* default layout */
   size_t value_size;
   size_t object_size;
-
-  /* slots (record types only) */
-  rl_slots_t *slots;
 };
 
-struct union_t
-{
-  TYPE_HEADER;
+struct primitive_type_t {
+  data_type_t data_type;
+  rl_function_t *constructor;
+};
+
+struct record_type_t {
+  data_type_t data_type;
+  namespace_t *slots;
+};
+
+struct union_type_t {
+  type_t type;
 
   type_t *left;
   type_t *right;
 };
 
-struct alias_t
-{
-  TYPE_HEADER;
-
-  type_t *aliased; // aliased type
-  type_t *base; // if aliased is also an alias, thoe root (non-aliased) type
-};
-
-/* globals */
 /* API */
-type_t    *user_type( rl_value_t value );
-data_t    *data_type( rl_value_t value );
-rl_type_t *constructor( rl_value_t value );
+type_t *make_record_type( var_t *binding, size_t n, rl_symbol_t **slot_names );
+type_t *make_union_type( var_t *binding, size_t n, type_t **members );
+type_t *make_alias_type( var_t *binding, type_t *aliased );
+
+type_t *runtime_value_type( rl_value_t value );
+type_t *runtime_object_type( rl_object_t *object );
+type_t *proper_value_type( rl_value_t value );
+type_t *proper_object_type( rl_object_t *object );
+
+#define runtime_type( x )				\
+  _Generic((x),						\
+	   rl_value_t:runtime_value_type,		\
+	   rl_object_t*:runtime_object_type)((x))
+
+#define proper_type( x )				\
+  _Generic((x),						\
+	   rl_value_t:proper_value_type,		\
+	   rl_object_t*:proper_object_type)((x))
 
 /* runtime dispatch */
 void rl_vm_type_init( void );

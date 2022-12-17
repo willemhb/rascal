@@ -8,55 +8,47 @@
    Basic value API (eg type querying, size querying, etc) */
 
 /* C types */
-typedef enum value_t value_t;
-
-enum value_t {
-  object_value, stream_value, native_value, nul_value, bool_value,
-  glyph_value, small_value, fixnum_value, real_value
-};
+typedef union rl_data_t rl_data_t;
 
 // union of types a tagged value can be
-typedef union
+union rl_data_t
 {
   rl_value_t as_value;
-  rl_real_t as_real;
-  rl_fixnum_t as_fixnum;
-  rl_small_t as_small;
   rl_bool_t as_bool;
-  rl_nul_t as_nul;
+  rl_glyph_t as_glyph;
   rl_stream_t as_stream;
-  rl_native_t as_native;
   rl_object_t *as_object;
-} rl_data_t;
+  rl_real_t as_real;
+};
 
 /* globals */
 /* tags */
-#define QNAN        0x7ff8000000000000ul
-#define SIGNBIT     0x8000000000000000ul
+#define QNAN    0x7ff8000000000000ul
+#define SIGNBIT 0x8000000000000000ul
 
 /* value tags */
 /* immediate tags */
-#define REAL        0x0000000000000000ul
-#define OBJECT      0x7ffc000000000000ul
-#define STREAM      0x7ffd000000000000ul
-#define NATIVE      0x7ffe000000000000ul
-#define NUL         0x7fff000000000000ul
-#define BOOL        0xfffc000000000000ul
-#define GLYPH       0xfffd000000000000ul
-#define SMALL       0xfffe000000000000ul
-#define FIXNUM      0xffff000000000000ul
+#define BOOL   0x7ffc000000000000ul
+#define GLYPH  0x7ffd000000000000ul
+#define STREAM 0x7ffe000000000000ul
+#define OBJECT 0x7fff000000000000ul
 
 /* masks */
-#define TAGMASK     0xffff000000000000ul
-#define PTRMASK     (~TAGMASK)
+#define TAGMASK   0xffff000000000000ul
+#define PTRMASK   (~TAGMASK)
 
-/* values */
-#define TRUE        0xfffc000000000001ul
-#define FALSE       0xfffc000000000000ul
+/* special values */
+#define NUL   0x7fff000000000000ul
+#define TRUE  0x7ffc000000000001ul
+#define FALSE 0x7ffc000000000000ul
 
 /* API */
-void *toptr( rl_value_t x );
-value_t value_type( rl_value_t value );
+value_type_t value_type( rl_value_t value );
+rl_value_t value_tag( rl_value_t value );
+rl_value_t value_data( rl_value_t value );
+rl_value_t tag_data( rl_data_t data, value_type_t value_type );
+bool has_value_type( rl_value_t value, value_type_t value_type );
+void mark_value( rl_value_t value );
 
 /* runtime */
 void rl_vm_value_init( void );
@@ -65,9 +57,10 @@ void rl_vm_value_cleanup( void );
 
 /* convenience */
 #define as_value( x ) (((rl_data_t)(x)).as_value)
-
-#define tagof( x ) ((x)&TAGMASK)
-#define dataof( x ) ((x)&PTRMASK)
-#define tag( x, t ) (dataof(as_value(x))|(t))
+#define as_bool( x ) (((rl_data_t)(x)).as_bool)
+#define as_glyph( x ) (((rl_data_t)(x)).as_glyph)
+#define as_stream( x ) ((rl_stream_t)(as_value(x)&PTRMASK))
+#define as_object( x ) ((rl_object_t*)(as_value(x)&PTRMASK))
+#define as_real( x ) (((rl_data_t)(x)).as_real)
 
 #endif

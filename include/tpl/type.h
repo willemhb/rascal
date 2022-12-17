@@ -3,5 +3,6 @@
 
 #define TYPE(T)   T##_t
 #define HEADER(T) T##_header_t
+#define METHOD(T, M) T##_##M
 
 #endif
