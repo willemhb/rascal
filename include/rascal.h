@@ -9,28 +9,33 @@
 
 /* C types */
 /* value types */
-typedef uword rl_value_t; // tagged value (unitype)
-typedef bool rl_bool_t;
-typedef ascii_t rl_glyph_t;
-typedef FILE *rl_stream_t;
-typedef struct rl_object_t rl_object_t;
-typedef double rl_real_t;
+typedef uword val_t; // tagged value (unitype)
+typedef bool bool_t;
+typedef ascii_t glyph_t;
+typedef FILE *stream_t;
+typedef struct obj_t obj_t;
+typedef double real_t;
 
 /* user object types */
-typedef struct rl_symbol_t rl_symbol_t;
-typedef struct rl_function_t rl_function_t; /* A rascal generic function */
-typedef struct rl_cons_t rl_cons_t;
-typedef struct rl_string_t rl_string_t;
-typedef struct rl_vector_t rl_vector_t;
-typedef struct rl_dict_t rl_dict_t;
-typedef struct rl_set_t rl_set_t;
-typedef struct rl_record_t rl_record_t;
+typedef struct sym_t sym_t;
+typedef struct func_t func_t; /* A rascal generic function */
+typedef struct cons_t cons_t;
+typedef struct str_t str_t;
+typedef struct vec_t vec_t;
+typedef struct dict_t dict_t;
+typedef struct set_t set_t;
+typedef struct record_t record_t;
 
-/* internal object types */
-typedef struct rl_module_t rl_module_t; /* a unit of compiled code, plus basic metadata */
-typedef struct rl_control_t rl_control_t;
-typedef struct rl_namespace_t rl_namespace_t;
-typedef struct rl_variable_t rl_variable_t;
+/* VM object types */
+typedef struct native_t native_t; /* builtin C function */
+typedef struct prim_t prim_t; /* builtin function corresponding to an opcode */
+typedef struct module_t module_t;
+typedef struct methods_t methods_t;
+typedef struct cntl_t cntl_t;
+typedef struct ns_t ns_t;
+typedef struct var_t var_t;
+typedef struct upval_t upval_t;
+typedef struct type_t type_t;
 
 /* internal types (not first class values) */
 typedef struct alist_t stack_t;
@@ -40,18 +45,32 @@ typedef struct reader_t reader_t;
 typedef struct heap_t heap_t;
 
 /* type code types */
-typedef enum value_type_t value_type_t;
-typedef enum object_type_t object_type_t;
+typedef enum val_type_t val_type_t;
+typedef enum obj_type_t obj_type_t;
 
-enum value_type_t {
-  bool_value, glyph_value, stream_value, object_value, real_value
+/* */
+enum val_type_t {
+  bool_val, glyph_val, stream_val, obj_val, real_val
 };
 
-enum object_type_t {
-  nul_object=real_value+1, symbol_object, function_object, cons_object,
-  string_object, vector_object, dict_object, set_object, record_object,
+enum obj_type_t {
+  /* user object types */
+  nul_obj=real_val+1, sym_obj, func_obj, cons_obj,
 
-  module_object, control_object, namespace_object, variable_object
+  str_obj, vec_obj, dict_obj, set_obj, record_obj,
+
+  /* internal object types exposed to the user */
+  native_obj, prim_obj, module_obj, cntl_obj, ns_obj,
+  var_obj, upval_obj,
+
+  /* internal object types not exposed to the user */
+  /* type objects */
+  type_obj, atype_obj, ptype_obj, rtype_obj, utype_obj,
+
+  /* hamt member types */
+  vec_node_obj,
+  dict_node_obj, dict_leaf_obj, dict_leaves_obj,
+  set_node_obj, set_leaf_obj, set_leaves_obj,
 };
 
 /* internal function pointer types */

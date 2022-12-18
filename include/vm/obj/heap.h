@@ -3,9 +3,9 @@
 
 #include "rascal.h"
 
-#include "vm/obj/support/objects.h"
-#include "vm/obj/support/gc_object_frame.h"
-#include "vm/obj/support/gc_value_frame.h"
+#include "vm/obj/support/objs.h"
+#include "vm/obj/support/gc_objs.h"
+#include "vm/obj/support/gc_vals.h"
 
 /* commentary
 
@@ -14,15 +14,15 @@
 /* C types */
 struct heap_t
 {
-  objects_t         *grays;
-  gc_object_frame_t *object_frames;
-  gc_value_frame_t  *value_frames;
-  rl_object_t       *live;
+  objs_t     *grays;
+  gc_objs_t *save_objs;
+  gc_vals_t *save_vals;
+  obj_t     *live;
 
-  bool               collecting;
+  bool       collecting;
   
-  size_t             n_alloc;
-  size_t             n_collect;
+  size_t     n_alloc;
+  size_t     n_collect;
 };
 
 /* globals */

@@ -32,15 +32,15 @@ void rl_vm_memory_mark( void );
 void rl_vm_memory_cleanup( void );
 
 /* convenience */
-#define save_objects( n, refs... )					\
-  object_t **__gc_object_frame_refs__[n] = { refs };			\
-  gc_object_frame_t __gc_object_frame__ rl_cleanup(gc_object_frame_cleanup); \
-  gc_object_frame_init(&__gc_object_frame__, n, __gc_object_frame_refs__); \
+#define save_objs( n, refs... )                             \
+  object_t **__gc_objs_refs__[n] = { refs };                \
+  gc_objs_t __gc_objs__ rl_cleanup(gc_objs_cleanup);        \
+  gc_objs_init(&__gc_objs__, n, __gc_objs_refs__)
 
-#define save_values( n, refs... )					\
-  value_t * __gc_value_frame_refs__[n] = { refs };			\
-  gc_value_frame_t __gc_value_frame__ rl_cleanup(gc_value_frame_cleanup); \
-  gc_value_frame_init(&__gc_value_frame__, n, __gc_value_frame_refs__);	\
+#define save_vals( n, refs... )                             \
+  val_t * __gc_vals_refs__[n] = { refs };                   \
+  gc_vals_t __gc_vals__ rl_cleanup(gc_vals_cleanup);        \
+  gc_vals_init(&__gc_vals__, n, __gc_vals_refs__)
 
 
 #endif

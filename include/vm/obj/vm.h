@@ -8,11 +8,16 @@
 /* C types */
 typedef struct vm_t
 {
-  bool        panicking;  // panicking?
-  control_t  *executing;
+  /* global state */
+  bool      panicking;      // panicking?
+  ns_t     *toplevel;       // toplevel namespace (stores variables created in REPL and loaded modules).
+  upval_t  *open;
 
-  namespc_t  *toplevel_names;
-  envt_t     *toplevel_binds;
+  /* execution state */
+  stack_t  *stack;          // arguments & locals
+  module_t *module;         // currently executing module
+  module_t *function;       // currently executing function
+  size_t    bp, ip, pp, cp; // base pointer, instruction pointer, prompt pointer, continue pointer
 } vm_t;
 
 /* globals */
@@ -20,9 +25,6 @@ extern vm_t Vm;
 
 /* API */
 /* basic environment utilities */
-bool    is_bound_at_toplevel( symbol_t *name );
-value_t lookup_at_toplevel( symbol_t *name );
-value_t define_at_toplevel( symbol_t *name, value_t value );
 
 /* runtime */
 void rl_vm_obj_vm_init( void );

@@ -1,5 +1,5 @@
-#ifndef rl_vm_obj_support_values_h
-#define rl_vm_obj_support_values_h
+#ifndef rl_vm_obj_support_vals_h
+#define rl_vm_obj_support_vals_h
 
 #include "tpl/decl/alist.h"
 
@@ -10,19 +10,19 @@
    Differs from stack in that it uses a more conservative overallocation scheme. */
 
 /* instantiations */
-ALIST(values, rl_value_t);
+ALIST(vals, val_t);
 
 /* C types */
 
 /* globals */
 
 /* API */
-void mark_values( values_t *values );
+void mark_vals( vals_t *values );
 
 /* runtime */
-void rl_vm_obj_support_values_init( void );
-void rl_vm_obj_support_values_mark( void );
-void rl_vm_obj_support_values_cleanup( void );
+void rl_vm_obj_support_vals_init( void );
+void rl_vm_obj_support_vals_mark( void );
+void rl_vm_obj_support_vals_cleanup( void );
 
 /* convenience */
 

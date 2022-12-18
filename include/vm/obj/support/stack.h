@@ -6,7 +6,7 @@
 /* commentary */
 
 /* instantiations */
-ALIST(stack, rl_value_t);
+ALIST(stack, val_t);
 
 /* C types */
 
