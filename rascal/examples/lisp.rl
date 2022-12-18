@@ -8,18 +8,21 @@
 
 (provide [list, length, filter, map, reduce])
 
-(fun first [(xs cons)] (car xs))
-(fun rest [(xs cons)] (cdr xs))
+(fun first [(cons [x,  _])] x)
+(fun rest  [(cons [_, xs])] xs)
 
-(fun length "Implement for list type."
-     [(xs list)]
-     (if (nul? xs)
-          0 (inc (length (first xs)))))
+(fun length [(nul)] 0)
+(fun length [(cons _, xs)] (inc xs))
 
 (fun map "Implement for list type."
-     [fn, (xs list)]
-     (if (nul? xs)
-          () (cons (fn (first xs)) (map fn (rest xs)))))
+     [fn, (nul xs)] ())
+
+(fun map "Implement for list type."
+     [fn, (cons [x, xs])]
+     (cons (fn x)
+           (map fn xs)))
+
+
 
 (fun filter "Implement for list type."
      [fn?, (xs list)]
