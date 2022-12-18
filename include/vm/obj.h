@@ -54,6 +54,4 @@ void rl_vm_object_cleanup( void );
 /* convenience */
 #define OBJ obj_t obj
 
-#define is_obj( x ) has_val_type(x, obj_val)
-
 #endif

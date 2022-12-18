@@ -14,9 +14,9 @@ typedef struct vm_t
   upval_t  *open;
 
   /* execution state */
-  stack_t  *stack;          // arguments & locals
-  module_t *module;         // currently executing module
-  module_t *function;       // currently executing function
+  stack_t   *stack;         // arguments & locals
+  module_t  *module;        // currently executing module
+  closure_t *function;      // currently executing function
   size_t    bp, ip, pp, cp; // base pointer, instruction pointer, prompt pointer, continue pointer
 } vm_t;
 

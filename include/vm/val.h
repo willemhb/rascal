@@ -13,12 +13,12 @@ typedef union data_t data_t;
 // union of types a tagged value can be
 union data_t
 {
-  val_t as_value;
-  bool_t as_bool;
-  glyph_t as_glyph;
-  stream_t as_stream;
-  obj_t *as_object;
-  real_t as_real;
+  val_t     as_value;
+  bool_t    as_bool;
+  glyph_t   as_glyph;
+  fixnum_t  as_fixnum;
+  obj_t    *as_object;
+  real_t    as_real;
 };
 
 /* globals */
@@ -30,7 +30,7 @@ union data_t
 /* immediate tags */
 #define BOOL   0x7ffc000000000000ul
 #define GLYPH  0x7ffd000000000000ul
-#define STREAM 0x7ffe000000000000ul
+#define FIXNUM 0x7ffe000000000000ul
 #define OBJECT 0x7fff000000000000ul
 
 /* masks */
