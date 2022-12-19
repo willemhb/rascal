@@ -1,34 +1,27 @@
 ;;; begin core.rl
 ;;; rascal basics module.
 
-;;; globals
-;;; example of defining a custom type and implementing methods
-(type list {nul, cons})
+;;; core effects
+@doc "Basic let implementation."
+(mac let
+     [(vec .. keys vals) .. body]
+     `((fun [~@keys] ~@body) ~@vals))
 
-(provide [list, head, tail, length, map, filter, reduce])
+@doc "If with no consequent and implicit do."
+(mac when
+     [test .. body]
+     `(if ~test
+          (do ~@body)))
 
-(fun head "Get the first element."
-     [(xs cons)] (car xs))
+@doc "Complement of when."
+(mac unless
+     [test .. body]
+     `(if (not ~test)
+          (do ~@body)))
 
-(fun tail "Get the list tail."
-     [(xs cons)] (cdr xs))
-
-(fun length "Find the length of the list."
-     [(xs list)]
-     (if (nul? xs)
-     	 0 (+ 1 (length (tail xs)))))
-
-(fun map "Return a list derived by applying fn to each element in turn."
-     [fn (xs list)]
-     (if (nul? xs)
-     	 () (cons (fn (head xs)) (map fn (tail xs)))))
-
-(fun fiter "Return a list derived by removing in turn elements for which fn? is false."
-     [fn? (xs list)]
-     (if (nul? xs)
-     	 () (let [[head, tail] xs]
-	    	 (if (fn? head)
-		     (cons head (filter fn? tail))
-		     (filter fn? tail)))))
+@doc "Basic catch implementation."
+(mac catch
+     [(vec .. (list (vec args) .. handler)) .. body]
+     (let [args (map )]))
 
 ;;; end core.rl
