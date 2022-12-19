@@ -43,30 +43,6 @@ struct atype_t {
   type_t *root; /* if aliased is also an alias this points to the underlying data type */
 };
 
-struct dtype_t {
-  type_t type;
-  val_type_t val_type;
-  obj_type_t obj_type;
-  size_t value_size;
-  size_t object_size;
-};
-
-struct ptype_t {
-  dtype_t data_type;
-  func_t *constructor;
-};
-
-struct record_type_t {
-  dtype_t data_type;
-  ns_t *slots;
-};
-
-struct utype_t {
-  type_t type;
-
-  signature_t *members;
-};
-
 /* API */
 type_t *make_record_type( var_t *binding, size_t n, sym_t **slot_names );
 type_t *make_union_type( var_t *binding, size_t n, type_t **members );

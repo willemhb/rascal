@@ -9,18 +9,13 @@
 (define-generic-mode
   'rascal-mode
   '(";")
-  '("set" "def"
-    "fun" "mac" "let" "with"
-    "data" "union" "enum" "type" "struct" "record"
+  '("def" "put" "let"
+    "fun" "mac" "type" "with"
     "if" "cond" "case" "and" "or"
     "quote" "do" "do*"
-    "require" "provide"
-    ;; for notional infix syntax
-    "then" "else" "end" "return" "op" "is" "as")
+    "require" "provide")
   '(("otherwise" . font-lock-builtin-face)
     ("resume\\W" . font-lock-builtin-face)
-    ("escape\\W" . font-lock-builtin-face)
-    ("abort\\W" . font-lock-builtin-face)
     ("true\\W" . font-lock-builtin-face)
     ("false\\W" . font-lock-builtin-face)
     ("nul\\W" . font-lock-builtin-face)
@@ -28,7 +23,8 @@
     ("\\Wnot\\W" . font-lock-builtin-face)
     ("eos\\W" . font-lock-builtin-face)
     ("any\\W" . font-lock-builtin-face)
-    ("[^a-zA-Z?*+]:[-a-zA-Z?*+0-9]+" . font-lock-builtin-face))
+    ("[^a-zA-Z?*+]:[-a-zA-Z?*+0-9]+" . font-lock-builtin-face)
+    ("@[-_a-zA-Z?*+0-9]+" . font-lock-builtin-face))
   '("\\.rl$" "\\.rdn$" "\\.rlo$") ;; source file, serialization format, object file
   '(rainbow-delimiters-mode)
   "A mode for rascal files.")

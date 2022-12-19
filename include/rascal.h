@@ -32,6 +32,7 @@ typedef struct native_t  native_t;  /* builtin C function */
 typedef struct prim_t    prim_t;    /* builtin function corresponding to an opcode */
 typedef struct module_t  module_t;  /* compiled code unit */
 typedef struct closure_t closure_t; /* a module plus an execution context */
+typedef struct closure_t package_t; /* a package (special case of a closure) */
 typedef struct methods_t methods_t; /* method table */
 typedef struct cntl_t    cntl_t;    /* reified continuation */
 typedef struct ns_t      ns_t;      /* namespace */

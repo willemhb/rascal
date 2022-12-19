@@ -1,46 +1,78 @@
 ;; examples of lisp syntax
 
 ;;; type declarations
-(type time real)                            ;; aliased type
-(type number {real, small, complex})        ;; union type
-(type person [name, age, gender, student?]) ;; record type
-(type list {nul, cons})                     ;; pseudo-algebraic type
+(type cons pair)               ;; type alias
+(type list {nul, cons})        ;; union type
 
-(provide [list, length, filter, map, reduce])
+(provide [(list, first, rest, empty?, length, filter, map, reduce, take, drop)])
 
-(fun first [(cons [x,  _])] x)
-(fun rest  [(cons [_, xs])] xs)
+@doc "Constructor."
+(fun list  [.. args] args)
 
-(fun length [(nul)] 0)
-(fun length [(cons _, xs)] (inc xs))
+@doc "Accessors."
+(fun first [(cons x _)] x)
+(fun rest  [(cons _ xs)] xs)
 
-(fun map "Implement for list type."
-     [fn, (nul xs)] ())
+@doc "Sequence predicate."
+(fun empty?
+     ([(nul _)] true)
+     ([(cons _)] false))
 
-(fun map "Implement for list type."
-     [fn, (cons [x, xs])]
-     (cons (fn x)
-           (map fn xs)))
+@doc "Sequence length method."
+(fun length
+     ([(nul _)] 0)
+     ([(cons _ tail)]
+      (+ 1 (length tail))))
 
-
+@doc "Implement for lists."
+(fun map
+     ([_ (nul)] ())
+     ([fn (cons x xs)]
+      (cons (fn x) (map fn xs))))
 
 (fun filter "Implement for list type."
-     [fn?, (xs list)]
-     (cond (nul? xs) ()
-           (fn? (first xs))
-            (cons (first xs) (filter fn? (rest xs)))
-           otherwise (filter fn? (rest xs))))
+     ([_ (nul)] ())
+     ([fn? (cons x xs)]
+      (if (fn? xs)
+     	  (cons x (filter fn? xs))
+	  (filter fn? xs))))
 
 (fun reduce "Implement for list type (with no initial)."
-     [fn, (xs cons)]
-     (reduce fn (rest xs) (first xs)))
+     ([fn (cons x xs)] (reduce fn xs x))
+     ([_ (nul _) acc] acc)
+     ([fn (cons x xs) acc] (reduce fn (fn acc x) xs)))
 
-(fun reduce "Implement for list type (initial supplied)."
-     [fn, (xs list), acc]
-     (if (nul? xs)
-          acc (reduce fn (rest xs) ())))
+fun take "Implement for [int list] type."
+    ([_ (nul _)] ())
+    ([(int n) (cons x xs)]
+     (if (= n 0)
+     	 () (cons x (take (dec n) xs))))
 
-(mac catch "Syntactic sugar for handling raise effect."
-     [irritant, handlers, & body]
-     (fun transform [irritant, handlers] ...)
-     `(with ~(transform irritant handlers) ~@body))
+(fun take "Implement for [func list]."
+     ([_ (nul _)] ())
+     ([(func fn?) (cons x xs)]
+      (if (fn? x)
+      	  (cons x (take fn? xs)) ())))
+
+@doc "Implement for [int list]."
+(fun drop
+     ([_ (nul _)] ())
+     ([(func fn?) (cons x xs :as xxs)]
+      (if (fn? x)
+      	  (drop fn? xs) xxs)))
+
+;; pseudo-algebraic type example
+(type tree
+      (empty-tree [])
+      (tree-leaf  [key val])
+      (tree-node  [left right]))
+
+(provide [(tree, empty?, filter, map, reduce)])
+
+;; effect examples
+@doc "Exceptions."
+(mac catch
+     [(vec handlers) .. body]
+     `(with ~(map #(conj 'raise (first %)) handlers)
+     	    ~@body))
+
