@@ -8,7 +8,7 @@
 
 #include "tpl/type.h"
 
-#include "vm/memory.h"
+#include "memory.h"
 
 #include "util/collection.h"
 #include "util/number.h"

@@ -7,6 +7,8 @@
 /* commentary */
 
 /* C types */
+#include "tpl/impl/array.h"
+ARRAY(string, char, int, pad_string_size);
 
 /* globals */
 

@@ -6,32 +6,32 @@
 #include "util/hashing.h"
 #include "util/collection.h"
 #include "util/memory.h"
+#include "util/ios.h"
 
 #include "tpl/type.h"
 
 #undef HASHMAP
 
-#define HASHMAP( HM, K, V, padfn, hashfn, cmpfn, nokey, noval )		\
+#define HASHMAP( HM, K, V, padfn, hashfn, cmpfn, intern, nokey, noval ) \
   hmap_t *make_##HM( size_t n_keys, void **ini )			\
   {									\
-    hmap_t *hmap = make_hmap(n_keys, padfn);				\
+    hmap_t *hmap = make_hmap();						\
     /* initialize empty cells */					\
-    init_##HM(hmap);							\
-    if ( ini )								\
-      {									\
-	for ( size_t i=0; i<n_keys; i++ )				\
-	  {								\
-	    K key = hmap_key(ini, i, K);				\
-	    V val = hmap_val(ini, i, V);				\
-	    HM##_put(hmap, key, val);					\
-	  }								\
-      }									\
+    init_##HM(hmap, n_keys, ini );					\
     return hmap;							\
   }									\
   									\
-  void init_##HM( hmap_t *hmap )					\
+  void init_##HM( hmap_t *hmap, size_t n_keys, void **ini )		\
   {									\
+    init_hmap(hmap, n_keys, padfn);					\
     init_##HM##_table(hmap->table, hmap->cap);				\
+    if ( ini ) {							\
+      for ( size_t i=0; i<n_keys; i++ ) {				\
+	K key = hmap_key(ini, i, K);					\
+	V val = hmap_val(ini, i, V);					\
+	HM##_put(hmap, key, val);					\
+      }									\
+    }									\
   }									\
   									\
   void init_##HM##_table( void **table, size_t cap )			\
@@ -48,7 +48,7 @@
     size_t new_cap = padfn(new_n_keys, hmap->len, hmap->cap);		\
     if ( new_cap != hmap->cap )						\
       {									\
-	void **table = calloc_s(hmap->cap, sizeof(void*)*2);		\
+	void **table = calloc_s(new_cap, sizeof(void*)*2);		\
 	rehash_##HM(hmap, table, new_cap);				\
 	free(hmap->table);						\
 	hmap->table      = table;					\
@@ -62,23 +62,20 @@
   {									\
     init_##HM##_table(table, new_cap);					\
     									\
-    for ( size_t i=0, n=0; i<hmap->cap && n < hmap->len; i++)		\
+    for ( size_t i=0; i<hmap->cap; i++)					\
       {									\
 	K key = hmap_key(hmap, i, K);					\
-	if ( key == nokey )						\
-	  {								\
+	if ( key == nokey ) {						\
 	    continue;							\
 	  }								\
 	V val = hmap_val(hmap, i, V);					\
 	ulong hash = hashfn(key);					\
 	ulong idx  = hash & (new_cap-1);				\
-	while ( hmap_key(table, idx, K) != nokey )			\
-	  {								\
-	    idx = (idx+1) & (new_cap-1);				\
-	  }								\
+	while ( hmap_key(table, idx, K) != nokey ) {			\
+	  idx = (idx+1) & (new_cap-1);					\
+	}								\
 	hmap_key(table, idx, K) = key;					\
 	hmap_val(table, idx, V) = val;					\
-	n++;								\
       }									\
   }									\
   									\
@@ -87,7 +84,7 @@
   void clear_##HM( hmap_t *hmap )					\
   {									\
     clear_hmap(hmap, padfn);						\
-    init_##HM(hmap);							\
+    init_##HM##_table(hmap->table, hmap->cap);				\
   }									\
 									\
   void **HM##_locate( hmap_t *hmap, K key )				\
@@ -135,13 +132,13 @@
     return val;								\
   }									\
   									\
-  V HM##_intern( hmap_t *hmap, K key, V val )				\
+  V HM##_intern( hmap_t *hmap, K key )					\
   {									\
     void **cell = HM##_locate(hmap, key);				\
+    V val;								\
     if ( *(K*)cell == nokey )						\
       {									\
-	hmap_key(cell, 0, K) = key;					\
-	hmap_val(cell, 0, V) = val;					\
+	val = intern(key, cell);					\
 	resize_##HM(hmap, hmap->len+1);					\
       }									\
     else								\

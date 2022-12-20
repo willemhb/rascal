@@ -1,5 +1,5 @@
 
-#include "vm/value.h"
+#include "val.h"
 
 #include "util/hashing.h"
 #include "util/string.h"

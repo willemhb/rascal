@@ -1,7 +1,7 @@
 #include <stdlib.h>
 
 #include "util/alist.h"
-#include "vm/memory.h"
+#include "memory.h"
 
 /* commentary */
 

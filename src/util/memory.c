@@ -13,8 +13,11 @@
 /* API */
 void *malloc_s( size_t n_bytes )
 {
+  static size_t call_counter = 0;
+  call_counter++;
+
   void *out = alloc_s( malloc, n_bytes );
-  
+
   memset(out, 0, n_bytes);
 
   return out;
@@ -23,7 +26,6 @@ void *malloc_s( size_t n_bytes )
 void *calloc_s( size_t count, size_t ob_size )
 {
   void *out = alloc_s(calloc, count, ob_size);
-
   memset(out, 0, count*ob_size);
 
   return out;

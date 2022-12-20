@@ -11,6 +11,12 @@
    unicode strings.
  */
 
+/* C types */
+#include "tpl/decl/array.h"
+
+ARRAY(string, char);
+
+/* API */
 bool   streq8( const char *stringX, const char *stringY );
 bool   streq16( const utf16_t *stringX, const utf16_t *stringY );
 bool   streq32( const utf32_t *stringX, const utf32_t *stringY );

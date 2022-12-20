@@ -8,7 +8,7 @@
 
 #include "tpl/type.h"
 
-#include "vm/memory.h"
+#include "memory.h"
 
 #include "util/number.h"
 #include "util/collection.h"
@@ -49,7 +49,7 @@
   void free_##B( TYPE(B) *B )						\
   {									\
     dealloc_array(B->elements, B->cap, sizeof(X));			\
-    dealloc(B, sizeof(TYPE(B)));						\
+    dealloc(B, sizeof(TYPE(B)));					\
   }									\
 									\
   void B##_push( TYPE(B) *B, X x )					\

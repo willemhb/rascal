@@ -1,11 +1,14 @@
-#include "vm.h"
+#include "rascal.h"
+
+#include "val.h"
 #include "obj.h"
-#include "rl.h"
+#include "interp.h"
+#include "reader.h"
 
 // entry point, version information
 #define VMAJOR     0
-#define VMINOR     1
-#define VPATCH     0
+#define VMINOR     0
+#define VPATCH     1
 #define VDEV       "a"
 #define VFMT       "%d.%d.%d.%s"
 
@@ -21,9 +24,10 @@ void rl_goodbye( void )
 
 void rl_init( void )
 {
-  rl_vm_init();
-  rl_obj_init();
-  rl_rl_init();
+  interp_init();
+  val_init();
+  obj_init();
+  reader_init();
 }
 
 void rl_main( void )

@@ -9,11 +9,8 @@
 (define-generic-mode
   'rascal-mode
   '(";")
-  '("def" "put" "let"
-    "fun" "mac" "type" "with"
-    "if" "cond" "case" "and" "or"
-    "quote" "do" "do*"
-    "require" "provide")
+  '("def" "put" "let" "fun"
+    "catch" "cond" "case" "quote" "do")
   '(("otherwise" . font-lock-builtin-face)
     ("resume\\W" . font-lock-builtin-face)
     ("true\\W" . font-lock-builtin-face)

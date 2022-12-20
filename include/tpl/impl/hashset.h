@@ -39,7 +39,7 @@
     size_t new_cap = padfn(new_n_keys, hset->len, hset->cap);		\
     if ( new_cap != hset->cap )						\
       {									\
-	void **table = calloc_s(hset->cap, sizeof(void*));		\
+	void **table = calloc_s(new_cap, sizeof(void*));		\
 	rehash_##HS(hset, old_table, new_cap);				\
 	free(hset->table);						\
 	hset->table      = table;					\

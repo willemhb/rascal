@@ -1,6 +1,4 @@
-#include "obj/type.h"
-
-#include "vm/memory.h"
+#include "memory.h"
 
 #include "util/collection.h"
 #include "util/number.h"
@@ -78,9 +76,12 @@ size_t pad_table_size( size_t new_count, size_t old_count, size_t old_cap )
 {
   (void)old_count;
 
-  size_t new_cap = old_cap ? : 1;
-  
-  if ( new_count > 0 && new_count > new_cap * load_factor )
+  size_t new_cap = max(old_cap, min_cap);
+
+  if ( new_count == 0 )
+    return new_cap;
+
+  if ( new_count > new_cap * load_factor )
     {
       do
 	{
@@ -88,12 +89,12 @@ size_t pad_table_size( size_t new_count, size_t old_count, size_t old_cap )
 	} while ( new_count > new_cap * load_factor );
     }
 
-  else if ( new_count > 0 && new_count < new_cap / 2 * load_factor )
+  else if ( new_cap > min_cap && new_count < new_cap / 2 * load_factor )
     {
       do
 	{
 	  new_cap >>= 1;
-	} while ( new_cap && new_count < new_cap / 2 * load_factor );
+	} while ( new_cap > min_cap && new_count < new_cap / 2 * load_factor );
     }
 
   return max(new_cap, min_cap);

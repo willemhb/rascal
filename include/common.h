@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <stdalign.h>
 #include <stdio.h>      // for FILE
+#include <math.h>       // for nan
 
 // style typedefs
 typedef uint8_t         byte;
@@ -34,7 +35,11 @@ typedef char32_t        utf32_t;
 #define rl_unreachable __builtin_unreachable
 #define rl_attr( ... ) __attribute__((__VA_ARGS__))
 #define rl_cleanup( cleaner ) __attribute__((cleanup(cleaner)))
+#define rl_nan nan("")
 
 static inline bool flagp( uint64_t fls, uint64_t fl ) { return !!(fls&fl); }
+
+// debug flag
+#define DEBUG
 
 #endif

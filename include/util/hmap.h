@@ -22,7 +22,7 @@ typedef struct
 /* globals */
 
 /* API */
-hmap_t *make_hmap( size_t n_keys, pad_array_size_fn_t padfn );
+hmap_t *make_hmap( void );
 void    init_hmap( hmap_t *hmap, size_t n_keys, pad_array_size_fn_t padfn );
 void    free_hmap( hmap_t *hmap );
 void    clear_hmap( hmap_t *hmap, pad_array_size_fn_t padfn );
