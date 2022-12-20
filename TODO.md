@@ -24,12 +24,12 @@ Add support for lists.
 ### Target features
 * `cons`, `nul` types implemented (with read/prin support).
 
-## Version 0.0.3 - vectors
+## Version 0.0.3 - arrays
 ### Goals
-Add support for vector types (this should be easy to do and it's needed for some of the syntax).
+Add support for array types used by the compiler.
 
 ### Target features
-* `vec` type implemented (with read/prin support).
+* `vec`, type implemented (with read/prin support).
 
 ## Version 0.0.4 - s-expressions
 ### Goals
