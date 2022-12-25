@@ -23,9 +23,9 @@ typedef struct
 
 /* API */
 hmap_t *make_hmap( void );
-void    init_hmap( hmap_t *hmap, size_t n_keys, pad_array_size_fn_t padfn );
+void    init_hmap( hmap_t *hmap, size_t n_keys, pad_fn_t padfn );
 void    free_hmap( hmap_t *hmap );
-void    clear_hmap( hmap_t *hmap, pad_array_size_fn_t padfn );
+void    clear_hmap( hmap_t *hmap, pad_fn_t padfn );
 
 /* runtime */
 

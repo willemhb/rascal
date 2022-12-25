@@ -17,7 +17,7 @@ Add support for symbols (they don't do anything yet).
 ### Target features
 * `sym` type implemented (with read/prin support).
 
-## Version 0.0.2 - lists (current)
+## Version 0.0.2 - lists
 ### Goals
 Add support for lists.
 
@@ -29,14 +29,18 @@ Add support for lists.
 Add support for array types used by the compiler.
 
 ### Target features
-* `vec`, type implemented (with read/prin support).
+* `vec`, `code` types implemented (with read/prin support).
 
-## Version 0.0.4 - s-expressions
+## Version 0.0.4 - s-expressions & symbol values (current)
 ### Goals
 To make lists meaningful, implement function calls (and functions).
 
+Implement toplevel symbol values at the same time.
+
 ### Target features
 * `module`, `prim`, `native` types implemented
+* `sym` type updated
+* `eval` primitive updated
 * `+`, `-`, `*`, `/`, `=`, `<` arithmetic primitives implemented
 * `cons`, `car`, `cdr` list primitives implemented
 * `vec`, `vec-len`, `vec-ref`, `vec-xef`, `vec-push`, `vec-pop` vec primitives implemented
@@ -175,7 +179,7 @@ Packages are loaded at most once, and stored in the toplevel namespace.
 
 # Version 0.0.19 - macros
 ## Goals
-With the package system in place, Version 0.0.4 focuses on implementing the basic macro system.
+With the package system in place, Version 0.0.19 focuses on implementing the basic macro system.
 
 ## Target features
 * `mac` form implemented
@@ -184,14 +188,14 @@ With the package system in place, Version 0.0.4 focuses on implementing the basi
 
 # Version 0.0.20 - backquote
 ## Goals
-Once macros and packages exist, it's time to improve the reader. Version 0.0.5 is focused on
+Once macros and packages exist, it's time to improve the reader. Version 0.0.20 is focused on
 extending the reader to support a `clojure`-like backquote form. Custom reader macros are
 left for a later date.
 
 A few other syntaxes are implemented for convenience.
 
 ## Target features
-* `~backquote`, `~@backquote`, `#backquote` syntaxes implemented
+* `~backquote`, `~@backquote`, `backquote#` syntaxes implemented
 * `%(+ 1 %)` lambda literal syntax implemented
 
 # Version 0.0.21 - arity overloading, variadic functions, and splatting
@@ -240,21 +244,24 @@ With first class types in place, it's time to implement non-trivial user types. 
 record types.
 
 ## Target features
-* `type` form extended with support for `(type <name> [..<fields>])` syntax.
+* `type` form extended with support for `(type <name> {..<fields>})` syntax.
 * `record`, `record-type` types implemented, integrated into object system.
 
 # Version 0.0.26 - union types
 Extend the type system to support unions.
 
-
 # Version 0.0.27 - continuations
 
 # Version 0.0.28 - first-class effects
+## Goals
+
 
 # Late development
 At this point rascal is nearly ready to be public. Focus in this stage is on improving performance,
 working on a standard library, and implementing features that are nice for usability but not essential
 to development.
+
+This would be the point in development when I might consider bringing in other people.
 
 ## Version 0.0.29 - functional vec
 ### Goals
@@ -299,10 +306,26 @@ Improve the speed of method dispatch.
 * Add cacheing to method dispatch.
 
 ## Version 0.0.33 - destructuring
-## Goals
+### Goals
 Object destructuring helps cut down on the number of parentheses in many cases, so add
 support for it at this point.
 
-## Target features
+### Target features
 * Add support for `(cons head _)` destructuring syntax.
 * Add support for `(vec first .. last)` destructuring syntax.
+* Implement destructuring in `fun` and `let` forms.
+
+## Version 0.0.34 - struct types
+### Goals
+There are obvious benefits, especially in a dynamic language, of types whose keys can
+be added dynamically (as in `JavaScript`, `Python`, etc). However, these are terrible
+for implementing data structures and algorithms. Rascal seeks to solve this by separating
+user composite types into `struct`s and `record`s. 
+
+`record`s, implemented in 0.0.25, will be implemented on top of `dict`s, and allow adding 
+and removing keys at runtime. `struct`s, implemented in this update, are fixed, use
+space much more efficiently, and (potentially) support more advanced type features.
+
+## Target features
+    * Add `struct` and `struct-type` support.
+    * Add support for `(type [.. <fields>])` syntax.

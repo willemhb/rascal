@@ -10,11 +10,16 @@ ALIST(vals, val_t);
 typedef union rl_data_t rl_data_t;
 
 union rl_data_t {
-  val_t   as_val;
-  real_t  as_real;
-  obj_t   as_obj;
-  sym_t  *as_sym;
-  cons_t *as_cons;
+  val_t    as_val;
+  real_t   as_real;
+  obj_t    as_obj;
+  sym_t    as_sym;
+  native_t as_native;
+  prim_t   as_prim;
+  module_t as_module;
+  vec_t    as_vec;
+  cons_t   as_cons;
+  code_t   as_code;
 };
 
 /* globals */
@@ -29,12 +34,11 @@ union rl_data_t {
 
 /* API */
 val_type_t val_type(val_t x);
-rl_type_t  rl_type(val_t x);
 bool       has_val_type(val_t x, val_type_t type);
-bool       has_rl_type(val_t x, rl_type_t type);
+bool       has_val_types(val_t x, size_t n, ...);
 
 /* initialization */
-void val_init( void );
+void val_init(void);
 
 /* convenience */
 #define tag_of(x)     ((x)&TAGMASK)

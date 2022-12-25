@@ -2,13 +2,13 @@
 
 #include "val.h"
 #include "obj.h"
-#include "interp.h"
+#include "eval.h"
 #include "reader.h"
 
 // entry point, version information
 #define VMAJOR     0
 #define VMINOR     0
-#define VPATCH     1
+#define VPATCH     4
 #define VDEV       "a"
 #define VFMT       "%d.%d.%d.%s"
 
@@ -24,7 +24,7 @@ void rl_goodbye( void )
 
 void rl_init( void )
 {
-  interp_init();
+  eval_init();
   val_init();
   obj_init();
   reader_init();

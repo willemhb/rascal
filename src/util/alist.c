@@ -12,7 +12,7 @@
 /* API */
 alist_t *make_alist( size_t len, pad_array_size_fn_t padfn )
 {
-  size_t   cap = ((size_t(*)(size_t, size_t, size_t))padfn)(len, 0, 0);
+  size_t   cap = padfn(len, 0, 0);
   alist_t *out = alloc(sizeof(alist_t));
   
   out->len = len;
@@ -24,7 +24,7 @@ alist_t *make_alist( size_t len, pad_array_size_fn_t padfn )
 
 void resize_alist( alist_t *alist, size_t new_len, pad_array_size_fn_t padfn )
 {
-  size_t new_cap = ((size_t(*)(size_t, size_t, size_t))padfn)(new_len, alist->len, alist->cap);
+  size_t new_cap = padfn(new_len, alist->len, alist->cap);
 
   if ( new_cap != alist->cap )
     {

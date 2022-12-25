@@ -39,6 +39,8 @@ typedef char32_t        utf32_t;
 
 static inline bool flagp( uint64_t fls, uint64_t fl ) { return !!(fls&fl); }
 
+#define assert_bounds()
+
 // debug flag
 #define DEBUG
 

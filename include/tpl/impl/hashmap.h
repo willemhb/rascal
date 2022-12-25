@@ -8,7 +8,7 @@
 #include "util/memory.h"
 #include "util/ios.h"
 
-#include "tpl/type.h"
+#include "tpl/decl/generic.h"
 
 #undef HASHMAP
 

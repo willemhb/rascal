@@ -1,7 +1,7 @@
 #include <assert.h>
 
 #include "obj.h"
-
+#include "type.h"
 #include "memory.h"
 
 #include "util/hashing.h"
@@ -10,80 +10,28 @@
 /* commentary */
 
 /* C types */
-#include "tpl/decl/hashmap.h"
-HASHMAP(symbol_table, char*, sym_t*);
-
-bool symt_cmp(string_t stringX, string_t stringY) {
-  return strcmp(stringX, stringY) == 0;
-}
-
-sym_t *symt_intern(char *string, void **space) {
-
-  sym_t *out = make_sym(string);
-
-  space[0]   = out->name;
-  space[1]   = out;
-
-  return out;
-}
-
-#include "tpl/impl/hashmap.h"
-#include "tpl/type.h"
-
-HASHMAP(symbol_table, char*, sym_t*, pad_table_size, hash_str8, symt_cmp, symt_intern, NULL, NULL);
+#include "tpl/impl/alist.h"
+ALIST(objs, obj_t, obj_t, pad_alist_size);
 
 /* globals */
-obj_head_t nul_head = { nul_obj, true, false, 0, 0 };
-val_t nul_data[2] = { NUL, NUL };
-
-size_t Obsize[] = {
-  [nul_obj]  = 0,
-  [sym_obj]  = sizeof(obj_head_t) + sizeof(sym_t),
-  [cons_obj] = sizeof(obj_head_t) + sizeof(cons_t)
-};
-
-symbol_table_t SymbolTable;
+obj_head_t NulHead = { nul_obj, true, false, 0, 0 };
+val_t NulBody[2] = {  OBJECT, OBJECT };
 
 /* API */
-/* describe */
-#define gen_isa(type)					\
-  bool val_is_##type(val_t val) {			\
-    return has_rl_type(val, type##_type);		\
-  }							\
-  							\
-  bool obj_is_##type(obj_t obj) {			\
-    return has_obj_type(obj, type##_obj);		\
-  }
-
-#define gen_asa(type, cnvt)				\
-  TYPE(type) *val_as_##type(val_t val) {		\
-    assert(val_is_##type(val));			\
-    return (TYPE(type)*)cnvt(val);		\
-  }						\
-  						\
-  TYPE(type) *obj_as_##type(obj_t obj) {	\
-    assert(obj_is_##type(obj));			\
-    return (TYPE(type)*)obj;			\
-  }
-  
-/* general object API */
- obj_head_t *obj_head(obj_t obj)
-{
-  if (obj)
-    return (obj_head_t*)(obj-sizeof(obj_head_t));
-
-  return &nul_head;
+/* safe access */
+ obj_head_t *obj_head(obj_t obj) {
+   return obj ? (obj_head_t*)(obj-sizeof(obj_head_t)) : &NulHead;
 }
 
-uchar *obj_data(obj_t obj)
-{
-  return obj ? : (uchar*)&nul_data[0];
+uchar *obj_start(obj_t obj) {
+  return obj? obj - head_size_for(obj) : (uchar*)&NulHead;
 }
 
-obj_type_t obj_type(obj_t obj) {
-  return obj_head(obj)->type;
+uchar *obj_data(obj_t obj) {
+  return obj ? : (uchar*)&NulBody[0];
 }
 
+/* predicates */
 bool obj_is_alloc(obj_t obj) {
   return flagp(obj_head(obj)->flags, allocated_obj);
 }
@@ -92,63 +40,63 @@ bool has_obj_type(obj_t obj, obj_type_t type) {
   return obj_type(obj) == type;
 }
 
-obj_t make_obj(obj_type_t type) {
-  assert(type != nul_obj);
+/* object model API */
+size_t obj_size(obj_t self) {
+  if (objsize_for(self))
+    return objsize_for(self)(self);
 
-  size_t total = Obsize[type];
-  obj_head_t *head = alloc(total);
-
-  *head = (obj_head_t) { type, true, false, allocated_obj, 0 };
-
-  return head->space;
+  return base_size_for(self);
 }
 
-void free_obj(obj_t obj) {
-  obj_head_t *to_free = obj_head(obj);
-  size_t size = Obsize[to_free->type];
+obj_t make_obj(obj_type_t type, size_t n, void *ini) {
+  obj_t new;
 
-  if (obj_is_alloc(obj))
-    dealloc(to_free, size);
+  if (create_for(type))
+    new = create_for(type)(type, n, ini);
+
+  else
+    new = alloc(base_size_for(type)) + base_offset_for(type);
+
+  init_obj(new, type, n, ini);
+
+  return new;
 }
 
-/* symbol API */
-sym_t *make_sym(char *name) {
-  static ulong counter = 1;
+void init_obj(obj_t self, obj_type_t type, size_t n, void *ini) {
+  *obj_head(self) = (obj_head_t) { type, true, false, allocated_obj, 0 };
 
-  sym_t *new_sym = (sym_t*)make_obj(sym_obj);
-
-  new_sym->idno = counter++;
-  new_sym->hash = hash_str8(name);
-  new_sym->name = make_string(strlen(name), name);
-
-  return new_sym;
+  if (init_for(type))
+    init_for(type)(self, type, n, ini);
 }
 
-val_t  sym(char *name) {
-  sym_t *out = symbol_table_intern(&SymbolTable, name);
+void free_obj(obj_t self) {
+  if (free_for(self))
+    free_for(self)(self);
 
-  return tag_val(out, OBJECT);
+  if (obj_is_alloc(self))
+    dealloc(obj_start(self), obj_size(self));
 }
 
-gen_isa(sym);
-gen_asa(sym, as_obj);
+obj_t resize_obj(obj_t self, size_t n) {
+  if (resize_for(self))
+    return resize_for(self)(self, n);
 
-/* cons API */
-cons_t *make_cons(val_t car, val_t cdr) {
-  cons_t *out = (cons_t*)make_obj(cons_obj);
-  out->car    = car;
-  out->cdr    = cdr;
-
-  return out;
-}
-
-val_t cons(val_t car, val_t cdr) {
-  cons_t *out = make_cons(car, cdr);
-
-  return tag_val(out, OBJECT);
+  return adjust(self, obj_size(self), base_size_for(self) + n);
 }
 
 /* initialization */
-void obj_init( void ) {
-  init_symbol_table(&SymbolTable, 0, NULL);
+extern void sym_init(void);
+extern void list_init(void);
+extern void vec_init(void);
+extern void num_init(void);
+extern void code_init(void);
+extern void func_init(void);
+
+void obj_init(void) {
+  sym_init();
+  list_init();
+  vec_init();
+  num_init();
+  code_init();
+  func_init();
 }

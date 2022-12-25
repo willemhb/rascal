@@ -16,5 +16,4 @@ void  dealloc(void *spc, size_t size);
 void  dealloc_array(void *spc, size_t size, size_t obsize);
 void  dealloc_table(void *spc, size_t base, size_t size, size_t obsize);
 
-
 #endif

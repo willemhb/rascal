@@ -3,7 +3,7 @@
 
 #include <assert.h>
 
-#include "tpl/type.h"
+#include "tpl/decl/generic.h"
 
 #undef GET
 #undef SET

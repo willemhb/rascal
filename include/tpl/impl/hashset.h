@@ -4,7 +4,7 @@
 #include "util/collection.h"
 #include "util/memory.h"
 
-#include "tpl/type.h"
+#include "tpl/decl/generic.h"
 
 #define HASHSET( HS, M, padfn, hashfn, cmpfn, nomember )		\
   hset_t *make_##HS( size_t n_keys, void **ini )			\
