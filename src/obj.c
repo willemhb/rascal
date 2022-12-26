@@ -14,74 +14,70 @@
 ALIST(objs, obj_t, obj_t, pad_alist_size);
 
 /* globals */
-obj_head_t NulHead = { nul_obj, true, false, 0, 0 };
-val_t NulBody[2] = {  OBJECT, OBJECT };
+/* forward declarations */
+extern struct nul_obj_t NulObj;
 
 /* API */
 /* safe access */
- obj_head_t *obj_head(obj_t obj) {
-   return obj ? (obj_head_t*)(obj-sizeof(obj_head_t)) : &NulHead;
+ obj_head_t obj_head(obj_t obj) {
+   return obj ? (obj_head_t)(obj-sizeof(struct obj_head_t)) : &NulObj.head;
 }
 
 uchar *obj_start(obj_t obj) {
-  return obj? obj - head_size_for(obj) : (uchar*)&NulHead;
+  return obj? obj - obj_type_of(obj)->head_size : (uchar*)&NulObj;
 }
 
 uchar *obj_data(obj_t obj) {
-  return obj ? : (uchar*)&NulBody[0];
+  return obj ? : (uchar*)&NulObj.body[0];
 }
 
 /* predicates */
-bool obj_is_alloc(obj_t obj) {
-  return flagp(obj_head(obj)->flags, allocated_obj);
+bool obj_has_type(obj_t self, type_t type) {
+  if (type->isa)
+    return type->isa(type, tag_val(self, OBJECT));
+
+  return obj_type(self) == type;
 }
 
-bool has_obj_type(obj_t obj, obj_type_t type) {
-  return obj_type(obj) == type;
+/* object model */
+type_t obj_type_of(obj_t self) {
+  return obj_type(self);
 }
 
-/* object model API */
-size_t obj_size(obj_t self) {
-  if (objsize_for(self))
-    return objsize_for(self)(self);
+obj_t make_obj(type_t self, size_t n, void *ini) {
+  obj_t out;
 
-  return base_size_for(self);
-}
-
-obj_t make_obj(obj_type_t type, size_t n, void *ini) {
-  obj_t new;
-
-  if (create_for(type))
-    new = create_for(type)(type, n, ini);
+  if (self->create)
+    out = self->create(self, n, ini);
 
   else
-    new = alloc(base_size_for(type)) + base_offset_for(type);
+    out = alloc(alloc_size(self, n)) + self->head_size;
 
-  init_obj(new, type, n, ini);
-
-  return new;
+  init_obj(out, self, n, ini);
+  return out;
 }
 
-void init_obj(obj_t self, obj_type_t type, size_t n, void *ini) {
-  *obj_head(self) = (obj_head_t) { type, true, false, allocated_obj, 0 };
+void init_obj(obj_t self, type_t type, size_t n, void *ini) {
+  *obj_head(self) = (struct obj_head_t) { type, alloc_size(type, n), 0, true };
 
-  if (init_for(type))
-    init_for(type)(self, type, n, ini);
-}
-
-void free_obj(obj_t self) {
-  if (free_for(self))
-    free_for(self)(self);
-
-  if (obj_is_alloc(self))
-    dealloc(obj_start(self), obj_size(self));
+  if (type->init)
+    type->init(self, type, n, ini);
 }
 
 obj_t resize_obj(obj_t self, size_t n) {
-  if (resize_for(self))
-    return resize_for(self)(self, n);
+  if (obj_type(self)->resize)
+    return obj_type(self)->resize(self, n);
 
-  return adjust(self, obj_size(self), base_size_for(self) + n);
+  return adjust(obj_start(self), obj_size(self), alloc_size(obj_type(self), n)) + obj_type(self)->head_size;
+}
+
+void free_obj(obj_t self) {
+  if (obj_type(self)->free)
+    obj_type(self)->free(self);
+
+  if (obj_allocp(self))
+    dealloc(obj_start(self), obj_size(self));
+    
 }
 
 /* initialization */

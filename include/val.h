@@ -8,6 +8,7 @@
 ALIST(vals, val_t);
 
 typedef union rl_data_t rl_data_t;
+typedef enum val_type_t val_type_t;
 
 union rl_data_t {
   val_t    as_val;
@@ -22,6 +23,11 @@ union rl_data_t {
   code_t   as_code;
 };
 
+enum val_type_t {
+  real_val,
+  obj_val
+};
+
 /* globals */
 #define QNAN    0x7ff8000000000000ul
 #define RNAN    (nan(""))
@@ -32,10 +38,11 @@ union rl_data_t {
 #define TAGMASK 0xffff000000000000ul
 #define PTRMASK (~TAGMASK)
 
-/* API */
-val_type_t val_type(val_t x);
-bool       has_val_type(val_t x, val_type_t type);
-bool       has_val_types(val_t x, size_t n, ...);
+/* APIs */
+val_type_t val_type(val_t val);
+type_t     val_type_of(val_t val);
+bool       val_has_type(val_t val, type_t type);
+bool       is_val_type(val_t val, val_type_t valtype);
 
 /* initialization */
 void val_init(void);
@@ -47,10 +54,13 @@ void val_init(void);
 
 #define as_val(x)     (((rl_data_t)(x)).as_val)
 #define as_real(x)    (((rl_data_t)(x)).as_real)
-#define as_obj(x)     ((obj_t)((x)&PTRMASK))
+#define as_obj(x)                                   \
+  _Generic((x),                                     \
+           val_t:((obj_t)(((val_t)(x))&PTRMASK)),   \
+           default:((obj_t)((typeof(x))(x))))
 
-#define is_real(x)    has_val_type(x, real_val)
-#define is_obj(x)     has_val_type(x, obj_val)
+#define is_real(x)    is_val_type(x, real_val)
+#define is_obj(x)     is_val_type(x, obj_val)
 #define is_nul(x)     ((x)==OBJECT)
 
 #endif

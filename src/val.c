@@ -3,6 +3,7 @@
 
 #include "val.h"
 #include "obj.h"
+#include "type.h"
 
 /* C types */
 #include "tpl/impl/alist.h"
@@ -16,22 +17,27 @@ val_type_t val_type(val_t x) {
   return obj_val;
 }
 
-bool has_val_type(val_t x, val_type_t type) {
-  return val_type(x) == type;
-}
+type_t val_type_of(val_t val) {
+  extern struct type_t RealType;
 
-bool has_val_types(val_t x, size_t n, ...) {
-  va_list va; va_start(va, n);
-  bool out = false;
-
-  for (size_t i=0; i<n; i++) {
-    if ((out=has_val_type(x, va_arg(va, val_type_t))))
-      break;
+  switch (val_type(val)) {
+  case real_val: return &RealType;
+  case obj_val:  return obj_type_of(as_obj(val));
   }
 
-  va_end(va);
-  return out;
+  rl_unreachable();
+}
+
+bool val_has_type(val_t val, type_t type) {
+  if (type->isa)
+    return type->isa(type, val);
+
+  return val_type_of(val) == type;
+}
+
+bool is_val_type(val_t val, val_type_t valtype) {
+  return val_type(val) == valtype;
 }
 
 /* initialization */
-void val_init( void ) {}
+void val_init(void) {}

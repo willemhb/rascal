@@ -3,8 +3,6 @@
 
 #include "code.h"
 
-#include "arr.h"
-
 #include "memory.h"
 #include "type.h"
 
@@ -17,11 +15,24 @@
 /* C types */
 
 /* globals */
+void prin_code(val_t val);
+
+struct type_t CodeType = {
+  .name="code",
+  .prin=prin_code,
+  .create=create_arr,
+  .init=init_arr,
+  .resize=resize_arr,
+  .pad=pad_stack_size,
+  .head_size=sizeof(struct code_head_t),
+  .base_offset=sizeof(struct code_head_t) - sizeof(struct obj_head_t),
+  .el_size=sizeof(ushort)
+};
 
 /* API */
 /* external */
 code_t make_code(size_t n, ushort *instr) {
-  return (code_t)make_obj(code_obj, n, instr);
+  return (code_t)make_obj(&CodeType, n, instr);
 }
 
 code_t code_from_obj(size_t n, val_t *instrs) {
@@ -40,24 +51,24 @@ code_t code_from_obj(size_t n, val_t *instrs) {
 
 val_t code_ref(code_t code, int i) {
   if (i < 0)
-    i += code_len(code);
+    i += code_head(code)->len;
 
-  assert(i >= 0 && (size_t)i < code_len(code));
+  assert_bound(i, code);
   return code[i];
 }
 
 val_t code_set(code_t code, int i, val_t val) {
   if (i < 0)
-    i += code_len(code);
+    i += code_head(code)->len;
 
-  assert(i >= 0 && (size_t)i < code_len(code));
+  assert_bound(i, code);
   code[i] = val;
   return val;
 }
 
 size_t code_write(code_t *code, ushort op, ...) {
   size_t argc = op_argc(op);
-  size_t offset = code_len(*code);
+  size_t offset = code_head(*code)->len;
   size_t out = offset+argc+1;
 
   *(obj_t*)code = resize_obj(*(obj_t*)code, out);
@@ -84,7 +95,7 @@ void prin_code(val_t x) {
   printf("#code(");
 
   code_t  c = as_code(x);
-  size_t l = code_len(c);
+  size_t l = code_head(c)->len;
 
   for (size_t i=0; i < l; i++) {
     printf("%d", c[i]);
@@ -98,44 +109,11 @@ void prin_code(val_t x) {
 
 /* convenience */
 void dis_code(code_t code) {
-  size_t offset = 0, end = code_len(code);
+  size_t offset = 0, end = code_head(code)->len;
 
   while (offset < end)
     dis_op(code, &offset);
 }
 
-/* generics */
-#include "tpl/impl/generic.h"
-
-ISA_METHOD(code, val, rl_type, 1, code_type);
-ISA_METHOD(code, obj, rl_type, 1, code_type);
-ISA_NON0(code, code);
-ASA_METHOD(code, val, is_code, as_obj);
-ASA_METHOD(code, obj, is_code, NOOP_CNVT);
-ASA_METHOD(code, code, NON0_GUARD, NOOP_CNVT);
-HEAD_METHOD(code, val, is_code, as_obj);
-HEAD_METHOD(code, obj, is_code, NOOP_CNVT);
-HEAD_METHOD(code, code, NON0_GUARD, NOOP_CNVT);
-
 /* initialization */
-void code_init(void) {
-  Type[code_type] = (struct dtype_t) {
-    .name="code",
-
-    /* general methods */
-    .prin=prin_code,
-
-    /* object model */
-    .create=create_arr,
-    .init=init_arr,
-    .resize=resize_arr,
-    .objsize=arr_size,
-    .pad=pad_alist_size,
-
-    /* layout */
-    .head_size=sizeof(struct arr_head_t),
-    .base_offset=sizeof(struct arr_head_t) - sizeof(struct obj_head_t),
-    .body_size=0,
-    .el_size=sizeof(ushort)
-  };
-}
+void code_init(void) {}

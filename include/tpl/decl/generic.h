@@ -48,8 +48,16 @@
 #define GETF_5( f, cnvt, t1, t2, t3, t4, t5, x )    \
   (GENERIC_CALL_5(cnvt, t1, t2, t3, t4, t5, x)->f)
 
-#define ISA_METHOD(type, argtype) bool argtype##_is_##type(TYPE(argtype) argtype)
-#define ASA_METHOD(type, argtype) TYPE(type) argtype##_as_##type(TYPE(argtype) argtype)
-#define HEAD_METHOD(type, argtype) STRUCT_HEAD(type) *argtype##_##type##_head(TYPE(argtype) argtype)
+#define GENERIC_ISA(type)                       \
+  bool val_is_##type(val_t val);                \
+  bool obj_is_##type(obj_t val)
+
+#define GENERIC_ASA(type)                       \
+  TYPE(type) val_as_##type(val_t val);          \
+  TYPE(type) obj_as_##type(obj_t obj)
+
+#define GENERIC_HEAD(type)                          \
+  STRUCT_HEAD(type) val_##type##_head(val_t val);   \
+  STRUCT_HEAD(type) obj_##type##_head(obj_t obj)
 
 #endif

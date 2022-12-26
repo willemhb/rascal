@@ -1,13 +1,18 @@
 #ifndef rl_code_h
 #define rl_code_h
 
-#include "obj.h"
+#include "arr.h"
 
 /* C types */
+typedef struct code_head_t *code_head_t;
+
 struct code_head_t {
   size_t len, cap;
-  obj_head_t obj;
+  struct obj_head_t obj;
 };
+
+/* globals */
+extern struct type_t CodeType;
 
 /* API */
 code_t make_code(size_t n, ushort *instr);
@@ -19,21 +24,8 @@ size_t code_write(code_t *code, ushort op, ...);
 /* convenience */
 void dis_code(code_t code);
 
-/* generics */
-#include "tpl/decl/generic.h"
-ISA_METHOD(code, val);
-ISA_METHOD(code, obj);
-ISA_METHOD(code, code);
-ASA_METHOD(code, val);
-ASA_METHOD(code, obj);
-ASA_METHOD(code, code);
-HEAD_METHOD(code, val);
-HEAD_METHOD(code, obj);
-HEAD_METHOD(code, code);
-
-#define is_code(x)   GENERIC_CALL_3(is_code, code, obj, val, x)
-#define as_code(x)   GENERIC_CALL_3(as_code, code, obj, val, x)
-#define code_len(x)  GETF_3(len, code_head, code, obj, val, x)
-#define code_cap(x)  GETF_3(len, code_head, code, obj, val, x)
+#define is_code(x)   has_type(x, &CodeType)
+#define as_code(x)   ((code_t)as_obj(x))
+#define code_head(x) ((code_head_t)obj_start((obj_t)(x)))
 
 #endif

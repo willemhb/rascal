@@ -4,37 +4,49 @@
 #include "type.h"
 #include "memory.h"
 
+/* globals */
+bool isa_arr(type_t self, val_t val);
+
+struct type_t ArrType = {
+  .name="arr",
+  .isa=isa_arr
+};
+
 /* API */
 /* internal */
-size_t arr_size(obj_t self) {
-  return base_size(self) + el_size(self) * arr_cap(self);
-}
-
-void init_arr(obj_t self, obj_type_t type, size_t n, void *ini) {
-  arr_cap(self) = pad_method(type)(n, 0, 0);
-  arr_len(self) = n;
+void init_arr(obj_t self, type_t type, size_t n, void *ini) {
+  arr_head(self)->len = n;
+  arr_head(self)->cap = type->pad(n, 0, 0);
 
   if (ini)
-    memcpy(self, ini, n * el_size(type));
+    memcpy(self, ini, n * type->el_size);
 }
 
-obj_t create_arr(obj_type_t type, size_t n, void *ini) {
+obj_t create_arr(type_t type, size_t n, void *ini) {
   (void)ini;
  
-  size_t p     = pad_method(type)(n, 0, 0);
+  size_t p     = type->pad(n, 0, 0);
   size_t base  = base_size(type);
-  size_t total = base + p * el_size(type);
-  return alloc(total) + base_offset(type);
+  size_t total = base + p * type->el_size;
+  return alloc(total) + type->head_size;
 }
 
 obj_t resize_arr(obj_t self, size_t n) {
-  size_t old_len = arr_len(self), old_cap = arr_cap(self);
-  size_t p = pad_method(self)(old_len, n, old_cap);
+  size_t old_len = arr_head(self)->len, old_cap = arr_head(self)->cap;
+  size_t p = obj_type(self)->pad(old_len, n, old_cap);
 
   if (p != old_len)
-    self = adjust_table(obj_start(self), base_size(self), old_len, p, el_size(self));
+    self = adjust_table(obj_start(self),
+                        base_size(obj_type(self)),
+                        old_len, p, obj_type(self)->el_size);
 
   return self;
 }
 
-/* convenience */
+extern struct type_t VecType, CodeType;
+
+bool isa_arr(type_t self, val_t val) {
+  self = type_of(val);
+
+  return self == &VecType || self == &CodeType;
+}

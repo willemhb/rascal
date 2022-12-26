@@ -7,17 +7,50 @@
 #include "prin.h"
 
 /* C types */
-/* globals */ 
-/* nul dummy object */
-obj_head_t nul_head = { nul_obj, true, false, 0, 0 };
-struct cons_t nul_data = { NUL, NUL };
+/* globals */
+/* types */
+void prin_list(val_t val);
+bool isa_list(type_t self, val_t val);
+void init_cons(obj_t self, type_t type, size_t n, void *ini);
+
+struct type_t NulType = {
+  .name="nul",
+  .prin=prin_list
+};
+
+struct type_t ListType = {
+  .name="list",
+  .isa=isa_list
+};
+
+struct type_t ConsType = {
+  .name="cons",
+  .prin=prin_list,
+  .init=init_cons,
+  .head_size=sizeof(struct obj_head_t),
+  .body_size=sizeof(struct cons_t)
+};
+
+/* nul object */
+struct nul_obj_t NulObj = {
+  .head={
+    &NulType,
+    sizeof(struct nul_obj_t),
+    0,
+    false
+  },
+  .body={
+    NUL,
+    NUL
+  }
+};
 
 /* API */
 /* external */
 cons_t make_cons(val_t car, val_t cdr) {
   val_t buf[2] = { car, cdr };
 
-  return (cons_t)make_obj(cons_obj, 2, buf);
+  return (cons_t)make_obj(&ConsType, 2, buf);
 }
 
 cons_t make_conses(size_t n, val_t *args) {
@@ -52,7 +85,7 @@ val_t cons(val_t car, val_t cdr) {
 }
 
 /* internal */
-void init_cons(obj_t self, obj_type_t type, size_t n, void *ini) {
+void init_cons(obj_t self, type_t type, size_t n, void *ini) {
   (void)type;
   (void)n;
 
@@ -65,8 +98,8 @@ void prin_list(val_t x) {
   printf("(");
 
   while (is_cons(x)) {
-    prin(cons_car(x));
-    x = cons_cdr(x);
+    prin(as_cons(x)->car);
+    x = as_cons(x)->cdr;
     
     if (is_cons(x))
       printf(" ");
@@ -80,35 +113,11 @@ void prin_list(val_t x) {
   printf(")");
 }
 
+bool isa_list(type_t self, val_t val) {
+  (void)self;
 
-/* generics */
-#include "tpl/impl/generic.h"
-
-ISA_METHOD(cons, val, rl_type, 1, cons_type);
-ISA_METHOD(cons, obj, rl_type, 1, cons_type);
-ISA_NON0(cons, cons);
-
-ASA_METHOD(cons, val, is_cons, as_obj);
-ASA_METHOD(cons, obj, is_cons, NOOP_CNVT);
-ASA_METHOD(cons, cons, NON0_GUARD, NOOP_CNVT);
+  return val == NUL || val_type_of(val) == &ConsType;
+}
 
 /* initialization */
-void cons_init(void) {
-  /* initialize cons type */
-  Type[cons_type] = (struct dtype_t) {
-    .name="cons",
-    .prin=prin_list,
-
-    .init=init_cons,
-
-    .head_size=sizeof(struct obj_head_t),
-    .base_offset=0,
-    .body_size=sizeof(struct cons_t)
-  };
-
-  /* initialize nul type */
-  Type[nul_type] = (struct dtype_t) {
-    .name="nul",
-    .prin=prin_list
-  };
-}
+void cons_init(void) {}

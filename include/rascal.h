@@ -25,52 +25,35 @@ typedef ushort *code_t;
 /* internal types */
 typedef struct reader_t reader_t;
 typedef struct vm_t vm_t;
-typedef struct dtype_t *dtype_t;
-
-/* type code types */
-typedef enum val_type_t val_type_t;
-typedef enum obj_type_t obj_type_t;
-typedef enum rl_type_t  rl_type_t;
-
-/* type codes */
-enum val_type_t {
-  real_val,
-  obj_val,
-};
-
-enum obj_type_t {
-  nul_obj=obj_val,
-  sym_obj,
-  native_obj,
-  prim_obj,
-  module_obj,
-  cons_obj,
-  vec_obj,
-  code_obj
-};
-
-enum rl_type_t  {
-  real_type,
-  nul_type,
-  sym_type,
-  native_type,
-  prim_type,
-  module_type,
-  cons_type,
-  vec_type,
-  code_type
-};
-
-#define num_types (module_type+1)
+typedef struct type_t *type_t;
 
 /* vm function pointer types */
-typedef val_t  (*native_fn_t)(size_t nargs, val_t *args);
-typedef size_t (*pad_fn_t)(size_t new_count, size_t old_count, size_t old_cap);
+typedef val_t  (*native_fn_t)(size_t n, val_t *args);
+typedef int    (*guard_fn_t)(size_t n, val_t *args);
+
 typedef void   (*prin_fn_t)(val_t val);
-typedef obj_t  (*create_fn_t)(obj_type_t type, size_t n, void *ini);
-typedef obj_t  (*resize_fn_t)(obj_t self, size_t n);
-typedef void   (*init_fn_t)(obj_t self, obj_type_t type, size_t n, void *ini);
-typedef size_t (*objsize_fn_t)(obj_t self);
+typedef bool   (*isa_fn_t)(type_t self, val_t val);
+
+typedef obj_t  (*create_fn_t)(type_t type, size_t n, void *ini);
+typedef void   (*init_fn_t)(obj_t self, type_t type, size_t n, void *ini);
 typedef void   (*runtime_fn_t)(obj_t self);
+typedef obj_t  (*resize_fn_t)(obj_t self, size_t n);
+typedef size_t (*pad_fn_t)(size_t new_count, size_t old_count, size_t old_cap);
+
+/* basic APIs */
+extern type_t val_type_of(val_t val);
+extern type_t obj_type_of(obj_t obj);
+extern bool   val_has_type(val_t val, type_t type);
+extern bool   obj_has_type(obj_t obj, type_t type);
+
+#define type_of(x)                              \
+  _Generic((x),                                 \
+           val_t:val_type_of,                   \
+           obj_t:obj_type_of)(x)
+
+#define has_type(x, t)                          \
+  _Generic((x),                                 \
+           val_t:val_has_type,                  \
+           obj_t:obj_has_type)(x, t)
 
 #endif
