@@ -76,23 +76,5 @@ void free_obj(obj_t self) {
     obj_type(self)->free(self);
 
   if (obj_allocp(self))
-    dealloc(obj_start(self), obj_size(self));
-    
-}
-
-/* initialization */
-extern void sym_init(void);
-extern void list_init(void);
-extern void vec_init(void);
-extern void num_init(void);
-extern void code_init(void);
-extern void func_init(void);
-
-void obj_init(void) {
-  sym_init();
-  list_init();
-  vec_init();
-  num_init();
-  code_init();
-  func_init();
+    dealloc(obj_start(self), obj_size(self));    
 }

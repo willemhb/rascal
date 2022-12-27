@@ -7,8 +7,15 @@
 typedef enum opcode_t opcode_t;
 
 enum opcode_t {
+  op_begin,  // normal entry point
   op_halt,
   op_noop,
+  op_pop,
+
+  op_load_const,
+  op_load_global,
+
+  op_invoke,
 
   /* not an opcode */
   num_opcodes

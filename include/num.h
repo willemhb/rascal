@@ -3,9 +3,10 @@
 
 #include "val.h"
 
-/* API */
+/* globals */
+extern struct type_t NumType;
 
-/* initialization */
-void num_init(void);
+/* convenience */
+#define is_num(x) has_type(x, &NumType)
 
 #endif

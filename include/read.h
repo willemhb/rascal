@@ -5,8 +5,6 @@
 
 /* API */
 val_t read(void);
-
-/* initialization */
-void read_init(void);
+val_t readln(void);
 
 #endif

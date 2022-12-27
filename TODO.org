@@ -1,0 +1,339 @@
+* TODO Early development
+The focus of versions 0.0.0 - 0.0.16 focus on incrementally implementing a servicable base 
+language, culminating in the bootstrapping of a simple `rascal` compiler.
+
+** DONE Version 0.0.00 - echo interpreter
+*** Goals
+   This "version" is just getting the repl and the object model in place.
+
+*** Target features
+**** DONE `real` type implemented
+**** DONE `read`, `eval`, `prin`, `repl` interpreter primitives implemented
+
+** DONE Version 0.0.01 - names
+*** Goals
+   Add support for symbols (they don't do anything yet).
+
+*** Target features
+**** DONE `sym` type implemented (with read/prin support).
+
+** DONE Version 0.0.02 - lists
+*** Goals
+   Add support for lists.
+
+*** Target features
+**** DONE `cons`, `nul` types implemented (with read/prin support).
+
+** DONE Version 0.0.03 - arrays
+*** Goals
+   Add support for array types used by the compiler.
+
+*** Target features
+**** DONE `vec`, `code` types implemented (with read/prin support).
+
+** DONE Version 0.0.04 - s-expressions & symbol values
+*** Goals
+   To make lists meaningful, implement function calls (and functions).
+
+   Implement toplevel symbol values at the same time.
+
+*** Target features
+**** DONE `module`, `prim`, `native` types implemented
+**** DONE `sym` type updated
+**** DONE `eval` primitive updated
+**** DONE `+`, `-`, `*`, `/` arithmetic primitives added
+**** DONE `cons`, `car`, `cdr` list primitives added
+**** DONE `vec`, `vec-len`, `vec-ref`, `vec-xef` vec primitives added
+
+** DONE Version 0.0.05 - special forms
+*** Goals
+   Introduce special forms and add support for basic forms.
+
+*** Target features
+**** DONE `quote`, `do` forms implemented
+**** DONE reader support for `quote`
+
+** TODO Version 0.0.06 - catch
+*** Goals
+   Add basic error handling early on.
+
+*** Target features
+**** DONE `small` type implemented
+**** DONE type and arity checking added to function calls
+**** DONE read/prin support for `small` type
+**** DONE update `vec` operations to require `small` type
+**** DONE update `code` operations to require `small` type
+**** DONE add `code` constructor
+**** DONE update `read_obj` to use constructors
+**** TODO add pp pointer to vm
+**** TODO `op_save_prompt`, `op_restore_prompt` opcodes implemented
+**** TODO implement `catch` form
+**** TODO add panicp to vm
+**** TODO add panic mode & panic checking to vm
+**** TODO add panic mode synchronization to vm
+**** TODO `error` runtime primitive added
+
+** TODO Version 0.0.07 - assignment
+*** Goals
+   Add toplevel assignments to the interpreter.
+
+*** Target features
+**** TODO `def`, `put` forms implemented
+**** TODO `lookup` symbol primitive added.
+
+** TODO Version 0.0.08 - branching
+*** Goals
+   Add basic branching to the interpreter.
+
+*** Target features
+**** TODO `if` form implemented.
+**** TODO `bool` type implemented.
+**** TODO `id?`, `not`, `isa?`, `bound?` predicate primitives added.
+
+** TODO Version 0.0.09 - abstractions
+*** Goals
+   Add support for user-defined functions.
+
+*** Target features
+**** TODO `fun` form implemented.
+**** TODO `[x y .. rest]` variadic argument support implemented.
+**** TODO `module` type updated.
+
+** TODO Version 0.0.10 - closures
+*** Goals
+   Add support for nested functions (this is a big one).
+
+*** Target features
+**** TODO Add support for nested functions, closures, and upvalues.
+**** TODO `closure`, `upval` types implemented.
+
+** TODO Version 0.0.11 - basic io
+*** Goals
+   In preparation for bootstrapping the compiler, begin introducing IO types.
+
+*** Target features
+**** TODO `ios` type implemented.
+**** TODO `open`, `close`, `eos?` stream primitives implemented
+**** TODO `ios` type integrated into `read`/`prin`
+
+** TODO Version 0.0.12 - text
+*** Goals
+Add basic text types.
+
+*** Target features
+**** TODO `str`, `glyph` types implemented.
+**** TODO `glyph-type`, `glyph-type=?`, `upper`, `lower` character primitives added.
+**** TODO `str-len`, `str-ref`, `str-cat`, `str-rev`, `str-upper`, `str-lower`, string primitives added.
+**** TODO `princ`, `readc`, `peekc` stream primitives added
+
+** TODO Version 0.0.13 - running files
+*** Goals
+Add support for executing source files.
+
+This is also where the core interpreter primitives are exposed to the user.
+
+*** Target features
+**** TODO `eval`, `apply`, `exec`, `read`, `comp`, `prin`, `repl` interpreter primitives added
+**** TODO `load` interpreter primitive added
+
+** TODO Version 0.0.14 - object files
+*** Goals
+Add support object files (saved compiled bytecode).
+
+*** Target features
+**** TODO object file format implemented.
+**** TODO `comp-file` compiler primitive added
+
+** TODO Version 0.0.15 - preparing to bootstrap
+*** Goals
+Implement a few additional branching forms to ease writing the compiler. Also add in basic
+garbage collection at this point.
+
+*** Target features
+**** TODO `and`, `or`, `cond`, `case` forms implemented
+**** TODO automatic memory management implemented
+
+** TODO Version 0.0.16 - bootstrapping
+*** Goals
+At this point we seek to begin using rascal to implement rascal.
+
+*** Target features
+**** TODO rewrite `comp` in rascal
+**** TODO compile `comp`
+
+* TODO Middle development
+The focus of versions 0.0.17 - 0.0.28 is to add the more sophisticated features that make
+rascal distinctive. This phase is focused on basic implementations for these features, not
+efficient implementations. Refinement will come later.
+
+** TODO Version 0.0.17 - hashing & cacheing
+*** Goals
+This version is focused on the implementation of sophisticated hashing and comparison that 
+works for all values and handles reference cycles in hashed data. These features will be 
+needed for the development of more advanced features.
+
+*** Target features
+**** TODO `dict`, `set` types implemented
+**** TODO `hash`, `eq?`, `ord` comparison and hashing primitives implemented
+
+** TODO Version 0.0.18 - packages
+*** Goals
+Version 0.0.17 focuses on implementing the core of an extremely simple package system.
+
+Packages are implemented on top of closures. Packages are the result of executing a file.
+
+Packages are loaded at most once, and stored in the toplevel namespace.
+
+*** Target features
+**** TODO `require`, `provide` forms implemented
+**** TODO `ns`, `var`, `pkg` types implemented
+**** TODO `sym`, `module` types updated
+
+** TODO Version 0.0.19 - macros
+*** Goals
+With the package system in place, Version 0.0.19 focuses on implementing the basic macro system.
+
+*** Target features
+**** TODO `mac` form implemented
+**** TODO `macro-call?`, `macro-expand-1`, `macro-expand` macro primitives implemented
+**** TODO `ns`, `var`, `pkg` types updated
+
+** TODO Version 0.0.20 - backquote
+*** Goals
+Once macros and packages exist, it's time to improve the reader. Version 0.0.20 is focused on
+extending the reader to support a `clojure`-like backquote form. Custom reader macros are
+left for a later date.
+
+A few other syntaxes are implemented for convenience.
+
+*** Target features
+**** TODO `~backquote`, `~@backquote`, `backquote#` syntaxes implemented
+**** TODO `%(+ 1 %)` lambda literal syntax implemented
+
+** TODO Version 0.0.21 - arity overloading, variadic functions, and splatting
+*** Goals
+As a first step toward true multi-methods, this version introduces overloading by function
+arity and rest arguments. It also updates the `fun` and `mac` syntax to support multiple
+signatures.
+
+*** Target features
+**** TODO `func` type implemented
+**** TODO `(+ 1 2 .. '(3 4))` splatting syntax implemented
+**** TODO overloading by function arity implemented (prelude to multimethods)
+
+** TODO Version 0.0.22 - basic type annotations
+*** Goals 
+In order to allow dispatching on types, we need a syntax for annotating types. This update
+focuses on meeting that requirement.
+
+*** Target features
+**** TODO `(<type> <var>)` type annotation syntax implemented
+**** TODO annotation support implemented in `fun`, `mac`, `let`, and `def` forms
+**** TODO runtime type checking implemented
+
+** TODO Version 0.0.23 - true multimethods
+*** Goals
+With basic dispatch and variable types implemented, full multiple dispatch is added.
+
+Fast dispatch is not the focus of this version.
+
+*** Target features
+**** TODO `method-table`, `method` types implemented
+**** TODO multiple dispatch implemented in the interpreter
+
+** TODO Version 0.0.24 - first class types
+*** Goals
+Support for user types requires types to be first class objects. Basic support for this is the 
+focus of this update.
+
+*** Target features
+**** `type` form implemented
+**** `data-type`, `alias-type` types implemented, integrated into object system
+
+** TODO Version 0.0.25 - record types
+*** Goals
+With first class types in place, it's time to implement non-trivial user types. We start with
+record types.
+
+*** Target features
+**** `type` form extended with support for `(type <name> {..<fields>})` syntax
+**** `record`, `record-type` types implemented, integrated into object system
+
+** TODO Version 0.0.26 - union types
+Extend the type system to support unions.
+
+** TODO Version 0.0.27 - continuations
+
+** TODO Version 0.0.28 - first-class effects
+*** Goals
+
+* TODO Late development
+At this point rascal is nearly ready to be public. Focus in this stage is on improving performance,
+working on a standard library, and implementing features that are nice for usability but not essential
+to development.
+
+This would be the point in development when I might consider bringing in other people.
+
+** TODO Version 0.0.29 - functional vec
+*** Goals
+Reimplement the `vec` type using persistent HAMTs.
+
+*** Target features
+**** TODO `vec-node` type added
+**** TODO `vec` type updated
+
+** TODO Version 0.0.30 - functional set
+*** Goals
+Same as above for `set`
+
+*** Target features
+**** TODO `set-node`, `set-leaf`, `set-leaves` types added
+**** TODO `set` type updated
+
+** TODO Version 0.0.31 - functional dict
+*** Goals
+Same as above for `dict`
+
+** TODO Target features
+**** TODO `dict-node`, `dict-leaf`, `dict-leaves` types added
+**** TODO `dict` type updated
+
+** TODO Version 0.0.31 - sequences & collections
+*** Goals
+With multimethods implemented, we can implement a generic interface for sequences.
+
+** TODO Target features
+**** TODO `list` type implemented
+**** TODO `first`, `rest`, `nth`, `empty?`, `elem?`, `any?`, `all?`, `for-each`, `map`, `filter`, `reduce`, `take`, `drop`, `conj` interface functions implemented for `list`, `vec`, `set`, `dict`, and `str` types.
+
+** TODO Version 0.0.32 - faster dispatch
+*** Goals
+Improve the speed of method dispatch.
+
+*** Target features
+**** TODO Add cacheing to method dispatch
+
+** TODO Version 0.0.33 - destructuring
+*** Goals
+Object destructuring helps cut down on the number of parentheses in many cases, so add
+support for it at this point.
+
+*** Target features
+**** TODO Add support for `(cons head _)` destructuring syntax
+**** TODO Add support for `(vec first .. last)` destructuring syntax
+**** TODO Implement destructuring in `fun` and `let` forms
+
+** TODO Version 0.0.34 - struct types
+*** Goals
+There are obvious benefits, especially in a dynamic language, of types whose keys can
+be added dynamically (as in `JavaScript`, `Python`, etc). However, these are terrible
+for implementing data structures and algorithms. Rascal seeks to solve this by separating
+user composite types into `struct`s and `record`s. 
+
+`record`s, implemented in 0.0.25, will be implemented on top of `dict`s, and allow adding 
+and removing keys at runtime. `struct`s, implemented in this update, are fixed, use
+space much more efficiently, and (potentially) support more advanced type features.
+
+*** Target features
+**** TODO Add `struct` and `struct-type` support.
+**** TODO Add support for `(type [.. <fields>])` syntax.

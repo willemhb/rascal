@@ -1,15 +1,19 @@
 #include <ctype.h>
 
 #include "reader.h"
-#include "prin.h"
-
-#include "val.h"
-#include "obj.h"
 
 #include "list.h"
 #include "sym.h"
 #include "vec.h"
 #include "code.h"
+#include "small.h"
+#include "func.h"
+
+#include "val.h"
+#include "obj.h"
+
+#include "prin.h"
+#include "apply.h"
 
 #include "util/hashing.h"
 #include "util/number.h"
@@ -19,6 +23,8 @@
 reader_t Reader;
 
 val_t CodeSym, VecSym;
+
+extern val_t QuoteSym;
 
 /* instantiations */
 #include "tpl/impl/buffer.h"
@@ -73,22 +79,21 @@ void read_sym(reader_t *reader, int dispatch);
 void read_list(reader_t *reader, int dispatch);
 void read_vec(reader_t *reader, int dispatch);
 void read_obj(reader_t *reader, int dispatch);
+void read_quote(reader_t *reader, int dispatch);
 
 /* reader helpers */
 int read_seq(reader_t *reader, char* type, char *term) {
   int dispatch;
-  
+
   while ((dispatch=skipspc(reader)) != EOF && !strchr(term, dispatch)) {
     val_t x = read_expression(reader);
     save_expression(reader, x);
   }
 
-  if (dispatch == EOF) {
-    printf("Unexpected eos reading %s.\n", type);
-    abort();
-  } else {
+  if (dispatch == EOF)
+    rl_abort("Unexpected eos reading %s.\n", type);
+  else
     getchr(reader); // take terminal token
-  }
 
   return dispatch;
 }
@@ -123,9 +128,8 @@ int peekchr(reader_t *reader) {
 int skipspc(reader_t *reader) {
   int dispatch = peekchr(reader);
 
-  if (isrlspc(dispatch)) {
+  if (isrlspc(dispatch))
     read_space(reader, dispatch);
-  }
 
   dispatch = peekchr(reader);
   return dispatch;
@@ -156,10 +160,6 @@ void give_expressions(reader_t *reader, val_t value, read_state_t state, size_t 
 
 void save_expression(reader_t *reader, val_t val) {
   vals_push(reader->subx, val);
-}
-
-val_t unsave_expression(reader_t *reader) {
-  return vals_pop(reader->subx);
 }
 
 void clear_reader(reader_t *reader) {
@@ -240,8 +240,12 @@ void read_number(reader_t *reader, int dispatch) {
     
     real_t x = strtod(token(reader), &buf);
 
-    if (*buf == '\0')
-      result = as_val(x);
+    if (*buf == '\0') {
+      if (fits_small(x))
+        result = tag_val((small_t)x, SMALL);
+      else
+        result = as_val(x);
+    }
 
     else
       result = sym(token(reader));
@@ -254,9 +258,11 @@ void read_number(reader_t *reader, int dispatch) {
 }
 
 void read_list(reader_t *reader, int dispatch) {
-  size_t base = reader->subx->len;
+  size_t n = reader->subx->len; val_t out;
   
   dispatch = read_seq(reader, "list", ".)");
+
+  n = reader->subx->len-n;
 
   if (dispatch == '.') {
     val_t tail = read_expression(reader);
@@ -266,36 +272,38 @@ void read_list(reader_t *reader, int dispatch) {
     save_expression(reader, NUL);
   }
 
-  if (dispatch != ')') {
-    printf("Unexpected eof reading list.\n");
-    abort();
+  if (dispatch != ')')
+    rl_abort("Unexpected eof reading list.\n");
+
+  if (n == 0) {
+    out = vals_pop(reader->subx);
+    give_expression(reader, out, read_state_expr);
   } else {
-    getchr(reader); // take ')'
+    cons_t c = make_list(n+1, vals_at(reader->subx, -n-1));
+    out = tag_val(c, OBJECT);
+    give_expressions(reader, out, read_state_expr, n+1);
   }
-
-  cons_t c = make_list(reader->subx->len, (val_t*)reader->subx->elements);
-  val_t out = tag_val(c, OBJECT);
-
-  give_expressions(reader, out, read_state_expr, reader->subx->len-base);
 }
 
 void read_vec(reader_t *reader, int dispatch) {
   (void)dispatch;
-  size_t base = reader->subx->len;
+  size_t n = reader->subx->len;
 
   read_seq(reader, "vec", "]");
 
-  vec_t v = make_vec(reader->subx->len, (val_t*)reader->subx->elements);
+  n = reader->subx->len-n;
+
+  vec_t v = make_vec(n, n ? vals_at(reader->subx, -n) : NULL);
   val_t out = tag_val(v, OBJECT);
 
-  give_expressions(reader, out, read_state_expr, reader->subx->len-base);
+  give_expressions(reader, out, read_state_expr, n);
 }
 
 void read_obj(reader_t *reader, int dispatch) {
   (void)dispatch;
-  size_t base = reader->subx->len;
+  size_t n = reader->subx->len;
 
-  val_t head = read_expression(reader), out;
+  val_t head = read_expression(reader);
 
   if (!is_sym(head)) {
     printf("Unexpected expression in object literal: ");
@@ -304,27 +312,24 @@ void read_obj(reader_t *reader, int dispatch) {
     abort();
   }
 
-  if ((dispatch=getchr(reader)) != '(') {
-    printf("Unexpected character in %s literal: '%c'.\n", as_sym(head), dispatch);
-    abort();
-  }
+  if ((dispatch=getchr(reader)) != '(')
+    rl_abort("Unexpected character in %s literal: '%c'.\n", as_sym(head), dispatch);
 
   read_seq(reader, as_sym(head), ")");
 
-  if (head == CodeSym) {
-    code_t c = code_from_obj(reader->subx->len, (val_t*)reader->subx->elements);
-    out = tag_val(c, OBJECT);
+  n = reader->subx->len - n;
+  val_t *base = vals_at(reader->subx, -n);
+  val_t constructor = sym_head(head)->val;
+  val_t expression = invoke(constructor, n, base);
 
-  } else if (head == VecSym) {
-    vec_t v = make_vec(reader->subx->len, (val_t*)reader->subx->elements);
-    out = tag_val(v, OBJECT);
+  give_expressions(reader, expression, read_state_expr, n);
+}
 
-  } else {
-    printf("Cant' read unknown object type '%s'.\n", as_sym(head));
-    abort();
-  }
-
-  give_expressions(reader, out, read_state_expr, base-reader->subx->len);
+void read_quote(reader_t *reader, int dispatch) {
+  (void)dispatch;
+  val_t x = read_expression(reader);
+  val_t f = list(2, QuoteSym, x);
+  give_expression(reader, f, read_state_expr);
 }
 
 /* initialization */
@@ -339,7 +344,7 @@ void add_dispatches(reader_t *reader, char *chars, read_fn_t handler) {
 }
 
 val_t read_expression(reader_t *reader) {
-  
+
   while (reader->state) {
     int dispatch = getchr(reader);
     read_fn_t handler = readtable_get(reader->table, dispatch);
@@ -364,6 +369,7 @@ void reader_init(void)
   add_dispatch(&Reader, '(', read_list);
   add_dispatch(&Reader, '[', read_vec);
   add_dispatch(&Reader, '#', read_obj);
+  add_dispatch(&Reader, '\'', read_quote);
 
   // add object names
   CodeSym = sym("code");

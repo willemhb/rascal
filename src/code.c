@@ -3,6 +3,8 @@
 
 #include "code.h"
 
+#include "real.h"
+
 #include "memory.h"
 #include "type.h"
 
@@ -53,7 +55,7 @@ val_t code_ref(code_t code, int i) {
   if (i < 0)
     i += code_head(code)->len;
 
-  assert_bound(i, code);
+  assert_bound(i, code_head(code)->len);
   return code[i];
 }
 
@@ -61,7 +63,7 @@ val_t code_set(code_t code, int i, val_t val) {
   if (i < 0)
     i += code_head(code)->len;
 
-  assert_bound(i, code);
+  assert_bound(i, code_head(code)->len);
   code[i] = val;
   return val;
 }
@@ -115,5 +117,50 @@ void dis_code(code_t code) {
     dis_op(code, &offset);
 }
 
-/* initialization */
-void code_init(void) {}
+/* natives */
+#include "func.h"
+#include "native.h"
+#include "sym.h"
+#include "tpl/impl/funcall.h"
+
+func_err_t code_method_guard(size_t nargs, val_t *args) {
+  (void)nargs;
+
+  TYPE_GUARD(code, args, 0);
+
+  return func_no_err;
+}
+
+func_err_t code_accessor_guard(size_t nargs, val_t *args) {
+  TYPE_GUARD(code, args, 0);
+  INDEX_GUARD(code_head(args[0])->len, args, 1);
+  for (size_t i=2; i<nargs; i++) {
+    TYPE_GUARD(small, args, i);
+  }
+  return func_no_err;
+}
+
+func_err_t code_constructor_guard(size_t nargs, val_t *args) {
+  for (size_t i=0; i<nargs; i++) {
+    TYPE_GUARD(small, args, i);
+  }
+
+  return func_no_err;
+}
+
+val_t native_code(size_t nargs, val_t *args) {
+  ushort buf[nargs];
+
+  for (size_t i=0; i<nargs; i++)
+    buf[i] = as_small(args[i]);
+
+  code_t out = make_code(nargs, buf);
+
+  return tag_val(out, OBJECT);
+}
+
+void code_init(void) {
+  val_t constructor = native("code", 0, true, code_constructor_guard, &CodeType, native_code);
+
+  define("code", constructor);
+}

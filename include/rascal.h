@@ -9,9 +9,10 @@
 
 /* C types */
 /* value types */
-typedef uword val_t;  // unitype
-typedef double real_t;
-typedef uchar *obj_t;
+typedef uword val_t;     // unitype
+typedef double real_t;   // double precision float
+typedef int32_t small_t; // small integer
+typedef uchar *obj_t;    // allocated object with explicit type
 
 /* object types */
 typedef char *sym_t;
@@ -28,8 +29,9 @@ typedef struct vm_t vm_t;
 typedef struct type_t *type_t;
 
 /* vm function pointer types */
-typedef val_t  (*native_fn_t)(size_t n, val_t *args);
-typedef int    (*guard_fn_t)(size_t n, val_t *args);
+typedef val_t           (*native_fn_t)(size_t n, val_t *args);
+typedef enum func_err_t (*guard_fn_t)(size_t n, val_t *args);
+typedef enum stx_err_t  (*stx_guard_fn_t)(val_t form);
 
 typedef void   (*prin_fn_t)(val_t val);
 typedef bool   (*isa_fn_t)(type_t self, val_t val);

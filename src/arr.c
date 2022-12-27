@@ -35,10 +35,15 @@ obj_t resize_arr(obj_t self, size_t n) {
   size_t old_len = arr_head(self)->len, old_cap = arr_head(self)->cap;
   size_t p = obj_type(self)->pad(old_len, n, old_cap);
 
-  if (p != old_len)
-    self = adjust_table(obj_start(self),
-                        base_size(obj_type(self)),
-                        old_len, p, obj_type(self)->el_size);
+  if (p != old_len) {
+    type_t type = obj_type(self);
+    size_t offs = type->head_size;
+ 
+    self = adjust_table(self-offs, base_size(type), old_len, p, type->el_size) + offs;
+    arr_head(self)->cap = p;
+  }
+
+  arr_head(self)->len = n;
 
   return self;
 }

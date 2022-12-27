@@ -51,18 +51,22 @@ val_t vec(size_t n, ...) {
 }
 
 val_t vec_ref(vec_t vec, int i) {
+  vec_head_t head = vec_head(vec);
+  
   if (i < 0)
-    i += vec_head(vec)->len;
+    i += head->len;
 
-  assert_bound(i, vec);
+  assert_bound(i, head->len);
   return vec[i];
 }
 
 val_t vec_set(vec_t vec, int i, val_t val) {
+  vec_head_t head = vec_head(vec);
+  
   if (i < 0)
-    i += vec_head(vec)->len;
+    i += head->len;
 
-  assert_bound(i, vec);
+  assert_bound(i, head->len);
   vec[i] = val;
   return val;
 }
@@ -99,5 +103,73 @@ void prin_vec(val_t x) {
   printf("]");
 }
 
-/* initialization */
-void vec_init(void) {}
+/* native functions */
+/* native functions */
+#include "func.h"
+#include "sym.h"
+#include "native.h"
+#include "tpl/impl/funcall.h"
+
+func_err_t vec_accessor_guard(size_t nargs, val_t *args) {
+  (void)nargs;
+
+  TYPE_GUARD(vec, args, 0);
+  INDEX_GUARD(vec_head(args[0])->len, args, 1);
+
+  return func_no_err;
+}
+
+func_err_t vec_method_guard(size_t nargs, val_t *args) {
+  (void)nargs;
+
+  TYPE_GUARD(vec, args, 0);
+
+  return func_no_err;
+}
+
+func_err_t vec_pop_guard(size_t nargs, val_t *args) {
+  (void)nargs;
+  
+  TYPE_GUARD(vec, args, 0);
+
+  if (vec_head(args[0])->len == 0)
+    return func_arg_value_err;
+
+  return func_no_err;
+}
+
+val_t native_vec(size_t nargs, val_t *args) {
+  return vec(nargs, args);
+}
+
+val_t native_vec_ref(size_t nargs, val_t *args) {
+  (void)nargs;
+  
+  return vec_ref(as_vec(args[0]), as_small(args[1]));
+}
+
+val_t native_vec_set(size_t nargs, val_t *args) {
+  (void)nargs;
+
+  return vec_set(as_vec(args[0]), as_small(args[1]), args[2]);
+}
+
+val_t native_vec_len(size_t nargs, val_t *args) {
+  (void)nargs;
+
+  small_t out = vec_head(args[0])->len;
+
+  return tag_val(out, SMALL);
+}
+
+void vec_init(void) {
+  val_t the_native_vec     = native("vec", 0, true, NULL, &VecType, native_vec);
+  val_t the_native_vec_ref = native("vec-ref", 2, false, vec_accessor_guard, NULL, native_vec_ref);
+  val_t the_native_vec_set = native("vec-xef", 3, false, vec_accessor_guard, NULL, native_vec_set);
+  val_t the_native_vec_len = native("vec-len", 1, false, vec_method_guard, NULL, native_vec_len);
+
+  define("vec", the_native_vec);
+  define("vec-ref", the_native_vec_ref);
+  define("vec-xef", the_native_vec_set);
+  define("vec-len", the_native_vec_len);
+}

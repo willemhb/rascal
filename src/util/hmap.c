@@ -18,7 +18,7 @@ hmap_t *make_hmap( void )
   return alloc(sizeof(hmap_t));
 }
 
-void init_hmap( hmap_t *hmap, size_t n_keys, pad_array_size_fn_t padfn )
+void init_hmap( hmap_t *hmap, size_t n_keys, pad_fn_t padfn )
 {
   hmap->len    = 0;
   hmap->cap    = padfn(n_keys, 0, 0);
@@ -31,7 +31,7 @@ void free_hmap( hmap_t *hmap )
   dealloc(hmap, sizeof(hmap_t));
 }
 
-void clear_hmap( hmap_t *hmap, pad_array_size_fn_t padfn )
+void clear_hmap( hmap_t *hmap, pad_fn_t padfn )
 {
   hmap->cap          = padfn(0, 0, hmap->cap);
   free(hmap->table);

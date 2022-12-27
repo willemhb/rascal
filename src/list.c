@@ -1,3 +1,4 @@
+#include <stdarg.h>
 #include <assert.h>
 
 #include "list.h"
@@ -84,6 +85,33 @@ val_t cons(val_t car, val_t cdr) {
   return tag_val(new_cons, OBJECT);
 }
 
+val_t list(size_t n, ...) {
+  val_t buffer[n+1];
+
+  va_list va; va_start(va, n);
+
+  for (size_t i=0; i<n; i++)
+    buffer[i] = va_arg(va, val_t);
+
+  va_end(va);
+  buffer[n] = NUL;
+
+  cons_t out = make_list(n+1, buffer);
+
+  return tag_val(out, OBJECT);
+}
+
+size_t list_len(val_t xs) {
+  size_t out=0;
+
+  while (is_cons(xs)) {
+    out++;
+    xs = as_cons(xs)->cdr;
+  }
+
+  return out;
+}
+
 /* internal */
 void init_cons(obj_t self, type_t type, size_t n, void *ini) {
   (void)type;
@@ -119,5 +147,48 @@ bool isa_list(type_t self, val_t val) {
   return val == NUL || val_type_of(val) == &ConsType;
 }
 
-/* initialization */
-void cons_init(void) {}
+/* native functions */
+#include "func.h"
+#include "sym.h"
+#include "native.h"
+#include "tpl/impl/funcall.h"
+
+func_err_t cons_method_guard(size_t nargs, val_t *args) {
+  (void)nargs;
+  TYPE_GUARD(cons, args, 0);
+  return func_no_err;
+}
+
+func_err_t list_method_guard(size_t nargs, val_t *args) {
+  (void)nargs;
+  TYPE_GUARD(list, args, 0);
+  return func_no_err;
+}
+
+val_t native_cons(size_t nargs, val_t *args) {
+  (void)nargs;
+  
+  return cons(args[0], args[1]);
+}
+
+val_t native_car(size_t nargs, val_t *args) {
+  (void)nargs;
+
+  return as_cons(args[0])->car;
+}
+
+val_t native_cdr(size_t nargs, val_t *args) {
+  (void)nargs;
+
+  return as_cons(args[0])->cdr;
+}
+
+void cons_init(void) {
+  val_t cons_native = native("cons", 2, false, NULL, &ConsType, native_cons);
+  val_t car_native  = native("car", 1, false, cons_method_guard, NULL, native_car);
+  val_t cdr_native  = native("cdr", 1, false, cons_method_guard, NULL, native_cdr);
+
+  define("cons", cons_native);
+  define("car", car_native);
+  define("cdr", cdr_native);
+}

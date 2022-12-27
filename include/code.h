@@ -26,6 +26,6 @@ void dis_code(code_t code);
 
 #define is_code(x)   has_type(x, &CodeType)
 #define as_code(x)   ((code_t)as_obj(x))
-#define code_head(x) ((code_head_t)obj_start((obj_t)(x)))
+#define code_head(x) ((code_head_t)obj_start(as_obj(x)))
 
 #endif

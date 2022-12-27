@@ -52,6 +52,3 @@ void init_native(obj_t self, type_t type, size_t n, void *ini) {
   if (ini)
     as_native(self)->funptr = ((native_init_t)ini)->funptr;
 }
-
-/* initialization */
-void native_init(void) {}

@@ -28,13 +28,8 @@ struct type_t {
   size_t el_size;
 };
 
-/* globals */
-
 /* API */
 size_t base_size(type_t type);
 size_t alloc_size(type_t type, size_t n);
-
-/* initialization */
-void type_init(void);
 
 #endif

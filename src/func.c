@@ -16,6 +16,30 @@ struct type_t FuncType = {
 };
 
 /* API */
+/* external */
+func_err_t validate_func(val_t func, int argc, val_t *args) {
+  if (!is_func(func))
+    return func_not_invocable_err;
+
+  func_head_t head  = func_head(func);
+  int         nargs = head->nargs;
+  bool        vargs = head->vargs;
+
+  if (argc < nargs)
+    return func_arg_underflow_err;
+
+  if (argc > nargs && !vargs)
+    return func_arg_overflow_err;
+
+  func_err_t out = head->guard ? head->guard(argc, args) : func_no_err;
+
+  return out;
+}
+
+bool is_type(val_t self) {
+  return is_func(self) && func_head(self)->type != NULL;
+}
+
 /* internal */
 void init_func(obj_t self, type_t type, size_t n, void *ini) {
   (void)type;
@@ -48,15 +72,4 @@ bool isa_func(type_t self, val_t val) {
   self = type_of(val);
 
   return self == &NativeType || self == &PrimType || self == &ModuleType;
-}
-
-/* initialization */
-extern void prim_init(void);
-extern void native_init(void);
-extern void module_init(void);
-
-void func_init(void) {
-  prim_init();
-  native_init();
-  module_init();
 }

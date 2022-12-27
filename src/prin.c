@@ -1,19 +1,21 @@
 #include "prin.h"
-#include "val.h"
+
+#include "type.h"
 
 #include "util/ios.h"
 
-/* globals */
-void (*Prin[num_types])(val_t x) = {};
-char  *TypeName[num_types] = {};
-
 /* API */
 void prin(val_t x) {
-  rl_type_t type = rl_type(x);
+  type_t type = type_of(x);
 
-  if (Prin[type])
-    Prin[type](x);
+  if (type->prin)
+    type->prin(x);
 
   else
-    printf("<%s>", TypeName[type]);
+    printf("<%s>", type->name);
+}
+
+void prinln(val_t x) {
+  prin(x);
+  newline();
 }

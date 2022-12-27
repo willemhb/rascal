@@ -1,20 +1,24 @@
-#include "read.h"
 #include "eval.h"
-#include "prin.h"
+
 #include "comp.h"
+#include "exec.h"
 
 #include "sym.h"
 #include "list.h"
+#include "module.h"
+
+#include "type.h"
+#include "vm.h"
+
+#include "def/opcodes.h"
 
 #include "util/ios.h"
 
-
 /* globals */
-#define PROMPT "rascal>"
 
 
 /* API */
-static inline bool is_lit(val_t x) {
+bool is_lit(val_t x) {
   if (is_sym(x))
     return *as_sym(x) == ':';
 
@@ -26,21 +30,8 @@ val_t eval(val_t x) {
     return x;
 
   if (is_sym(x))
-    return sym_val(x);
+    return sym_head(x)->val;
 
   module_t m = comp(x);
   return exec(m);
 }
-
-void repl(void) {
-  for (;;) {
-    printf(PROMPT" ");
-    val_t x = read();
-    newline();
-    prin(x);
-    newline();
-  }
-}
-
-/* initialization */
-void eval_init(void) {}

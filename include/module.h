@@ -18,9 +18,10 @@ val_t    module(char *name, int nargs, bool vargs, guard_fn_t guard, type_t type
 val_t    get_module_const(module_t module, size_t n);
 size_t   put_module_const(module_t module, val_t val);
 size_t   emit_instr(module_t module, opcode_t op, ...);
-void     finalize_module(module_t module);
+void     dis_module(module_t module);
 
-/* initialization */
-void module_init(void);
+/* convenience */
+#define is_module(x) has_type(x, &ModuleType)
+#define as_module(x) ((module_t)as_obj(x))
 
 #endif

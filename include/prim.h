@@ -15,9 +15,6 @@ extern struct type_t PrimType;
 prim_t make_prim(char *name, int nargs, bool vargs, guard_fn_t guard, type_t type, opcode_t label);
 val_t  prim(char *name, int nargs, bool vargs, guard_fn_t guard, type_t type, opcode_t label);
 
-/* initialization */
-void prim_init(void);
-
 /* convenience */
 #define is_prim(x) has_type(x, &PrimType)
 #define as_prim(x) ((prim_t)as_obj(x))

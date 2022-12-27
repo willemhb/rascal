@@ -39,7 +39,11 @@ typedef char32_t        utf32_t;
 
 static inline bool flagp( uint64_t fls, uint64_t fl ) { return !!(fls&fl); }
 
-#define assert_bounds()
+#define rl_abort(fmt, ...)                                              \
+  do {                                                                  \
+    printf((fmt) __VA_OPT__(,) __VA_ARGS__);                            \
+    abort();                                                            \
+  } while (false)
 
 // debug flag
 #define DEBUG

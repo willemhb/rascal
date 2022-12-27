@@ -54,6 +54,3 @@ void init_prim(obj_t self, type_t type, size_t n, void *ini) {
   if (ini)
     as_prim(self)->label = ((prim_init_t)ini)->label;
 }
-
-/* initialization */
-void prim_init(void) {}

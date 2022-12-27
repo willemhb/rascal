@@ -38,6 +38,3 @@ bool any_isa(type_t self, val_t val) {
 
   return true;
 }
-
-/* initialization */
-void type_init(void) {}

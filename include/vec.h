@@ -22,12 +22,9 @@ val_t       vec_set(vec_t vec, int n, val_t x);
 size_t      vec_push(vec_t *vec, val_t x);
 val_t       vec_pop(vec_t *vec);
 
-/* initialization */
-void vec_init(void);
-
 /* convenience */
 #define is_vec(x)   has_type(x, &VecType)
 #define as_vec(x)   ((vec_t)as_obj(x))
-#define vec_head(x) ((vec_head_t)obj_start((obj_t)(x)))
+#define vec_head(x) ((vec_head_t)obj_start(as_obj(x)))
 
 #endif

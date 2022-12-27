@@ -41,9 +41,6 @@ void   init_obj(obj_t self, type_t type, size_t n, void *ini);
 obj_t  resize_obj(obj_t self, size_t n);
 void   free_obj(obj_t self);
 
-/* initialization */
-void obj_init(void);
-
 /* convenience */
 #define obj_type(x)   (obj_head(x)->type)
 #define obj_size(x)   (obj_head(x)->size)

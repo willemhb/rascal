@@ -37,7 +37,4 @@ extern reader_t Reader;
 val_t read_expression(reader_t *reader);
 void  clear_reader(reader_t *reader);
 
-/* initialization */
-void reader_init(void);
-
 #endif

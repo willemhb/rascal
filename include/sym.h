@@ -24,13 +24,11 @@ extern struct type_t SymType;
 sym_t make_sym(char *name);
 val_t sym(char *name);
 val_t define(char *name, val_t val);
-
-/* initialization */
-void  sym_init(void);
+bool  is_bound(val_t x);
 
 /* convenience */
 #define is_sym(x)   has_type(x, &SymType)
 #define as_sym(x)   ((sym_t)as_obj(x))
-#define sym_head(x) ((sym_head_t)obj_start((obj_t)(x)))
+#define sym_head(x) ((sym_head_t)obj_start(as_obj(x)))
 
 #endif

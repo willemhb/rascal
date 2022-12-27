@@ -71,6 +71,12 @@ val_t define(char *name, val_t val) {
   sym_head(symname)->val      = val;
   obj_flags(as_obj(symname)) |= bound_sym;
 
+#ifdef DEBUG
+  // printf("name: %s, val: ", as_sym(symname));
+  // prin(val);
+  // printf("\n");
+#endif
+
   return val;
 }
 

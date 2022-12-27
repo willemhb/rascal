@@ -10,7 +10,7 @@
 /* globals */
 
 /* API */
-alist_t *make_alist( size_t len, pad_array_size_fn_t padfn )
+alist_t *make_alist( size_t len, pad_fn_t padfn )
 {
   size_t   cap = padfn(len, 0, 0);
   alist_t *out = alloc(sizeof(alist_t));
@@ -22,7 +22,7 @@ alist_t *make_alist( size_t len, pad_array_size_fn_t padfn )
   return out;
 }
 
-void resize_alist( alist_t *alist, size_t new_len, pad_array_size_fn_t padfn )
+void resize_alist( alist_t *alist, size_t new_len, pad_fn_t padfn )
 {
   size_t new_cap = padfn(new_len, alist->len, alist->cap);
 
@@ -34,7 +34,7 @@ void resize_alist( alist_t *alist, size_t new_len, pad_array_size_fn_t padfn )
   alist->len = new_len;
 }
 
-void reset_alist( alist_t *alist, pad_array_size_fn_t padfn )
+void reset_alist( alist_t *alist, pad_fn_t padfn )
 {
   resize_alist(alist, 0, padfn);
 }

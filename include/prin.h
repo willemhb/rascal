@@ -3,9 +3,8 @@
 
 #include "rascal.h"
 
-/* globals */
 /* API */
 void prin(val_t x);
-void repl(void);
+void prinln(val_t x);
 
 #endif
