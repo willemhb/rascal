@@ -16,6 +16,7 @@
   X        AL##_pop( alist_t *alist );                          \
   size_t   AL##_pushn( alist_t *alist, size_t n, ... );         \
   X        AL##_popn( alist_t *alist, size_t n );               \
+  size_t   AL##_trim( alist_t *alist, size_t n );               \
   size_t   appendto_##AL( alist_t *alist, X *src, size_t n );	\
   size_t   writeto_##AL( alist_t *alist, X *src, size_t n );	\
   size_t   readfrom_##AL( alist_t *alist, X *dst, size_t n );	\

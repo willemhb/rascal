@@ -7,6 +7,7 @@
 #include "module.h"
 #include "code.h"
 #include "vec.h"
+#include "small.h"
 
 #include "vm.h"
 
@@ -23,13 +24,20 @@ val_t exec(module_t m) {
 
 val_t exec_at(module_t module, opcode_t entry, uint argx) {
   static void* labels[]  = {
-    [op_begin]       = &&label_begin,
-    [op_halt]        = &&label_halt,
-    [op_noop]        = &&label_noop,
-    [op_pop]         = &&label_pop,
-    [op_load_const]  = &&label_load_const,
-    [op_load_global] = &&label_load_global,
-    [op_invoke]      = &&label_invoke
+    [op_begin]         = &&label_begin,
+    [op_halt]          = &&label_halt,
+    [op_noop]          = &&label_noop,
+    [op_pop]           = &&label_pop,
+    
+    [op_load_const]    = &&label_load_const,
+    [op_load_global]   = &&label_load_global,
+    
+    [op_invoke]        = &&label_invoke,
+
+    [op_jump]          = &&label_jump,
+
+    [op_save_prompt]   = &&label_save_prompt,
+    [op_restore_prompt]= &&label_restore_prompt,
   };
 
   opcode_t op=entry;
@@ -101,6 +109,28 @@ val_t exec_at(module_t module, opcode_t entry, uint argx) {
   } else {
     goto label_invoke_module;
   }
+
+ label_jump:
+  Vm.pc += rx;
+
+  goto label_dispatch;
+
+ label_save_prompt:
+  x = tag_val(Vm.cp, SMALL);
+  push(tag_val(Vm.program, OBJECT));
+  push(tag_val(Vm.pc, SMALL));
+  Vm.cp = push(x);
+
+  goto label_dispatch;
+
+ label_restore_prompt:
+  vals_trim(Vm.stack, Vm.cp+1);
+
+  Vm.cp = as_small(pop());
+  Vm.program = as_module(pop());
+  Vm.pc = as_small(pop());
+
+  goto label_dispatch;
 
  label_dispatch:
   /* bad way to do this, obvious target for improvement */

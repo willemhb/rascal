@@ -71,6 +71,10 @@
     return x;                                                   \
   }                                                             \
                                                                 \
+  size_t AL##_trim(alist_t *alist, size_t n) {                  \
+    resize_##AL(alist, n);                                      \
+    return alist->len;                                          \
+  }                                                             \
   size_t appendto_##AL( alist_t *alist, X *src, size_t n )		\
   {                                                             \
     size_t old_len = alist->len;                                \

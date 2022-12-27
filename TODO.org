@@ -65,7 +65,7 @@ language, culminating in the bootstrapping of a simple `rascal` compiler.
 **** DONE update `code` operations to require `small` type
 **** DONE add `code` constructor
 **** DONE update `read_obj` to use constructors
-**** TODO add pp pointer to vm
+**** DONE add cp pointer to vm
 **** TODO `op_save_prompt`, `op_restore_prompt` opcodes implemented
 **** TODO implement `catch` form
 **** TODO add panicp to vm

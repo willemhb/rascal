@@ -29,7 +29,7 @@ stx_err_t guard_do_stx(val_t form);
 extern bool is_lit(val_t x);
 
 /* globals */
-extern val_t QuoteSym, DoSym;
+extern val_t QuoteSym, DoSym, CatchSym, PutSym, DefSym, IfSym, FunSym;
 
 /* API */
 /* external */
@@ -144,4 +144,9 @@ stx_err_t guard_do_stx(val_t form) {
 void comp_init(void) {
   QuoteSym = sym("quote");
   DoSym    = sym("do");
+  CatchSym = sym("catch");
+  PutSym   = sym("put");
+  DefSym   = sym("def");
+  IfSym    = sym("if");
+  FunSym   = sym("fun");
 }

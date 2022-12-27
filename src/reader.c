@@ -22,8 +22,6 @@
 /* globals */
 reader_t Reader;
 
-val_t CodeSym, VecSym;
-
 extern val_t QuoteSym;
 
 /* instantiations */
@@ -33,8 +31,8 @@ extern val_t QuoteSym;
 BUFFER(readbuffer, ascii_t, int, pad_stack_size);
 
 bool readt_cmp(int x, int y) { return x == y; }
-read_fn_t readt_intern(int dispatch, void **space)
-{
+
+read_fn_t readt_intern(int dispatch, void **space) {
   (void)dispatch;
   (void)space;
   return NULL;
@@ -370,8 +368,4 @@ void reader_init(void)
   add_dispatch(&Reader, '[', read_vec);
   add_dispatch(&Reader, '#', read_obj);
   add_dispatch(&Reader, '\'', read_quote);
-
-  // add object names
-  CodeSym = sym("code");
-  VecSym  = sym("vec");
 }

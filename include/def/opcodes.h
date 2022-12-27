@@ -12,10 +12,19 @@ enum opcode_t {
   op_noop,
   op_pop,
 
+  // load/store
   op_load_const,
   op_load_global,
 
+  // function calls
   op_invoke,
+
+  // jumps
+  op_jump,
+
+  // exceptions
+  op_save_prompt,
+  op_restore_prompt,
 
   /* not an opcode */
   num_opcodes
