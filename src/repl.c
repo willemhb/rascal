@@ -14,16 +14,16 @@
 /* API */
 void repl(void) {
   val_t x, v;
-  
+
   for (;;) {
     printf(PROMPT" ");
     x = readln();
     v = eval(x);
-    
+
 #ifdef DEBUG
     printf("%s> ", type_of(v)->name);
 #endif
-    
-    prinln(v);
+
+    prinlns(v, 2);
   }
 }

@@ -2,13 +2,17 @@
 
 #include "arr.h"
 
+#include "list.h"
+
 /* globals */
 struct vm_t Vm;
 
 /* API */
 void reset_vm(vm_t *vm) {
-  vm->pc      = 0;
-  vm->program = NULL;
+  vm->panic_mode=false;
+  vm->error     =NUL;
+  vm->pc        = 0;
+  vm->program   = NULL;
   vals_popn(vm->stack, vm->stack->len);
 }
 
@@ -43,9 +47,11 @@ val_t poke(int n, val_t x) {
 /* initialization */
 void vm_init(void) {
   Vm = (struct vm_t) {
-    .stack  =make_vals(0, NULL),
-    .pc     =0,
-    .cp     =-1,
-    .program=NULL
+    .panic_mode=false,
+    .error     =NUL,
+    .stack     =make_vals(0, NULL),
+    .pc        =0,
+    .cp        =-1,
+    .program   =NULL
   };
 }

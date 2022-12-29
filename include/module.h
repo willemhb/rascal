@@ -17,7 +17,9 @@ module_t make_module(char *name, int nargs, bool vargs, guard_fn_t guard, type_t
 val_t    module(char *name, int nargs, bool vargs, guard_fn_t guard, type_t type, code_t bcode, vec_t consts);
 val_t    get_module_const(module_t module, size_t n);
 size_t   put_module_const(module_t module, val_t val);
+size_t   code_size(module_t module);
 size_t   emit_instr(module_t module, opcode_t op, ...);
+void     fill_input(module_t module, size_t offset, ...);
 void     dis_module(module_t module);
 
 /* convenience */

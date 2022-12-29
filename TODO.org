@@ -66,13 +66,13 @@ language, culminating in the bootstrapping of a simple `rascal` compiler.
 **** DONE add `code` constructor
 **** DONE update `read_obj` to use constructors
 **** DONE add cp pointer to vm
-**** TODO `op_save_prompt`, `op_restore_prompt` opcodes implemented
-**** TODO implement `catch` form
-**** TODO add panicp to vm
+**** DONE `op_save_prompt`, `op_restore_prompt` opcodes implemented
+**** DONE `op_jump` opcode & label implemented
+**** DONE implement `catch` form
+**** DONE add `panicking` flag to vm
 **** TODO add panic mode & panic checking to vm
 **** TODO add panic mode synchronization to vm
 **** TODO `error` runtime primitive added
-
 ** TODO Version 0.0.07 - assignment
 *** Goals
    Add toplevel assignments to the interpreter.
@@ -260,12 +260,16 @@ record types.
 **** `record`, `record-type` types implemented, integrated into object system
 
 ** TODO Version 0.0.26 - union types
+*** Goals
 Extend the type system to support unions.
 
-** TODO Version 0.0.27 - continuations
 
+** TODO Version 0.0.27 - continuations
+*** Goals
+*** Target features
 ** TODO Version 0.0.28 - first-class effects
 *** Goals
+*** Target features
 
 * TODO Late development
 At this point rascal is nearly ready to be public. Focus in this stage is on improving performance,

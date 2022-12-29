@@ -5,6 +5,7 @@
 #include "module.h"
 #include "sym.h"
 #include "list.h"
+#include "small.h"
 
 /* declarations */
 /* internal */
@@ -15,6 +16,7 @@ size_t comp_combo(module_t program, val_t x);
 
 size_t comp_quote(module_t program, val_t f);
 size_t comp_do(module_t program, val_t f);
+size_t comp_catch(module_t program, val_t f);
 size_t comp_funcall(module_t program, val_t f);
 
 size_t comp_args(module_t program, val_t a);
@@ -22,6 +24,7 @@ size_t comp_seq(module_t program, val_t s);
 
 stx_err_t guard_quote_stx(val_t form);
 stx_err_t guard_do_stx(val_t form);
+stx_err_t guard_catch_stx(val_t form);
 
 #define check_stx(checker, form) assert(checker(form) == no_stx_err)
 
@@ -55,6 +58,21 @@ size_t comp_expr(module_t program, val_t x) {
 }
 
 size_t comp_lit(module_t module, val_t x) {
+  if (x == NUL)
+    return emit_instr(module, op_load_nul);
+
+  else if (x == ZERO)
+    return emit_instr(module, op_load_small_zero);
+
+  else if (x == ONE)
+    return emit_instr(module, op_load_small_one);
+
+  else if (is_small(x) && as_small(x) <= INT16_MAX && as_small(x) >= INT16_MIN) {
+    short x16 = as_small(x);
+
+    return emit_instr(module, op_load_small_16, x16);
+  }
+
   size_t n = put_module_const(module, x);
 
   return emit_instr(module, op_load_const, n);
@@ -74,7 +92,10 @@ size_t comp_combo(module_t module, val_t x) {
   
   else if (head == DoSym)
     return comp_do(module, x);
-  
+
+  else if (head == CatchSym)
+    return comp_catch(module, x);
+
   else
     return comp_funcall(module, x);
 }
@@ -86,8 +107,8 @@ size_t comp_funcall(module_t module, val_t x) {
   
   comp_expr(module, head);
   comp_args(module, args);
-  
-  return emit_instr(module, op_invoke, nargs); 
+
+  return emit_instr(module, op_invoke, nargs);
 }
 
 size_t comp_quote(module_t module, val_t form) {
@@ -100,6 +121,26 @@ size_t comp_do(module_t module, val_t form) {
   check_stx(guard_do_stx, form);
 
   return comp_seq(module, cdr(form));
+}
+
+size_t comp_catch(module_t module, val_t form) {
+  check_stx(guard_catch_stx, form);
+  val_t recover_expr = cadr(form);
+  val_t try_exprs = cddr(form);
+
+  emit_instr(module, op_save_prompt);
+
+  size_t jump_base   = emit_instr(module, op_jump, 0);
+  size_t jump_size   = comp_expr(module, recover_expr) - jump_base;
+
+  fill_input(module, jump_base-1, jump_size);
+
+  jump_base = emit_instr(module, op_jump, 0);
+  jump_size = comp_seq(module, try_exprs) - jump_base;
+
+  fill_input(module, jump_base-1, jump_size);
+
+  return emit_instr(module, op_discard_prompt);
 }
 
 size_t comp_args(module_t module, val_t args) {
@@ -136,6 +177,13 @@ stx_err_t guard_quote_stx(val_t form) {
 
 stx_err_t guard_do_stx(val_t form) {
   if (list_len(form) < 2)
+    return malformed_stx_err;
+
+  return no_stx_err;
+}
+
+stx_err_t guard_catch_stx(val_t form) {
+  if (list_len(form) < 3)
     return malformed_stx_err;
 
   return no_stx_err;

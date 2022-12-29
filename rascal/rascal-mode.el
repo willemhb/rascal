@@ -10,7 +10,8 @@
   'rascal-mode
   '(";")
   '("def" "put" "let" "fun"
-    "catch" "cond" "case" "quote" "do")
+    "catch" "cond" "case" "quote" "do"
+    "type" "mac" "with" "and" "or")
   '(("otherwise" . font-lock-builtin-face)
     ("\\Wresume\\W" . font-lock-builtin-face)
     ("true" . font-lock-builtin-face)

@@ -17,7 +17,8 @@ enum func_err_t {
   func_arg_underflow_err,
   func_arg_overflow_err,
   func_arg_type_err,
-  func_arg_value_err
+  func_arg_value_err,
+  num_func_errs
 };
 
 struct func_head_t {
@@ -40,6 +41,7 @@ struct func_init_t {
 
 /* globals */
 extern struct type_t FuncType;
+extern val_t FuncallErrors[];
 
 /* API */
 void init_func(obj_t self, type_t type, size_t n, void *ini);

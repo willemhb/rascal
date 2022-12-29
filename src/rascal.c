@@ -29,7 +29,7 @@
 // entry point, version information
 #define VMAJOR     0
 #define VMINOR     0
-#define VPATCH     5
+#define VPATCH     6
 #define VDEV       "a"
 #define VFMT       "%d.%d.%d.%s"
 
@@ -56,6 +56,7 @@ void rl_init( void )
   extern void vec_init(void);
   extern void code_init(void);
   extern void comp_init(void);
+  extern void func_init(void);
 
   sym_init();
   reader_init();
@@ -65,6 +66,7 @@ void rl_init( void )
   vec_init();
   code_init();
   comp_init();
+  func_init();
 }
 
 void rl_main( void )

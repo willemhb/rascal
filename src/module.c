@@ -7,6 +7,10 @@
 
 #include "type.h"
 
+#include "prin.h"
+
+#include "util/ios.h"
+
 /* C types */
 typedef struct module_init_t *module_init_t;
 
@@ -93,12 +97,43 @@ size_t emit_instr(module_t module, opcode_t op, ...) {
   return out;
 }
 
+size_t code_size(module_t module) {
+  return code_head(module->bcode)->len;
+}
+
+void fill_input(module_t module, size_t offset, ...) {
+  va_list va; va_start(va, offset);
+
+  opcode_t op = code_ref(module->bcode, offset);
+
+  switch (op_argc(op)) {
+  case 1:
+    code_set(module->bcode, offset+1, va_arg(va, int));
+    break;
+
+  case 2:
+    code_set(module->bcode, offset+1, va_arg(va, int));
+    code_set(module->bcode, offset+2, va_arg(va, int));
+    break;
+
+  case 3:
+    code_set(module->bcode, offset+1, va_arg(va, int));
+    code_set(module->bcode, offset+2, va_arg(va, int));
+    code_set(module->bcode, offset+3, va_arg(va, int));
+    break;
+  }
+
+  va_end(va);
+}
+
 void dis_module(module_t module) {
-  code_t   code   = module->bcode;
+  code_t code = module->bcode;
+  vec_t  vec  = module->consts;
 
-  printf("disassembly of %s:\n", func_head(module)->name);
-  dis_code(code);
-
+  printf("disassembly of %s:\n\n", func_head(module)->name);
+  printf("    constants: "); prin(tag_val(vec, OBJECT)); newline();
+  printf("    bytecode:  "); prin(tag_val(code, OBJECT)); newline(); newline();
+  dis_code(code); newline();
 }
 
 /* internal */

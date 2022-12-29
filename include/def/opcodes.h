@@ -13,6 +13,10 @@ enum opcode_t {
   op_pop,
 
   // load/store
+  op_load_nul,
+  op_load_small_zero,
+  op_load_small_one,
+  op_load_small_16,
   op_load_const,
   op_load_global,
 
@@ -25,6 +29,7 @@ enum opcode_t {
   // exceptions
   op_save_prompt,
   op_restore_prompt,
+  op_discard_prompt,
 
   /* not an opcode */
   num_opcodes

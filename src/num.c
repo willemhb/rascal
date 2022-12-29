@@ -28,27 +28,7 @@ bool isa_num(type_t self, val_t val) {
 
 
 /* native functions */
-func_err_t num_guard(size_t nargs, val_t *args) {
-  for (size_t i=0; i<nargs; i++) {
-    if (!has_type(args[i], &NumType))
-      return func_arg_type_err;
-  }
-
-  return func_no_err;
-}
-
-func_err_t div_guard(size_t nargs, val_t *args) {
-  for (size_t i=0; i<nargs; i++) {
-    if (!has_type(args[i], &NumType))
-      return func_arg_type_err;
-
-    if (i > 0 && as_real(args[i]) == 0.0l)
-      return func_arg_value_err;
-  }
-
-  return func_no_err;
-}
-
+/* helpers */
 real_t get_real(val_t x) {
   assert(is_num(x));
 
@@ -65,6 +45,28 @@ val_t negate(val_t x) {
     return tag_val(-as_small(x), SMALL);
 
   return as_val(-as_real(x));
+}
+
+/* guards */
+func_err_t num_guard(size_t nargs, val_t *args) {
+  for (size_t i=0; i<nargs; i++) {
+    if (!has_type(args[i], &NumType))
+      return func_arg_type_err;
+  }
+
+  return func_no_err;
+}
+
+func_err_t div_guard(size_t nargs, val_t *args) {
+  for (size_t i=0; i<nargs; i++) {
+    if (!has_type(args[i], &NumType))
+      return func_arg_type_err;
+
+    if (i > 0 && get_real(args[i]) == 0)
+      return func_arg_value_err;
+  }
+
+  return func_no_err;
 }
 
 #define ALWAYS_TRUE(x) true

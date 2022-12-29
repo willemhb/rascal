@@ -30,6 +30,7 @@ typedef char16_t        utf16_t;
 typedef char32_t        utf32_t;
 
 // general convenience
+#define NOTHING ((void)0)
 #define rl_unlikely( test ) __builtin_expect(0, (test))
 #define rl_fallthrough __attribute__((fallthrough))
 #define rl_unreachable __builtin_unreachable

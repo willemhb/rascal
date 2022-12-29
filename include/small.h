@@ -6,6 +6,9 @@
 /* globals */
 extern struct type_t SmallType;
 
+#define ZERO (SMALL|0ul)
+#define ONE  (SMALL|1ul)
+
 /* API */
 bool long_fits_small(long l);
 bool ulong_fits_small(ulong u);

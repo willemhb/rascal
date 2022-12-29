@@ -30,12 +30,16 @@
      ([fn (cons x xs)]
       (cons (fn x) (map fn xs))))
 
-(fun filter "Implement for list type."
+@test even? ()    :is  ()
+@test even? (1)   :is  ()
+@test even? (1 2) :is (2)
+@doc "Implement for lists."
+(fun filter
      ([_ (nul)] ())
      ([fn? (cons x xs)]
       (if (fn? xs)
      	  (cons x (filter fn? xs))
-	  (filter fn? xs))))
+	      (filter fn? xs))))
 
 (fun reduce "Implement for list type (with no initial)."
      ([fn (cons x xs)] (reduce fn xs x))
@@ -75,4 +79,3 @@ fun take "Implement for [int list] type."
      [(vec handlers) .. body]
      `(with ~(map #(conj 'raise (first %)) handlers)
      	    ~@body))
-

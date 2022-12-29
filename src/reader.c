@@ -11,6 +11,8 @@
 
 #include "val.h"
 #include "obj.h"
+#include "type.h"
+#include "error.h"
 
 #include "prin.h"
 #include "apply.h"
@@ -41,8 +43,7 @@ read_fn_t readt_intern(int dispatch, void **space) {
 void readt_noval(reader_t *reader, int dispatch) {
   (void)reader;
 
-  printf("Unexpected token '%c' reading file.\n", dispatch);
-  abort();
+  panic(NOTHING, "Unexpected token '%c' reading file.\n", dispatch);
 }
 
 HASHMAP(readtable, int, read_fn_t, pad_table_size, hash_int32, readt_cmp, readt_intern, -2, readt_noval);
@@ -57,10 +58,8 @@ void  give_expressions(reader_t *reader, val_t value, read_state_t state, size_t
 void  save_expression(reader_t *reader, val_t value);
 val_t take_expression(reader_t *reader);
 
-void  clear_reader(reader_t *reader);
-void  init_reader(reader_t *reader);
-
 char *token(reader_t *reader);
+char* getln(reader_t *reader);
 
 void  accumchr(reader_t *reader, int ch);
 int   getchr(reader_t *reader);
@@ -68,16 +67,42 @@ int   ungetchr(reader_t *reader, int ch);
 int   peekchr(reader_t *reader);
 int   skipspc(reader_t *reader);
 
-/* reader procedures */
-int  read_seq(reader_t *reader, char *type, char *term);
-void read_eos(reader_t *reader, int dispatch);
-void read_space(reader_t *reader, int dispatch);
-void read_number(reader_t *reader, int dispatch);
-void read_sym(reader_t *reader, int dispatch);
-void read_list(reader_t *reader, int dispatch);
-void read_vec(reader_t *reader, int dispatch);
-void read_obj(reader_t *reader, int dispatch);
-void read_quote(reader_t *reader, int dispatch);
+/* toplevel reader API */
+val_t read_expression(reader_t *reader) {
+  while (reader->state) {
+    int dispatch = getchr(reader);
+    read_fn_t handler = readtable_get(reader->table, dispatch);
+
+    assert(handler);
+    handler(reader, dispatch);
+    repanic(NUL);
+  }
+
+  return take_expression(reader);
+}
+
+void clear_reader(reader_t *reader) {
+  give_expression(reader, NUL, read_state_ready);
+  reset_readbuffer(reader->buffer);
+}
+
+void  init_reader(reader_t *reader) {
+  reader->infile  = stdin;
+  reader->state   = read_state_ready;
+  reader->buffer  = make_readbuffer(0);
+  reader->table   = make_readtable(0, NULL);
+  reader->subx    = make_vals(0, NULL);
+}
+
+void sync_reader(reader_t *reader, int sentinel) {
+  int ch;
+
+  while ((ch=peekchr(reader)) != sentinel)
+    getchr(reader);
+
+  clear_reader(reader);
+  reset_vals(reader->subx);
+}
 
 /* reader helpers */
 int read_seq(reader_t *reader, char* type, char *term) {
@@ -85,14 +110,14 @@ int read_seq(reader_t *reader, char* type, char *term) {
 
   while ((dispatch=skipspc(reader)) != EOF && !strchr(term, dispatch)) {
     val_t x = read_expression(reader);
+    repanic(READERPANIC);
     save_expression(reader, x);
   }
 
   if (dispatch == EOF)
-    rl_abort("Unexpected eos reading %s.\n", type);
-  else
-    getchr(reader); // take terminal token
+    panic(READERPANIC, "Unexpected eos reading %s.\n", type);
 
+  getchr(reader); // take terminal token
   return dispatch;
 }
 
@@ -102,7 +127,9 @@ void accumchr(reader_t *reader, int ch) {
 }
 
 int getchr(reader_t *reader) {
-  return getc(reader->infile);
+  int ch = getc(reader->infile);
+
+  return ch;
 }
 
 int ungetchr(reader_t *reader, int ch) {
@@ -116,7 +143,7 @@ int ungetchr(reader_t *reader, int ch) {
 }
 
 int peekchr(reader_t *reader) {
-  int ch = getchr(reader);
+  int ch = getc(reader->infile);
   
   ungetchr(reader, ch);
 
@@ -124,6 +151,8 @@ int peekchr(reader_t *reader) {
 }
 
 int skipspc(reader_t *reader) {
+  void read_space(reader_t *reader, int dispatch);
+
   int dispatch = peekchr(reader);
 
   if (isrlspc(dispatch))
@@ -137,7 +166,16 @@ char* token(reader_t *reader) {
   return reader->buffer->elements;
 }
 
-val_t take_expression(reader_t *reader) { 
+char *getln(reader_t *reader) {
+  int ch;
+
+  while ((ch=getchr(reader)) != '\n' && ch != EOF)
+    accumchr(reader, ch);
+
+  return token(reader);
+}
+
+val_t take_expression(reader_t *reader) {
   val_t out = reader->value;
 
   clear_reader(reader);
@@ -151,39 +189,24 @@ void give_expression(reader_t *reader, val_t value, read_state_t state) {
 }
 
 void give_expressions(reader_t *reader, val_t value, read_state_t state, size_t n) {
+  vals_popn(reader->subx, n);
   reader->value = value;
   reader->state = state;
-  vals_popn(reader->subx, n);
 }
 
 void save_expression(reader_t *reader, val_t val) {
   vals_push(reader->subx, val);
 }
 
-void clear_reader(reader_t *reader) {
-  give_expression(reader, NUL, read_state_ready);
-  reset_readbuffer(reader->buffer);
-}
-
-void  init_reader(reader_t *reader) {
-  reader->infile = stdin;
-  reader->state  = read_state_ready;
-  reader->buffer = make_readbuffer(0);
-  reader->table  = make_readtable(0, NULL);
-  reader->subx   = make_vals(0, NULL);
-}
-
 /* handlers */
 void read_eos(reader_t *reader, int dispatch) {
   (void)dispatch;
-
   give_expression(reader, NUL, read_state_eos);
 }
 
 void read_space(reader_t *reader, int dispatch) {
-  while ( isspace(dispatch) ) {
+  while ( isspace(dispatch) )
     dispatch=getchr(reader);
-    }
 
   if (dispatch == EOF)
     read_eos(reader, dispatch);
@@ -260,10 +283,13 @@ void read_list(reader_t *reader, int dispatch) {
   
   dispatch = read_seq(reader, "list", ".)");
 
+  repanic();
+
   n = reader->subx->len-n;
 
   if (dispatch == '.') {
     val_t tail = read_expression(reader);
+    repanic();
     save_expression(reader, tail);
     dispatch = skipspc(reader);
   } else {
@@ -271,7 +297,7 @@ void read_list(reader_t *reader, int dispatch) {
   }
 
   if (dispatch != ')')
-    rl_abort("Unexpected eof reading list.\n");
+    panic(NOTHING, "Unexpected eof reading list.");
 
   if (n == 0) {
     out = vals_pop(reader->subx);
@@ -289,6 +315,8 @@ void read_vec(reader_t *reader, int dispatch) {
 
   read_seq(reader, "vec", "]");
 
+  repanic();
+
   n = reader->subx->len-n;
 
   vec_t v = make_vec(n, n ? vals_at(reader->subx, -n) : NULL);
@@ -303,15 +331,11 @@ void read_obj(reader_t *reader, int dispatch) {
 
   val_t head = read_expression(reader);
 
-  if (!is_sym(head)) {
-    printf("Unexpected expression in object literal: ");
-    prin(head);
-    printf(".\n");
-    abort();
-  }
+  if (!is_sym(head))
+    panic(NOTHING, "Unexpected %s expression in object literal.", type_of(head)->name);
 
   if ((dispatch=getchr(reader)) != '(')
-    rl_abort("Unexpected character in %s literal: '%c'.\n", as_sym(head), dispatch);
+    panic(NOTHING, "Unexpected character in %s literal: '%c'.", as_sym(head), dispatch);
 
   read_seq(reader, as_sym(head), ")");
 
@@ -320,12 +344,15 @@ void read_obj(reader_t *reader, int dispatch) {
   val_t constructor = sym_head(head)->val;
   val_t expression = invoke(constructor, n, base);
 
+  repanic();
+
   give_expressions(reader, expression, read_state_expr, n);
 }
 
 void read_quote(reader_t *reader, int dispatch) {
   (void)dispatch;
   val_t x = read_expression(reader);
+  repanic();
   val_t f = list(2, QuoteSym, x);
   give_expression(reader, f, read_state_expr);
 }
@@ -339,19 +366,6 @@ void add_dispatches(reader_t *reader, char *chars, read_fn_t handler) {
   for (size_t i=0; i<strlen(chars); i++) {
     readtable_add(reader->table, chars[i], handler);
   }
-}
-
-val_t read_expression(reader_t *reader) {
-
-  while (reader->state) {
-    int dispatch = getchr(reader);
-    read_fn_t handler = readtable_get(reader->table, dispatch);
-
-    assert(handler);
-    handler(reader, dispatch);
-  }
-
-  return take_expression(reader);
 }
 
 /* initialization */

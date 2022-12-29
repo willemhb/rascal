@@ -15,6 +15,8 @@ struct type_t FuncType = {
   .isa =isa_func
 };
 
+val_t FuncallErrors[num_func_errs];
+
 /* API */
 /* external */
 func_err_t validate_func(val_t func, int argc, val_t *args) {
@@ -72,4 +74,16 @@ bool isa_func(type_t self, val_t val) {
   self = type_of(val);
 
   return self == &NativeType || self == &PrimType || self == &ModuleType;
+}
+
+/* initialization */
+#include "sym.h"
+
+void func_init(void) {
+  FuncallErrors[func_no_err]            = sym(":okay");
+  FuncallErrors[func_not_invocable_err] = sym(":non-invocable-error");
+  FuncallErrors[func_arg_underflow_err] = sym(":arity-underflow-error");
+  FuncallErrors[func_arg_overflow_err]  = sym(":arity-overflow-error");
+  FuncallErrors[func_arg_type_err]      = sym(":type-error");
+  FuncallErrors[func_arg_value_err]     = sym(":value-error");
 }

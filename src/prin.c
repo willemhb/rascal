@@ -19,3 +19,10 @@ void prinln(val_t x) {
   prin(x);
   newline();
 }
+
+void prinlns(val_t x, size_t n) {
+  prin(x);
+
+  for (size_t i=0; i<n; i++)
+    newline();
+}

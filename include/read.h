@@ -4,7 +4,7 @@
 #include "rascal.h"
 
 /* API */
-val_t read(void);
-val_t readln(void);
+val_t  read(void);
+val_t  readln(void);
 
 #endif

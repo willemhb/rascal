@@ -12,7 +12,8 @@ typedef enum read_state_t read_state_t;
 enum read_state_t {
   read_state_expr,
   read_state_ready,
-  read_state_eos
+  read_state_eos,
+  read_state_err
 };
 
 #include "tpl/decl/hashmap.h"
@@ -36,5 +37,7 @@ extern reader_t Reader;
 /* API */
 val_t read_expression(reader_t *reader);
 void  clear_reader(reader_t *reader);
+void  init_reader(reader_t *reader);
+void  sync_reader(reader_t *reader, int sentinel);
 
 #endif

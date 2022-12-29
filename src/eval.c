@@ -16,7 +16,6 @@
 
 /* globals */
 
-
 /* API */
 bool is_lit(val_t x) {
   if (is_sym(x))

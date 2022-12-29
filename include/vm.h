@@ -5,6 +5,11 @@
 
 /* C types */
 struct vm_t {
+  // error state
+  bool  panic_mode;
+  val_t error;
+
+  // execution state
   vals_t   *stack;
   int pc, cp;         // program counter, continuation pointer
   module_t  program;
