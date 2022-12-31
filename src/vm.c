@@ -4,6 +4,10 @@
 
 #include "list.h"
 
+#include "prin.h"
+
+#include "util/ios.h"
+
 /* globals */
 struct vm_t Vm;
 
@@ -16,8 +20,21 @@ void reset_vm(vm_t *vm) {
   vals_popn(vm->stack, vm->stack->len);
 }
 
+void show_stack(void) {
+  printf("current stack (sp=%zu):\n\n", Vm.stack->len);
+
+  for (size_t i=0; i<Vm.stack->len; i++) {
+    printf("(%.4zu) ", i);
+    prinln(peek(i));
+
+  }
+
+  newline();
+}
+
 size_t push(val_t x) {
-  return vals_push(Vm.stack, x);
+  size_t out = vals_push(Vm.stack, x)-1;
+  return out;
 }
 
 val_t pop(void) {

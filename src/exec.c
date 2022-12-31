@@ -118,8 +118,6 @@ val_t exec_at(module_t module, opcode_t entry, uint argx) {
 
   goto label_dispatch;
 
-
-
  label_invoke:
   bp = peep(-(rx+1));
   x  = (bp++)[0];
@@ -165,19 +163,22 @@ val_t exec_at(module_t module, opcode_t entry, uint argx) {
 
     goto label_halt;
   }
- 
+
+  Vm.error = NUL;
+
   vals_trim(Vm.stack, Vm.cp+1);
 
   Vm.cp = as_small(pop());
+  Vm.pc = as_small(pop())+2;
   Vm.program = as_module(pop());
-  Vm.pc = as_small(pop());
 
   goto label_dispatch;
 
  label_discard_prompt:
-  vals_trim(Vm.stack, Vm.cp+1);
+  v = pop();
   Vm.cp = as_small(pop());
   popn(2);
+  push(v);
 
   goto label_dispatch;
 

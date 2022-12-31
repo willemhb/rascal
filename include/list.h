@@ -28,11 +28,15 @@ size_t list_len(val_t xs);
 
 #define is_list(x) has_type(x, &ListType)
 
-#define car(x)   (as_cons(x)->car)
-#define cdr(x)   (as_cons(x)->cdr)
-#define cddr(x)  cdr(cdr(x))
-#define cdar(x)  cdr(car(x))
-#define cadr(x)  car(cdr(x))
-#define caar(x)  car(car(x))
+#define car(x)    (as_cons(x)->car)
+#define cdr(x)    (as_cons(x)->cdr)
+#define cddr(x)   cdr(cdr(x))
+#define cdar(x)   cdr(car(x))
+#define cadr(x)   car(cdr(x))
+#define caar(x)   car(car(x))
+
+#define caddr(x)  car(cdr(cdr(x)))
+
+#define cadddr(x) car(cdr(cdr(cdr(x))))
 
 #endif

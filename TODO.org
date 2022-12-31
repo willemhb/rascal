@@ -2,7 +2,7 @@
 The focus of versions 0.0.0 - 0.0.16 focus on incrementally implementing a servicable base 
 language, culminating in the bootstrapping of a simple `rascal` compiler.
 
-** DONE Version 0.0.00 - echo interpreter
+** DONE Version 00.00.00 - echo interpreter
 *** Goals
    This "version" is just getting the repl and the object model in place.
 
@@ -10,28 +10,28 @@ language, culminating in the bootstrapping of a simple `rascal` compiler.
 **** DONE `real` type implemented
 **** DONE `read`, `eval`, `prin`, `repl` interpreter primitives implemented
 
-** DONE Version 0.0.01 - names
+** DONE Version 00.00.01 - names
 *** Goals
    Add support for symbols (they don't do anything yet).
 
 *** Target features
 **** DONE `sym` type implemented (with read/prin support).
 
-** DONE Version 0.0.02 - lists
+** DONE Version 00.00.02 - lists
 *** Goals
    Add support for lists.
 
 *** Target features
 **** DONE `cons`, `nul` types implemented (with read/prin support).
 
-** DONE Version 0.0.03 - arrays
+** DONE Version 00.00.03 - arrays
 *** Goals
    Add support for array types used by the compiler.
 
 *** Target features
 **** DONE `vec`, `code` types implemented (with read/prin support).
 
-** DONE Version 0.0.04 - s-expressions & symbol values
+** DONE Version 00.00.04 - s-expressions & symbol values
 *** Goals
    To make lists meaningful, implement function calls (and functions).
 
@@ -45,7 +45,7 @@ language, culminating in the bootstrapping of a simple `rascal` compiler.
 **** DONE `cons`, `car`, `cdr` list primitives added
 **** DONE `vec`, `vec-len`, `vec-ref`, `vec-xef` vec primitives added
 
-** DONE Version 0.0.05 - special forms
+** DONE Version 00.00.05 - special forms
 *** Goals
    Introduce special forms and add support for basic forms.
 
@@ -53,7 +53,7 @@ language, culminating in the bootstrapping of a simple `rascal` compiler.
 **** DONE `quote`, `do` forms implemented
 **** DONE reader support for `quote`
 
-** TODO Version 0.0.06 - catch
+** DONE Version 00.00.06 - catch
 *** Goals
    Add basic error handling early on.
 
@@ -73,15 +73,15 @@ language, culminating in the bootstrapping of a simple `rascal` compiler.
 **** TODO add panic mode & panic checking to vm
 **** TODO add panic mode synchronization to vm
 **** TODO `error` runtime primitive added
-** TODO Version 0.0.07 - assignment
+** TODO Version 00.00.07 - assignment
 *** Goals
    Add toplevel assignments to the interpreter.
 
 *** Target features
 **** TODO `def`, `put` forms implemented
-**** TODO `lookup` symbol primitive added.
+**** TODO `lookup` symbol primitive added
 
-** TODO Version 0.0.08 - branching
+** TODO Version 00.00.08 - branching
 *** Goals
    Add basic branching to the interpreter.
 
@@ -90,7 +90,7 @@ language, culminating in the bootstrapping of a simple `rascal` compiler.
 **** TODO `bool` type implemented.
 **** TODO `id?`, `not`, `isa?`, `bound?` predicate primitives added.
 
-** TODO Version 0.0.09 - abstractions
+** TODO Version 00.00.09 - abstractions
 *** Goals
    Add support for user-defined functions.
 
@@ -99,7 +99,7 @@ language, culminating in the bootstrapping of a simple `rascal` compiler.
 **** TODO `[x y .. rest]` variadic argument support implemented.
 **** TODO `module` type updated.
 
-** TODO Version 0.0.10 - closures
+** TODO Version 00.00.10 - closures
 *** Goals
    Add support for nested functions (this is a big one).
 
@@ -107,7 +107,7 @@ language, culminating in the bootstrapping of a simple `rascal` compiler.
 **** TODO Add support for nested functions, closures, and upvalues.
 **** TODO `closure`, `upval` types implemented.
 
-** TODO Version 0.0.11 - basic io
+** TODO Version 00.00.11 - basic io
 *** Goals
    In preparation for bootstrapping the compiler, begin introducing IO types.
 
@@ -116,7 +116,7 @@ language, culminating in the bootstrapping of a simple `rascal` compiler.
 **** TODO `open`, `close`, `eos?` stream primitives implemented
 **** TODO `ios` type integrated into `read`/`prin`
 
-** TODO Version 0.0.12 - text
+** TODO Version 00.00.12 - text
 *** Goals
 Add basic text types.
 
@@ -126,7 +126,7 @@ Add basic text types.
 **** TODO `str-len`, `str-ref`, `str-cat`, `str-rev`, `str-upper`, `str-lower`, string primitives added.
 **** TODO `princ`, `readc`, `peekc` stream primitives added
 
-** TODO Version 0.0.13 - running files
+** TODO Version 00.00.13 - running files
 *** Goals
 Add support for executing source files.
 
@@ -136,7 +136,7 @@ This is also where the core interpreter primitives are exposed to the user.
 **** TODO `eval`, `apply`, `exec`, `read`, `comp`, `prin`, `repl` interpreter primitives added
 **** TODO `load` interpreter primitive added
 
-** TODO Version 0.0.14 - object files
+** TODO Version 00.00.14 - object files
 *** Goals
 Add support object files (saved compiled bytecode).
 
@@ -144,7 +144,7 @@ Add support object files (saved compiled bytecode).
 **** TODO object file format implemented.
 **** TODO `comp-file` compiler primitive added
 
-** TODO Version 0.0.15 - preparing to bootstrap
+** TODO Version 00.00.15 - preparing to bootstrap
 *** Goals
 Implement a few additional branching forms to ease writing the compiler. Also add in basic
 garbage collection at this point.
@@ -153,7 +153,7 @@ garbage collection at this point.
 **** TODO `and`, `or`, `cond`, `case` forms implemented
 **** TODO automatic memory management implemented
 
-** TODO Version 0.0.16 - bootstrapping
+** TODO Version 00.00.16 - bootstrapping
 *** Goals
 At this point we seek to begin using rascal to implement rascal.
 

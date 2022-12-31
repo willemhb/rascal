@@ -20,6 +20,7 @@ extern struct vm_t Vm;
 
 /* API */
 void   reset_vm(vm_t *vm);
+void   show_stack(void);
 size_t push(val_t x);
 val_t  pop(void);
 val_t  popn(size_t n);

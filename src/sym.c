@@ -80,6 +80,10 @@ val_t define(char *name, val_t val) {
   return val;
 }
 
+bool is_bound(val_t x) {
+  return is_sym(x) && flagp(obj_flags(as_obj(x)), bound_sym);
+}
+
 /* internal */
 void init_sym(obj_t self, type_t type, size_t n, void *ini) {
   static ulong counter = 1;
@@ -87,6 +91,7 @@ void init_sym(obj_t self, type_t type, size_t n, void *ini) {
   (void)n;
   (void)type;
 
+  sym_head(self)->val  = OBJECT;
   sym_head(self)->idno = counter++;
   sym_head(self)->hash = hash_str8(ini);
 

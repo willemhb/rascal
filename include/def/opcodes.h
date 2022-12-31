@@ -19,6 +19,7 @@ enum opcode_t {
   op_load_small_16,
   op_load_const,
   op_load_global,
+  op_store_global,
 
   // function calls
   op_invoke,
