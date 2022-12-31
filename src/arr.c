@@ -55,3 +55,31 @@ bool isa_arr(type_t self, val_t val) {
 
   return self == &VecType || self == &CodeType;
 }
+
+/* natives */
+#include "func.h"
+#include "native.h"
+#include "sym.h"
+
+#include "tpl/impl/funcall.h"
+
+func_err_t guard_arr(size_t nargs, val_t *args) {
+  (void)nargs;
+
+  if (!isa_arr(&ArrType, args[0]))
+    return func_arg_type_err;
+
+  return func_no_err;
+}
+
+val_t native_arr(size_t nargs, val_t *args) {
+  (void)nargs;
+  return args[0];
+}
+
+/* initialization */
+void arr_init(void) {
+  val_t native_arr_val = native("arr", 1, false, guard_arr, &ArrType, native_arr);
+
+  define("arr", native_arr_val);
+}

@@ -7,6 +7,7 @@
 #include "vec.h"
 #include "code.h"
 #include "small.h"
+#include "bool.h"
 #include "func.h"
 
 #include "val.h"
@@ -17,6 +18,7 @@
 #include "prin.h"
 #include "apply.h"
 
+#include "util/string.h"
 #include "util/hashing.h"
 #include "util/number.h"
 #include "util/ios.h"
@@ -224,9 +226,18 @@ void read_symbol(reader_t *reader, int dispatch) {
 
   ungetchr(reader, dispatch);
 
-  val_t symbol = sym(token(reader));
+  val_t xpr;
+
+  if (streq(token(reader), "true"))
+    xpr = TRUE;
+
+  else if (streq(token(reader), "false"))
+    xpr = FALSE;
+
+  else
+    xpr = sym(token(reader));
   
-  give_expression(reader, symbol, read_state_expr);
+  give_expression(reader, xpr, read_state_expr);
 }
 
 void read_number(reader_t *reader, int dispatch) {

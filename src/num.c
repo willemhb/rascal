@@ -2,11 +2,8 @@
 
 #include "num.h"
 
-#include "func.h"
-#include "native.h"
 #include "real.h"
 #include "small.h"
-#include "sym.h"
 
 #include "type.h"
 
@@ -28,16 +25,14 @@ bool isa_num(type_t self, val_t val) {
 
 
 /* native functions */
+#include "func.h"
+
+#include "native.h"
+#include "sym.h"
+
+#include "tpl/impl/funcall.h"
+
 /* helpers */
-real_t get_real(val_t x) {
-  assert(is_num(x));
-
-  if (is_small(x))
-    return as_small(x);
-
-  return as_real(x);
-}
-
 val_t negate(val_t x) {
   assert(is_num(x));
 
@@ -65,6 +60,14 @@ func_err_t div_guard(size_t nargs, val_t *args) {
     if (i > 0 && get_real(args[i]) == 0)
       return func_arg_value_err;
   }
+
+  return func_no_err;
+}
+
+func_err_t num_constructor_guard(size_t nargs, val_t *args) {
+  (void) nargs;
+
+  ISA_GUARD(&NumType, args, 0);
 
   return func_no_err;
 }
@@ -109,15 +112,17 @@ val_t native_div(size_t nargs, val_t *args) {
   ARITHMETIC(/, nargs, args, args[0], 1, NON_ZERO);
 }
 
+val_t native_num(size_t nargs, val_t *args) {
+  (void)nargs;
+
+  return args[0];
+}
+
 /* initialization */
 void num_init(void) {
-  val_t add = native("+", 1, true, num_guard, NULL, native_add);
-  val_t sub = native("-", 1, true, num_guard, NULL, native_sub);
-  val_t mul = native("*", 1, true, num_guard, NULL, native_mul);
-  val_t div = native("/", 1, true, div_guard, NULL, native_div);
-
-  define("+", add);
-  define("-", sub);
-  define("*", mul);
-  define("/", div);
+  def_native("+", 1, true, num_guard, NULL, native_add);
+  def_native("-", 1, true, num_guard, NULL, native_sub);
+  def_native("*", 1, true, num_guard, NULL, native_mul);
+  def_native("/", 1, true, div_guard, NULL, native_div);
+  def_native("num", 1, false, num_constructor_guard, &NumType, native_num);
 }

@@ -6,6 +6,7 @@
 #include "sym.h"
 #include "list.h"
 #include "small.h"
+#include "bool.h"
 
 #include "error.h"
 
@@ -14,6 +15,7 @@
 size_t comp_expr(module_t program, val_t x);
 size_t comp_lit(module_t program, val_t x);
 size_t comp_var(module_t program, val_t x);
+size_t comp_assignment(module_t program, val_t x);
 size_t comp_combo(module_t program, val_t x);
 
 size_t comp_quote(module_t program, val_t f);
@@ -21,6 +23,7 @@ size_t comp_do(module_t program, val_t f);
 size_t comp_catch(module_t program, val_t f);
 size_t comp_def(module_t program, val_t f);
 size_t comp_put(module_t program, val_t f);
+size_t comp_if(module_t program, val_t f);
 size_t comp_funcall(module_t program, val_t f);
 
 size_t comp_args(module_t program, val_t a);
@@ -31,6 +34,7 @@ stx_err_t guard_do_stx(val_t form);
 stx_err_t guard_catch_stx(val_t form);
 stx_err_t guard_def_stx(val_t form);
 stx_err_t guard_put_stx(val_t form);
+stx_err_t guard_if_stx(val_t form);
 
 #define check_stx(checker, form)                               \
   do {                                                         \
@@ -82,6 +86,12 @@ size_t comp_lit(module_t module, val_t x) {
   else if (x == ONE)
     return emit_instr(module, op_load_small_one);
 
+  else if (x == TRUE)
+    return emit_instr(module, op_load_true);
+
+  else if (x == FALSE)
+    return emit_instr(module, op_load_false);
+
   else if (is_small(x) && as_small(x) <= INT16_MAX && as_small(x) >= INT16_MIN) {
     short x16 = as_small(x);
 
@@ -97,6 +107,12 @@ size_t comp_var(module_t module, val_t x) {
   size_t n = put_module_const(module, x);
 
   return emit_instr(module, op_load_global, n);
+}
+
+size_t comp_assignment(module_t module, val_t x) {
+  size_t n = put_module_const(module, x);
+
+  return emit_instr(module, op_store_global, n);
 }
 
 size_t comp_combo(module_t module, val_t x) {
@@ -116,6 +132,9 @@ size_t comp_combo(module_t module, val_t x) {
 
   else if (head == PutSym)
     return comp_put(module, x);
+
+  else if (head == IfSym)
+    return comp_if(module, x);
 
   else
     return comp_funcall(module, x);
@@ -176,6 +195,10 @@ size_t comp_def(module_t module, val_t form) {
   val_t bind = caddr(form);
 
   define(as_sym(name), NUL);
+
+  comp_expr(module, bind);
+
+  return comp_assignment(module, name);
 }
 
 size_t comp_put(module_t module, val_t form) {
@@ -184,7 +207,31 @@ size_t comp_put(module_t module, val_t form) {
   val_t name = cadr(form);
   val_t bind = caddr(form);
 
-  
+  comp_expr(module, bind);
+
+  return comp_assignment(module, name);
+}
+
+size_t comp_if(module_t module, val_t form) {
+  check_stx(guard_if_stx, form);
+
+  size_t nexprs    = list_len(form);
+  val_t  test      = cadr(form);
+  val_t  then      = caddr(form);
+  val_t  otherwise = nexprs == 3 ? NUL : cadddr(form);
+
+  size_t fill_1    = comp_expr(module, test); repanic(0);
+  size_t base_1    = emit_instr(module, op_jump_false, 0);
+  size_t fill_2    = comp_expr(module, then); repanic(0);
+  size_t base_2    = emit_instr(module, op_jump, 0);
+  size_t output    = comp_expr(module, otherwise); repanic(0);
+  size_t jump_1    = base_2 - base_1;
+  size_t jump_2    = output - base_2;
+
+  fill_input(module, fill_1, jump_1);
+  fill_input(module, fill_2, jump_2);
+
+  return output;
 }
 
 size_t comp_args(module_t module, val_t args) {
@@ -252,6 +299,15 @@ stx_err_t guard_put_stx(val_t form) {
 
   if (!is_bound(cadr(form)))
     return illegal_stx_err;
+
+  return no_stx_err;
+}
+
+stx_err_t guard_if_stx(val_t form) {
+  size_t nexprs = list_len(form);
+
+  if (nexprs < 3 && nexprs > 4)
+    return malformed_stx_err;
 
   return no_stx_err;
 }

@@ -14,6 +14,7 @@ union rl_data_t {
   val_t    as_val;
   real_t   as_real;
   small_t  as_small;
+  bool_t   as_bool;
   obj_t    as_obj;
   sym_t    as_sym;
   native_t as_native;
@@ -27,6 +28,7 @@ union rl_data_t {
 enum val_type_t {
   real_val,
   small_val,
+  bool_val,
   obj_val
 };
 
@@ -36,6 +38,7 @@ enum val_type_t {
 
 #define REAL    0x0000000000000000ul
 #define SMALL   0x7ffc000000000000ul
+#define BOOL    0x7ffd000000000000ul
 #define OBJECT  0x7fff000000000000ul
 
 #define TAGMASK 0xffff000000000000ul

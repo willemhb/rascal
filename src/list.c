@@ -151,6 +151,7 @@ bool isa_list(type_t self, val_t val) {
 #include "func.h"
 #include "sym.h"
 #include "native.h"
+
 #include "tpl/impl/funcall.h"
 
 func_err_t cons_method_guard(size_t nargs, val_t *args) {
@@ -162,6 +163,13 @@ func_err_t cons_method_guard(size_t nargs, val_t *args) {
 func_err_t list_method_guard(size_t nargs, val_t *args) {
   (void)nargs;
   TYPE_GUARD(list, args, 0);
+  return func_no_err;
+}
+
+func_err_t nul_method_guard(size_t nargs, val_t *args) {
+  (void)nargs;
+
+  TYPE_GUARD(nul, args, 0);
   return func_no_err;
 }
 
@@ -183,12 +191,23 @@ val_t native_cdr(size_t nargs, val_t *args) {
   return as_cons(args[0])->cdr;
 }
 
-void cons_init(void) {
-  val_t cons_native = native("cons", 2, false, NULL, &ConsType, native_cons);
-  val_t car_native  = native("car", 1, false, cons_method_guard, NULL, native_car);
-  val_t cdr_native  = native("cdr", 1, false, cons_method_guard, NULL, native_cdr);
+val_t native_list(size_t nargs, val_t *args) {
+  cons_t xs = make_list(nargs, args);
 
-  define("cons", cons_native);
-  define("car", car_native);
-  define("cdr", cdr_native);
+  return tag_val(xs, OBJECT);
+}
+
+val_t native_nul(size_t nargs, val_t *args) {
+  (void)nargs;
+
+  return args[0];
+}
+
+void list_init(void) {
+  /* native functions */
+  def_native("cons", 2, false, NULL, &ConsType, native_cons);
+  def_native("car", 1, false, cons_method_guard, NULL, native_car);
+  def_native("cdr", 1, false, cons_method_guard, NULL, native_cdr);
+  def_native("list", 0, true, NULL, &ListType, native_list);
+  def_native("nul", 1, false, nul_method_guard, &NulType, native_nul);
 }

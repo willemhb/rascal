@@ -105,9 +105,9 @@ void prin_vec(val_t x) {
 
 /* native functions */
 /* native functions */
-#include "func.h"
 #include "sym.h"
 #include "native.h"
+
 #include "tpl/impl/funcall.h"
 
 func_err_t vec_accessor_guard(size_t nargs, val_t *args) {
@@ -163,13 +163,8 @@ val_t native_vec_len(size_t nargs, val_t *args) {
 }
 
 void vec_init(void) {
-  val_t the_native_vec     = native("vec", 0, true, NULL, &VecType, native_vec);
-  val_t the_native_vec_ref = native("vec-ref", 2, false, vec_accessor_guard, NULL, native_vec_ref);
-  val_t the_native_vec_set = native("vec-xef", 3, false, vec_accessor_guard, NULL, native_vec_set);
-  val_t the_native_vec_len = native("vec-len", 1, false, vec_method_guard, NULL, native_vec_len);
-
-  define("vec", the_native_vec);
-  define("vec-ref", the_native_vec_ref);
-  define("vec-xef", the_native_vec_set);
-  define("vec-len", the_native_vec_len);
+  def_native("vec", 0, true, NULL, &VecType, native_vec);
+  def_native("vec-ref", 2, false, vec_accessor_guard, NULL, native_vec_ref);
+  def_native("vec-xef", 3, false, vec_accessor_guard, NULL, native_vec_set);
+  def_native("vec-len", 1, false, vec_method_guard, NULL, native_vec_len);
 }

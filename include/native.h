@@ -19,4 +19,10 @@ val_t    native(char *name, int nargs, bool vargs, guard_fn_t guard, type_t type
 #define is_native(x) has_type(x, &NativeType)
 #define as_native(x) ((native_t)as_obj(x))
 
+#define def_native(name, nargs, vargs, guard, type, fn)			\
+  do {									\
+    val_t fn##_val = native(name, nargs, vargs, guard, type, fn);	\
+    define(name, fn##_val);						\
+  } while (false)
+
 #endif

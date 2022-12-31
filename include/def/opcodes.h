@@ -8,12 +8,14 @@ typedef enum opcode_t opcode_t;
 
 enum opcode_t {
   op_begin,  // normal entry point
-  op_halt,
+  op_halt, 
   op_noop,
   op_pop,
 
   // load/store
   op_load_nul,
+  op_load_true,
+  op_load_false,
   op_load_small_zero,
   op_load_small_one,
   op_load_small_16,
@@ -23,9 +25,12 @@ enum opcode_t {
 
   // function calls
   op_invoke,
+  op_return,
 
   // jumps
   op_jump,
+  op_jump_true,
+  op_jump_false,
 
   // exceptions
   op_save_prompt,

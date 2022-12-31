@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <string.h>
 
 #include "sym.h"
@@ -80,6 +81,15 @@ val_t define(char *name, val_t val) {
   return val;
 }
 
+val_t assign(val_t name, val_t val) {
+  assert(is_sym(name));
+  assert(is_bound(name));
+
+  sym_head(name)->val = val;
+
+  return val;
+}
+
 bool is_bound(val_t x) {
   return is_sym(x) && flagp(obj_flags(as_obj(x)), bound_sym);
 }
@@ -102,7 +112,58 @@ void prin_sym(val_t x) {
   printf("%s", as_sym(x));
 }
 
+/* native functions */
+#include "native.h"
+#include "bool.h"
+
+#include "tpl/impl/funcall.h"
+
+func_err_t guard_lookup(size_t nargs, val_t *args) {
+  (void)nargs;
+
+  TYPE_GUARD(sym, args, 0);
+  TYPE_GUARD(bound, args, 0);
+
+  return func_no_err;
+}
+
+func_err_t sym_method_guard(size_t nargs, val_t *args) {
+  (void)nargs;
+
+  TYPE_GUARD(sym, args, 0);
+
+  return func_no_err;
+}
+
+val_t native_lookup(size_t nargs, val_t *args) {
+  (void)nargs;
+
+  return sym_head(as_sym(args[0]))->val;
+}
+
+val_t native_boundp(size_t nargs, val_t *args) {
+  (void)nargs;
+
+  if (is_bound(args[0]))
+    return TRUE;
+
+  return FALSE;
+}
+
+val_t native_sym(size_t nargs, val_t *args) {
+  (void)nargs;
+
+  return args[0];
+}
+
+
 /* initialization */
 void sym_init( void ) {
+  // create symbol table
   init_symbol_table(&SymbolTable, 0, NULL);
+
+  // native functions
+  def_native("sym", 1, false, sym_method_guard, &SymType, native_sym);
+  def_native("bound?", 1, false, sym_method_guard, NULL, native_boundp);
+  def_native("lookup", 1, false, guard_lookup, NULL, native_lookup);
 }

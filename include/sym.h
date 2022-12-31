@@ -25,6 +25,7 @@ sym_t make_sym(char *name);
 val_t sym(char *name);
 val_t define(char *name, val_t val);
 bool  is_bound(val_t x);
+val_t assign(val_t name, val_t val);
 
 /* convenience */
 #define is_sym(x)   has_type(x, &SymType)

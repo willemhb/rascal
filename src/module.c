@@ -154,3 +154,32 @@ void init_module(obj_t self, type_t type, size_t n, void *ini) {
   as_module(self)->bcode  = bcode;
   as_module(self)->consts = consts;
 }
+
+/* native functions */
+#include "sym.h"
+#include "native.h"
+
+#include "tpl/impl/funcall.h"
+
+func_err_t guard_module(size_t nargs, val_t *args) {
+  (void)nargs;
+  
+  TYPE_GUARD(code, args, 0);
+  TYPE_GUARD(vec, args, 1);
+
+  return func_no_err;
+}
+
+val_t native_module(size_t nargs, val_t *args) {
+  (void)nargs;
+  
+  code_t bcode  = as_code(args[0]);
+  vec_t  consts = as_vec(args[1]);
+
+  return module("<toplevel>", 0, false, NULL, NULL, bcode, consts);
+}
+
+/* initialization */
+void module_init(void) {
+  def_native("module", 2, false, guard_module, &ModuleType, native_module);
+}

@@ -23,7 +23,6 @@ struct type_t PrimType = {
 };
 
 /* API */
-
 /* external */
 prim_t make_prim(char *name, int nargs, bool vargs, guard_fn_t guard, type_t type, opcode_t label) {
   struct prim_init_t init = {
@@ -53,4 +52,17 @@ void init_prim(obj_t self, type_t type, size_t n, void *ini) {
 
   if (ini)
     as_prim(self)->label = ((prim_init_t)ini)->label;
+}
+
+/* native */
+#include "sym.h"
+#include "native.h"
+
+#include "tpl/impl/funcall.h"
+
+FALLBACK_NATIVE_CONSTRUCTOR(prim);
+
+/* initialization */
+void prim_init(void) {
+  DEF_FALLBACK_NATIVE_CONSTRUCTOR(prim, PrimType);
 }

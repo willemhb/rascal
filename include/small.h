@@ -10,6 +10,8 @@ extern struct type_t SmallType;
 #define ONE  (SMALL|1ul)
 
 /* API */
+small_t get_small(val_t x);
+
 bool long_fits_small(long l);
 bool ulong_fits_small(ulong u);
 bool uint_fits_small(uint u);

@@ -73,31 +73,37 @@ language, culminating in the bootstrapping of a simple `rascal` compiler.
 **** TODO add panic mode & panic checking to vm
 **** TODO add panic mode synchronization to vm
 **** TODO `error` runtime primitive added
-** TODO Version 00.00.07 - assignment
+** DONE Version 00.00.07 - assignment
 *** Goals
    Add toplevel assignments to the interpreter.
 
 *** Target features
-**** TODO `def`, `put` forms implemented
-**** TODO `lookup` symbol primitive added
+**** DONE `def`, `put` forms implemented
+**** DONE `lookup` symbol primitive added
 
-** TODO Version 00.00.08 - branching
+** DONE Version 00.00.08 - branching
 *** Goals
    Add basic branching to the interpreter.
 
 *** Target features
-**** TODO `if` form implemented.
-**** TODO `bool` type implemented.
-**** TODO `id?`, `not`, `isa?`, `bound?` predicate primitives added.
+**** DONE `bool` type implemented
+**** DONE `load_true`, `load_false` opcodes/labels implemented
+**** DONE `jump_true`, `jump_false` opcodes/labels implemented
+**** DONE `if` form implemented
+**** DONE `id?`, `not`, `isa?`, `bound?`, `type?` predicate primitives added
+**** DONE ensure all types have constructors (default behavior if constructor is not meaningful yet)
 
 ** TODO Version 00.00.09 - abstractions
 *** Goals
-   Add support for user-defined functions.
+   Add basic support for user-defined functions.
 
 *** Target features
-**** TODO `fun` form implemented.
-**** TODO `[x y .. rest]` variadic argument support implemented.
-**** TODO `module` type updated.
+**** TODO `envt` type implemented
+**** TODO `fp`, `bp` registers added to Vm
+**** TODO `op_invoke_module`, `op_return`, `op_load_local`, `op_store_local` opcodes/labels implemented
+**** TODO `fun` form implemented
+**** TODO `[x y .. rest]` variadic argument support implemented
+**** TODO `module` type updated
 
 ** TODO Version 00.00.10 - closures
 *** Goals

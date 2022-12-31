@@ -52,3 +52,27 @@ void init_native(obj_t self, type_t type, size_t n, void *ini) {
   if (ini)
     as_native(self)->funptr = ((native_init_t)ini)->funptr;
 }
+
+/* native functions */
+#include "sym.h"
+
+#include "tpl/impl/funcall.h"
+
+func_err_t guard_native(size_t nargs, val_t *args) {
+  (void)nargs;
+
+  TYPE_GUARD(native, args, 0);
+
+  return func_no_err;
+}
+
+val_t native_native(size_t nargs, val_t *args) {
+  (void)nargs;
+
+  return args[0];
+}
+
+/* initialization */
+void native_init(void) {
+  def_native("native", 1, false, guard_native, &NativeType, native_native);
+}

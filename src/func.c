@@ -76,14 +76,49 @@ bool isa_func(type_t self, val_t val) {
   return self == &NativeType || self == &PrimType || self == &ModuleType;
 }
 
-/* initialization */
+/* native functions */
 #include "sym.h"
+#include "native.h"
+#include "bool.h"
+
+#include "tpl/impl/funcall.h"
+
+func_err_t guard_func(size_t nargs, val_t *args) {
+  (void)nargs;
+  
+  if (!isa_func(&FuncType, args[0]))
+    return func_arg_type_err;
+
+  return func_no_err;
+}
+
+val_t native_func(size_t nargs, val_t *args) {
+  (void)nargs;
+
+  return args[0];
+}
+
+val_t native_typep(size_t nargs, val_t *args) {
+  (void)nargs;
+
+  if (is_type(args[0]))
+    return TRUE;
+
+  return FALSE;
+}
+
+/* initialization */
 
 void func_init(void) {
+  /* funcall error names */
   FuncallErrors[func_no_err]            = sym(":okay");
   FuncallErrors[func_not_invocable_err] = sym(":non-invocable-error");
   FuncallErrors[func_arg_underflow_err] = sym(":arity-underflow-error");
   FuncallErrors[func_arg_overflow_err]  = sym(":arity-overflow-error");
   FuncallErrors[func_arg_type_err]      = sym(":type-error");
   FuncallErrors[func_arg_value_err]     = sym(":value-error");
+
+  /* natives */
+  def_native("func", 1, false, guard_func, &FuncType, native_func);
+  def_native("type?", 1, false, NULL, NULL, native_typep);
 }

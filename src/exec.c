@@ -8,6 +8,7 @@
 #include "code.h"
 #include "vec.h"
 #include "small.h"
+#include "bool.h"
 #include "list.h"
 
 #include "error.h"
@@ -25,6 +26,11 @@ val_t exec(module_t m) {
 }
 
 val_t exec_at(module_t module, opcode_t entry, uint argx) {
+
+#define LOAD_LITERAL_LABEL(_value)		\
+  push(_value);					\
+  goto label_dispatch
+
   static void* labels[]  = {
     [op_begin]           = &&label_begin,
     [op_halt]            = &&label_halt,
@@ -32,15 +38,20 @@ val_t exec_at(module_t module, opcode_t entry, uint argx) {
     [op_pop]             = &&label_pop,
 
     [op_load_nul]        = &&label_load_nul,
+    [op_load_true]       = &&label_load_true,
+    [op_load_false]      = &&label_load_false,
     [op_load_small_zero] = &&label_load_small_zero,
     [op_load_small_one]  = &&label_load_small_one,
     [op_load_small_16]   = &&label_load_small_16,
     [op_load_const]      = &&label_load_const,
     [op_load_global]     = &&label_load_global,
+    [op_store_global]    = &&label_store_global,
     
     [op_invoke]          = &&label_invoke,
 
     [op_jump]            = &&label_jump,
+    [op_jump_true]       = &&label_jump_true,
+    [op_jump_false]      = &&label_jump_false,
 
     [op_save_prompt]     = &&label_save_prompt,
     [op_restore_prompt]  = &&label_restore_prompt,
@@ -80,20 +91,11 @@ val_t exec_at(module_t module, opcode_t entry, uint argx) {
 
   goto label_dispatch;
 
- label_load_nul:
-  push(NUL);
-
-  goto label_dispatch;
-
- label_load_small_zero:
-  push(ZERO);
-
-  goto label_dispatch;
-
- label_load_small_one:
-  push(ONE);
-
-  goto label_dispatch;
+ label_load_nul:        LOAD_LITERAL_LABEL(NUL);
+ label_load_true:       LOAD_LITERAL_LABEL(TRUE);
+ label_load_false:      LOAD_LITERAL_LABEL(FALSE);
+ label_load_small_zero: LOAD_LITERAL_LABEL(ZERO);
+ label_load_small_one:  LOAD_LITERAL_LABEL(ONE);
 
  label_load_small_16:
   sx = rx;
@@ -115,6 +117,13 @@ val_t exec_at(module_t module, opcode_t entry, uint argx) {
   v = sym_head(as_sym(x))->val;
 
   push(v);
+
+  goto label_dispatch;
+
+ label_store_global:
+  x = get_module_const(Vm.program, rx);
+
+  assign(x, peek(-1));
 
   goto label_dispatch;
 
@@ -145,6 +154,22 @@ val_t exec_at(module_t module, opcode_t entry, uint argx) {
 
  label_jump:
   Vm.pc += rx;
+
+  goto label_dispatch;
+
+ label_jump_true:
+  x = pop();
+
+  if (Cbool(x))
+    Vm.pc += rx;
+
+  goto label_dispatch;
+
+ label_jump_false:
+  x = pop();
+
+  if (!Cbool(x))
+    Vm.pc += rx;
 
   goto label_dispatch;
 
@@ -197,4 +222,6 @@ val_t exec_at(module_t module, opcode_t entry, uint argx) {
 
  label_invoke_module:
   rl_unreachable();
+
+  #undef LOAD_LITERAL_LABEL
 }
