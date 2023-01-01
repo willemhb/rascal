@@ -98,7 +98,6 @@ language, culminating in the bootstrapping of a simple `rascal` compiler.
    Add basic support for user-defined functions.
 
 *** Target features
-**** TODO `envt` type implemented
 **** TODO `fp`, `bp` registers added to Vm
 **** TODO `op_invoke_module`, `op_return`, `op_load_local`, `op_store_local` opcodes/labels implemented
 **** TODO `fun` form implemented
@@ -110,8 +109,8 @@ language, culminating in the bootstrapping of a simple `rascal` compiler.
    Add support for nested functions (this is a big one).
 
 *** Target features
-**** TODO Add support for nested functions, closures, and upvalues.
-**** TODO `closure`, `upval` types implemented.
+**** TODO Add support for nested functions, closures, and upvalues
+**** TODO `closure`, `upval` types implemented
 
 ** TODO Version 00.00.11 - basic io
 *** Goals

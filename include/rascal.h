@@ -21,7 +21,6 @@ typedef struct native_t *native_t;
 typedef struct prim_t *prim_t;
 typedef struct module_t *module_t;
 typedef struct cons_t *cons_t;
-typedef struct envt_t *envt_t;
 typedef val_t *vec_t;
 typedef ushort *code_t;
 

@@ -12,24 +12,46 @@
 struct vm_t Vm;
 
 /* API */
+/* external */
+void trim_stack(vm_t *vm, size_t n);
+void trim_vals(vm_t *vm, size_t n);
+
 void reset_vm(vm_t *vm) {
   vm->panic_mode=false;
   vm->error     =NUL;
-  vm->pc        = 0;
+  vm->pc        =  0;
+  vm->bp        =  0;
+  vm->cp        = -1;
   vm->program   = NULL;
-  vals_popn(vm->stack, vm->stack->len);
+
+  trim_stack(vm, 0);
+  trim_vals(vm, 0);
 }
 
 void show_stack(void) {
   printf("current stack (sp=%zu):\n\n", Vm.stack->len);
 
-  for (size_t i=0; i<Vm.stack->len; i++) {
-    printf("(%.4zu) ", i);
-    prinln(peek(i));
-
+  for (size_t i=Vm.stack->len; i > 0; i--) {
+    printf("(%.4zu) ", i-1);
+    prinln(peek(i-1));
   }
 
   newline();
+}
+
+void show_vals(void) {
+  printf("current vals (sp=%zu):\n\n", Vm.vals->len);
+
+  for (size_t i=Vm.vals->len; i > 0; i--) {
+    printf("(%.4zu)", i-1);
+    prinln(vals_ref(Vm.vals, i));
+  }
+
+  newline();
+}
+
+void save_frame(void) {
+  
 }
 
 size_t push(val_t x) {
