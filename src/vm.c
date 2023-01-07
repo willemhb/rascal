@@ -1,7 +1,9 @@
 #include "vm.h"
 
-#include "arr.h"
+#include "small.h"
+#include "module.h"
 
+#include "arr.h"
 #include "list.h"
 
 #include "prin.h"
@@ -13,49 +15,64 @@ struct vm_t Vm;
 
 /* API */
 /* external */
-void trim_stack(vm_t *vm, size_t n);
-void trim_vals(vm_t *vm, size_t n);
-
 void reset_vm(vm_t *vm) {
-  vm->panic_mode=false;
-  vm->error     =NUL;
+  vm->panic_mode= false;
+  vm->error     = NUL;
   vm->pc        =  0;
   vm->bp        =  0;
-  vm->cp        = -1;
+  vm->cp        =  0;
   vm->program   = NULL;
 
-  trim_stack(vm, 0);
-  trim_vals(vm, 0);
+  trim_stack(0);
+  trim_frame(0);
 }
 
 void show_stack(void) {
-  printf("current stack (sp=%zu):\n\n", Vm.stack->len);
+  printf("stack (sp=%zu):\n\n", Vm.stack->len);
 
   for (size_t i=Vm.stack->len; i > 0; i--) {
-    printf("(%.4zu) ", i-1);
+    printf("(%.4zu)", i-1);
     prinln(peek(i-1));
   }
 
   newline();
 }
 
-void show_vals(void) {
-  printf("current vals (sp=%zu):\n\n", Vm.vals->len);
+void show_frame(void) {
+  printf("frames (fp=%zu):\n\n", Vm.frame->len);
 
-  for (size_t i=Vm.vals->len; i > 0; i--) {
-    printf("(%.4zu)", i-1);
-    prinln(vals_ref(Vm.vals, i));
+  for (size_t i=Vm.stack->len; i > 0; i -= 4) {
+    val_t *frame = alist_at(Vm.stack, i-4, val_t);
+
+    printf("(%.4zu) sp=", i-1); prinln(frame[3]);
+    printf("(%.4zu) cp=", i-2); prinln(frame[2]);
+    printf("(%.4zu) bp=", i-3); prinln(frame[1]);
+    printf("(%.4zu) pc=", i-4); prinln(frame[0]);
   }
 
   newline();
 }
 
-void save_frame(void) {
-  
+void trim_stack(int n) {
+  vals_trim(Vm.stack, n);
 }
 
-size_t push(val_t x) {
-  size_t out = vals_push(Vm.stack, x)-1;
+void trim_frame(int n) {
+  vals_trim(Vm.frame, n);
+}
+
+/* stack manipulation helpers */
+int push(val_t x) {
+  assert(Vm.stack->len < INT32_MAX);
+  int out = vals_push(Vm.stack, x)-1;
+  return out;
+}
+
+int pushn(int n) {
+  assert((size_t)n + Vm.stack->len <= INT32_MAX);
+
+  int out = Vm.stack->len; vals_trim(Vm.stack, out+n);
+
   return out;
 }
 
@@ -63,7 +80,8 @@ val_t pop(void) {
   return vals_pop(Vm.stack);
 }
 
-val_t popn(size_t n) {
+val_t popn(int n) {
+  assert(n > 0);
   return vals_popn(Vm.stack, n);
 }
 
@@ -86,11 +104,13 @@ val_t poke(int n, val_t x) {
 /* initialization */
 void vm_init(void) {
   Vm = (struct vm_t) {
-    .panic_mode=false,
-    .error     =NUL,
-    .stack     =make_vals(0, NULL),
-    .pc        =0,
-    .cp        =-1,
-    .program   =NULL
+    .panic_mode= false,
+    .error     = NUL,
+    .stack     = make_vals(0, NULL),
+    .frame     = make_vals(0, NULL),
+    .pc        = 0,
+    .cp        = 0,
+    .bp        = 0,
+    .program   = NULL
   };
 }

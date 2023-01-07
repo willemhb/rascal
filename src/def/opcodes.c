@@ -29,6 +29,8 @@ char *op_name(opcode_t op) {
   case op_load_const:      return "#load-const";
   case op_load_global:     return "#load-global";
   case op_store_global:    return "#store-global";
+  case op_load_local:      return "#load-local";
+  case op_store_local:     return "#store-local";
   case op_invoke:          return "#invoke";
   case op_return:          return "#return";
   case op_jump:            return "#jump";

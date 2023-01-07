@@ -21,6 +21,7 @@ cons_t make_list(size_t n, val_t *args);
 val_t  cons(val_t car, val_t cdr);
 val_t  list(size_t n, ...);
 size_t list_len(val_t xs);
+bool   list_of(cons_t xs, type_t type);
 
 /* convenience */
 #define is_cons(x) has_type(x, &ConsType)
@@ -36,6 +37,7 @@ size_t list_len(val_t xs);
 #define caar(x)   car(car(x))
 
 #define caddr(x)  car(cdr(cdr(x)))
+#define cdddr(x)  cdr(cdr(cdr(x)))
 
 #define cadddr(x) car(cdr(cdr(cdr(x))))
 

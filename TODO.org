@@ -98,11 +98,11 @@ language, culminating in the bootstrapping of a simple `rascal` compiler.
    Add basic support for user-defined functions.
 
 *** Target features
-**** TODO `fp`, `bp` registers added to Vm
-**** TODO `op_invoke_module`, `op_return`, `op_load_local`, `op_store_local` opcodes/labels implemented
+**** DONE `fp`, `bp` registers added to Vm
+**** DONE `op_invoke_module`, `op_return`, `op_load_local`, `op_store_local` opcodes/labels implemented
 **** TODO `fun` form implemented
 **** TODO `[x y .. rest]` variadic argument support implemented
-**** TODO `module` type updated
+**** DONE `module` type updated
 
 ** TODO Version 00.00.10 - closures
 *** Goals

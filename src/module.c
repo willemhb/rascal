@@ -4,6 +4,7 @@
 
 #include "code.h"
 #include "vec.h"
+#include "sym.h"
 
 #include "type.h"
 
@@ -19,6 +20,7 @@ struct module_init_t {
 
   code_t bcode;
   vec_t  consts;
+  vec_t  locals;
 };
 
 /* globals */
@@ -35,7 +37,9 @@ struct type_t ModuleType = {
 
 /* API */
 /* external */
-module_t make_module(char *name, int nargs, bool vargs, guard_fn_t guard, type_t type, code_t bcode, vec_t consts) {
+module_t make_module(char *name, int nargs, bool vargs, guard_fn_t guard, type_t type, code_t bcode, vec_t consts, vec_t locals)  {
+  name = as_sym(sym(name));
+
   struct module_init_t init = {
     .func_init = {
       .name =name,
@@ -46,14 +50,15 @@ module_t make_module(char *name, int nargs, bool vargs, guard_fn_t guard, type_t
     },
 
     .bcode =bcode,
-    .consts=consts
+    .consts=consts,
+    .locals=locals
   };
 
   return (module_t)make_obj(&ModuleType, 6, &init);
 }
 
-val_t module(char *name, int nargs, bool vargs, guard_fn_t guard, type_t type, code_t bcode, vec_t consts) {
-  module_t out = make_module(name, nargs, vargs, guard, type, bcode, consts);
+val_t module(char *name, int nargs, bool vargs, guard_fn_t guard, type_t type, code_t bcode, vec_t consts, vec_t locals) {
+  module_t out = make_module(name, nargs, vargs, guard, type, bcode, consts, locals);
 
   return tag_val(out, OBJECT);
 }
@@ -74,6 +79,33 @@ size_t put_module_const(module_t module, val_t val) {
   }
 
   vec_push(&module->consts, val);
+
+ end:
+  return out;
+}
+
+int get_module_local(module_t module, val_t name) {
+  vec_t  locals     = module->locals;
+  size_t num_locals = vec_head(locals)->len;
+
+  for (size_t i=0; i<num_locals; i++) {
+    if (name == locals[i])
+      return i;
+  }
+
+  return -1;
+}
+
+int put_module_local(module_t module, val_t name) {
+  vec_t locals      = module->locals;
+  size_t num_locals = vec_head(locals)->len, out;
+
+  for (out=0; out<num_locals; out++) {
+    if (name == locals[name])
+      goto end;
+  }
+
+  vec_push(&module->locals, name);
 
  end:
   return out;
@@ -127,11 +159,13 @@ void fill_input(module_t module, size_t offset, ...) {
 }
 
 void dis_module(module_t module) {
-  code_t code = module->bcode;
-  vec_t  vec  = module->consts;
+  code_t code   = module->bcode;
+  vec_t  consts = module->consts;
+  vec_t  locals = module->locals;
 
   printf("disassembly of %s:\n\n", func_head(module)->name);
-  printf("    constants: "); prin(tag_val(vec, OBJECT)); newline();
+  printf("    constants: "); prin(tag_val(consts, OBJECT)); newline();
+  printf("    locals: "); prin(tag_val(locals, OBJECT)); newline();
   printf("    bytecode:  "); prin(tag_val(code, OBJECT)); newline(); newline();
   dis_code(code); newline();
 }
@@ -142,17 +176,21 @@ void init_module(obj_t self, type_t type, size_t n, void *ini) {
 
   code_t bcode = NULL;
   vec_t consts = NULL;
+  vec_t locals = NULL;
 
   if (ini) {
     bcode  = ((module_init_t)ini)->bcode;
     consts = ((module_init_t)ini)->consts;
+    locals = ((module_init_t)ini)->locals;
   }
 
   bcode  = bcode  ? : make_code(0, NULL);
   consts = consts ? : make_vec(0, NULL);
+  locals = locals ? : make_vec(0, NULL);
 
   as_module(self)->bcode  = bcode;
   as_module(self)->consts = consts;
+  as_module(self)->locals = locals;
 }
 
 /* native functions */
@@ -163,23 +201,27 @@ void init_module(obj_t self, type_t type, size_t n, void *ini) {
 
 func_err_t guard_module(size_t nargs, val_t *args) {
   (void)nargs;
-  
-  TYPE_GUARD(code, args, 0);
-  TYPE_GUARD(vec, args, 1);
+
+  TYPE_GUARD(sym, args, 0);
+  TYPE_GUARD(code, args, 1);
+  TYPE_GUARD(vec, args, 2);
+  TYPE_GUARD(vec, args, 3);
 
   return func_no_err;
 }
 
 val_t native_module(size_t nargs, val_t *args) {
   (void)nargs;
-  
-  code_t bcode  = as_code(args[0]);
-  vec_t  consts = as_vec(args[1]);
 
-  return module("<toplevel>", 0, false, NULL, NULL, bcode, consts);
+  sym_t  name   = as_sym(args[0]);
+  code_t bcode  = as_code(args[1]);
+  vec_t  consts = as_vec(args[2]);
+  vec_t  locals = as_vec(args[3]);
+
+  return module(name, 0, false, NULL, NULL, bcode, consts, locals);
 }
 
 /* initialization */
 void module_init(void) {
-  def_native("module", 2, false, guard_module, &ModuleType, native_module);
+  def_native("module", 4, false, guard_module, &ModuleType, native_module);
 }

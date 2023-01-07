@@ -4,6 +4,7 @@
 
 #include "module.h"
 #include "sym.h"
+#include "vec.h"
 #include "list.h"
 #include "small.h"
 #include "bool.h"
@@ -24,6 +25,7 @@ size_t comp_catch(module_t program, val_t f);
 size_t comp_def(module_t program, val_t f);
 size_t comp_put(module_t program, val_t f);
 size_t comp_if(module_t program, val_t f);
+size_t comp_fun(module_t program, val_t f);
 size_t comp_funcall(module_t program, val_t f);
 
 size_t comp_args(module_t program, val_t a);
@@ -35,6 +37,7 @@ stx_err_t guard_catch_stx(val_t form);
 stx_err_t guard_def_stx(val_t form);
 stx_err_t guard_put_stx(val_t form);
 stx_err_t guard_if_stx(val_t form);
+stx_err_t guard_fun_stx(val_t form);
 
 #define check_stx(checker, form)                               \
   do {                                                         \
@@ -56,7 +59,7 @@ char *SyntaxErrors[] = {
 /* API */
 /* external */
 module_t comp(val_t x) {
-  module_t out = make_module("<toplevel>", 0, false, NULL, NULL, NULL, NULL);
+  module_t out = make_module("<toplevel>", 0, false, NULL, NULL, NULL, NULL, NULL);
 
   comp_expr(out, x);
   emit_instr(out, op_halt);
@@ -104,9 +107,15 @@ size_t comp_lit(module_t module, val_t x) {
 }
 
 size_t comp_var(module_t module, val_t x) {
-  size_t n = put_module_const(module, x);
+  opcode_t op = op_load_local;
+  int i = get_module_local(module, x);
 
-  return emit_instr(module, op_load_global, n);
+  if (i < 0) {
+    op = op_load_global;
+    i  = put_module_const(module, x);
+  }
+
+  return emit_instr(module, op, i);
 }
 
 size_t comp_assignment(module_t module, val_t x) {
@@ -135,6 +144,9 @@ size_t comp_combo(module_t module, val_t x) {
 
   else if (head == IfSym)
     return comp_if(module, x);
+
+  else if (head == FunSym)
+    return comp_fun(module, x);
 
   else
     return comp_funcall(module, x);
@@ -172,10 +184,10 @@ size_t comp_catch(module_t module, val_t form) {
   size_t fill_1     = emit_instr(module, op_save_prompt);
   size_t jump_1     = emit_instr(module, op_jump, 0);
   size_t expr_1     = comp_expr(module, recover_expr); repanic(0);
-  
+
   size_t fill_2     = expr_1;
   size_t jump_2     = emit_instr(module, op_jump, 0);
-  
+
   comp_seq(module, try_exprs); repanic(0);
 
   size_t output     = emit_instr(module, op_discard_prompt);
@@ -196,7 +208,7 @@ size_t comp_def(module_t module, val_t form) {
 
   define(as_sym(name), NUL);
 
-  comp_expr(module, bind);
+  comp_expr(module, bind); repanic(0);
 
   return comp_assignment(module, name);
 }
@@ -207,7 +219,7 @@ size_t comp_put(module_t module, val_t form) {
   val_t name = cadr(form);
   val_t bind = caddr(form);
 
-  comp_expr(module, bind);
+  comp_expr(module, bind); repanic(0);
 
   return comp_assignment(module, name);
 }
@@ -232,6 +244,23 @@ size_t comp_if(module_t module, val_t form) {
   fill_input(module, fill_2, jump_2);
 
   return output;
+}
+
+size_t comp_fun(module_t module, val_t form) {
+  check_stx(guard_fun_stx, form);
+
+  size_t nexprs = list_len(form);
+  val_t name, formals, body;
+
+  if (is_sym(cadr(form))) {
+    name    = cadr(form);
+    formals = caddr(form);
+    body    = cdddr(form);
+  }
+
+  else {
+    
+  }
 }
 
 size_t comp_args(module_t module, val_t args) {
@@ -307,6 +336,32 @@ stx_err_t guard_if_stx(val_t form) {
   size_t nexprs = list_len(form);
 
   if (nexprs < 3 && nexprs > 4)
+    return malformed_stx_err;
+
+  return no_stx_err;
+}
+
+stx_err_t guard_fun_stx(val_t form) {
+  size_t nexprs = list_len(form);
+  val_t formals;
+
+  if (nexprs < 2)
+    return malformed_stx_err;
+
+  if (is_sym(cadr(form))) {
+    if (nexprs < 3)
+      return malformed_stx_err;
+
+    formals = caddr(form);
+
+  } else {
+    formals = cadr(form);
+  }
+
+  if (!is_vec(formals))
+    return malformed_stx_err;
+
+  if (!vec_of(as_vec(formals), &SymType))
     return malformed_stx_err;
 
   return no_stx_err;

@@ -52,7 +52,7 @@
     resize_##AL(alist, alist->len-1);                           \
     return x;                                                   \
   }                                                             \
-  size_t AL##_pushn( alist_t *alist, size_t n, ... )			\
+  size_t AL##_pushn( alist_t *alist, size_t n, ... )		\
   {                                                             \
     size_t old_len = alist->len;                                \
     resize_##AL(alist, alist->len+n);                           \
@@ -75,7 +75,7 @@
     resize_##AL(alist, n);                                      \
     return alist->len;                                          \
   }                                                             \
-  size_t appendto_##AL( alist_t *alist, X *src, size_t n )		\
+  size_t appendto_##AL( alist_t *alist, X *src, size_t n )	\
   {                                                             \
     size_t old_len = alist->len;                                \
     resize_##AL(alist, alist->len+n);                           \

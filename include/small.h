@@ -29,5 +29,6 @@ bool float_fits_small(float f);
 /* convenience */
 #define is_small(x) has_type(x, &SmallType)
 #define as_small(x) (((rl_data_t)(x)).as_small)
+#define mk_small(x) tag_val(x, SMALL)
 
 #endif

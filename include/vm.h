@@ -10,9 +10,10 @@ struct vm_t {
   val_t error;
 
   // execution state
-  vals_t   *stack, *vals; // callstack, local arguments
-  int pc, bp, cp;         // program counter, continuation pointer
-  module_t  program;
+  vals_t *stack, *frame; // arguments and locals, call frames
+  int pc, bp, cp;        // program counter, base pointer, continuation pointer
+
+  module_t  program;  // executing program
 };
 
 /* globals */
@@ -21,20 +22,16 @@ extern struct vm_t Vm;
 /* API */
 void   reset_vm(vm_t *vm);
 void   show_stack(void);
-void   show_vals(void);
+void   show_frame(void);
+void   trim_stack(int n);
+void   trim_frame(int n);
 
-void   save_frame(void);
-void   restore_frame(void);
-void   save_prompt(void);
-void   restore_prompt(void);
-void   discard_prompt(void);
-
-size_t push(val_t x);
+int    push(val_t x);
+int    pushn(int n);
 val_t  pop(void);
-val_t  popn(size_t n);
+val_t  popn(int n);
 val_t  peek(int n);
 val_t *peep(int n);
 val_t  poke(int n, val_t x);
-
 
 #endif

@@ -27,7 +27,7 @@ struct func_head_t {
   bool       vargs;
   guard_fn_t guard;
   type_t     type;  // the type this function constructs (if any)
-  
+
   struct obj_head_t obj;
 };
 
@@ -41,7 +41,7 @@ struct func_init_t {
 
 /* globals */
 extern struct type_t FuncType;
-extern val_t FuncallErrors[];
+extern val_t FuncallErrors[num_func_errs];
 
 /* API */
 void init_func(obj_t self, type_t type, size_t n, void *ini);
