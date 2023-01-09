@@ -3,12 +3,8 @@
 
 #include "common.h"
 
-/* commentary */
-
 /* C types */
 typedef uint64_t hash_t;
-
-/* globals */
 
 /* API */
 hash_t hash_int32( int32_t x );
@@ -19,9 +15,5 @@ hash_t hash_pointer( const void *x );
 hash_t hash_str8( const char *x );
 hash_t hash_mem8( const byte *x, size_t n );
 hash_t mix_hashes( uint64_t x, uint64_t y );
-
-/* runtime */
-
-/* convenience */
 
 #endif

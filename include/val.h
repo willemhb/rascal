@@ -17,11 +17,12 @@ union rl_data_t {
   bool_t   as_bool;
   obj_t    as_obj;
   sym_t    as_sym;
-  native_t as_native;
-  prim_t   as_prim;
-  module_t as_module;
-  vec_t    as_vec;
+  func_t   as_func;
   cons_t   as_cons;
+  vec_t    as_vec;
+  str_t    as_str;
+  method_t as_method;
+  module_t as_module;
   code_t   as_code;
 };
 
@@ -39,6 +40,7 @@ enum val_type_t {
 #define REAL    0x0000000000000000ul
 #define SMALL   0x7ffc000000000000ul
 #define BOOL    0x7ffd000000000000ul
+#define NATIVE  0x7ffe000000000000ul
 #define OBJECT  0x7fff000000000000ul
 
 #define TAGMASK 0xffff000000000000ul

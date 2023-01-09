@@ -33,5 +33,8 @@ val_t assign(val_t name, val_t val);
 #define is_sym(x)   has_type(x, &SymType)
 #define as_sym(x)   ((sym_t)as_obj(x))
 #define sym_head(x) ((sym_head_t)obj_start(as_obj(x)))
+#define sym_val(x)  (sym_head(x)->val)
+#define sym_idno(x) (sym_head(x)->idno)
+#define sym_hash(x) (sym_head(x)->hash)
 
 #endif
