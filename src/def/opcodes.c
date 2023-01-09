@@ -5,9 +5,13 @@
 /* convenience */
 size_t op_argc(opcode_t op) {
   switch (op) {
-  case op_load_small_16 ... op_invoke:
+  case op_load_small_16 ... op_store_local:
+  case op_invoke:
   case op_jump ... op_jump_false:
     return 1;
+
+  case op_load_nonlocal ... op_store_nonlocal:
+    return 2;
 
   default:
     return 0;
@@ -16,10 +20,17 @@ size_t op_argc(opcode_t op) {
 
 char *op_name(opcode_t op) {
   switch (op) {
+    // misc
   case op_begin:           return "#begin";
   case op_halt:            return "#halt";
   case op_noop:            return "#no-op";
+
+    // stack manipulation
+  case op_push:            return "#push";
   case op_pop:             return "#pop";
+  case op_dup:             return "#dup";
+
+    // load/store
   case op_load_nul:        return "#load-nul";
   case op_load_true:       return "#load-true";
   case op_load_false:      return "#load-false";
@@ -31,14 +42,25 @@ char *op_name(opcode_t op) {
   case op_store_global:    return "#store-global";
   case op_load_local:      return "#load-local";
   case op_store_local:     return "#store-local";
+  case op_load_nonlocal:   return "#load-nonlocal";
+  case op_store_nonlocal:  return "#store-nonlocal";
+
+    // function calls
   case op_invoke:          return "#invoke";
-  case op_return:          return "#return";
+
+    // jumps
   case op_jump:            return "#jump";
   case op_jump_true:       return "#jump-if-true";
   case op_jump_false:      return "#jump-if-false";
+
+    // frame manipulation
+  case op_save_frame:      return "#save-frame";
+  case op_restore_frame:   return "#restore-frame";
   case op_save_prompt:     return "#save-prompt";
   case op_restore_prompt:  return "#restore-prompt";
   case op_discard_prompt:  return "#discard-prompt";
+
+    // fallback
   default:                 return "#unknown-op";
   }
 }

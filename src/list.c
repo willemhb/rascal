@@ -112,6 +112,20 @@ size_t list_len(val_t xs) {
   return out;
 }
 
+bool is_list_of(cons_t xs, type_t type) {
+  while (xs) {
+    if (!has_type(xs->car, type))
+      return false;
+
+    if (!is_cons(xs->cdr))
+      return false;
+
+    xs = as_cons(xs->cdr);
+  }
+
+  return true;
+}
+
 /* internal */
 void init_cons(obj_t self, type_t type, size_t n, void *ini) {
   (void)type;
@@ -182,13 +196,13 @@ val_t native_cons(size_t nargs, val_t *args) {
 val_t native_car(size_t nargs, val_t *args) {
   (void)nargs;
 
-  return as_cons(args[0])->car;
+  return car(args[0]);
 }
 
 val_t native_cdr(size_t nargs, val_t *args) {
   (void)nargs;
 
-  return as_cons(args[0])->cdr;
+  return cdr(args[0]);
 }
 
 val_t native_list(size_t nargs, val_t *args) {
@@ -203,6 +217,13 @@ val_t native_nul(size_t nargs, val_t *args) {
   return args[0];
 }
 
+val_t native_list_len(size_t nargs, val_t *args) {
+  (void)nargs;
+
+  int l = list_len(args[0]);
+  return tag_val(l, SMALL);
+}
+
 void list_init(void) {
   /* native functions */
   def_native("cons", 2, false, NULL, &ConsType, native_cons);
@@ -210,4 +231,5 @@ void list_init(void) {
   def_native("cdr", 1, false, cons_method_guard, NULL, native_cdr);
   def_native("list", 0, true, NULL, &ListType, native_list);
   def_native("nul", 1, false, nul_method_guard, &NulType, native_nul);
+  def_native("list-len", 1, false, list_method_guard, NULL, native_list_len);
 }

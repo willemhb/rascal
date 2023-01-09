@@ -5,16 +5,32 @@
 
 /* C types */
 struct vm_t {
-  // error state
+  // panic mode state
   bool  panic_mode;
   val_t error;
 
   // execution state
   vals_t *stack, *frame; // arguments and locals, call frames
-  int pc, bp, cp;        // program counter, base pointer, continuation pointer
+  val_t val;             // value register (most recent expression value)
 
-  module_t  program;  // executing program
+  // main registers (saved in frame)
+  int bp, fc, cp, pc;
+  module_t pr, hl;
 };
+
+/* registers
+   bp - location of first local binding
+   fc - frame count (number of local bindings)
+   cp - location of activation record saved by `catch`
+   pc - program counter. program->code[pc] is the next instruction to execute.
+   pr - program. Currently executing module object
+   hl - Current error handler (no handler installed if NULL)
+
+   activation record layout
+   +----+----+----+----+----+----+
+   | bp | fc | cp | pc | pr | hl |
+   +----+----+----+----+----+----+
+*/
 
 /* globals */
 extern struct vm_t Vm;

@@ -18,9 +18,10 @@ typedef struct module_init_t *module_init_t;
 struct module_init_t {
   struct func_init_t func_init;
 
-  code_t bcode;
-  vec_t  consts;
-  vec_t  locals;
+  code_t   bcode;
+  vec_t    consts;
+  vec_t    locals;
+  module_t parent;
 };
 
 /* globals */
@@ -37,7 +38,7 @@ struct type_t ModuleType = {
 
 /* API */
 /* external */
-module_t make_module(char *name, int nargs, bool vargs, guard_fn_t guard, type_t type, code_t bcode, vec_t consts, vec_t locals)  {
+module_t make_module(char *name, int nargs, bool vargs, guard_fn_t guard, type_t type, code_t bcode, vec_t consts, vec_t locals, module_t parent)  {
   name = as_sym(sym(name));
 
   struct module_init_t init = {
@@ -51,14 +52,15 @@ module_t make_module(char *name, int nargs, bool vargs, guard_fn_t guard, type_t
 
     .bcode =bcode,
     .consts=consts,
-    .locals=locals
+    .locals=locals,
+    .parent=parent
   };
 
   return (module_t)make_obj(&ModuleType, 6, &init);
 }
 
-val_t module(char *name, int nargs, bool vargs, guard_fn_t guard, type_t type, code_t bcode, vec_t consts, vec_t locals) {
-  module_t out = make_module(name, nargs, vargs, guard, type, bcode, consts, locals);
+val_t module(char *name, int nargs, bool vargs, guard_fn_t guard, type_t type, code_t bcode, vec_t consts, vec_t locals, module_t parent) {
+  module_t out = make_module(name, nargs, vargs, guard, type, bcode, consts, locals, parent);
 
   return tag_val(out, OBJECT);
 }
@@ -84,33 +86,6 @@ size_t put_module_const(module_t module, val_t val) {
   return out;
 }
 
-int get_module_local(module_t module, val_t name) {
-  vec_t  locals     = module->locals;
-  size_t num_locals = vec_head(locals)->len;
-
-  for (size_t i=0; i<num_locals; i++) {
-    if (name == locals[i])
-      return i;
-  }
-
-  return -1;
-}
-
-int put_module_local(module_t module, val_t name) {
-  vec_t locals      = module->locals;
-  size_t num_locals = vec_head(locals)->len, out;
-
-  for (out=0; out<num_locals; out++) {
-    if (name == locals[name])
-      goto end;
-  }
-
-  vec_push(&module->locals, name);
-
- end:
-  return out;
-}
-
 size_t emit_instr(module_t module, opcode_t op, ...) {
   va_list va; va_start(va, op);
 
@@ -127,6 +102,26 @@ size_t emit_instr(module_t module, opcode_t op, ...) {
   va_end(va);
 
   return out;
+}
+
+size_t emit_instrs(module_t module, size_t n, ...) {
+  va_list va; va_start(va, n);
+  
+  for (size_t i=0; i<n; i++) {
+    opcode_t op = va_arg(va, int);
+
+    switch (op_argc(op)) {
+    case 0:  code_write(&module->bcode, op); break;
+    case 1:  code_write(&module->bcode, op, va_arg(va, int)); break;
+    case 2:  code_write(&module->bcode, op, va_arg(va, int), va_arg(va, int)); break;
+    case 3:  code_write(&module->bcode, op, va_arg(va, int), va_arg(va, int), va_arg(va, int)); break;
+    default: rl_unreachable();
+    }
+  }
+
+  va_end(va);
+
+  return code_size(module);
 }
 
 size_t code_size(module_t module) {

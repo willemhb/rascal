@@ -24,7 +24,7 @@
     return alist;                                               \
   }                                                             \
                                                                 \
-  void resize_##AL( alist_t *alist, size_t new_len )			\
+  void resize_##AL( alist_t *alist, size_t new_len )		\
   {                                                             \
     resize_alist(alist, new_len, padfn);                        \
   }                                                             \
@@ -63,7 +63,12 @@
     va_end(va);                                                 \
     return alist->len;                                          \
   }                                                             \
-                                                                \
+  X *AL##_pushf(alist_t *alist, size_t n)			\
+  {								\
+    size_t offset = alist->len;					\
+    resize_##AL(alist, offset+n);				\
+    return (X*)alist->elements;					\
+  }								\
   X AL##_popn( alist_t *alist, size_t n )                       \
   {                                                             \
     X x = alist_member(alist, alist->len-1, X);                 \

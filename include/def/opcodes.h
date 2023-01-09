@@ -7,10 +7,20 @@
 typedef enum opcode_t opcode_t;
 
 enum opcode_t {
-  op_begin,  // normal entry point
-  op_halt, 
+  // miscellaneous
+  op_begin,
+  op_halt,
   op_noop,
+
+  // stack manipulation
+  op_push,
   op_pop,
+  op_dup,
+
+  // environment manipulation
+  op_bind_local,
+  op_bind_global,
+  op_bind_vargs,
 
   // load/store
   op_load_nul,
@@ -18,26 +28,34 @@ enum opcode_t {
   op_load_false,
   op_load_small_zero,
   op_load_small_one,
-  op_load_small_16,
+  op_load_small_16, 
   op_load_const,
   op_load_global,
   op_store_global,
   op_load_local,
   op_store_local,
+  op_load_nonlocal,
+  op_store_nonlocal,
 
   // function calls
   op_invoke,
-  op_return,
+  op_invoke_native,
+  op_invoke_prim,
+  op_invoke_module,
 
   // jumps
   op_jump,
   op_jump_true,
   op_jump_false,
 
-  // exceptions
-  op_save_prompt,
-  op_restore_prompt,
-  op_discard_prompt,
+  // frame manipulation
+  op_save,
+  op_unsave,
+  op_restore,
+
+  op_try,
+  op_catch,
+  op_panic,
 
   /* not an opcode */
   num_opcodes

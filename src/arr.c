@@ -77,9 +77,14 @@ val_t native_arr(size_t nargs, val_t *args) {
   return args[0];
 }
 
+val_t native_arr_len(size_t nargs, val_t *args) {
+  (void)nargs;
+  int l = arr_head(args[0])->len;
+  return tag_val(l, SMALL);
+}
+
 /* initialization */
 void arr_init(void) {
-  val_t native_arr_val = native("arr", 1, false, guard_arr, &ArrType, native_arr);
-
-  define("arr", native_arr_val);
+  def_native("arr", 1, false, guard_arr, &ArrType, native_arr);
+  def_native("arr-len", 1, false, guard_arr, NULL, native_arr_len);
 }

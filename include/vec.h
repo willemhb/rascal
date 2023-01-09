@@ -21,7 +21,7 @@ val_t       vec_ref(vec_t vec, int n);
 val_t       vec_set(vec_t vec, int n, val_t x);
 size_t      vec_push(vec_t *vec, val_t x);
 val_t       vec_pop(vec_t *vec);
-bool        vec_of(vec_t vec, type_t type);
+bool        is_vec_of(vec_t vec, type_t type);
 
 /* convenience */
 #define is_vec(x)   has_type(x, &VecType)

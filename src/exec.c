@@ -25,36 +25,49 @@ val_t exec(module_t m) {
   return exec_at(m, op_begin, 0);
 }
 
+
+
 val_t exec_at(module_t module, opcode_t entry, uint argx) {
 
 #define LOAD_LITERAL_LABEL(_value)		\
-  push(_value);					\
+  Vm.val = _value;				\
   goto label_dispatch
 
-#define SAVE_FRAME					\
-  ix   = vals_pushn(Vm.frame, 4);			\
-  bp   = alist_at(Vm.frame, ix, val_t);			\
-  bp[0]= tag_val(Vm.pc, SMALL);				\
-  bp[1]= tag_val(Vm.bp, SMALL);				\
-  bp[2]= tag_val(Vm.cp, SMALL);				\
-  bp[3]= tag_val(Vm.stack->len, SMALL)
+#define SAVE_FRAME				\
+  bp    = vals_pushf(Vm.frame, 6);		\
+  bp[0] = tag_val(Vm.bp, SMALL);		\
+  bp[1] = tag_val(Vm.fc, SMALL);		\
+  bp[2] = tag_val(Vm.cp, SMALL);		\
+  bp[3] = tag_val(Vm.pc, SMALL);		\
+  bp[4] = tag_val(Vm.pr, OBJECT);		\
+  bp[5] = tag_val(Vm.hl, OBJECT)
 
-#define RESTORE_FRAME(_fp)			\
-  ix         = _fp;				\
-  bp         = alist_at(Vm.frame, ix, val_t);	\
-  Vm.pc      = as_small(bp[0]);			\
-  Vm.bp      = as_small(bp[1]);			\
-  Vm.cp      = as_small(bp[2]);			\
-  iy         = as_small(bp[3]);			\
-  Vm.program = as_module(peek(Vm.bp-1));	\
-  trim_frame(ix);				\
-  trim_stack(iy)
+#define RESTORE_FRAME				\
+  bp      = vals_at(Vm.frame, -6);		\
+  Vm.bp   = as_small(bp[0]);			\
+  Vm.fc   = as_small(bp[1]);			\
+  Vm.cp   = as_small(bp[2]);			\
+  Vm.pc   = as_small(bp[3]);			\
+  Vm.pr   = as_module(bp[4]);			\
+  Vm.hl   = as_module(bp[5]);                   \
+  vals_trim(Vm.stack, Vm.bp+Vm.fc)
 
-  static void* labels[]  = {
+#define UNSAVE_FRAME				\
+  vals_popn(Vm.stack, Vm.fc+1);			\
+  vals_popn(Vm.frame, 6)
+  
+
+  static void* labels[num_opcodes]  = {
     [op_begin]           = &&label_begin,
     [op_halt]            = &&label_halt,
     [op_noop]            = &&label_noop,
+    
+    [op_push]            = &&label_push,
     [op_pop]             = &&label_pop,
+    [op_dup]             = &&label_dup,
+
+    [op_bind]            = &&label_bind,
+    [op_bind_vargs]      = &&label_bind_vargs,
 
     [op_load_nul]        = &&label_load_nul,
     [op_load_true]       = &&label_load_true,
@@ -67,39 +80,46 @@ val_t exec_at(module_t module, opcode_t entry, uint argx) {
     [op_store_global]    = &&label_store_global,
     [op_load_local]      = &&label_load_local,
     [op_store_local]     = &&label_store_local,
+    [op_load_nonlocal]   = &&label_load_nonlocal,
+    [op_store_nonlocal]  = &&label_store_nonlocal,
 
     [op_invoke]          = &&label_invoke,
-    [op_return]          = &&label_return,
 
     [op_jump]            = &&label_jump,
     [op_jump_true]       = &&label_jump_true,
     [op_jump_false]      = &&label_jump_false,
 
-    [op_save_prompt]     = &&label_save_prompt,
-    [op_restore_prompt]  = &&label_restore_prompt,
-    [op_discard_prompt]  = &&label_discard_prompt
+    [op_save]            = &&label_save,
+    [op_unsave]          = &&label_unsave,
+    [op_restore]         = &&label_restore,
+    
+    [op_try]             = &&label_try,
+    [op_catch]           = &&label_catch,
+    [op_panic]           = &&label_panic
   };
 
   opcode_t op=entry;
 
   size_t argc;
 
-  ushort rx=argx; short sx; int ix, iy;
+  ushort rx=argx, ry; short sx; int ix, iy, iz;
 
   val_t x, v, *bp;
+
+  cons_t va;
 
   func_err_t status;
 
   goto *labels[entry];
 
  label_begin:
-  Vm.pc      = 0;
-  Vm.program = module;
+  reset_vm(&Vm);
+  Vm.pr = module;
 
   goto label_dispatch;
-  
+
  label_halt:
-  v = vals_pop(Vm.stack);
+  v = Vm.val;
 
   reset_vm(&Vm);
 
@@ -108,10 +128,45 @@ val_t exec_at(module_t module, opcode_t entry, uint argx) {
  label_noop:
   goto label_dispatch;
 
- label_pop:
-  pop();
+ label_push:
+  push(Vm.val);
 
   goto label_dispatch;
+
+ label_pop:
+  Vm.val = pop();
+
+  goto label_dispatch;
+
+ label_dup:
+  x = peek(-1);
+  push(x);
+
+  goto label_dispatch;
+
+ label_bind:
+  push(Vm.val);
+  Vm.fc++;
+
+  goto label_dispatch;
+
+ label_bind_vargs:
+  iy = Vm.fc;
+  ix = func_head(Vm.pr)->nargs; // calculate number of rest arguments
+  
+  if (iy > ix) {
+    iz = iy - ix;
+    va = make_list(iz, peep(-iz));
+    x  = tag_val(va, OBJECT);
+    vals_popn(Vm.stack, iz);
+    Vm.fc = ix;
+  } else {
+    x = NUL;
+  }
+
+  Vm.val = x;
+
+  goto label_bind;
 
  label_load_nul:        LOAD_LITERAL_LABEL(NUL);
  label_load_true:       LOAD_LITERAL_LABEL(TRUE);
@@ -128,36 +183,54 @@ val_t exec_at(module_t module, opcode_t entry, uint argx) {
   goto label_dispatch;
 
  label_load_const:
-  v = get_module_const(Vm.program, rx);
-
-  vals_push(Vm.stack, v);
+  Vm.val = get_module_const(Vm.pr, rx);
 
   goto label_dispatch;
 
  label_load_global:
-  x = get_module_const(Vm.program, rx);
-  v = sym_head(as_sym(x))->val;
-
-  push(v);
+  x      = get_module_const(Vm.pr, rx);
+  Vm.val = sym_head(as_sym(x))->val;
 
   goto label_dispatch;
 
  label_store_global:
-  x = get_module_const(Vm.program, rx);
+  x = get_module_const(Vm.pr, rx);
 
-  assign(x, peek(-1));
+  assign(x, Vm.val);
 
   goto label_dispatch;
 
  label_load_local:
-  v = peek(Vm.bp + rx);
-  push(v);
+  Vm.val = peek(Vm.bp + rx);
 
   goto label_dispatch;
 
  label_store_local:
-  x = peek(-1);
-  poke(Vm.bp+rx, x);
+  poke(Vm.bp+rx, Vm.val);
+
+  goto label_dispatch;
+
+ label_load_nonlocal:
+  iy = Vm.bp;
+
+  while (rx--) {
+    x  = vals_ref(Vm.stack, iy-1);
+    iy = as_small(x);
+  }
+
+  Vm.val = peek(iy+ry);
+
+  goto label_dispatch;
+
+ label_store_nonlocal:
+  iy = Vm.bp;
+
+  while (rx--) {
+    x  = vals_ref(Vm.stack, iy-1);
+    iy = as_small(x);
+  }
+
+  poke(iy+ry, Vm.val);
 
   goto label_dispatch;
 
@@ -168,32 +241,18 @@ val_t exec_at(module_t module, opcode_t entry, uint argx) {
   status = validate_func(x, rx, bp);
 
   if (status != func_no_err) {
-    Vm.error = FuncallErrors[status];
-    goto label_restore_prompt;
+    Vm.val = FuncallErrors[status];
+    goto label_catch;
   }
 
-  if (is_prim(x)) {
-    goto *labels[as_prim(x)->label];
+  if (is_prim(x))
+    goto label_invoke_prim;
 
-  } else if (is_native(x)) {
-    v = as_native(x)->funptr(rx, bp);
-    popn(rx+1);
-    push(v);
+  else if (is_native(x))
+    goto label_invoke_native;
 
-    goto label_dispatch;
-
-  } else {
+  else
     goto label_invoke_module;
-  }
-
- label_return:
-  v = peek(-1);
-
-  RESTORE_FRAME(Vm.frame->len-4);
-
-  push(v);
-
-  goto label_dispatch;
 
  label_jump:
   Vm.pc += rx;
@@ -201,71 +260,100 @@ val_t exec_at(module_t module, opcode_t entry, uint argx) {
   goto label_dispatch;
 
  label_jump_true:
-  x = pop();
-
-  if (Cbool(x))
+  if (Cbool(Vm.val))
     Vm.pc += rx;
 
   goto label_dispatch;
 
  label_jump_false:
-  x = pop();
-
-  if (!Cbool(x))
+  if (!Cbool(Vm.val))
     Vm.pc += rx;
 
   goto label_dispatch;
 
- label_save_prompt:
+ label_save:
   SAVE_FRAME;
-  Vm.cp = ix;
+  
+  goto label_dispatch;
+
+ label_unsave:
+  UNSAVE_FRAME;
 
   goto label_dispatch;
 
- label_restore_prompt:
-  if (Vm.cp == 0) { // toplevel, must fail
-    push(Vm.error);
-    Vm.error = NUL;
+ label_restore:
+  RESTORE_FRAME;
 
-    goto label_halt;
+  goto label_dispatch;
+
+ label_try:
+  assert(is_module(Vm.val));
+
+  Vm.cp = Vm.frame->len;
+  Vm.hl = as_module(Vm.val);
+
+  goto label_dispatch;
+
+ label_catch:
+  if (Vm.hl == NULL)
+    goto label_panic;
+
+  x  = tag_val(Vm.hl, OBJECT);
+  v  = Vm.val;
+  rx = 1;
+
+  while (Vm.frame->len > (size_t)Vm.cp) {
+    UNSAVE_FRAME;
   }
 
-  Vm.error = NUL;
+  RESTORE_FRAME;
 
-  RESTORE_FRAME(Vm.cp);
+  goto label_invoke_module;
 
-  goto label_dispatch;
+ label_panic:
+  Vm.error      = Vm.val;
+  Vm.panic_mode = true;
 
- label_discard_prompt:
-  v = peek(-1);
-  RESTORE_FRAME(Vm.cp);
-  push(v);
-
-  goto label_dispatch;
+  goto label_halt;
 
  label_dispatch:
   /* bad way to do this, obvious target for improvement */
   if (module == NULL) // jumped in to execute one instruction, jump out here
     goto label_halt;
 
-  op   = Vm.program->bcode[Vm.pc++];
+  op   = Vm.pr->bcode[Vm.pc++];
   argc = op_argc(op);
 
   if (argc > 0)
-    rx = Vm.program->bcode[Vm.pc++];
+    rx = Vm.pr->bcode[Vm.pc++];
+
+  if (argc > 1)
+    ry = Vm.pr->bcode[Vm.pc++];
 
   goto *labels[op];
 
+ label_invoke_prim:
+  goto *labels[as_prim(Vm.val)->label];
+
+ label_invoke_native:
+  Vm.val     = as_native(x)->funptr(rx, bp);
+
+  vals_popn(Vm.stack, rx+1);
+
+  goto label_dispatch;
+
  label_invoke_module:
-  SAVE_FRAME;
+  poke(-rx+1, tag_val(Vm.bp, SMALL));
 
   Vm.bp      = Vm.stack->len - rx;
   Vm.pc      = 0;
-  Vm.program = as_module(x);
+  Vm.pr      = as_module(x);
+  Vm.fc      = rx;
 
   goto label_dispatch;
 
   #undef LOAD_LITERAL_LABEL
   #undef SAVE_FRAME
   #undef RESTORE_FRAME
+  #undef UNSAVE_FRAME
 }

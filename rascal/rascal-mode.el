@@ -10,13 +10,13 @@
   'rascal-mode
   '(";")
   '("def" "put" "let" "fun"
-    "catch" "cond" "case" "quote" "do"
-    "type" "mac" "with" "and" "or")
+    "catch" "raise" "quote" "do"
+    "case" "cond" "if" "and" "or")
   '(("otherwise" . font-lock-builtin-face)
     ("\\Wresume\\W" . font-lock-builtin-face)
-    ("true" . font-lock-builtin-face)
-    ("false" . font-lock-builtin-face)
-    ("nul" . font-lock-builtin-face)
+    ("\\Wtrue\\W" . font-lock-builtin-face)
+    ("\\Wfalse\\W" . font-lock-builtin-face)
+    ("\\Wnul\\W" . font-lock-builtin-face)
     ("\\Wnone\\W" . font-lock-builtin-face)
     ("\\Wnot\\W" . font-lock-builtin-face)
     ("\\Weos\\W" . font-lock-builtin-face)

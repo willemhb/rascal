@@ -13,27 +13,32 @@
 
 /* declarations */
 /* internal */
-size_t comp_expr(module_t program, val_t x);
-size_t comp_lit(module_t program, val_t x);
-size_t comp_var(module_t program, val_t x);
-size_t comp_assignment(module_t program, val_t x);
-size_t comp_combo(module_t program, val_t x);
+module_t comp_module(sym_t n, vec_t l, val_t b, module_t p);
 
-size_t comp_quote(module_t program, val_t f);
-size_t comp_do(module_t program, val_t f);
-size_t comp_catch(module_t program, val_t f);
-size_t comp_def(module_t program, val_t f);
-size_t comp_put(module_t program, val_t f);
-size_t comp_if(module_t program, val_t f);
-size_t comp_fun(module_t program, val_t f);
-size_t comp_funcall(module_t program, val_t f);
+size_t comp_expr(module_t pr, val_t x);
+size_t comp_lit(module_t pr, val_t x);
+size_t comp_var(module_t pr, val_t x);
+size_t comp_assign(module_t pr, val_t n, val_t v);
+size_t comp_define(module_t pr, val_t n, val_t v);
+size_t comp_combo(module_t pr, val_t x);
 
-size_t comp_args(module_t program, val_t a);
-size_t comp_seq(module_t program, val_t s);
+size_t comp_quote(module_t pr, val_t f);
+size_t comp_do(module_t pr, val_t f);
+size_t comp_catch(module_t pr, val_t f);
+size_t comp_raise(module_t pr, val_t f);
+size_t comp_def(module_t pr, val_t f);
+size_t comp_put(module_t pr, val_t f);
+size_t comp_if(module_t pr, val_t f);
+size_t comp_fun(module_t pr, val_t f);
+size_t comp_funcall(module_t pr, val_t f);
+
+size_t comp_args(module_t pr, val_t a);
+size_t comp_seq(module_t pr, val_t s);
 
 stx_err_t guard_quote_stx(val_t form);
 stx_err_t guard_do_stx(val_t form);
 stx_err_t guard_catch_stx(val_t form);
+stx_err_t guard_raise_stx(val_t form);
 stx_err_t guard_def_stx(val_t form);
 stx_err_t guard_put_stx(val_t form);
 stx_err_t guard_if_stx(val_t form);
@@ -50,7 +55,7 @@ stx_err_t guard_fun_stx(val_t form);
 extern bool is_lit(val_t x);
 
 /* globals */
-extern val_t QuoteSym, DoSym, CatchSym, PutSym, DefSym, IfSym, FunSym;
+extern val_t QuoteSym, DoSym, CatchSym, RaiseSym, PutSym, DefSym, IfSym, FunSym, ToplevelSym;
 
 char *SyntaxErrors[] = {
   "none", "malformed expression", "illegal expression"
@@ -59,69 +64,106 @@ char *SyntaxErrors[] = {
 /* API */
 /* external */
 module_t comp(val_t x) {
-  module_t out = make_module("<toplevel>", 0, false, NULL, NULL, NULL, NULL, NULL);
-
-  comp_expr(out, x);
+  module_t out = comp_module(as_sym(ToplevelSym), NULL, x, NULL);
   emit_instr(out, op_halt);
 
   return out;
 }
 
 /* internal */
-size_t comp_expr(module_t program, val_t x) {
+size_t comp_expr(module_t pr, val_t x) {
   if (is_lit(x))
-    return comp_lit(program, x);
+    return comp_lit(pr, x);
 
   else if (is_sym(x))
-    return comp_var(program, x);
+    return comp_var(pr, x);
 
   else
-    return comp_combo(program, x);
+    return comp_combo(pr, x);
 }
 
-size_t comp_lit(module_t module, val_t x) {
+size_t comp_lit(module_t pr, val_t x) {
   if (x == NUL)
-    return emit_instr(module, op_load_nul);
+    return emit_instr(pr, op_load_nul);
 
   else if (x == ZERO)
-    return emit_instr(module, op_load_small_zero);
+    return emit_instr(pr, op_load_small_zero);
 
   else if (x == ONE)
-    return emit_instr(module, op_load_small_one);
+    return emit_instr(pr, op_load_small_one);
 
   else if (x == TRUE)
-    return emit_instr(module, op_load_true);
+    return emit_instr(pr, op_load_true);
 
   else if (x == FALSE)
-    return emit_instr(module, op_load_false);
+    return emit_instr(pr, op_load_false);
 
   else if (is_small(x) && as_small(x) <= INT16_MAX && as_small(x) >= INT16_MIN) {
     short x16 = as_small(x);
 
-    return emit_instr(module, op_load_small_16, x16);
+    return emit_instr(pr, op_load_small_16, x16);
   }
 
-  size_t n = put_module_const(module, x);
+  size_t n = put_module_const(pr, x);
 
-  return emit_instr(module, op_load_const, n);
+  return emit_instr(pr, op_load_const, n);
 }
 
-size_t comp_var(module_t module, val_t x) {
-  opcode_t op = op_load_local;
-  int i = get_module_local(module, x);
+size_t comp_var(module_t pr, val_t x) {
+  int i, j;
 
-  if (i < 0) {
-    op = op_load_global;
-    i  = put_module_const(module, x);
+  switch (get_module_ref(pr, x, &i, &j)) {
+  case var_ref_unbound:  panic(x, "unbound variable");
+  case var_ref_local:    return emit_instr(pr, op_load_local, i);
+  case var_ref_nonlocal: return emit_instr(pr, op_load_nonlocal, i, j);
+  case var_ref_global:   i = put_module_const(pr, x); return emit_instr(pr, op_load_global, i);
   }
 
-  return emit_instr(module, op, i);
+  rl_unreachable();
 }
 
-size_t comp_assignment(module_t module, val_t x) {
-  size_t n = put_module_const(module, x);
+size_t comp_assign(module_t pr, val_t n, val_t v) {
+  int i, j;
+  
+  switch (get_module_ref(pr, n, &i, &j)) {
+  case var_ref_unbound:
+    panic(n, "unbound variable");
+    
+  case var_ref_local:
+    comp_expr(pr, v);
+    return emit_instr(pr, op_store_local, i);
+    
+  case var_ref_nonlocal:
+    comp_expr(pr, v);
+    return emit_instr(pr, op_store_nonlocal, i, j);
 
-  return emit_instr(module, op_store_global, n);
+  case var_ref_global:
+    comp_expr(pr, v);
+    i = put_module_const(pr, n);
+    return emit_instr(pr, op_store_global, i);
+  }
+
+  rl_unreachable();
+}
+
+size_t comp_define(module_t pr, val_t n, val_t v) {
+  int i, b;
+
+  var_ref_t ref_type = put_module_ref(pr, n, &i, &b);
+
+  assert(ref_type == var_ref_local || ref_type == var_ref_global);
+
+  if (ref_type == var_ref_global) {
+    comp_expr(pr, v);
+    return emit_instr(pr, op_store_global, i);
+  }
+
+  comp_expr(pr, v);
+
+  if (b)
+    return emit_instr(pr, op_bind_local);
+
+  return emit_instr(pr, op_store_local, i);
 }
 
 size_t comp_combo(module_t module, val_t x) {
@@ -135,6 +177,9 @@ size_t comp_combo(module_t module, val_t x) {
 
   else if (head == CatchSym)
     return comp_catch(module, x);
+
+  else if (head == RaiseSym)
+    return comp_raise(module, x);
 
   else if (head == DefSym)
     return comp_def(module, x);
@@ -175,29 +220,28 @@ size_t comp_do(module_t module, val_t form) {
   return comp_seq(module, cdr(form));
 }
 
-size_t comp_catch(module_t module, val_t form) {
-  check_stx(guard_catch_stx, form);
+size_t comp_catch(module_t pr, val_t f) {
+  check_stx(guard_catch_stx, f);
 
-  val_t recover_expr = cadr(form);
-  val_t try_exprs = cddr(form);
+  val_t catch_handler = cadr(pr);
+  val_t catch_body    = cddr(pr);
+  val_t handler_args  = car(catch_handler);
+  val_t handler_body  = cdr(catch_handler);
+  module_t handler    = comp_module(as_sym(CatchSym), as_vec(handler_args), handler_body, pr); repanic(0);
+  size_t offset       = vec_push(&pr->consts, tag_val(handler, OBJECT));
 
-  size_t fill_1     = emit_instr(module, op_save_prompt);
-  size_t jump_1     = emit_instr(module, op_jump, 0);
-  size_t expr_1     = comp_expr(module, recover_expr); repanic(0);
+  emit_instrs(pr, 3, op_save, op_load_const, offset, op_try);
+  comp_seq(pr, catch_body); repanic(0);
+  return emit_instrs(pr, 2, op_restore, op_unsave);
+}
 
-  size_t fill_2     = expr_1;
-  size_t jump_2     = emit_instr(module, op_jump, 0);
+size_t comp_raise(module_t module, val_t form) {
+  check_stx(guard_raise_stx, form);
 
-  comp_seq(module, try_exprs); repanic(0);
+  val_t agitant = cadr(form);
 
-  size_t output     = emit_instr(module, op_discard_prompt);
-  size_t jump1_size = jump_2 - jump_1;
-  size_t jump2_size = output - jump_2;
-
-  fill_input(module, fill_1, jump1_size);
-  fill_input(module, fill_2, jump2_size);
-
-  return output;
+  comp_expr(module, agitant); repanic(0);
+  
 }
 
 size_t comp_def(module_t module, val_t form) {
@@ -306,6 +350,32 @@ stx_err_t guard_catch_stx(val_t form) {
   if (list_len(form) < 3)
     return malformed_stx_err;
 
+  val_t handler = cadr(form);
+
+  if (!is_cons(handler))
+    return malformed_stx_err;
+
+  if (list_len(handler) < 2)
+    return malformed_stx_err;
+
+  val_t handler_envt = car(handler);
+
+  if (!is_vec(handler_envt))
+    return malformed_stx_err;
+
+  if (!is_vec_of(as_vec(handler_envt), &SymType))
+    return malformed_stx_err;
+
+  if (vec_head(handler_envt)->len != 1)
+    return malformed_stx_err;
+
+  return no_stx_err;
+}
+
+stx_err_t guard_raise_stx(val_t form) {
+  if (list_len(form) != 2)
+    return malformed_stx_err;
+
   return no_stx_err;
 }
 
@@ -361,18 +431,20 @@ stx_err_t guard_fun_stx(val_t form) {
   if (!is_vec(formals))
     return malformed_stx_err;
 
-  if (!vec_of(as_vec(formals), &SymType))
+  if (!is_vec_of(as_vec(formals), &SymType))
     return malformed_stx_err;
 
   return no_stx_err;
 }
 
 void comp_init(void) {
-  QuoteSym = sym("quote");
-  DoSym    = sym("do");
-  CatchSym = sym("catch");
-  PutSym   = sym("put");
-  DefSym   = sym("def");
-  IfSym    = sym("if");
-  FunSym   = sym("fun");
+  QuoteSym    = sym("quote");
+  DoSym       = sym("do");
+  CatchSym    = sym("catch");
+  RaiseSym    = sym("raise");
+  PutSym      = sym("put");
+  DefSym      = sym("def");
+  IfSym       = sym("if");
+  FunSym      = sym("fun");
+  ToplevelSym = sym("<toplevel>");
 }

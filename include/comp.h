@@ -15,6 +15,4 @@ enum stx_err_t {
 /* API */
 module_t comp(val_t x);
 
-/* initialization */
-
 #endif

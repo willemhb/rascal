@@ -34,7 +34,7 @@
 #define VFMT       "%d.%d.%d.%s"
 
 // important symbols
-val_t QuoteSym, DoSym, CatchSym, PutSym, DefSym, IfSym, FunSym;
+val_t QuoteSym, DoSym, CatchSym, RaiseSym, PutSym, DefSym, IfSym, FunSym;
 
 void rl_welcome( void )
 {

@@ -86,6 +86,19 @@ val_t vec_pop(vec_t *vec) {
   return out;
 }
 
+bool is_vec_of(vec_t vec, type_t type) {
+  assert(vec);
+
+  size_t limit = vec_head(vec)->len;
+
+  for (size_t i=0; i<limit; i++) {
+    if (!has_type(vec[i], type))
+      return false;
+  }
+
+  return true;
+}
+
 /* internal */
 void prin_vec(val_t x) {
   printf("[");
@@ -129,7 +142,7 @@ func_err_t vec_method_guard(size_t nargs, val_t *args) {
 
 func_err_t vec_pop_guard(size_t nargs, val_t *args) {
   (void)nargs;
-  
+
   TYPE_GUARD(vec, args, 0);
 
   if (vec_head(args[0])->len == 0)
@@ -144,7 +157,7 @@ val_t native_vec(size_t nargs, val_t *args) {
 
 val_t native_vec_ref(size_t nargs, val_t *args) {
   (void)nargs;
-  
+
   return vec_ref(as_vec(args[0]), as_small(args[1]));
 }
 

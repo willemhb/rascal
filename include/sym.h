@@ -8,7 +8,8 @@ typedef enum sym_fl_t sym_fl_t;
 typedef struct sym_head_t *sym_head_t;
 
 enum sym_fl_t {
-  bound_sym=1
+  bound_sym=1,
+  keyword_sym=4
 };
 
 struct sym_head_t {
@@ -25,6 +26,7 @@ sym_t make_sym(char *name);
 val_t sym(char *name);
 val_t define(char *name, val_t val);
 bool  is_bound(val_t x);
+bool  is_keyword(val_t x);
 val_t assign(val_t name, val_t val);
 
 /* convenience */

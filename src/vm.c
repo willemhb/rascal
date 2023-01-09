@@ -12,19 +12,24 @@
 
 /* globals */
 struct vm_t Vm;
+#define FRAME_SIZE 6
 
 /* API */
 /* external */
 void reset_vm(vm_t *vm) {
-  vm->panic_mode= false;
-  vm->error     = NUL;
-  vm->pc        =  0;
-  vm->bp        =  0;
-  vm->cp        =  0;
-  vm->program   = NULL;
+  vm->panic_mode = false;
+  vm->error      = NUL;
 
-  trim_stack(0);
-  trim_frame(0);
+  vm->val        = NUL;
+  vm->bp         = 0;
+  vm->fc         = 0;
+  vm->pc         = 0;
+  vm->cp         = 0;
+  vm->pr         = NULL;
+  vm->hl         = NULL;
+
+  vals_trim(vm->frame, 0);
+  vals_trim(vm->stack, 0);
 }
 
 void show_stack(void) {
@@ -41,13 +46,15 @@ void show_stack(void) {
 void show_frame(void) {
   printf("frames (fp=%zu):\n\n", Vm.frame->len);
 
-  for (size_t i=Vm.stack->len; i > 0; i -= 4) {
-    val_t *frame = alist_at(Vm.stack, i-4, val_t);
+  for (size_t i=Vm.frame->len; i > 0; i -= FRAME_SIZE) {
+    val_t *frame = alist_at(Vm.stack, i-FRAME_SIZE, val_t);
 
-    printf("(%.4zu) sp=", i-1); prinln(frame[3]);
-    printf("(%.4zu) cp=", i-2); prinln(frame[2]);
-    printf("(%.4zu) bp=", i-3); prinln(frame[1]);
-    printf("(%.4zu) pc=", i-4); prinln(frame[0]);
+    printf("(%.4zu) hl=", i-1); prinln(frame[5]);
+    printf("(%.4zu) pr=", i-2); prinln(frame[4]);
+    printf("(%.4zu) pc=", i-3); prinln(frame[3]);
+    printf("(%.4zu) cp=", i-4); prinln(frame[2]);
+    printf("(%.4zu) fc=", i-5); prinln(frame[1]);
+    printf("(%.4zu) bp=", i-6); prinln(frame[0]);
   }
 
   newline();
@@ -111,6 +118,8 @@ void vm_init(void) {
     .pc        = 0,
     .cp        = 0,
     .bp        = 0,
-    .program   = NULL
+    .fc        = 0,
+    .pr        = NULL,
+    .hl        = NULL
   };
 }
