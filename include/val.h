@@ -15,12 +15,14 @@ union rl_data_t {
   real_t   as_real;
   small_t  as_small;
   bool_t   as_bool;
+  native_t as_native;
   obj_t    as_obj;
+
   sym_t    as_sym;
   func_t   as_func;
   cons_t   as_cons;
   vec_t    as_vec;
-  str_t    as_str;
+
   method_t as_method;
   module_t as_module;
   code_t   as_code;
@@ -30,6 +32,7 @@ enum val_type_t {
   real_val,
   small_val,
   bool_val,
+  native_val,
   obj_val
 };
 

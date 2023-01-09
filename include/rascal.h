@@ -9,20 +9,18 @@
 
 /* C types */
 /* value types */
-typedef uword val_t;     // unitype
-typedef double real_t;   // double precision float
-typedef int32_t small_t; // small integer
-typedef bool bool_t;     // boolean object
-typedef uchar *obj_t;    // allocated object with explicit type
+typedef uword val_t;                        // unitype
+typedef double real_t;                      // double precision float
+typedef int32_t small_t;                    // small integer
+typedef bool bool_t;                        // boolean object
+typedef val_t (*native_t)(int n, val_t *a); // native function
+typedef uchar *obj_t;                       // allocated object with explicit type
 
 /* object types */
 typedef char *sym_t;
 typedef struct func_t *func_t;
 typedef struct cons_t *cons_t;
 typedef val_t *vec_t;
-typedef struct dict_t *dict_t;
-typedef struct set_t  *set_t;
-typedef char *str_t;
 typedef struct module_t *module_t;
 typedef struct method_t *method_t;
 typedef ushort *code_t;
@@ -33,15 +31,15 @@ typedef struct vm_t vm_t;
 typedef struct type_t *type_t;
 
 /* vm function pointer types */
-typedef val_t           (*native_fn_t)(size_t n, val_t *args);
-typedef enum eval_err_t (*guard_fn_t)(size_t n, val_t *args);
+typedef val_t           (*native_fn_t)(int n, val_t *a);
+typedef enum eval_err_t (*guard_fn_t)(int n, val_t *a);
 typedef enum comp_err_t (*stx_guard_fn_t)(val_t form);
 
 // miscellaneous methods
 typedef void   (*prin_fn_t)(val_t val);
-typedef ulong  (*hash_fn_t)(val_t val, void *state);
-typedef int    (*compare_fn_t)(val_t x, val_t y, void *state);
-typedef bool   (*equal_fn_t)(val_t x, val_t y, void *state);
+typedef ulong  (*hash_fn_t)(val_t val);
+typedef int    (*compare_fn_t)(val_t x, val_t y);
+typedef bool   (*equal_fn_t)(val_t x, val_t y);
 typedef bool   (*isa_fn_t)(type_t self, val_t val);
 
 // object methods

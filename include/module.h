@@ -1,7 +1,7 @@
 #ifndef rl_module_h
 #define rl_module_h
 
-#include "func.h"
+#include "obj.h"
 
 /* C types */
 typedef enum module_type_t module_type_t;

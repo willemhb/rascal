@@ -25,9 +25,11 @@ extern struct type_t SymType;
 sym_t make_sym(char *name);
 val_t sym(char *name);
 val_t define(char *name, val_t val);
+val_t lookup(char *name);
+val_t bind(val_t n, val_t v);
+val_t assign(val_t name, val_t val);
 bool  is_bound(val_t x);
 bool  is_keyword(val_t x);
-val_t assign(val_t name, val_t val);
 
 /* convenience */
 #define is_sym(x)   has_type(x, &SymType)

@@ -22,13 +22,13 @@ enum read_err_t {
 enum comp_err_t {
   no_comp_err,
   malfored_syntax_err=no_reader_method_err+1,
-  illegal_syntax_err,
-  ambiguous_method_err
+  illegal_syntax_err
 };
 
 enum eval_err_t {
   no_eval_err,
-  unbound_symbol_err=ambiguous_method_err+1,
+  unbound_symbol_err=illegal_syntax_err+1,
+  ambiguous_method_err,
   overflow_err,
   underflow_err,
   not_invocable_err,
