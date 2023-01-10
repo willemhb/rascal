@@ -4,25 +4,17 @@
 #include "func.h"
 
 /* C types */
-struct native_t {
-  native_fn_t funptr;
-};
-
 /* globals */
 extern struct type_t NativeType;
 
-/* API */
-native_t make_native(char *name, int nargs, bool vargs, guard_fn_t guard, type_t type, native_fn_t funptr);
-val_t    native(char *name, int nargs, bool vargs, guard_fn_t guard, type_t type, native_fn_t funptr);
-
 /* convenience */
 #define is_native(x) has_type(x, &NativeType)
-#define as_native(x) ((native_t)as_obj(x))
+#define as_native(x) ((native_t)data_of(x))
 
-#define def_native(name, nargs, vargs, guard, type, fn)			\
+#define native_method(name, nargs, vargs, guard, fn)			\
   do {									\
-    val_t fn##_val = native(name, nargs, vargs, guard, type, fn);	\
-    define(name, fn##_val);						\
+    val_t __fn__ = tag_val(fn, NATIVE);					\
+    									\
   } while (false)
 
 #endif

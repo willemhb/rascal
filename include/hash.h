@@ -6,6 +6,6 @@
 #include "util/hashing.h"
 
 /* API */
-ulong hash(val_t x);
+hash_t hash(val_t x);
 
 #endif

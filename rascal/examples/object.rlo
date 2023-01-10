@@ -1,7 +1,6 @@
-#fn{
-	object, ;;; name
-	{ },    ;;; exports
-	{ },    ;;; namespace
-	{ },    ;;; constants
-	[ ]     ;;; instructions
-   }
+#module(
+    "compile.rl"
+    []
+    []
+    #u16(0001)
+)

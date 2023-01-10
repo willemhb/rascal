@@ -1,40 +1,42 @@
 ;; start nolisp.rl
 
 ;; type definitions
-type nul = ()
-type cons = { car, cdr }
-type list = nul | cons
+type list{X} = | nul  {}
+     	       | cons { head: X, tail: list }
 
-fun list() = nul
+type tree{X} = | empty {}
+	       | node  { key: X, left: tree, right: tree }
+
+fun list() = ()
 fun list(x, rest..) = cons(x, list(..rest))
 
-type tree = empty {} | leaf { key, val } | node { left, right }
+fun tree() = empty()
+fun tree(k, r..) = insert(k, tree(..r))
 
-type regexp = { pattern, flags, compiled }
+fun insert(k, _: empty) = node{k, empty(), empty() }
+fun insert(k, n: node{k, l, r}) =
+    case ord(k, n.k)
+    	 :lt => node(n.k, insert(k, l), r),
+	 :rt => node(n.k, l, insert(k, r)),
+	 :eq => n
 
-fun regexp(pattern) = regexp(pattern, 0)
-fun regexp(pattern, flags) = regexp(pattern, flags, comp_re(pattern, flags))
+fun len(nul{}) = 0
+fun len(cons{_, t}) = 1 + len(t)
 
-fun map (fn, xs: list)
-    cond
-        xs == ()  => ()
-        otherwise => fn(xs.car) cons map(fn, xs.cdr)
-    end
-end
+fun assc(_, nul{}) = nul()
+fun assc(x, cons{kv: cons{x, _}, _}) = kv
+fun assc(x, cons{_, rest}) = assc(x, rest)
 
-fun filter(fn?, xs: list)
-    cond
-        xs == ()    => ()
-        fn?(xs.car) => cons(xs.car, filter(fn?, xs.cdr))
-        otherwise   => filter(fn?, xs.cdr)
-    end
-end
-
-fun length(xs: list)
-    case xs
-        ()          => 0
-        cons(_, cd) => 1 + length(cd)
-    end
-end
+fun assc(k, xs: vec) =
+    fun helper(k, l, xs) =
+    	if l == len(xs)
+	   nul()
+	else
+	   let kv: {k0, _} = xs[l]
+	       if k == k0
+	       	  kv
+	       else
+		  helper(k, l+1, xs)
+    helper(k, 0, xs)
 
 provide list, tree, regexp, map, filter, length

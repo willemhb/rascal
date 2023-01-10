@@ -18,9 +18,10 @@ enum opcode_t {
   op_dup,
 
   // environment manipulation
-  op_bind_local,
-  op_bind_global,
-  op_bind_vargs,
+  op_bind_args,      // #bind-args <n>
+  op_bind_local,     // #bind-local
+  op_open_upvalue,   // #open-upvalue <i>
+  op_close_upvalue,  // #close-upvalue
 
   // load/store
   op_load_nul,
@@ -28,20 +29,18 @@ enum opcode_t {
   op_load_false,
   op_load_small_zero,
   op_load_small_one,
-  op_load_small_16, 
+  op_load_small_16,
   op_load_const,
   op_load_global,
   op_store_global,
-  op_load_local,
-  op_store_local,
-  op_load_nonlocal,
-  op_store_nonlocal,
+  op_load_fast,
+  op_store_fast,
+  op_load_upval,
+  op_store_upval,
 
   // function calls
   op_invoke,
-  op_invoke_native,
-  op_invoke_prim,
-  op_invoke_module,
+  op_return,
 
   // jumps
   op_jump,
@@ -53,6 +52,7 @@ enum opcode_t {
   op_unsave,
   op_restore,
 
+  // error handling
   op_try,
   op_catch,
   op_panic,

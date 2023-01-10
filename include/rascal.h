@@ -13,14 +13,20 @@ typedef uword val_t;                        // unitype
 typedef double real_t;                      // double precision float
 typedef int32_t small_t;                    // small integer
 typedef bool bool_t;                        // boolean object
+typedef char glyph_t;                       // glyph object
 typedef val_t (*native_t)(int n, val_t *a); // native function
 typedef uchar *obj_t;                       // allocated object with explicit type
 
 /* object types */
+/* user objects */
 typedef char *sym_t;
 typedef struct func_t *func_t;
 typedef struct cons_t *cons_t;
 typedef val_t *vec_t;
+typedef glyph_t *str_t;
+
+/* internal objects */
+typedef struct envt_t   *envt_t;
 typedef struct module_t *module_t;
 typedef struct method_t *method_t;
 typedef ushort *code_t;
