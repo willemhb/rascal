@@ -25,8 +25,11 @@ bool       is_variadic(method_t m);
 #define is_method(x) has_type(x, &MethodType)
 #define as_method(x) ((method_t)as_obj(x))
 
-#define prim_method(n, v, g, h)   method(n, v, g, tag_val(h, SMALL))
-#define native_method(n, v, g, h) method(n, v, g, tag_val(h, NATIVE))
-#define user_method(n, v, g, h)   method(n, v, g, tag_val(h, OBJECT))
+#define def_method(s, n, v, g, h)                                       \
+  do {                                                                  \
+    /* nb: def_func is idempotent. define types before adding methods. */ \
+    func_t __f__ = def_func(s, NULL);                                   \
+    add_method(__f__, n, v, g, value(h));                               \
+  } while (0)
 
 #endif

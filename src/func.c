@@ -7,118 +7,111 @@
 
 #include "prin.h"
 
+/* C types */
+struct func_init_t {
+  char   *n;
+  type_t  t;
+};
+
 /* globals */
-bool isa_func(type_t self, val_t val);
+void prin_func(val_t x);
+void init_func(obj_t s, type_t t, int n, void *i);
+void free_func(obj_t s);
 
 struct type_t FuncType = {
   .name="func",
-  .isa =isa_func
+  .idno=func_type_idno,
+
+  .prin=prin_func,
+  .init=init_func,
+  .free=free_func,
+
+  .head_size=sizeof(struct obj_head_t),
+  .body_size=sizeof(struct func_t)
 };
 
-val_t FuncallErrors[num_func_errs];
-
 /* API */
-/* external */
-func_err_t validate_func(val_t func, int argc, val_t *args) {
-  if (!is_func(func))
-    return func_not_invocable_err;
-
-  func_head_t head  = func_head(func);
-  int         nargs = head->nargs;
-  bool        vargs = head->vargs;
-
-  if (argc < nargs)
-    return func_arg_underflow_err;
-
-  if (argc > nargs && !vargs)
-    return func_arg_overflow_err;
-
-  func_err_t out = head->guard ? head->guard(argc, args) : func_no_err;
-
-  return out;
-}
-
-bool is_type(val_t self) {
-  return is_func(self) && func_head(self)->type != NULL;
-}
-
 /* internal */
-void init_func(obj_t self, type_t type, size_t n, void *ini) {
-  (void)type;
+void prin_func(val_t x) {
+  char *prefix = is_type(x) ? "type" : "func";
+
+  printf("#%s<%s>", prefix, func_name(x));
+}
+
+void init_func(obj_t s, type_t t, int n, void *i) {
+  (void)t;
   (void)n;
 
-  if (ini) {
-    func_head_t head = func_head(self);
-    func_init_t init = ini;
+  struct func_init_t *f_i = i;
 
-    head->name  = init->name;
-    head->type  = init->type;
-    head->nargs = init->nargs;
-    head->vargs = init->vargs;
-    head->guard = init->guard;
+  func_name(s)     = f_i->n;
+  func_type(s)     = f_i->t;
+  func_vmethod(s)  = NULL;
+  func_fmethods(s) = make_objs(0, NULL);
+}
+
+void free_func(obj_t s) {
+  free_objs(func_fmethods(s));
+}
+
+/* external */
+#include "method.h"
+
+func_t make_func(char *name, type_t type) {
+  struct func_init_t fi = { name, type };
+
+  return (func_t)make_obj(&FuncType, 2, &fi);
+}
+
+val_t func(char *name, type_t type) {
+  return value(make_func(name, type));
+}
+
+func_t def_func(char *name, type_t type) {
+  val_t s = sym(name);
+
+  if (!is_bound(s))
+    bind(s, func(name, type));
+
+  return as_func(sym_val(s));
+}
+
+method_t get_method(func_t f, int n) {
+  if ((size_t)n > func_fmethods(f)->len)
+    return func_vmethod(f);
+
+  return (method_t)objs_ref(func_fmethods(f), n);
+}
+
+method_t add_method(func_t f, int n, bool v, guard_fn_t g, val_t h) {
+  if (has_method(f, n))
+    return NULL;
+
+  method_t m = make_method(n, v, g, h);
+
+  if (v)
+    func_vmethod(f) = m;
+
+  else {
+    if ((size_t)n > func_fmethods(f)->len) {
+      size_t o_l = func_fmethods(f)->len;
+      size_t n_l = objs_trim(func_fmethods(f), n);
+
+      for (size_t i=o_l; i<n_l; i++)
+        objs_set(func_fmethods(f), i, NULL);
+    }
+
+    objs_set(func_fmethods(f), n, (obj_t)m);
   }
+
+  return m;
 }
 
-void prin_func(val_t val) {
-  obj_t obj   = as_obj(val);
-  char *name  = func_head(obj)->name;
-  char *tname = obj_type(obj)->name;
-  int   arity = func_head(obj)->nargs;
+eval_err_t validate_func_call(func_t f, int n, val_t *a) {
+  method_t m = get_method(f, n);
 
-  printf("#%s(%s %d)", tname, name, arity);
-}
+  if (m == NULL)
+    return no_method_err;
 
-extern struct type_t NativeType, PrimType, ModuleType;
-
-bool isa_func(type_t self, val_t val) {
-  self = type_of(val);
-
-  return self == &NativeType || self == &PrimType || self == &ModuleType;
-}
-
-/* native functions */
-#include "sym.h"
-#include "native.h"
-#include "bool.h"
-
-#include "tpl/impl/funcall.h"
-
-func_err_t guard_func(size_t nargs, val_t *args) {
-  (void)nargs;
-  
-  if (!isa_func(&FuncType, args[0]))
-    return func_arg_type_err;
-
-  return func_no_err;
-}
-
-val_t native_func(size_t nargs, val_t *args) {
-  (void)nargs;
-
-  return args[0];
-}
-
-val_t native_typep(size_t nargs, val_t *args) {
-  (void)nargs;
-
-  if (is_type(args[0]))
-    return TRUE;
-
-  return FALSE;
-}
-
-/* initialization */
-
-void func_init(void) {
-  /* funcall error names */
-  FuncallErrors[func_no_err]            = sym(":okay");
-  FuncallErrors[func_not_invocable_err] = sym(":non-invocable-error");
-  FuncallErrors[func_arg_underflow_err] = sym(":arity-underflow-error");
-  FuncallErrors[func_arg_overflow_err]  = sym(":arity-overflow-error");
-  FuncallErrors[func_arg_type_err]      = sym(":type-error");
-  FuncallErrors[func_arg_value_err]     = sym(":value-error");
-
-  /* natives */
-  def_native("func", 1, false, guard_func, &FuncType, native_func);
-  def_native("type?", 1, false, NULL, NULL, native_typep);
+  return validate_method_call(m, n, a);
 }

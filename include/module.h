@@ -8,11 +8,11 @@ typedef enum module_type_t module_type_t;
 typedef enum var_ref_t var_ref_t;
 
 struct module_t {
-  char    *name;
-  code_t   bcode;
-  vec_t    consts;
-  vec_t    names;
-  vec_t    upvals;
+  str_t     name;
+  code_t    bcode;
+  vec_t     consts;
+  namespc_t namespc;
+  vec_t     upvals;
 };
 
 /* globals */

@@ -5,8 +5,6 @@
 
 #include "vm.h"
 
-#define READERPANIC -2
-
 /* C types */
 typedef enum eval_err_t eval_err_t;
 typedef enum read_err_t read_err_t;
@@ -32,6 +30,8 @@ enum eval_err_t {
   overflow_err,
   underflow_err,
   not_invocable_err,
+  arity_underflow_err,
+  arity_overflow_err,
   arg_value_err,
   arg_type_err,
   no_method_err
@@ -42,6 +42,10 @@ union rl_err_t {
   comp_err_t comp_err;
   eval_err_t eval_err;
 };
+
+/* globals */
+#define READERPANIC -2
+#define no_err 0
 
 /* API */
 void panic_mode(const char *fmt, ...);
