@@ -93,16 +93,29 @@ language, culminating in the bootstrapping of a simple `rascal` compiler.
 **** DONE `id?`, `not`, `isa?`, `bound?`, `type?` predicate primitives added
 **** DONE ensure all types have constructors (default behavior if constructor is not meaningful yet)
 
+** TODO Version 00.00.08 - reorgaize project
+*** Goals
+    Update project with advances from `rascal2`
+
+*** Target updates
+**** DONE move all code to `src`
+**** TODO change naming style from <snake_case>_t to <camelCase>
+**** TODO reorganize object model code into one file
+**** TODO update type system to use fixed set of VM types, eliminate dispatch system
+**** TODO update vm stack frames to be more similar to Crafting Interpreters
+**** TODO update alist/array/table templates to be more similar to `rascal2`
+**** TODO reorganize compiler - special forms are functions with special compile and eval callbacks
+
 ** TODO Version 00.00.09 - abstractions
 *** Goals
    Add basic support for user-defined functions.
 
 *** Target features
-**** DONE `fp`, `bp` registers added to Vm
-**** DONE `op_invoke_module`, `op_return`, `op_load_local`, `op_store_local` opcodes/labels implemented
+**** TODO `fp`, `bp` registers added to Vm
+**** TODO `op_invoke_module`, `op_return`, `op_load_local`, `op_store_local` opcodes/labels implemented
 **** TODO `fun` form implemented
 **** TODO `[x y .. rest]` variadic argument support implemented
-**** DONE `module` type updated
+**** TODO `module` type updated
 
 ** TODO Version 00.00.10 - closures
 *** Goals

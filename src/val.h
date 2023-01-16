@@ -4,8 +4,8 @@
 #include "rascal.h"
 
 /* C types */
-#include "tpl/decl/alist.h"
-ALIST(vals, val_t);
+#include "decl/alist.h"
+ALIST(Values, Value);
 
 typedef union rl_data_t rl_data_t;
 typedef enum val_type_t val_type_t;

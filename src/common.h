@@ -10,7 +10,8 @@
 #include <math.h>       // for nan
 
 // style typedefs
-typedef uint8_t         byte;
+typedef uint8_t         ubyte;
+typedef size_t          usize;
 typedef unsigned char   uchar;
 typedef unsigned short  ushort;
 typedef unsigned int    uint;
