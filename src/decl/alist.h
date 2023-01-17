@@ -3,32 +3,24 @@
 
 #include "../common.h"
 
-#define ALIST_API(T, X)                          \
-  void init##N(T *array);                        \
-  void free##N(T *array);                        \
-  void resize##N(T *array);                      \
-  int  N##Push(T *array, X x);                   \
-  int  N##Write(T *array, X *xs, int n);         \
-  X    N##Pop(T *array);                         \
-  X    N##Get(T *array, int i);                  \
-  X   *N##Peep(T *array, int i);                 \
-  X    N##Set(T *array, int i, X x)
 
-#define ALIST(T, X)                              \
-  typedef struct X {                             \
-    int length;                                  \
-    int capacity;                                \
-    X  *array;                                   \
-  } T;                                           \
-  ALIST_API(T, X)
-
-#define ALIST_OBJECT(T, X)                      \
-  typedef struct T {                            \
-    int length;                                 \
-    int capacity;                               \
-    struct Object obj;                          \
-    X  *array;                                  \
-  } T;                                          \
-  ALIST_API(T, X)
+#define ALIST(A, X)					 \
+  typedef struct A {					 \
+    X  *array;						 \
+    int length;						 \
+    int capacity;					 \
+  } A;							 \
+							 \
+  A   *create##A(void);					 \
+  void destroy##A(A *array);				 \
+  void init##A(A *array);				 \
+  void free##A(A *array);				 \
+  /* access/mutate */					 \
+  X    A##Get(A *array, int i);				 \
+  X   *A##Peep(A *array, int i);			 \
+  X    A##Set(A *array, int i, X x);			 \
+  X   *A##Write(A *array, X *xs, int count);		 \
+  int  A##Push(A *array, X x);				 \
+  X    A##Pop(A *array )
 
 #endif

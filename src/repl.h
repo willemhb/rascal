@@ -4,6 +4,6 @@
 #include "rascal.h"
 
 /* API */
-void repl(void);
+
 
 #endif

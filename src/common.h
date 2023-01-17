@@ -20,26 +20,40 @@ typedef intptr_t        word;
 typedef uintptr_t       uword;
 typedef void          (*funcptr)(void);
 
+typedef uint8_t         uint8;
+typedef int8_t          int8;
+typedef uint16_t        uint16;
+typedef int16_t         int16;
+typedef uint32_t        uint32;
+typedef int32_t         int32;
+typedef int64_t         int64;
+typedef uint64_t        uint64;
+
 // C 23 typedefs
-typedef void           *nullptr_t;
+typedef void           *nullptr;
+
+// miscellaneous utility typedefs
+typedef ulong           uhash;
 
 // character encoding typedefs
-typedef char            ascii_t;
-typedef char            latin1_t;
-typedef char            utf8_t;
-typedef char16_t        utf16_t;
-typedef char32_t        utf32_t;
+typedef char            ascii;
+typedef char            latin1;
+typedef char            utf8;
+typedef char16_t        utf16;
+typedef char32_t        utf32;
 
 // general convenience
 #define NOTHING ((void)0)
-#define rl_unlikely( test ) __builtin_expect(0, (test))
-#define rl_fallthrough __attribute__((fallthrough))
-#define rl_unreachable __builtin_unreachable
-#define rl_attr( ... ) __attribute__((__VA_ARGS__))
-#define rl_cleanup( cleaner ) __attribute__((cleanup(cleaner)))
-#define rl_nan nan("")
+#define unlikely( test ) __builtin_expect(0, (test))
+#define fallthrough __attribute__((fallthrough))
+#define unreachable __builtin_unreachable
+#define generic _Generic
+#define attr( ... ) __attribute__((__VA_ARGS__))
+#define manage(manager) __attribute__((cleanup(cleaner)))
 
-static inline bool flagp( uint64_t fls, uint64_t fl ) { return !!(fls&fl); }
+static inline bool flagp( uint64 fls, uint64 fl ) {
+  return !!(fls&fl);
+}
 
 #define rl_abort(fmt, ...)                                              \
   do {                                                                  \

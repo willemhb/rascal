@@ -4,7 +4,7 @@
 (type cons pair)               ;; type alias
 (type list {nul, cons})        ;; union type
 
-(provide [(list, first, rest, empty?, length, filter, map, reduce, take, drop)])
+(provide [list, first, rest, empty?, length, filter, map, reduce, take, drop])
 
 @doc "Constructor."
 (fun list  [.. args] args)

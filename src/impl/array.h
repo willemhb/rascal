@@ -1,173 +1,156 @@
-#ifndef rl_tpl_impl_array_h
-#define rl_tpl_impl_array_h
+#ifndef rascal_impl_array_h
+#define rascal_impl_array_h
 
 #include <assert.h>
 #include <string.h>
 #include <stdarg.h>
 #include <stdlib.h>
 
-#include "tpl/decl/generic.h"
 
-#include "memory.h"
+#include "../runtime.h"
 
-#include "util/collection.h"
-#include "util/number.h"
+#include "../util/collection.h"
+#include "../util/number.h"
 
 #undef ARRAY
+#undef ARRAY_OBJECT
 
-#define ARRAY( ARR, X, V, padfn )                                       \
-  TYPE(ARR) make_##ARR( size_t n, X *ini )                              \
-  {                                                                     \
-    size_t cap = padfn(n, 0, 0);                                        \
-    HEAD(ARR) *out = alloc_table(sizeof(HEAD(ARR)), cap, sizeof(X));    \
-    out->len = n;                                                       \
-    out->cap = cap;                                                     \
-    if ( ini )                                                          \
-      memcpy(out->elements, ini, n * sizeof(X));                        \
-    return out->elements;                                               \
-  }                                                                     \
-                                                                        \
-  void resize_##ARR( TYPE(ARR) *ARR, size_t new_len )                   \
-  {                                                                     \
-    size_t old_cap = ARR##_cap(*ARR);                                   \
-    size_t old_len = ARR##_len(*ARR);                                   \
-    size_t new_cap = padfn(new_len, old_len, old_cap);                  \
-    if ( new_cap != old_cap )                                           \
-      {                                                                 \
-        HEAD(ARR) *new_space  = adjust_table(ARR##_head(*ARR),          \
-                                             sizeof(HEAD(ARR)),         \
-                                             old_cap,                   \
-                                             new_cap,                   \
-                                             sizeof(X));                \
-        new_space->cap = new_cap;                                       \
-        *ARR = new_space->elements;                                     \
-      }                                                                 \
-    ARR##_head(*ARR)->len = new_len;                                    \
-  }                                                                     \
-                                                                        \
-  void trim_##ARR( TYPE(ARR) *ARR )                                     \
-  {                                                                     \
-    *ARR = adjust_table(ARR##_head(*ARR),                               \
-                        sizeof(HEAD(ARR)),                              \
-                        ARR##_cap(*ARR),                                \
-                        ARR##_len(*ARR),                                \
-                        sizeof(X));                                     \
-  }                                                                     \
-                                                                        \
-  TYPE(ARR) dup_##ARR( TYPE(ARR) ARR )                                  \
-  {                                                                     \
-    return make_##ARR(ARR##_len(ARR), ARR);                             \
-  }                                                                     \
-                                                                        \
-  void free_##ARR( TYPE(ARR) ARR )                                      \
-  {                                                                     \
-    dealloc_table(ARR##_head(ARR),                                      \
-                  sizeof(HEAD(ARR)),                                    \
-                  ARR##_cap(ARR),                                       \
-                  sizeof(X));                                           \
-  }                                                                     \
-                                                                        \
-  HEAD(ARR) *ARR##_head( TYPE(ARR) ARR )                                \
-  {                                                                     \
-    return (HEAD(ARR)*)(((uchar*)ARR)-sizeof(HEAD(ARR)));               \
-  }                                                                     \
-                                                                        \
-  size_t ARR##_len( TYPE(ARR) ARR )                                     \
-  {                                                                     \
-    return ARR##_head(ARR)->len;                                        \
-  }                                                                     \
-                                                                        \
-  size_t ARR##_cap( TYPE(ARR) ARR )                                     \
-  {                                                                     \
-    return ARR##_head(ARR)->cap;                                        \
-  }                                                                     \
-                                                                        \
-  size_t ARR##_size( TYPE(ARR) ARR )                                    \
-  {                                                                     \
-    return ARR##_len(ARR) * sizeof(X);                                  \
-  }                                                                     \
-                                                                        \
-  size_t ARR##_alloc( TYPE(ARR) ARR )                                   \
-  {                                                                     \
-    return ARR##_cap(ARR) * sizeof(X);                                  \
-  }                                                                     \
-                                                                        \
-  size_t ARR##_cpy( TYPE(ARR) ARR, X *src, size_t n )                   \
-  {                                                                     \
-    size_t cpysize = min(n, ARR##_len(ARR));                            \
-    memcpy(ARR, src, cpysize * sizeof(X));                              \
-    return cpysize;                                                     \
-  }                                                                     \
-                                                                        \
-  void ARR##_fill( TYPE(ARR) ARR, X x )                                 \
-  {                                                                     \
-    for ( size_t i=0; i<ARR##_len(ARR); i++ )                           \
-      ARR[i] = x;                                                       \
-  }                                                                     \
-                                                                        \
-  size_t ARR##_push( TYPE(ARR) *ARR, X x )                              \
-  {                                                                     \
-    size_t loc = ARR##_len(*ARR);                                       \
-    resize_##ARR(ARR, loc+1);                                           \
-    (*ARR)[loc] = x;                                                    \
-    return loc+1;                                                       \
-  }                                                                     \
-                                                                        \
-  X ARR##_pop( TYPE(ARR) *ARR )                                         \
-  {                                                                     \
-    size_t len = ARR##_len(*ARR);                                       \
-    assert(len > 0);                                                    \
-    X out = (*ARR)[len-1];                                              \
-    resize_##ARR(ARR, len-1);                                           \
-    return out;                                                         \
-  }                                                                     \
-                                                                        \
-  size_t ARR##_pushn( TYPE(ARR) *ARR, size_t n, ... )                   \
-  {                                                                     \
-    size_t len = ARR##_len(*ARR);                                       \
-    resize_##ARR(ARR, len+n);                                           \
-    va_list va; va_start(va, n);                                        \
-    for ( size_t i=0; i<n; i++ )                                        \
-      (*ARR)[len+i] = va_arg(va, V);                                    \
-    va_end(va);                                                         \
-    return len+n;                                                       \
-  }                                                                     \
-                                                                        \
-  X ARR##_popn( TYPE(ARR) *ARR, size_t n )                              \
-  {                                                                     \
-    size_t len = ARR##_len(*ARR);                                       \
-    size_t loc = len-n;                                                 \
-    X out = (*ARR)[loc];                                                \
-    resize_##ARR(ARR, loc);                                             \
-    return out;                                                         \
-  }                                                                     \
-                                                                        \
-  X* ARR##_at( TYPE(ARR) ARR, long i )                                  \
-  {                                                                     \
-    if ( i < 0 )                                                        \
-      i += ARR##_len(ARR);                                              \
-    assert(i >= 0 && (size_t)i < ARR##_len(ARR));                       \
-    return ARR + i;                                                     \
-  }                                                                     \
-                                                                        \
-  X ARR##_ref( TYPE(ARR) ARR, long i )                                  \
-  {                                                                     \
-    return *ARR##_at(ARR, i);                                           \
-  }                                                                     \
-                                                                        \
-  X ARR##_set( TYPE(ARR) ARR, long i, X x )                             \
-  {                                                                     \
-    X* spc = ARR##_at(ARR, i);                                          \
-    *spc   = x;                                                         \
-    return x;                                                           \
-  }                                                                     \
-                                                                        \
-  X ARR##_swap( TYPE(ARR) ARR, long i, X x )                            \
-  {                                                                     \
-    X* spc  = ARR##_at(ARR, i);                                         \
-    X out   = *spc;                                                     \
-    *spc    = x;                                                        \
-    return out;                                                         \
+#define ARRAY(A, X, padfn)						\
+  A create##A(int length) {						\
+    ASSERT_BOUNDS(length, 0, INT32_MAX);				\
+    int capacity  = padFn(length);					\
+    usize base    = sizeof(struct A);					\
+    usize array   = trueN * sizeof(X);					\
+    struct A* out = allocate(base+array);				\
+    out->length   = length;						\
+    out->capacity = capacity;						\
+    return out->array;							\
+  }									\
+									\
+  void destroy##A(A array) {						\
+    struct A *head = ARRAY_HEAD(A, array);				\
+    usize arrSize  = sizeof(struct A) + sizeof(X) * head->capacity;	\
+    deallocate(head, arrSize);						\
+  }									\
+									\
+  void init##A(A array, X *data) {					\
+    assert(data);							\
+    struct A *head = ARRAY_HEAD(A, array);				\
+    memcpy(array, data, head->length * sizeof(X));			\
+  }									\
+									\
+  X *A##Peep(A array, int i) {						\
+    struct A *head = ARRAY_HEAD(A, array);				\
+    if (i < 0)								\
+      i += head->length;						\
+    ASSERT_LENGTH(i, head->length);					\
+    return array + i;							\
+  }									\
+    									\
+  X A##Get(A array, int i) {						\
+    return *A##Peep(array, i);						\
+  }									\
+  									\
+  X A##Set(A array, int i, X x) {					\
+    *A##Peep(array, i) = x;						\
+    return x;								\
+  }									\
+  									\
+  int A##Write(A array, X *xs, int start, int count) {			\
+    struct A *head = ARRAY_HEAD(A, array);				\
+    if (start >= head->length)						\
+      return 0;								\
+    									\
+    count = min(head->length - start, count);				\
+									\
+    if (count > 0)							\
+      memcpy(array+start, xs, count * sizeof(X));			\
+    									\
+    return count;							\
   }
+
+
+#define ARRAY_OBJECT(A, X, padFn, EmptyCapacity, EmptyInit...)		\
+  									\
+  struct A Empty##A = {							\
+    .length=0,								\
+    .capacity=EmptyCapacity,						\
+    .obj = {								\
+      .next=NULL,							\
+      .hash=0,								\
+      .type=A##Type,							\
+      .flags=0,								\
+      .hashed=false,							\
+      .lendee=false,							\
+      .inlined=true,							\
+      .allocated=false,							\
+      .gray=false,							\
+      .black=true,							\
+      .offset=sizeof(struct A),						\
+      .size=sizeof(struct A) + EmptyCapacity * sizeof(X),		\
+    },									\
+    .array = { EmptyInit }						\
+  };									\
+  									\
+  A create##A(int length) {						\
+    if (length == 0)							\
+      return Empty##A.array;						\
+    									\
+    int capacity    = padFn(length);					\
+    usize total     = sizeof(struct A) + capacity * sizeof(X);		\
+    struct A* array = allocate(total);					\
+    array->length   = length;						\
+    array->capacity = capacity;						\
+    initObject(array->obj.space, A##Type, total);			\
+    return array->array;						\
+  }									\
+									\
+  void destroy##A(A array) {						\
+    freeObject((Object)array);						\
+    									\
+    struct A* head = ARRAY_HEAD(A, array);				\
+    									\
+    if (!A->obj.allocated)						\
+      return;								\
+    									\
+    deallocate(head, head->obj.size);					\
+  }									\
+									\
+  void init##A(A array, X *data) {					\
+    assert(data);							\
+    struct A *head = ARRAY_HEAD(A, array);				\
+    memcpy(array, data, head->length * sizeof(X));			\
+  }									\
+									\
+  X *A##Peep(A array, int i) {						\
+    struct A *head = ARRAY_HEAD(A, array);				\
+    if (i < 0)								\
+      i += head->length;						\
+    ASSERT_LENGTH(i, head->length);					\
+    return array + i;							\
+  }									\
+									\
+  X A##Get(A array, int i) {						\
+    return *A##Peep(array, i);						\
+  }									\
+  									\
+  X A##Set(A array, int i, X x) {					\
+    *A##Peep(array, i) = x;						\
+    return x;								\
+  }									\
+  									\
+  int A##Write(A array, X *xs, int start, int count) {			\
+    struct A *head = ARRAY_HEAD(A, array);				\
+    if (start >= head->length)						\
+      return 0;								\
+    									\
+    count = min(head->length - start, count);				\
+									\
+    if (count > 0)							\
+      memcpy(array+start, xs, count * sizeof(X));			\
+    									\
+    return count;							\
+  }
+
 
 #endif

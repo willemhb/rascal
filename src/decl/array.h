@@ -3,38 +3,43 @@
 
 #include "../common.h"
 
-#define ARRAY_API(T, X)                          \
-  T new##T(usize n);                             \
-  void init##T(T array, X *data);                \
-  void free##T(T array);                         \
-  T resize##T(T array, usize newLength);         \
-  X *T##Peep(T array, int i);                    \
-  X T##Get(T array, int i);                      \
-  X T##Set(T array, int i, X x);                 \
-  int T##Push(T array, X x);                     \
-  int T##Write(T array, X *xs, int n);           \
-  X T##Pop(T array)
+#define ARRAY_API(A, X)					\
+  /* construct/destruct */				\
+  A create##A(int length);				\
+  void destroy##A(A array);				\
+  void init##A(A array, X *data);			\
+  /* access/mutate */					\
+  X  *A##Peep(A array, int i);				\
+  X   A##Get(A array, int i);				\
+  X   A##Set(A array, int i, X x);			\
+  int A##Write(A array, X *xs, int start, int count)
 
-#define ARRAY(T, X)                                                     \
+#define ARRAY(A, X)                                                     \
   /* define array as pointer to elements */                             \
-  typedef X *T;                                                         \
-                                                                        \
-  struct T {                                                            \
+  typedef X *A;                                                         \
+									\
+  struct A {                                                            \
     int length;                                                         \
     int capacity;                                                       \
-    X elements[];                                                       \
+    X   array[];							\
   };                                                                    \
-  ARRAY_API(T, X)
+  ARRAY_API(A, X)
 
-#define ARRAY_OBJECT(T, X)                       \
-  typedef X *T;                                  \
-  struct T {                                     \
+#define ARRAY_OBJECT(A, X)                       \
+  typedef X *A;                                  \
+  struct A {                                     \
     int length;                                  \
     int cap;                                     \
     struct Object obj;                           \
-    X elements[];                                \
+    X   array[];				 \
   };                                             \
-  ARRAY_API(T, X)
+  						 \
+  extern struct A Empty##A;			 \
+  						 \
+  ARRAY_API(A, X)
+
+#define ARRAY_HEAD(A, a)				\
+  ((struct A*)(((ubyte*)(a)) - sizeof(struct A)))
 
 
 #endif

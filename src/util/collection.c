@@ -1,88 +1,77 @@
-#include "memory.h"
+#include <assert.h>
 
-#include "util/collection.h"
-#include "util/number.h"
-#include "util/string.h"
+#include "collection.h"
 
-/* commentary */
+const int MinCap = 8;
+const int MaxCap = INT32_MAX;
+const double TablePressure = 0.625;
 
-/* C types */
+#define ASSERT_SIZE(newSize, oldCap)		\
+  do {						\
+    ASSERT_BOUND(newSize, 0, MaxCap);		\
+    ASSERT_BOUND(oldCap, 0, MaxCap);		\
+  } while (false)
 
-/* globals */
-
-/* API */
-
-/* convenience */
-#define min_cap     8ul
-#define load_factor 0.50
-
-size_t pad_array_size(size_t new_count, size_t old_count, size_t old_cap) {
-  (void)old_count;
-  (void)old_cap;
-
-  return new_count;
+int padArray(int newSize, int oldCap) {
+  /* noOp for passing to ALIST macro */
+  ASSERT_SIZE(newSize, oldCap);
+  return newSize;
 }
 
-size_t pad_string_size(size_t new_count, size_t old_count, size_t old_cap) {
-  return pad_array_size( new_count+1, old_count, old_cap );
+int padString(int newSize, int oldCap) {
+  /* include space for nul terminator*/
+  ASSERT_SIZE(newSize, oldCap);
+  return newSize+1;
 }
 
-size_t pad_stack_size(size_t new_count, size_t old_count, size_t old_cap) {
-  (void)old_count;
-  
-  size_t new_cap = max(old_cap, min_cap);
-  
-  if (new_count > new_cap) {
-    do {
-	  new_cap <<= 1;
-	} while (new_count > new_cap);
-  } else if (new_count < old_cap/2 && new_cap > min_cap) {
-    do {
-	  new_cap >>= 1;
-	} while (new_count < new_cap/2 && new_cap > min_cap);
+int padAlist(int newSize, int oldCap) {
+  ASSERT_SIZE(newSize, oldCap);
+  int newCap = oldCap < MinCap ? MinCap : oldCap;
+
+  if (newSize > newCap) {
+    while (newCap < newSize) {
+      if (newCap == MaxCap)
+	break;
+      newCap <<= 1; // newCap * 2
+    }
+  } else if (newSize < newCap / 2) {
+    while (newSize < newCap / 2) {
+      if (newCap == MinCap)
+	break;
+
+      newCap >>= 1; // newCap / 2
+    }
   }
 
-  return new_cap;
+  return newCap;
 }
 
-size_t pad_buffer_size(size_t new_count, size_t old_count, size_t old_cap) {
-  return pad_stack_size(new_count+1, old_count, old_cap);
+int padBuffer(int newSize, int oldCap) {
+  /* ensures that a nul character is never unintentionally overwritten */
+  ASSERT_SIZE(newSize, oldCap);
+
+  return padAlist(newSize+1, oldCap);
 }
 
-size_t pad_alist_size(size_t new_count, size_t old_count, size_t old_cap) {
-  if (new_count == 0)
-    return min_cap;
+int padTable(int newSize, int oldCap) {
+  ASSERT_SIZE(newSize, oldCap);
+
+  int newCap = oldCap < MinCap ? MinCap : oldCap;
   
-  if ( new_count < old_cap && new_count > (old_cap>>1))
-    return old_cap;
-
-  size_t new_cap = ((size_t)new_count + (new_count>>3) + 6) & ~(size_t)3;
-
-  if ( new_count - old_count > new_cap - new_count )
-    new_cap = (new_count + 3) & ~(size_t)3;
-
-  return max(new_cap, min_cap);
-}
-
-size_t pad_table_size(size_t new_count, size_t old_count, size_t old_cap) {
-  (void)old_count;
-
-  size_t new_cap = max(old_cap, min_cap);
-
-  if (new_count == 0)
-    return new_cap;
-
-  if (new_count > new_cap * load_factor) {
-    do {
-	  new_cap <<= 1;
-	} while (new_count > new_cap * load_factor);
+  if (newSize > newCap * TablePressure) {
+    while (newCap < newSize * TablePressure) {
+      if (newCap == MaxCap)
+	break;
+      newCap <<= 1;
+    }
+  } else if (newSize < newCap * TablePressure / 2) {
+    while (newSize < newCap * TablePressure / 2) {
+      if (newCap == MinCap)
+        break;
+      
+      newCap >>= 1;
+    }
   }
-
-  else if (new_cap > min_cap && new_count < new_cap / 2 * load_factor) {
-    do {
-	  new_cap >>= 1;
-	} while ( new_cap > min_cap && new_count < new_cap / 2 * load_factor );
-  }
-
-  return max(new_cap, min_cap);
+  
+  return newCap;
 }
