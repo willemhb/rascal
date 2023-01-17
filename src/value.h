@@ -9,13 +9,14 @@
 ALIST(Values, Value);
 
 typedef union {
-  Value  asValue;
-  Real   asReal;
-  Small  asSmall;
-  Bool   asBool;
-  Glyph  asGlyph;
-  Object asObject;
-  Symbol asSymbol;
+  Value    asValue;
+  Real     asReal;
+  Small    asSmall;
+  Bool     asBool;
+  Glyph    asGlyph;
+  Object   asObject;
+  Symbol   asSymbol;
+  Function asFunction;
 } ValueType;
 
 /* globals */
@@ -69,24 +70,24 @@ Value  objectToValue(Object o);
 #define IS_GLYPH(x)   hasTag(x, GLYPH)
 #define IS_OBJ(x)     hasTag(x, OBJECT)
 
-#define VALUE(x)					\
-  generic((x),						\
-	  Real:realToValue,				\
-	  Small:smallToValue,				\
-	  Bool:boolToValue,				\
-	  Glyph:glyphToValue,				\
-	  Object:objectToValue,				\
-	  Symbol:symbolToValue,				\
-	  Function:functionToValue,			\
-	  List:listToValue,				\
-	  Pair:pairToValue,				\
-	  Tuple:tupleToValue,				\
-	  String:stringToValue,				\
-	  ByteCode:byteCodeToValue,			\
-	  Environ:environToValue,			\
-	  Method:methodToValue,				\
-	  UserMethod:userMethodToValue,			\
-	  NativeMethod:nativeMethodToValue,		\
-	  )(x)
+#define VALUE(x)                            \
+  generic((x),                              \
+          Real:realToValue,                 \
+          Small:smallToValue,               \
+          Bool:boolToValue,                 \
+          Glyph:glyphToValue,               \
+          Object:objectToValue,             \
+          Symbol:symbolToValue,             \
+          Function:functionToValue,         \
+          List:listToValue,                 \
+          Pair:pairToValue,                 \
+          Tuple:tupleToValue,               \
+          String:stringToValue,             \
+          ByteCode:byteCodeToValue,         \
+          Environ:environToValue,           \
+          Method:methodToValue,				\
+          UserMethod:userMethodToValue,     \
+          NativeMethod:nativeMethodToValue, \
+          )(x)
 
 #endif

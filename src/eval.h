@@ -12,8 +12,8 @@ typedef struct CallFrame CallFrame;
 
 struct CallFrame {
   CallFrame *caller;
+  CallFrame *prompt;
   UserMethod callee;
-
   uint16    *ip;
   Value     *bp;
   Value     *sp;

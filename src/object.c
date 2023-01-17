@@ -1,5 +1,6 @@
 #include <assert.h>
 
+#include "type.h"
 #include "object.h"
 #include "runtime.h"
 
@@ -11,8 +12,25 @@
 
 ALIST(Objects, Object, padAlistSize);
 
-#include "impl/htable.h"
+// generic object API
+Object createObject(RlType type, usize size) {
+  assert(size >= BaseSize[type]);
 
+  return allocate(size) + Offset[type];
+}
+
+void destroyObject(Object self) {
+  bool allocated = objHead(self)->allocated;
+  
+  freeObject(self);
+
+  if (allocated)
+    deallocate(objStart(self), objHead(self)->size);
+}
+
+
+
+#include "impl/htable.h"
 // symbol table
 static Symbol makeSymbol(char *name, uhash hash) {
   static uint64 counter = 1;
@@ -24,19 +42,19 @@ static Symbol makeSymbol(char *name, uhash hash) {
   assert(nameLen > 0);
 
   Object new           = createObject(SymbolType, objSize);
-  struct Object *head  = objHead(new);
-  struct Symbol *sHead = (struct Symbol*)objStart(new);
-  Symbol sym           = (Symbol)new;
   
   initObject(new, SymbolType, objSize);
   
-  head->hash    = hash;
-  head->hashed  = true;
-  sHead->idno   = counter++;
+  OBJ_HASH(new)            = hash;
+  objHead(new)->hashed     = true;
+  SYM_HEAD(new)->idno      = counter++;
+  SYM_HEAD(new)->bind      = NUL;
+  SYM_HEAD(new)->isKeyWord = *name == ':';
+  SYM_HEAD(new)->isBound   = false;
 
-  memcpy(sym, name, nameLen);
+  memcpy(new, name, nameLen);
 
-  return sym;
+  return (Symbol)new;
 }
 
 static uhash hashSymbolTableKey(char *key) {
@@ -53,7 +71,44 @@ static Symbol internInSymbolTable(SymbolTableEntry *entry, char *key, uhash hash
 }
 
 
-HTABLE(SymbolTable, char*, Symbol, streq, hashSymbolTableKey, reHashSymbolTableEntry,
-       internInSymbolTable,
-       NULL,
-       NULL);
+HTABLE(SymbolTable, char*, Symbol, streq, hashSymbolTableKey, reHashSymbolTableEntry, internInSymbolTable, NULL, NULL);
+
+
+// symbol API
+Symbol symbol(char *name) {
+  return SymbolTableIntern(&RlSymbolTable, name);
+}
+
+// array objects
+#include "impl/array.h"
+
+ARRAY_OBJECT(Tuple, Value, padArraySize, 0);
+ARRAY_OBJECT(String, Glyph, padStringSize, 1, '\0');
+
+Tuple tuple(int nArgs, Value *args) {
+  if (nArgs == 0)
+    return EmptyTuple.array;
+
+  Tuple out = createTuple(nArgs);
+
+  initTuple(out, args);
+
+  return out;
+}
+
+String string(char *chars) {
+  usize s = strlen(chars);
+
+  assert(s < INT32_MAX-1);
+
+  int n = s;
+
+  if (n == 0)
+    return EmptyString.array;
+
+  String out = createString(n);
+
+  initString(out, chars);
+
+  return out;
+}

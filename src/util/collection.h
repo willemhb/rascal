@@ -3,6 +3,10 @@
 
 #include "../common.h"
 
+static const int MinCap = 8;
+static const int MaxCap = INT32_MAX;
+static const double TablePressure = 0.625;
+
 #define ASSERT_BOUND(size, min, max)			\
   do {							\
     __typeof__(size) __size = size;			\

@@ -4,9 +4,11 @@
 #include "rascal.h"
 
 /* global dispatch tables */
-extern char  *TypeNames[NUM_TYPES];
-extern bool (*HasType[NUM_TYPES])(Value x, RlType type);
-extern void (*Print[NUM_TYPES])(Value x); 
+extern char   *TypeNames[NUM_TYPES];
+extern usize   BaseSize[NUM_TYPES];
+extern uint16  Offset[NUM_TYPES];
+extern bool  (*HasType[NUM_TYPES])(Value x, RlType type);
+extern void  (*Print[NUM_TYPES])(Value x); 
 
 
 #endif

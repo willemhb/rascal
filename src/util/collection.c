@@ -2,12 +2,8 @@
 
 #include "collection.h"
 
-const int MinCap = 8;
-const int MaxCap = INT32_MAX;
-const double TablePressure = 0.625;
-
 #define ASSERT_SIZE(newSize, oldCap)		\
-  do {						\
+  do {                                      \
     ASSERT_BOUND(newSize, 0, MaxCap);		\
     ASSERT_BOUND(oldCap, 0, MaxCap);		\
   } while (false)

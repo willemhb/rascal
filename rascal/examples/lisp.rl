@@ -1,81 +1,66 @@
 ;; examples of lisp syntax
 
 ;;; type declarations
-(type cons pair)               ;; type alias
-(type list {nul, cons})        ;; union type
+;;; union type
+(type int
+      "Basic exaample of a union type."
+      (small bigint))
 
-(provide [list, first, rest, empty?, length, filter, map, reduce, take, drop])
+(fun int [x::real]
+     (if (> (max small) x)
+         (bigint x)
+         (small x)))
 
-@doc "Constructor."
-(fun list  [.. args] args)
+;;; record type
+(type user
+      "Basic example of a record type."
+      {name age gender communist?})
 
-@doc "Accessors."
-(fun first [(cons x _)] x)
-(fun rest  [(cons _ xs)] xs)
+;;;  struct type (here used to efficiently implement a numeric type).
+(type fraction
+      "Basic example of a ratio type."
+      [numer::int denom::int])
 
-@doc "Sequence predicate."
-(fun empty?
-     ([(nul _)] true)
-     ([(cons _)] false))
+(fun fraction
+     "Allow 1 argument."
+     [denom::int]
+     (fraction 1 denom))
 
-@doc "Sequence length method."
-(fun length
-     ([(nul _)] 0)
-     ([(cons _ tail)]
-      (+ 1 (length tail))))
+(type ratio
+      "Like a fraction, but operations with ratios simplefy aggressively."
+      (int fraction))
 
-@doc "Implement for lists."
-(fun map
-     ([_ (nul)] ())
-     ([fn (cons x xs)]
-      (cons (fn x) (map fn xs))))
+(fun ratio
+     [denom::int]
+     (ratio 1 denom))
 
-@test even? ()    :is  ()
-@test even? (1)   :is  ()
-@test even? (1 2) :is (2)
-@doc "Implement for lists."
-(fun filter
-     ([_ (nul)] ())
-     ([fn? (cons x xs)]
-      (if (fn? xs)
-     	  (cons x (filter fn? xs))
-	      (filter fn? xs))))
+(fun ratio
+     [numer::int denom::int]
+     (if (divides? numer denom)
+         (/ numer denom)
+         (let [cd (gcd numer denom)]
+              (fraction (/ numer cd)
+                        (/ denom cd)))))
 
-(fun reduce "Implement for list type (with no initial)."
-     ([fn (cons x xs)] (reduce fn xs x))
-     ([_ (nul _) acc] acc)
-     ([fn (cons x xs) acc] (reduce fn (fn acc x) xs)))
-
-fun take "Implement for [int list] type."
-    ([_ (nul _)] ())
-    ([(int n) (cons x xs)]
-     (if (= n 0)
-     	 () (cons x (take (dec n) xs))))
-
-(fun take "Implement for [func list]."
-     ([_ (nul _)] ())
-     ([(func fn?) (cons x xs)]
-      (if (fn? x)
-      	  (cons x (take fn? xs)) ())))
-
-@doc "Implement for [int list]."
-(fun drop
-     ([_ (nul _)] ())
-     ([(func fn?) (cons x xs :as xxs)]
-      (if (fn? x)
-      	  (drop fn? xs) xxs)))
-
-;; pseudo-algebraic type example
+;;; algebraic type (combination of union and struct).
 (type tree
-      (empty-tree [])
-      (tree-leaf  [key val])
-      (tree-node  [left right]))
+     "Basic example of an algebraic type."
+     ((empty [])
+      (node  [key val (tree left) (tree right)])))
 
-(provide [(tree, empty?, filter, map, reduce)])
+@spec _ -> (>= % 0)
+(fun len [::empty] 0)
+(fun len [[_ _ l r]::node]
+     (+ 1 (len l)
+          (len r)))
 
-;; effect examples
-@doc "Exceptions."
-(mac catch
-     [(vec handlers) .. body]
-     `(with ~(map #(conj 'raise (first %)) handlers)
-     	    ~@body))
+@spec (apply % _) _ -> _
+(fun map [_ ::empty] (empty))
+
+(fun map
+     "Inductive case."
+     [f [k v l r]::node]
+     (node k (f v) (map f l) (map f r)))
+
+@spec (apply % _) _ -> _
+(fun filter [_ ::empty] (empty))

@@ -3,8 +3,6 @@
 
 #include "value.h"
 
-#include "decl/alist.h"
-
 /* object alist for internal use */
 #include "decl/alist.h"
 
@@ -38,6 +36,9 @@ struct Object {
 
 struct Symbol {
   ulong idno;
+  Value bind;        // toplevel binding
+  bool  isKeyWord;
+  bool  isBound;
 
   struct Object obj;
   ascii  name[];
@@ -70,6 +71,8 @@ ARRAY_OBJECT(ByteCode, ushort);
 #include "decl/htable.h"
 
 HTABLE(SymbolTable, char*, Symbol);
+
+extern SymbolTable RlSymbolTable;
 
 struct Environ {
   Environ next;
@@ -113,8 +116,12 @@ void   initObject(Object self, RlType type, usize size);
 void   freeObject(Object self);
 
 Value  symbolToValue(Symbol s);
+Value  functionToValue(Function f);
 Value  listToValue(List l);
 Value  pairToValue(Pair p);
+Value  tupleToValue(Tuple t);
+Value  stringToValue(String s);
+
 
 Symbol   symbol(char *name);
 Function function(char *name, RlType type);
@@ -123,10 +130,6 @@ Pair     pair(Value car, Value cdr);
 Tuple    tuple(int nArgs, Value *args);
 String   string(char *chars);
 
-Value  functionToValue(Function f);
-Value  listToValue(List l);
-Value  pairToValue(Pair p);
-
 
 /* convenience */
 #define IS_SYM(x)      hasType(x, SymbolType)
@@ -134,6 +137,11 @@ Value  pairToValue(Pair p);
 
 #define AS_SYM(val)    ((Symbol)AS_OBJ(val))
 #define AS_LIST(val)   ((List)AS_OBJ(val))
+
+#define SYM_HEAD(obj)   ((struct Symbol*)objStart((Object)(obj)))
+#define SYM_BIND(obj)   (SYM_HEAD(obj)->bind)
+#define SYM_BOUNDP(obj) (SYM_HEAD(obj)->isBound)
+#define SYM_KEYWDP(obj) (SYM_HEAD(obj)->isKeyWord)
 
 #define OBJ_TYPE(obj)  (objHead(obj)->type)
 #define OBJ_HASH(obj)  (objHead(obj)->hash)

@@ -9,20 +9,23 @@
 (define-generic-mode
   'rascal-mode
   '(";")
-  '("def" "put" "fun" "let"
-    "catch" "raise" "quote" "do"
-    "case" "cond" "if" "and" "or"
-    "require" "provide")
+  '("def" "put" "let"
+    "fun" "mac" "type"
+    "catch" "raise"
+    "quote" "do"
+    "require" "provide"
+    "case" "cond" "if" "and" "or")
   '(("otherwise" . font-lock-builtin-face)
-    ("\\Wresume\\W" . font-lock-builtin-face)
-    ("\\Wtrue\\W" . font-lock-builtin-face)
-    ("\\Wfalse\\W" . font-lock-builtin-face)
-    ("\\Wnul\\W" . font-lock-builtin-face)
-    ("\\Wnone\\W" . font-lock-builtin-face)
-    ("\\Wnot\\W" . font-lock-builtin-face)
-    ("\\Weos\\W" . font-lock-builtin-face)
-    ("\\Wany\\W" . font-lock-builtin-face)
-    ("[^a-zA-Z?*+]:[-a-zA-Z?*+0-9]+" . font-lock-builtin-face)
+    ("\\_<resume\\_>" . font-lock-builtin-face)
+    ("\\_<true\\_>" . font-lock-builtin-face)
+    ("\\_<false\\_>" . font-lock-builtin-face)
+    ("\\_<nul\\_>" . font-lock-builtin-face)
+    ("\\_<none\\_>" . font-lock-builtin-face)
+    ("\\_<not\\_>" . font-lock-builtin-face)
+    ("\\_<eos\\_>" . font-lock-builtin-face)
+    ("\\_<any\\_>" . font-lock-builtin-face)
+    ("::" . font-lock-comment-face)
+    (":[-a-zA-Z?*+0-9]+\\_>" . font-lock-builtin-face)
     ("@[-_a-zA-Z*+0-9]+" . font-lock-builtin-face))
   '("\\.rl$" "\\.rdn$" "\\.rlo$") ;; source file, serialization format, object file
   '(rainbow-delimiters-mode)
