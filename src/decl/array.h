@@ -5,10 +5,6 @@
 
 #define ARRAY_API(A, X)                                 \
   /* construct/destruct */                              \
-  A create##A(int length);                              \
-  void destroy##A(A array);                             \
-  void init##A(A array, X *data);                       \
-  /* access/mutate */                                   \
   X  *A##Peep(A array, int i);                          \
   X   A##Get(A array, int i);                           \
   X   A##Set(A array, int i, X x);                      \
@@ -23,23 +19,28 @@
     int capacity;                                                       \
     X   array[];                                                        \
   };                                                                    \
+  									\
+  A create##A(int length);						\
+  void destroy##A(A array);						\
+  void init##A(A array, X *data);					\
   ARRAY_API(A, X)
 
-#define ARRAY_OBJECT(A, X)                       \
-  typedef X *A;                                  \
-  struct A {                                     \
-    int length;                                  \
-    int capacity;                                \
-    struct Object obj;                           \
-    X   array[];                                 \
-  };                                             \
-                                                 \
-  extern struct A Empty##A;                      \
-                                                 \
+#define ARRAY_OBJECT(A, X)				\
+  typedef X *A;						\
+  struct A {						\
+    int length;						\
+    int capacity;					\
+    struct Object obj;					\
+    X   array[];					\
+  };							\
+							\
+  extern struct A Empty##A;				\
+							\
+  usize alloc##A(RlType type, void *args, void **dst);	\
+  void  init##A(void *self, RlType type, void *args);	\
   ARRAY_API(A, X)
 
 #define ARRAY_HEAD(A, a)				\
   ((struct A*)(((ubyte*)(a)) - sizeof(struct A)))
-
 
 #endif

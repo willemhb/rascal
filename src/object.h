@@ -9,7 +9,6 @@
 ALIST(Objects, Object);
 
 /* C types */
-
 struct Object {
   /* next object pointer */
   struct Object *next;
@@ -34,11 +33,15 @@ struct Object {
   uchar  space[0];
 };
 
+typedef enum {
+  LiteralSymbol =1, // always evaluates to itself
+  BoundSymbol   =2, // has toplevel binding
+  ConstantSymbol=4, // toplevel binding cannot be rebound
+} SymbolFlags;
+
 struct Symbol {
   ulong idno;
   Value bind;        // toplevel binding
-  bool  isKeyWord;
-  bool  isBound;
 
   struct Object obj;
   ascii  name[];
@@ -74,18 +77,24 @@ HTABLE(SymbolTable, char*, Symbol);
 
 extern SymbolTable RlSymbolTable;
 
+struct NameSpc {
+  NameSpc next;
+  List    names;
+};
+
 struct Environ {
   Environ next;
-  Tuple   binds; // null unless environ represents a runtime closure
+  Tuple   binds;
 };
 
 struct Method {
+  Symbol name;
   int    nargs;
   bool   vargs;
-  Object handler; // native or user
+  Object handler; // native or closure
 };
 
-struct UserMethod {
+struct UserMethod { // a closure
   Symbol   name;
   NameSpc  names;
   Environ  envt;
@@ -100,6 +109,35 @@ struct NativeMethod {
   ExecFn       exec;
 };
 
+/* convenience */
+#define IS_SYM(x)      hasType(x, SymbolType)
+#define IS_LIST(x)     hasType(x, ListType)
+#define IS_PAIR(x)     hasType(x, PairType)
+#define IS_TUPLE(x)    hasType(x, TupleType)
+#define IS_STRING(x)   hasType(x, StringType)
+#define IS_BYTECODE(x) hasType(x, ByteCodeType)
+#define IS_NAMESPC(x)  hasType(x, NameSpcType)
+#define IS_ENVIRON(x)  hasType(x, EnvironType)
+#define IS_METHOD(x)   hasType(x, MethodType)
+#define IS_USER(x)     hasType(x, UserMethodType)
+#define IS_NATIVE(x)   hasType(x, NativeMethodType)
+
+#define AS_SYM(x)      ((Symbol)AS_OBJ(x))
+#define AS_LIST(x)     ((List)AS_OBJ(x))
+#define AS_PAIR(x)     ((Pair)AS_OBJ(x))
+#define AS_TUPLE(x)    ((Tuple)AS_OBJ(x))
+#define AS_STRING(x)   ((String)AS_OBJ(x))
+#define AS_BYTECODE(x) ((ByteCode)AS_OBJ(x))
+#define AS_NAMESPC(x)  ((NameSpc)AS_OBJ(x))
+#define AS_USER(x)     ((UserMethod)AS_OBJ(x))
+#define AS_NATIVE(x)   ((NativeMethod)AS_OBJ(x))
+
+#define OBJ_HEAD(obj)   (objHead((Object)(obj)))
+#define OBJ_START(obj)  (objStart((Object)(obj)))
+#define SYM_HEAD(obj)   ((struct Symbol*)OBJ_START(obj))
+#define TUPLE_HEAD(obj) ((struct Tuple*)OBJ_START(obj))
+#define STR_HEAD(obj)   ((struct String*)OBJ_START(obj))
+
 /* API */
 static inline struct Object *objHead(Object obj) {
   return (struct Object*)(obj-sizeof(struct Object));
@@ -109,11 +147,24 @@ static inline ubyte *objStart(Object obj) {
   return obj - (objHead(obj)->offset);
 }
 
-// general api
-Object createObject(RlType type, usize size);
-void   destroyObject(Object self);
-void   initObject(Object self, RlType type, usize size);
-void   freeObject(Object self);
+/* symbol flag predicates */
+static inline bool isKeyWord(Symbol s) {
+  return !!(OBJ_HEAD(s)->flags & LiteralSymbol);
+}
+
+static inline bool isBound(Symbol s) {
+  return !!(OBJ_HEAD(s)->flags & BoundSymbol);
+}
+
+static inline bool isConstant(Symbol s) {
+  return !!(OBJ_HEAD(s)->flags & ConstantSymbol);
+}
+
+Object constructObject(RlType type, void *args);
+Object createObject(RlType type, void *args);
+void   destroyObject(Object self, struct Object **next);
+void   initObject(Object self, RlType type, void *args);
+void   freeObject(Object self, struct Object **next);
 
 Value  symbolToValue(Symbol s);
 Value  functionToValue(Function f);
@@ -121,30 +172,24 @@ Value  listToValue(List l);
 Value  pairToValue(Pair p);
 Value  tupleToValue(Tuple t);
 Value  stringToValue(String s);
+Value  byteCodeToValue(ByteCode b);
+Value  nameSpcToValue(NameSpc n);
+Value  environToValue(Environ e);
+Value  methodToValue(Method m);
+Value  nativeMethodToValue(NativeMethod n);
+Value  userMethodToValue(UserMethod u);
 
-
-Symbol   symbol(char *name);
-Function function(char *name, RlType type);
-List     list(int nArgs, Value *args);
-Pair     pair(Value car, Value cdr);
-Tuple    tuple(int nArgs, Value *args);
-String   string(char *chars);
-
-
-/* convenience */
-#define IS_SYM(x)      hasType(x, SymbolType)
-#define IS_LIST(x)     hasType(x, ListType)
-
-#define AS_SYM(val)    ((Symbol)AS_OBJ(val))
-#define AS_LIST(val)   ((List)AS_OBJ(val))
-
-#define SYM_HEAD(obj)   ((struct Symbol*)objStart((Object)(obj)))
-#define SYM_BIND(obj)   (SYM_HEAD(obj)->bind)
-#define SYM_BOUNDP(obj) (SYM_HEAD(obj)->isBound)
-#define SYM_KEYWDP(obj) (SYM_HEAD(obj)->isKeyWord)
-
-#define OBJ_TYPE(obj)  (objHead(obj)->type)
-#define OBJ_HASH(obj)  (objHead(obj)->hash)
-#define OBJ_FLAGS(obj) (objHead(obj)->flags)
+Symbol       symbol(char *name);
+Function     function(char *name, RlType type);
+List         list(Value *args, int nArgs);
+Pair         pair(Value car, Value cdr);
+Tuple        tuple(Value *args, int nArgs);
+String       string(char *chars);
+ByteCode     bytecode(ushort *args, int nArgs);
+NameSpc      namespc(List names, NameSpc next);
+Environ      environ(Value *args, int nArgs, Environ next);
+Method       method(Symbol name, int nArgs, bool vargs, Object handler);
+UserMethod   usermethod(Symbol name, NameSpc names, Environ envt, Tuple consts, ByteCode code);
+NativeMethod nativemethod(Symbol name, EvalFn eval, CompFn comp, ExecFn exec);
 
 #endif

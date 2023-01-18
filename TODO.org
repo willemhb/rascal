@@ -99,11 +99,11 @@ language, culminating in the bootstrapping of a simple `rascal` compiler.
 
 *** Target updates
 **** DONE move all code to `src`
-**** TODO change naming style from <snake_case>_t to <camelCase>
-**** TODO reorganize object model code into one file
-**** TODO update type system to use fixed set of VM types, eliminate dispatch system
-**** TODO update vm stack frames to be more similar to Crafting Interpreters
-**** TODO update alist/array/table templates to be more similar to `rascal2`
+**** DONE change naming style from <snake_case>_t to <camelCase>
+**** DONE reorganize object model code into one file
+**** DONE update type system to use fixed set of VM types, eliminate dispatch system
+**** DONE update vm stack frames to be more similar to Crafting Interpreters
+**** DONE update alist/array/table templates to be more similar to `rascal2`
 **** TODO reorganize compiler - special forms are functions with special compile and eval callbacks
 
 ** TODO Version 00.00.09 - abstractions

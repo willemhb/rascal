@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdarg.h>
 
 #include "type.h"
 #include "object.h"
@@ -13,48 +14,112 @@
 ALIST(Objects, Object, padAlistSize);
 
 // generic object API
-Object createObject(RlType type, usize size) {
-  assert(size >= BaseSize[type]);
+Object constructObject(RlType type, void *args) {
+  Object new = createObject(type, args);
 
-  return allocate(size) + Offset[type];
+  initObject(new, type, args);
+
+  return new;
 }
 
-void destroyObject(Object self) {
+Object createObject(RlType type, void *args) {
+  void *spc;
+  usize size, offset = Offset[type];
+
+  if (Alloc[type]) // NB: method responsible for initializing non-standard size/arity information
+    size = Alloc[type](type, args, &spc);
+
+  else {
+    size = BaseSize[type];
+    spc  = allocate(size);
+  }
+
+  struct Object *head = spc + offset - sizeof(struct Object);
+
+  // initialize standard size size & arity information (plus a few other fields)
+  head->next      = NULL;
+  head->type      = type;
+  head->size      = size;
+  head->offset    = offset;
+  head->allocated = true;
+  head->gray      = true;
+  head->black     = false;
+
+  return head->space;
+}
+
+void destroyObject(Object self, struct Object **next) {
   bool allocated = objHead(self)->allocated;
-  
-  freeObject(self);
+
+  freeObject(self, next);
 
   if (allocated)
-    deallocate(objStart(self), objHead(self)->size);
+    deallocate(objStart(self), OBJ_HEAD(self)->size);
 }
 
+void initObject(Object self, RlType type, void *args) {
+  OBJ_HEAD(self)->hash      = 0;
+  OBJ_HEAD(self)->flags     = 0;
+  OBJ_HEAD(self)->hashed    = false;
 
+  if (Init[type])
+    Init[type](self, type, args);
+}
 
+void freeObject(Object self, struct Object **next) {
+  struct Object *head = OBJ_HEAD(self);
+  RlType type         = head->type;
+  
+  if (next)
+    *next = head->next;
+
+  if (Free[type]) // NB: method responsible for updating deallocate information
+    Free[type](self);
+}
+
+// symbol & symbol table API
 #include "impl/htable.h"
-// symbol table
+struct SymbolArgs {
+  char *name;
+  usize nameLen;
+  uhash hash;
+};
+
+usize allocSymbol(RlType type, void *args, void **dst) {
+  static uint64 counter    = 1;
+  struct SymbolArgs *sArgs = args;
+
+  usize total = BaseSize[type] + sArgs->nameLen + 1;
+  *dst        = allocate(total);
+
+  struct Symbol *sym = *dst;
+
+  sym->obj.inlined = true;
+  sym->idno        = counter++;
+
+  return total;
+}
+
+void initSymbol(void *self, RlType type, void *args) {
+  (void)type;
+
+  struct SymbolArgs *sArgs = args;
+  struct Symbol *symSelf   = SYM_HEAD(self);
+
+  symSelf->obj.hash   = sArgs->hash;
+  symSelf->obj.hashed = true;
+  symSelf->bind       = NUL;
+  
+  memcpy(self, sArgs->name, sArgs->nameLen);
+}
+
 static Symbol makeSymbol(char *name, uhash hash) {
-  static uint64 counter = 1;
-  static usize  baseSize = sizeof(struct Symbol);
+  assert(name != NULL);
+  assert(*name != '\0');
 
-  usize nameLen  = strlen(name);
-  usize objSize  = baseSize + nameLen + 1;
-  
-  assert(nameLen > 0);
+  struct SymbolArgs args = { name, strlen(name), hash };
 
-  Object new           = createObject(SymbolType, objSize);
-  
-  initObject(new, SymbolType, objSize);
-  
-  OBJ_HASH(new)            = hash;
-  objHead(new)->hashed     = true;
-  SYM_HEAD(new)->idno      = counter++;
-  SYM_HEAD(new)->bind      = NUL;
-  SYM_HEAD(new)->isKeyWord = *name == ':';
-  SYM_HEAD(new)->isBound   = false;
-
-  memcpy(new, name, nameLen);
-
-  return (Symbol)new;
+  return (Symbol)constructObject(SymbolType, &args);
 }
 
 static uhash hashSymbolTableKey(char *key) {
@@ -62,53 +127,70 @@ static uhash hashSymbolTableKey(char *key) {
 }
 
 static uhash reHashSymbolTableEntry(SymbolTableEntry entry) {
-  return OBJ_HASH(AS_OBJ(entry.val));
+  return OBJ_HEAD(entry.val)->hash;
 }
-
 
 static Symbol internInSymbolTable(SymbolTableEntry *entry, char *key, uhash hash) {
   return (entry->val = entry->key = makeSymbol(key, hash));
 }
 
-
 HTABLE(SymbolTable, char*, Symbol, streq, hashSymbolTableKey, reHashSymbolTableEntry, internInSymbolTable, NULL, NULL);
 
-
-// symbol API
 Symbol symbol(char *name) {
   return SymbolTableIntern(&RlSymbolTable, name);
 }
 
-// array objects
+// list & list API
+struct {
+  struct Object obj;
+  struct List list;
+} EmptyList = {
+  .obj={
+    .next=NULL,
+    .hash=0,
+    .type=ListType,
+    .flags=0,
+    .hashed=false,
+    .lendee=false,
+    .inlined=true,
+    .allocated=false,
+    .gray=false,
+    .black=true,
+    .offset=sizeof(struct Object),
+    .size=sizeof(EmptyList)
+  },
+
+  .list={
+    .tail  =&EmptyList.list,
+    .head  =NUL,
+    .length=0
+  }
+};
+
+usize allocList(RlType type, void *args, void **dst) {
+  usize total = ;
+}
+
+// pair & pair API
+struct 
+
+Pair pair(Value car, Value cdr) {
+  
+}
+
+// tuple & tuple API
 #include "impl/array.h"
 
 ARRAY_OBJECT(Tuple, Value, padArraySize, 0);
-ARRAY_OBJECT(String, Glyph, padStringSize, 1, '\0');
 
-Tuple tuple(int nArgs, Value *args) {
+Tuple tuple(Value *args, int nArgs) {
   if (nArgs == 0)
     return EmptyTuple.array;
 
-  Tuple out = createTuple(nArgs);
+  struct TupleArgs tArgs = { nArgs, nArgs, args };
 
-  initTuple(out, args);
-
-  return out;
+  return (Tuple)constructObject(TupleType, &tArgs);
 }
 
-String string(char *chars) {
-  usize s = strlen(chars);
-
-  assert(s < INT32_MAX-1);
-
-  int n = s;
-
-  if (n == 0)
-    return EmptyString.array;
-
-  String out = createString(n);
-
-  initString(out, chars);
-
-  return out;
-}
+// string & string API
+ARRAY_OBJECT(String, Glyph, padStringSize, 1, '\0');

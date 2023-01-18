@@ -9,14 +9,24 @@
 ALIST(Values, Value);
 
 typedef union {
-  Value    asValue;
-  Real     asReal;
-  Small    asSmall;
-  Bool     asBool;
-  Glyph    asGlyph;
-  Object   asObject;
-  Symbol   asSymbol;
-  Function asFunction;
+  Value        asValue;
+  Real         asReal;
+  Small        asSmall;
+  Bool         asBool;
+  Glyph        asGlyph;
+  Object       asObject;
+  Symbol       asSymbol;
+  Function     asFunction;
+  List         asList;
+  Pair         asPair;
+  Tuple        asTuple;
+  String       asString;
+  ByteCode     asByteCode;
+  NameSpc      asNameSpc;
+  Environ      asEnviron;
+  Method       asMethod;
+  UserMethod   asUserMethod;
+  NativeMethod asNativeMethod;
 } ValueType;
 
 /* globals */
@@ -85,7 +95,7 @@ Value  objectToValue(Object o);
           String:stringToValue,             \
           ByteCode:byteCodeToValue,         \
           Environ:environToValue,           \
-          Method:methodToValue,				\
+          Method:methodToValue,		    \
           UserMethod:userMethodToValue,     \
           NativeMethod:nativeMethodToValue, \
           )(x)
