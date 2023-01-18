@@ -80,24 +80,36 @@ Value  objectToValue(Object o);
 #define IS_GLYPH(x)   hasTag(x, GLYPH)
 #define IS_OBJ(x)     hasTag(x, OBJECT)
 
-#define VALUE(x)                            \
-  generic((x),                              \
-          Real:realToValue,                 \
-          Small:smallToValue,               \
-          Bool:boolToValue,                 \
-          Glyph:glyphToValue,               \
-          Object:objectToValue,             \
-          Symbol:symbolToValue,             \
-          Function:functionToValue,         \
-          List:listToValue,                 \
-          Pair:pairToValue,                 \
-          Tuple:tupleToValue,               \
-          String:stringToValue,             \
-          ByteCode:byteCodeToValue,         \
-          Environ:environToValue,           \
-          Method:methodToValue,		    \
-          UserMethod:userMethodToValue,     \
-          NativeMethod:nativeMethodToValue, \
-          )(x)
+#define INIT_OBJHEAD(obj, type, objSize)                                            \
+  do {                                                                              \
+    usize offset = Offset[type];                                                    \
+    struct Object *head = (struct Object*)((obj) + offset - sizeof(struct Object)); \
+    head->next      = NULL;                                                         \
+    head->type      = type;                                                         \
+    head->size      = objSize;                                                      \
+    head->offset    = offset;                                                       \
+    head->allocated = true;                                                         \
+    head->gray      = true;                                                         \
+    head->black     = false;                                                        \
+    } while (false)
+
+#define VALUE(x)                                    \
+  generic((x),                                      \
+          Real:realToValue,                         \
+          Small:smallToValue,                       \
+          Bool:boolToValue,                         \
+          Glyph:glyphToValue,                       \
+          Object:objectToValue,                     \
+          Symbol:symbolToValue,                     \
+          Function:functionToValue,                 \
+          List:listToValue,                         \
+          Pair:pairToValue,                         \
+          Tuple:tupleToValue,                       \
+          String:stringToValue,                     \
+          ByteCode:byteCodeToValue,                 \
+          Environ:environToValue,                   \
+          Method:methodToValue,                     \
+          UserMethod:userMethodToValue,             \
+          NativeMethod:nativeMethodToValue )(x)
 
 #endif

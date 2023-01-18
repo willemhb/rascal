@@ -86,4 +86,10 @@ typedef RlError (*CompFn)(Compiler* state, Value form);
 typedef RlError (*EvalFn)(Interpreter *state, List args);
 typedef RlError (*ExecFn)(Interpreter *state, Value *args, int nArgs);
 
+/* dispatch methods for core operations/object model */
+typedef void  (*PrintFn)(Value x);
+typedef usize (*AllocFn)(RlType type, void *args, void **spc);
+typedef void  (*InitFn)(void *self, RlType type, void *args);
+typedef void  (*FreeFn)(Object self);
+
 #endif

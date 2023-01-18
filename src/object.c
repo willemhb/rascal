@@ -24,7 +24,7 @@ Object constructObject(RlType type, void *args) {
 
 Object createObject(RlType type, void *args) {
   void *spc;
-  usize size, offset = Offset[type];
+  usize size;
 
   if (Alloc[type]) // NB: method responsible for initializing non-standard size/arity information
     size = Alloc[type](type, args, &spc);
@@ -34,18 +34,9 @@ Object createObject(RlType type, void *args) {
     spc  = allocate(size);
   }
 
-  struct Object *head = spc + offset - sizeof(struct Object);
+  INIT_OBJHEAD(spc, type, size);
 
-  // initialize standard size size & arity information (plus a few other fields)
-  head->next      = NULL;
-  head->type      = type;
-  head->size      = size;
-  head->offset    = offset;
-  head->allocated = true;
-  head->gray      = true;
-  head->black     = false;
-
-  return head->space;
+  return spc + Offset[type] - sizeof(struct Object);
 }
 
 void destroyObject(Object self, struct Object **next) {
@@ -141,10 +132,12 @@ Symbol symbol(char *name) {
 }
 
 // list & list API
-struct {
+struct ListObject {
   struct Object obj;
-  struct List list;
-} EmptyList = {
+  struct List   list;
+};
+
+struct ListObject EmptyList = {
   .obj={
     .next=NULL,
     .hash=0,
@@ -167,15 +160,60 @@ struct {
   }
 };
 
+struct ListArgs {
+  int    nArgs;
+  Value *args;
+};
+
 usize allocList(RlType type, void *args, void **dst) {
-  usize total = ;
+  struct ListArgs *lArgs = args;
+
+  assert(lArgs->nArgs > 0);
+  usize objSize = BaseSize[type];
+
+  struct ListObject  *out     = allocate(objSize * lArgs->nArgs);
+  struct  ListObject *current = out;
+
+  for (int i=lArgs->nArgs; i > 0; i--, current++) {
+    INIT_OBJHEAD((void*)current, type, objSize);
+    current->list.length = i;
+    current->list.head   = NUL;
+
+    if (i == 1)
+      current->list.tail = &EmptyList.list;
+
+    else
+      current->list.tail = &(current+1)->list;
+  }
+
+  *dst = out;
+
+  return objSize;
+}
+
+void initList(void *self, RlType type, void *args) {
+  
 }
 
 // pair & pair API
-struct 
+struct PairArgs {
+  Value car;
+  Value cdr;
+};
+
+void initPair(void *self, RlType type, void *args) {
+  (void)type;
+
+  struct PairArgs *pArgs = args;
+
+  ((Pair)self)->car = pArgs->car;
+  ((Pair)self)->cdr = pArgs->cdr;
+}
 
 Pair pair(Value car, Value cdr) {
-  
+  struct PairArgs args = { car, cdr };
+
+  return (Pair)constructObject(PairType, &args);
 }
 
 // tuple & tuple API
