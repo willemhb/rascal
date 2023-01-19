@@ -95,36 +95,21 @@
     .array = { EmptyInit }					      \
   };								      \
 								      \
-  struct A##Args {						      \
-    int length;							      \
-    int capacity;						      \
-    X  *values;							      \
-  };								      \
-								      \
-  usize alloc##A(RlType type, void *args, void **dst) {		      \
-    (void)type;							      \
-    struct A##Args *arrayArgs = args;				      \
-								      \
-    assert(arrayArgs->length > 0);				      \
-    int length   = arrayArgs->length;				      \
-    int capacity = padFn(length, 0);				      \
-    usize total  = sizeof(struct A) + capacity * sizeof(X);	      \
-    void *spc    = allocate(total);				      \
-								      \
-    ((struct A*)spc)->length      = length;			      \
-    ((struct A*)spc)->capacity    = capacity;			      \
-    ((struct A*)spc)->obj.inlined = true;			      \
-    ((struct A*)spc)->obj.lendee  = false;			      \
-								      \
-    *dst = spc;							      \
-    arrayArgs->capacity = capacity;				      \
-    return total;						      \
+  void *alloc##A(ObjectInit *args) {				      \
+    assert(args->A##Init.nArgs > 0);				      \
+    								      \
+    args->A##Init.capacity  = padFn(args->A##Init.nArgs, 0);	      \
+    args->size             += args->A##Init.capacity * sizeof(X);     \
+    								      \
+    return allocate(args->size);				      \
   }								      \
 								      \
-  void init##A(void *self, RlType type, void *args) {		      \
-    (void)type;							      \
-    struct A##Args *arrayArgs =	args;				      \
-    memcpy(self, arrayArgs->values, arrayArgs->capacity * sizeof(X)); \
+  void init##A(void *self, ObjectInit *args) {			      \
+    ARRAY_HEAD(A, self)->length   = args->A##Init.nArgs;	      \
+    ARRAY_HEAD(A, self)->capacity = args->A##Init.capacity;	      \
+    X *xs                         = args->A##Init.array;	      \
+    								      \
+    memcpy(self, xs, ARRAY_HEAD(A, self)->length * sizeof(X));	      \
   }								      \
   								      \
   ARRAY_API(A, X)

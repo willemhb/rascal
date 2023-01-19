@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stdarg.h>
+#include <string.h>
 
 #include "type.h"
 #include "object.h"
@@ -14,47 +15,42 @@
 ALIST(Objects, Object, padAlistSize);
 
 // generic object API
-Object constructObject(RlType type, void *args) {
-  Object new = createObject(type, args);
+Object constructObject(ObjectInit *args) {
+  Object new = createObject(args);
 
-  initObject(new, type, args);
+  initObject(new, args);
 
   return new;
 }
 
-Object createObject(RlType type, void *args) {
-  void *spc;
-  usize size;
+Object createObject(ObjectInit *args) {
+  // default parameters (Alloc method should override if different)
+  args->size      = BaseSize[args->type];
+  args->offset    = Offset[args->type];
+  args->lendee    = false;
+  args->inlined   = true;
+  args->allocated = true;
 
-  if (Alloc[type]) // NB: method responsible for initializing non-standard size/arity information
-    size = Alloc[type](type, args, &spc);
+  struct Object *newObj;
+  
+  if (Alloc[args->type])
+    newObj = Alloc[args->type](args);
 
-  else {
-    size = BaseSize[type];
-    spc  = allocate(size);
-  }
+  else
+    newObj = allocate(BaseSize[args->type]);
 
-  INIT_OBJHEAD(spc, type, size);
-
-  return spc + Offset[type] - sizeof(struct Object);
+  return newObj->space;
 }
 
 void destroyObject(Object self, struct Object **next) {
-  bool allocated = objHead(self)->allocated;
-
   freeObject(self, next);
 
-  if (allocated)
-    deallocate(objStart(self), OBJ_HEAD(self)->size);
+  if (OBJ_HEAD(self)->allocated)
+    deallocate(OBJ_START(self), OBJ_HEAD(self)->size);
 }
 
-void initObject(Object self, RlType type, void *args) {
-  OBJ_HEAD(self)->hash      = 0;
-  OBJ_HEAD(self)->flags     = 0;
-  OBJ_HEAD(self)->hashed    = false;
-
-  if (Init[type])
-    Init[type](self, type, args);
+void initObject(Object self, ObjectInit *args) {
+  Init[args->type](self, args);
 }
 
 void freeObject(Object self, struct Object **next) {
@@ -64,53 +60,47 @@ void freeObject(Object self, struct Object **next) {
   if (next)
     *next = head->next;
 
-  if (Free[type]) // NB: method responsible for updating deallocate information
+  if (Free[type])
     Free[type](self);
 }
 
 // symbol & symbol table API
 #include "impl/htable.h"
-struct SymbolArgs {
-  char *name;
-  usize nameLen;
-  uhash hash;
-};
+void *allocSymbol(ObjectInit *args) {
+  static uint64 counter  = 1;
+  char  *name            = args->SymbolInit.name;
 
-usize allocSymbol(RlType type, void *args, void **dst) {
-  static uint64 counter    = 1;
-  struct SymbolArgs *sArgs = args;
+  // invalid symbol names
+  assert(name);
+  assert(*name != '\0');
+  
+  int    nArgs           = strlen(name);
 
-  usize total = BaseSize[type] + sArgs->nameLen + 1;
-  *dst        = allocate(total);
+  args->SymbolInit.nArgs = nArgs;
+  args->SymbolInit.idno  = counter++;
+  args->size            += nArgs + 1;
 
-  struct Symbol *sym = *dst;
-
-  sym->obj.inlined = true;
-  sym->idno        = counter++;
-
-  return total;
+  return allocate(args->size);
 }
 
-void initSymbol(void *self, RlType type, void *args) {
-  (void)type;
+void initSymbol(void *self, ObjectInit *args) {
+  INIT_OBJ(self, args);
+  memcpy(self, args->SymbolInit.name, args->SymbolInit.nArgs);
 
-  struct SymbolArgs *sArgs = args;
-  struct Symbol *symSelf   = SYM_HEAD(self);
-
-  symSelf->obj.hash   = sArgs->hash;
-  symSelf->obj.hashed = true;
-  symSelf->bind       = NUL;
-  
-  memcpy(self, sArgs->name, sArgs->nameLen);
+  struct Symbol *sym = self - sizeof(struct Symbol);
+  sym->idno          = args->SymbolInit.idno;
+  sym->bind          = NUL;
+  sym->obj.flags    |= (*(char*)self == ':') * LiteralSymbol;
 }
 
 static Symbol makeSymbol(char *name, uhash hash) {
-  assert(name != NULL);
-  assert(*name != '\0');
+  ObjectInit args = {
+    .type  = SymbolType,
+    .hash  = hash,
+    .SymbolInit = { .name=name }
+  };
 
-  struct SymbolArgs args = { name, strlen(name), hash };
-
-  return (Symbol)constructObject(SymbolType, &args);
+  return (Symbol)constructObject(&args);
 }
 
 static uhash hashSymbolTableKey(char *key) {
@@ -127,8 +117,36 @@ static Symbol internInSymbolTable(SymbolTableEntry *entry, char *key, uhash hash
 
 HTABLE(SymbolTable, char*, Symbol, streq, hashSymbolTableKey, reHashSymbolTableEntry, internInSymbolTable, NULL, NULL);
 
+Value  symbolToValue(Symbol s) {
+  return objectToValue((Object)s);
+}
+
 Symbol symbol(char *name) {
   return SymbolTableIntern(&RlSymbolTable, name);
+}
+
+// function & function API
+void initFunction(void *self, ObjectInit *args) {
+  INIT_OBJ(self, args);
+
+  ((Function)self)->name    = args->FunctionInit.name;
+  ((Function)self)->type    = args->FunctionInit.type;
+  ((Function)self)->vMethod = NULL;
+
+  initObjects(&((Function)self)->methods);
+}
+
+Value    functionToValue(Function f) {
+  return objectToValue((Object)f);
+}
+
+Function function(char *name, RlType type) {
+  ObjectInit args = {
+    .type=FunctionType,
+    .FunctionInit = { symbol(name), type }
+  };
+
+  return (Function)constructObject(&args);
 }
 
 // list & list API
@@ -160,75 +178,134 @@ struct ListObject EmptyList = {
   }
 };
 
-struct ListArgs {
-  int    nArgs;
-  Value *args;
-};
+void *allocList(ObjectInit *init) {
+  usize objSize = BaseSize[init->type];
+  int   nArgs   = init->ListInit.nArgs;
 
-usize allocList(RlType type, void *args, void **dst) {
-  struct ListArgs *lArgs = args;
+  assert(nArgs > 0); // invalid length (EmptyList should have already been returned).
 
-  assert(lArgs->nArgs > 0);
-  usize objSize = BaseSize[type];
-
-  struct ListObject  *out     = allocate(objSize * lArgs->nArgs);
-  struct  ListObject *current = out;
-
-  for (int i=lArgs->nArgs; i > 0; i--, current++) {
-    INIT_OBJHEAD((void*)current, type, objSize);
-    current->list.length = i;
-    current->list.head   = NUL;
-
-    if (i == 1)
-      current->list.tail = &EmptyList.list;
-
-    else
-      current->list.tail = &(current+1)->list;
-  }
-
-  *dst = out;
-
-  return objSize;
+  return allocArr(nArgs, objSize);
 }
 
-void initList(void *self, RlType type, void *args) {
-  
+void initList(void *self, ObjectInit *init) {
+  struct ListObject *xs = self - sizeof(struct Object);
+  int    nArgs          = init->ListInit.nArgs;
+  Value *args           = init->ListInit.args;
+
+  for (int i = 0; i < nArgs; i++) {
+    INIT_OBJ(&xs->obj, init);
+
+    int len = nArgs - i;
+
+    xs->list.length = len;
+    xs->list.head   = args[i];
+
+    if (len > 1)
+      xs->list.tail = &(xs+1)->list;
+
+    else
+      xs->list.tail = &EmptyList.list;
+
+    xs++;
+  }
+}
+
+Value listToValue(List l) {
+  return objectToValue((Object)l);
+}
+
+List list(Value *args, int nArgs) {
+  if (nArgs == 0)
+    return &EmptyList.list;
+
+  ObjectInit objArgs = {
+    .type=ListType,
+    .ListInit = { args, nArgs }
+  };
+
+  return (List)constructObject(&objArgs);
 }
 
 // pair & pair API
-struct PairArgs {
-  Value car;
-  Value cdr;
-};
+void  initPair(void *self, ObjectInit *args) {
+  INIT_OBJ(self, args);
 
-void initPair(void *self, RlType type, void *args) {
-  (void)type;
+  ((Pair)self)->car = args->PairInit.car;
+  ((Pair)self)->cdr = args->PairInit.cdr;
+}
 
-  struct PairArgs *pArgs = args;
-
-  ((Pair)self)->car = pArgs->car;
-  ((Pair)self)->cdr = pArgs->cdr;
+Value pairToValue(Pair p) {
+  return objectToValue((Object)p);
 }
 
 Pair pair(Value car, Value cdr) {
-  struct PairArgs args = { car, cdr };
+  ObjectInit args = {
+    .type=PairType,
+    .PairInit = { car, cdr }
+  };
 
-  return (Pair)constructObject(PairType, &args);
+  return (Pair)constructObject(&args);
 }
 
 // tuple & tuple API
 #include "impl/array.h"
-
 ARRAY_OBJECT(Tuple, Value, padArraySize, 0);
+
+Value tupleToValue(Tuple t) {
+  return objectToValue((Object)t);
+}
 
 Tuple tuple(Value *args, int nArgs) {
   if (nArgs == 0)
     return EmptyTuple.array;
 
-  struct TupleArgs tArgs = { nArgs, nArgs, args };
+  ObjectInit objArgs = {
+    .type=TupleType,
+    .TupleInit = { args, nArgs }
+  };
 
-  return (Tuple)constructObject(TupleType, &tArgs);
+  return (Tuple)constructObject(&objArgs);
 }
 
 // string & string API
 ARRAY_OBJECT(String, Glyph, padStringSize, 1, '\0');
+
+Value stringToValue(String s) {
+  return objectToValue((Object)s);
+}
+
+String string(char *chars) {
+  assert(chars);
+
+  if (*chars == '\0')
+    return EmptyString.array;
+
+  ObjectInit args = {
+    .type=StringType,
+    .StringInit = { chars, strlen(chars) }
+  };
+
+  return (String)constructObject(&args);
+}
+
+// Internal objects
+// bytecode & bytecode API
+ARRAY_OBJECT(ByteCode, uint16, padArraySize, 0);
+
+Value byteCodeToValue(ByteCode b) {
+  return objectToValue((Object)b);
+}
+
+ByteCode bytecode(uint16 *code, int nArgs) {
+  assert(nArgs > 0);
+
+  ObjectInit args = {
+    .type=ByteCodeType,
+    .ByteCodeInit = { code, nArgs }
+  };
+
+  return (ByteCode)constructObject(&args);
+}
+
+// namespc & namespc API
+void initNameSpc(void *self, )

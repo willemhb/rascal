@@ -36,8 +36,8 @@
 							\
   extern struct A Empty##A;				\
 							\
-  usize alloc##A(RlType type, void *args, void **dst);	\
-  void  init##A(void *self, RlType type, void *args);	\
+  void *alloc##A(ObjectInit *args);			\
+  void  init##A(void *self, ObjectInit *args);		\
   ARRAY_API(A, X)
 
 #define ARRAY_HEAD(A, a)				\

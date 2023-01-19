@@ -80,6 +80,8 @@ extern struct Reader      RlReader;
 extern struct Compiler    RlCompiler;
 extern struct Interpreter RlInterpreter;
 
+typedef struct ObjectInit ObjectInit;
+
 /* vm function pointer types */
 typedef RlError (*ReadFn)(Reader *state, char dispatch);
 typedef RlError (*CompFn)(Compiler* state, Value form);
@@ -88,8 +90,8 @@ typedef RlError (*ExecFn)(Interpreter *state, Value *args, int nArgs);
 
 /* dispatch methods for core operations/object model */
 typedef void  (*PrintFn)(Value x);
-typedef usize (*AllocFn)(RlType type, void *args, void **spc);
-typedef void  (*InitFn)(void *self, RlType type, void *args);
+typedef void *(*AllocFn)(ObjectInit *args);
+typedef void  (*InitFn)(void *self, ObjectInit *args);
 typedef void  (*FreeFn)(Object self);
 
 #endif

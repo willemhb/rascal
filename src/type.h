@@ -10,8 +10,8 @@ extern uint16  Offset[NUM_TYPES];
 
 extern bool  (*HasType[NUM_TYPES])(Value x, RlType type);
 extern void  (*Print[NUM_TYPES])(Value x);
-extern usize (*Alloc[NUM_TYPES])(RlType type, void *args, void **dst);
-extern void  (*Init[NUM_TYPES])(void *self, RlType type, void *args);
+extern void *(*Alloc[NUM_TYPES])(ObjectInit *args);
+extern void  (*Init[NUM_TYPES])(void *self, ObjectInit *args);
 extern void  (*Free[NUM_TYPES])(Object self);
 
 #endif

@@ -33,6 +33,91 @@ struct Object {
   uchar  space[0];
 };
 
+struct ObjectInit {
+  RlType type;
+  uint16 flags     : 12;
+  uint16 hashed    :  1;
+  uint16 lendee    :  1;
+  uint16 inlined   :  1;
+  uint16 allocated :  1;
+  uint16 offset;
+  usize  size;
+  usize  hash;
+
+  union {
+    struct {
+      char  *name;
+      int    nArgs;
+      uint64 idno; 
+    } SymbolInit;
+
+    struct {
+      Symbol name;
+      RlType type;
+    } FunctionInit;
+
+    struct {
+      Value *args;
+      int    nArgs;
+    } ListInit;
+
+    struct {
+      Value car;
+      Value cdr;
+    } PairInit;
+
+    struct {
+      Value *array;
+      int    nArgs;
+      int    capacity;
+    } TupleInit;
+
+    struct {
+      char *array;
+      int   nArgs;
+      int   capacity;
+    } StringInit;
+
+    struct {
+      uint16 *array;
+      int     nArgs;
+      int     capacity;
+    } ByteCodeInit;
+
+    struct {
+      NameSpc next;
+      List    names;
+    } NameSpcInit;
+
+    struct {
+      Environ next;
+      Tuple   binds;
+    } EnvironInit;
+
+    struct {
+      Symbol name;
+      int    nArgs;
+      bool   vArgs;
+      Object handler;
+    } MethodInit;
+
+    struct {
+      Symbol   name;
+      NameSpc  names;
+      Environ  envt;
+      Tuple    consts;
+      ByteCode code;
+    } UserMethod;
+
+    struct {
+      Symbol name;
+      EvalFn eval;
+      CompFn comp;
+      ExecFn exec;
+    } NativeMethodInit;
+  };
+};
+
 typedef enum {
   LiteralSymbol =1, // always evaluates to itself
   BoundSymbol   =2, // has toplevel binding
@@ -51,7 +136,7 @@ struct Function {
   Symbol   name;
   RlType   type;         // if the function represents a type then this is the key
   Method   vMethod;      // variadic method
-  Objects  Methods;
+  Objects  methods;
 };
 
 struct List {
@@ -111,6 +196,7 @@ struct NativeMethod {
 
 /* convenience */
 #define IS_SYM(x)      hasType(x, SymbolType)
+#define IS_FUNC(x)     hasType(x, FunctionType)
 #define IS_LIST(x)     hasType(x, ListType)
 #define IS_PAIR(x)     hasType(x, PairType)
 #define IS_TUPLE(x)    hasType(x, TupleType)
@@ -123,6 +209,7 @@ struct NativeMethod {
 #define IS_NATIVE(x)   hasType(x, NativeMethodType)
 
 #define AS_SYM(x)      ((Symbol)AS_OBJ(x))
+#define AS_FUNC(x)     ((Function)AS_OBJ(x))
 #define AS_LIST(x)     ((List)AS_OBJ(x))
 #define AS_PAIR(x)     ((Pair)AS_OBJ(x))
 #define AS_TUPLE(x)    ((Tuple)AS_OBJ(x))
@@ -160,10 +247,10 @@ static inline bool isConstant(Symbol s) {
   return !!(OBJ_HEAD(s)->flags & ConstantSymbol);
 }
 
-Object constructObject(RlType type, void *args);
-Object createObject(RlType type, void *args);
+Object constructObject(ObjectInit *args);
+Object createObject(ObjectInit *args);
 void   destroyObject(Object self, struct Object **next);
-void   initObject(Object self, RlType type, void *args);
+void   initObject(Object self, ObjectInit *args);
 void   freeObject(Object self, struct Object **next);
 
 Value  symbolToValue(Symbol s);

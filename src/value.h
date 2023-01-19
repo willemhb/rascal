@@ -80,18 +80,23 @@ Value  objectToValue(Object o);
 #define IS_GLYPH(x)   hasTag(x, GLYPH)
 #define IS_OBJ(x)     hasTag(x, OBJECT)
 
-#define INIT_OBJHEAD(obj, type, objSize)                                            \
-  do {                                                                              \
-    usize offset = Offset[type];                                                    \
-    struct Object *head = (struct Object*)((obj) + offset - sizeof(struct Object)); \
-    head->next      = NULL;                                                         \
-    head->type      = type;                                                         \
-    head->size      = objSize;                                                      \
-    head->offset    = offset;                                                       \
-    head->allocated = true;                                                         \
-    head->gray      = true;                                                         \
-    head->black     = false;                                                        \
-    } while (false)
+
+#define INIT_OBJ(obj, init)						\
+  do {									\
+    usize headoff        =  sizeof(struct Object);			\
+    struct Object *head  =  (struct Object*)((obj) - headoff);		\
+    head->next           =  NULL;					\
+    head->type           =  init->type;					\
+    head->hash           =  init->hash;					\
+    head->hashed         =  init->hashed;				\
+    head->size           =  init->size;					\
+    head->offset         =  init->offset;				\
+    head->allocated      =  init->allocated;				\
+    head->gray           =  init->allocated;				\
+    head->black          = !init->allocated;				\
+    head->inlined        =  init->inlined;				\
+    head->lendee         =  init->lendee;				\
+  } while (false)
 
 #define VALUE(x)                                    \
   generic((x),                                      \
