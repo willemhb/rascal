@@ -308,4 +308,78 @@ ByteCode bytecode(uint16 *code, int nArgs) {
 }
 
 // namespc & namespc API
-void initNameSpc(void *self, )
+void initNameSpc(void *self, ObjectInit *args) {
+  INIT_OBJ(self, args);
+
+  ((NameSpc)self)->next  = args->NameSpcInit.next;
+  ((NameSpc)self)->names = args->NameSpcInit.names;
+}
+
+Value nameSpcToValue(NameSpc n) {
+  return objectToValue((Object)n);
+}
+
+NameSpc namespc(List names, NameSpc next) {
+  ObjectInit args = {
+    .type=NameSpcType,
+    .NameSpcInit = { next, names }
+  };
+
+  return (NameSpc)constructObject(&args);
+}
+
+// environ & environ API
+void initEnviron(void *self, ObjectInit *args) {
+  INIT_OBJ(self, args);
+
+  ((Environ)self)->next  = args->EnvironInit.next;
+  ((Environ)self)->binds = args->EnvironInit.binds;
+}
+
+Value environToValue(Environ e) {
+  return objectToValue((Object)e);
+}
+
+Environ environ(Tuple binds, Environ next) {
+  ObjectInit args = {
+    .type=EnvironType,
+    .EnvironInit={ next, binds }
+  };
+
+  return (Environ)constructObject(&args);
+}
+
+// method & method API
+void initMethod(void *self, ObjectInit *args) {
+  INIT_OBJ(self, args);
+
+  ((Method)self)->name    = args->MethodInit.name;
+  ((Method)self)->nargs   = args->MethodInit.nArgs;
+  ((Method)self)->vargs   = args->MethodInit.vArgs;
+  ((Method)self)->handler = args->MethodInit.handler;
+}
+
+Value methodToValue(Method m) {
+  return objectToValue((Object)m);
+}
+
+Method method(Symbol name, int nArgs, bool vargs, Object handler) {
+  ObjectInit args = {
+    .type=MethodType,
+    .MethodInit= { name, nArgs, vargs, handler }
+  };
+
+  return (Method)constructObject(&args);
+}
+
+// usermethod & usermethod API
+void initUserMethod(void *self, ObjectInit *args) {
+  INIT_OBJ(self, args);
+
+  ((UserMethod)self)->name   = args->UserMethodInit.name;
+  ((UserMethod)self)->names  = args->UserMethodInit.names;
+  ((UserMethod)self)->envt   = args->UserMethodInit.envt;
+  ((UserMethod)self)->consts = args->UserMethodInit.consts;
+  ((UserMethod)self)->code   = args->UserMethodInit.code;
+}
+

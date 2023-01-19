@@ -107,7 +107,7 @@ struct ObjectInit {
       Environ  envt;
       Tuple    consts;
       ByteCode code;
-    } UserMethod;
+    } UserMethodInit;
 
     struct {
       Symbol name;
@@ -274,7 +274,7 @@ Tuple        tuple(Value *args, int nArgs);
 String       string(char *chars);
 ByteCode     bytecode(ushort *args, int nArgs);
 NameSpc      namespc(List names, NameSpc next);
-Environ      environ(Value *args, int nArgs, Environ next);
+Environ      environ(Tuple binds, Environ next);
 Method       method(Symbol name, int nArgs, bool vargs, Object handler);
 UserMethod   usermethod(Symbol name, NameSpc names, Environ envt, Tuple consts, ByteCode code);
 NativeMethod nativemethod(Symbol name, EvalFn eval, CompFn comp, ExecFn exec);
