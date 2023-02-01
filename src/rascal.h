@@ -3,95 +3,51 @@
 
 #include "common.h"
 
-/* commentary
-
-   basic type definitions for the core rascal types. */
-
-/* C types */
-/* value types */
-typedef uword   Value;  // unitype
-typedef double  Real;
-typedef int32_t Small;
-typedef bool    Bool;
-typedef ascii   Glyph;
-typedef uchar  *Object;
+/* value types (set of distinct first class representation) */
+typedef uintptr_t           Value;  // unitype
+typedef uintptr_t           FixNum; // 48-bit unsigned integer
+typedef double              Real;
+typedef int                 Small;
+typedef bool                Bool;
+typedef ascii               Glyph;
+typedef struct Object       Object;
 
 /* object types */
-/* user objects */
-typedef ascii           *Symbol;
-typedef struct Function *Function;
-typedef struct List     *List;
-typedef struct Pair     *Pair;
-typedef Value           *Tuple;
-typedef Glyph           *String;
+// user object types
+typedef struct Symbol      *Symbol;
+typedef struct List        *List;
+typedef struct Pair        *Pair;
+typedef struct Tuple       *Tuple;
+typedef struct Map         *Map;
+typedef struct String      *String;
+typedef struct Binary      *Binary;
+typedef struct Port        *Port;
 
-/* internal object types */
-typedef ushort              *ByteCode;
-typedef struct NameSpc      *NameSpc;
-typedef struct Environ      *Environ;
-typedef struct Method       *Method;
-typedef struct UserMethod   *UserMethod;
-typedef struct NativeMethod *NativeMethod;
+// internal object types
+typedef struct MapNode     *MapNode;
+typedef struct Chunk       *Chunk;
+typedef struct Closure     *Closure;
+typedef struct Native      *Native;
+typedef struct SpecialForm *SpecialForm;
+typedef struct UpValue     *UpValue;
 
-/* builtin types */
-typedef enum {
-  NoType,             // not a type (used as flag when a type is missing or optional)
-  RealType,
-  SmallType,
-  UnitType,
-  BoolType,
-  GlyphType,
-  SymbolType,
-  FunctionType,
-  ListType,
-  PairType,
-  TupleType,
-  StringType,
-  ByteCodeType,
-  NameSpcType,
-  EnvironType,
-  MethodType,
-  UserMethodType,
-  NativeMethodType,
-  NoneType,
-  AnyType
-} RlType;
+/* internal struct types */
+typedef struct Objects Objects;
+typedef struct Values  Values;
 
-#define NUM_TYPES (AnyType+1)
+/* internal enum types */
+typedef enum ValType   ValType;
+typedef enum ObjType   ObjType;
+typedef enum RlType    RlType;
+typedef enum OpCode    OpCode;
+typedef enum RlError   RlError;
+typedef enum ReadState ReadState;
 
-typedef uintptr_t RlTag;
-
-typedef enum {
-  NoError,
-  ReadError,
-  EvalError,
-  ApplyError,
-  CompileError,
-  RuntimeError,
-  SystemError
-} RlError;
-
-/* internal types */
-typedef struct Reader      Reader;
-typedef struct Compiler    Compiler;
-typedef struct Interpreter Interpreter;
-
-extern struct Reader      RlReader;
-extern struct Compiler    RlCompiler;
-extern struct Interpreter RlInterpreter;
-
-typedef struct ObjectInit ObjectInit;
-
-/* vm function pointer types */
-typedef RlError (*ReadFn)(Reader *state, char dispatch);
-typedef RlError (*CompFn)(Compiler* state, Value form);
-typedef RlError (*EvalFn)(Interpreter *state, List args);
-typedef RlError (*ExecFn)(Interpreter *state, Value *args, int nArgs);
-
-/* dispatch methods for core operations/object model */
-typedef void  (*PrintFn)(Value x);
-typedef void *(*AllocFn)(ObjectInit *args);
-typedef void  (*InitFn)(void *self, ObjectInit *args);
-typedef void  (*FreeFn)(Object self);
+/* global runtime & interpreter objects */
+extern struct Reader      Reader;           // essential reader state
+extern struct Compiler    Compiler;         // essential compiler state
+extern struct Interpreter Interpreter;      // essential execution state
+extern struct Heap        Heap;             // memory state
+extern struct Errors      Errors;           // error and synchronization state
 
 #endif
