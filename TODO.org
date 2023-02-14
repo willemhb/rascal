@@ -1,3 +1,57 @@
-* TODO Early development
-Focusing on a basic lisp implementation that can support planned developments.
+* TODO Version 0.0.1
+Focusing on a fully-featured but conventional lisp implementation that can support future
+developments.
 
+** Features
+*** Builtin types
+**** First-class & reader support for unit, bool, & glyph types
+**** First-class & reader support for for symbols, keywords, & gensyms
+**** First-class & reader support for real, small (int32), complex, imaginary, & bigint types
+**** First-class & reader support for list, pair, tuple, dict, set, string, & binary types
+**** First-class support for port, error, & control (continuation) types
+**** First-class support for function, method, native, special-form, & closure types
+**** First-class support for primitive-spec, record-spec, struct-spec, and union-spec types
+
+*** User types
+**** First-class & reader support for record types (flexible extension types built on maps)
+**** First-class & reader support for struct types (compact extension types built on tuples)
+**** First-class support support for union types
+
+*** Procedures
+**** First-class functions with lexical scope, implemented in terms of upvalues
+**** Support for anonymous functions
+**** Support for variadic functions using '..' syntax
+**** Support for arity-based function overloading using Clojure style syntax
+
+*** Control
+**** Error handling support with `catch/raise` special forms
+**** Custom control flow support with `prompt/control` special forms
+
+*** Modules
+**** Support for import, export, and qualified import with `require/provide` special forms
+**** Support for namespace qualified symbols using `/` as separator
+
+*** Macros
+**** Common Lisp style macros
+**** Support for Clojure style quoting & unquoting, ie `(if-let test# ~x test# ~y)
+
+*** Reader
+**** Support for Clojure style function literals, ie #(+ % 1)
+**** Support for Common Lisp style reader extension
+
+*** Compiler, Interpreter, & Runtime
+**** Bytecode virtual machine
+**** Self-hosted compiler
+**** Quad-color garbage collector
+**** Support for runtime checked type annotations where symbols are expected, ie (def (small x) 12), (def (real y) 2.0)
+
+*** Library
+**** OS interface via `sys` module
+**** Math utilities via `math` module
+**** Cryptographic utilities via `crypt` module
+**** String & character handling utilities via `text` module
+**** Date & time utilities via `time` module
+**** Low-level IO interface via `io` module
+**** Networking utilities via `net` module
+**** C interface via `ffi` module
+**** Access to language internals via `lang` module
