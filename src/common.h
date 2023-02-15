@@ -31,4 +31,8 @@ typedef size_t         usize;
 typedef void          *nullptr;
 typedef void         (*funcptr)(void);
 
+#define generic _Generic
+
+#define unlikely(condition) __builtin_expect(0, (condition))
+
 #endif

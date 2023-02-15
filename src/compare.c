@@ -21,9 +21,13 @@ int compare_pairs(Pair *x, Pair *y);
 int compare_vecs(Vec *x, Vec *y);
 int compare_bins(Bin *x, Bin *y);
 int compare_tables(Table *x, Table *y);
-int compare_ports();
+int compare_ports(Port *x, Port *y);
+int compare_closures(Port *x, Port *y);
+int compare_chunks(Chunk *x, Chunk *y);
+int compare_natives(Native *x, Native *y);
+int compare_upvals(UpVal *x, UpVal *y);
 
-
+// ----------------------------------------------------------------------------
 bool equal_bins(Bin *x, Bin *y) {
   if (x->count != y->count)
     return false;
@@ -33,7 +37,6 @@ bool equal_bins(Bin *x, Bin *y) {
 
   return memcmp(x->array, y->array, x->count * bin_elsize(x));
 }
-
 
 
 /* API */
