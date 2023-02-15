@@ -7,28 +7,29 @@
 typedef struct Frame Frame;
 
 struct Interp {
-  UpVal *open_upvals;
-  Frame *ctl;
-  Frame *fbase, *ftop, *fp;
-  Val   *vbase, *vtop, *vp;
+  Frame *fp;
+  Val   *sp;
 };
 
 struct Frame {
-  Frame   *caller;
-  Closure *closure;
+  UserFn  *closure;
   uint16  *pc;
-  Val     *base;
+  Val     *slots;
 };
 
 /* globals */
 extern struct Interp Interp;
 
 /* API */
-void   interp_init(void);
-void   init_interp(struct Interp *interp);
-Val   *pushv(Val x);
-Val    popv(void);
-Frame *pushf(Closure *closure, int n_args);
-Val    popf(void);
+Val* push(Val x);
+Val* pushn(int n);
+Val* peep(int n);
+Val peek(int n);
+Val pop(void);
+Val popn(int n);
+
+void pushf(UserFn *closure, int n_args);
+void popf(void);
+bool is_captured(Frame *frame);
 
 #endif

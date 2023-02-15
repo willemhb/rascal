@@ -170,11 +170,12 @@ NativeFn *as_native_fn(Val x);
 UserFn *as_user_fn(Val x);
 ReaderFn *as_reader_fn(Val x);
 
-// constructors
+// constructors ---------------------------------------------------------------
 Obj *new_obj(ObjType type);
 Obj *new_objs(ObjType type, int n);
 
 UserFn *mk_user_fn(char *name, int n_args, bool vargs);
+Table *mk_table(void);
 
 Sym *new_sym(char *name);
 Pair *new_pair(Val fst, Val snd);
@@ -187,5 +188,48 @@ Port *new_port(FILE *ios);
 NativeFn *new_native_fn(char *name, int n_args, bool vargs, void (*guard)(NativeFn *native, int n_args, bool vargs), Val (*func)(int n_args, Val *args));
 UserFn *new_user_fn(char *name, int n_args, bool vargs, List *ns, List *env, Vec *consts, Bin *code);
 ReaderFn *new_reader_fn(ReaderFn reader_fn);
+
+Val sym(char *name);
+Val list(int n_args, Val *args);
+Val pair(Val fst, Val snd);
+Val vec(int n_args, Val *args);
+Val str(char *chars);
+Val bin(int n_args, Val *args);
+Val table(int n_args, Val *args);
+
+// accessors ------------------------------------------------------------------
+Val pair_fst(Pair *pair);
+Val pair_snd(Pair *pair);
+Val pair_fxt(Pair *pair, Val fst);
+Val pair_sxd(Pair *pair, Val snd);
+
+Val list_head(List *list);
+List *list_tail(List *list);
+Val list_nth(List *list, int n);
+
+Val vec_ref(Vec* vec, int i);
+Val vec_set(Vec* vec, int i, Val x);
+int vec_add(Vec* vec, Val x);
+int vec_del(Vec* vec, int i, Val* buf);
+int vec_addn(Vec* vec, int n, Val* xs);
+
+usize bin_len(Bin *bin);
+ubyte bin_ref(Bin* bin, int i);
+ubyte bin_set(Bin* bin, int i, ubyte b);
+int bin_add(Bin* bin, ubyte b);
+int bin_del(Bin* bin, int i, ubyte* buf);
+int bin_addn(Bin* bin, int n, ubyte* bs);
+
+usize str_len(Str *str);
+Glyph str_ref(Str *str, int i);
+
+usize table_cnt(Table* table);
+bool table_ref(Table* table, Val key, Val* buf);
+bool table_set(Table* table, Val key, Val val);
+bool table_add(Table* table, Val key, Val val);
+bool table_del(Table* table, Val key, Pair** buf);
+
+// misc utilities -------------------------------------------------------------
+int num_locals(UserFn *closure);
 
 #endif
