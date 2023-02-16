@@ -9,14 +9,15 @@
 (define-generic-mode
   'rascal-mode
   '(";")
-  '("defv" "defc" "lmb"
-    "defn" "defm"
+  '("defv" "defc" "defn" "defm"
+    "lmb" "let"
     "do" "if" "and" "or" "cond" "case"
-    "putv" "quote"
-    "raise" "hndl")
+    "putv" "quote" "require"
+    "raise" "catch")
   '(("\\_<true\\_>" . font-lock-builtin-face)
     ("\\_<false\\_>" . font-lock-builtin-face)
     ("\\_<nul\\_>" . font-lock-builtin-face)
+    ("\\_<otherwise\\_>" . font-lock-builtin-face)
     (":[-a-zA-Z?*+0-9]+\\_>" . font-lock-builtin-face))
   '("\\.rl$" "\\.rdn$" "\\.rlo$") ;; source file, serialization format, object file
   '(rainbow-delimiters-mode)
