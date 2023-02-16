@@ -1,6 +1,8 @@
 #ifndef utils_h
 #define utils_h
 
+#include <stdio.h>
+
 #include "common.h"
 
 /* C types */
@@ -24,6 +26,12 @@ uhash hash_ptr(const void *x);
 uhash hash_str(const char *xs);
 uhash hash_mem(const ubyte *xs, usize n);
 uhash mix_hashes(uhash hx, uhash hy);
+
+// misc io --------------------------------------------------------------------
+void newln(void);
+void fnewln(FILE *ios);
+int peekc(void);
+int fpeekc(FILE *ios);
 
 // convenience macros ---------------------------------------------------------
 #define MAX(x, y)				\
