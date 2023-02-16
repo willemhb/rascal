@@ -10,6 +10,9 @@
 typedef enum ObjType ObjType;
 typedef enum ObjFl ObjFl;
 
+typedef union Native Native;
+typedef void (*GuardFn)(Obj *callee, int n_args, Val *args);
+
 // user objects ---------------------------------------------------------------
 typedef struct Sym Sym;
 typedef struct Pair Pair;
@@ -21,24 +24,22 @@ typedef struct Table Table;
 typedef struct Port Port;
 typedef struct NativeFn NativeFn;
 typedef struct UserFn UserFn;
-typedef struct ReaderFn ReaderFn;
 
 enum ObjType {
   // user objects
-  SYM_OBJ,
+  SYM_OBJ=OBJ_VAL,
+  PORT_OBJ,
+  NATIVE_FN_OBJ,
+  USER_FN_OBJ,
   PAIR_OBJ,
   LIST_OBJ,
   VEC_OBJ,
   TABLE_OBJ,
   BIN_OBJ,
   STR_OBJ,
-  PORT_OBJ,
-  NATIVE_FN_OBJ,
-  USER_FN_OBJ,
-  READER_FN_OBJ
 };
 
-#define NUM_OBJ_TYPES (READER_FN_OBJ+1)
+#define NUM_OBJ_TYPES (STR_OBJ+1)
 
 struct Obj {
   Obj *next;
@@ -49,15 +50,20 @@ struct Obj {
   uint gray  : 1;
 };
 
+// symbol flags
+enum {
+  BOUND_SYM=1,     // has toplevel binding
+  LITERAL_SYM=2,   // self-evaluating
+  INTERNED_SYM=4,  // interned in symbol table
+  CONSTANT_SYM=8   // cannot be rebound at top level
+};
+
 struct Sym {
   Obj obj;
   char *name;
-  uint64 hash;
-  uint64 idno;
+  uint64 hash, idno;
   Val bind; // toplevel binding
-  bool interned, bound;
-  // invasive tree of symbols (for interned symbols)
-  Sym    *left, *right;
+  Sym *left, *right; // invasive symbol table
 };
 
 struct List {
@@ -88,7 +94,7 @@ struct Bin {
 
 struct Str {
   Obj obj;
-  char *chars;
+  char *array;
   int count, cap;
   uint64 hash;
 };
@@ -97,6 +103,12 @@ struct Table {
   Obj obj;
   Pair **table;
   int count, cap;
+  union {
+    sint8 *ord8;
+    sint16 *ord16;
+    sint32 *ord32;
+  };
+  Obj *compare; // optional, not yet used
 };
 
 struct Port {
@@ -104,13 +116,25 @@ struct Port {
   FILE *ios;
 };
 
+union Native {
+  // common
+  Val (*thunk)(void);
+  Val (*unary)(Val x);
+  Val (*binary)(Val x, Val y);
+  Val (*ternary)(Val x, Val y, Val z);
+  Val (*nary)(int n_args, Val *args);
+
+  // special
+  Val (*reader)(Glyph x, FILE *ios);
+};
+
 struct NativeFn {
   Obj obj;
-  Str *name;
-  int n_args;
+  Sym *name;
+  int argc;
   bool vargs;
-  void (*guard)(NativeFn *native_fn, int n_args, Val *args);
-  Val (*func)(int n_args, Val *args);
+  GuardFn guard;
+  Native func;
 };
 
 struct UserFn {
@@ -124,12 +148,6 @@ struct UserFn {
   Bin *code;
 };
 
-// internal objects -----------------------------------------------------------
-struct ReaderFn {
-  Obj obj;
-  Val (*func)(Glyph g, FILE *ios);
-};
-
 /* globals */
 #define CAP_MIN        8
 #define TABLE_PRESSURE 0.625
@@ -138,24 +156,11 @@ extern List EmptyList;
 extern Sym *SymbolTable;
 
 /* API */
-/* common utilities */
+// common utilities
 ObjType obj_type(Val val);
 usize obj_size(Obj *obj);
 char *obj_type_name(Obj *obj);
 bool is_obj_type(Val value, ObjType type);
-
-// object type predicates
-bool is_sym(Val x);
-bool is_pair(Val x);
-bool is_list(Val x);
-bool is_vec(Val x);
-bool is_bin(Val x);
-bool is_str(Val x);
-bool is_table(Val x);
-bool is_port(Val x);
-bool is_user_fn(Val x);
-bool is_native_fn(Val x);
-bool is_reader_fn(Val x);
 
 // casts
 Sym *as_sym(Val x);
@@ -168,7 +173,6 @@ Str *as_str(Val x);
 Port *as_port(Val x);
 NativeFn *as_native_fn(Val x);
 UserFn *as_user_fn(Val x);
-ReaderFn *as_reader_fn(Val x);
 
 // constructors ---------------------------------------------------------------
 Obj *new_obj(ObjType type);
@@ -176,26 +180,32 @@ Obj *new_objs(ObjType type, int n);
 
 UserFn *mk_user_fn(char *name, int n_args, bool vargs);
 Table *mk_table(void);
+void init_table(Table *table, bool is_static);
+Str *mk_str(int n_chars, char *chars);
 
 Sym *new_sym(char *name);
 Pair *new_pair(Val fst, Val snd);
 List *new_list(int n_args, Val *args);
 Vec *new_vec(int n_args, Val *args);
 Table *new_table(int n_args, Val *args);
-Bin *new_bin(int n_bytes, ubyte *bytes);
-Str *new_str(int n_chars, char *chars);
+Bin *new_bin(int n_args, Val *args);
+Str *new_str(int n_args, Val *args);
 Port *new_port(FILE *ios);
-NativeFn *new_native_fn(char *name, int n_args, bool vargs, void (*guard)(NativeFn *native, int n_args, bool vargs), Val (*func)(int n_args, Val *args));
+NativeFn *new_native_fn(char *name, int n_args, bool vargs, GuardFn guard, Native func);
 UserFn *new_user_fn(char *name, int n_args, bool vargs, List *ns, List *env, Vec *consts, Bin *code);
-ReaderFn *new_reader_fn(ReaderFn reader_fn);
 
 Val sym(char *name);
 Val list(int n_args, Val *args);
 Val pair(Val fst, Val snd);
 Val vec(int n_args, Val *args);
 Val str(char *chars);
-Val bin(int n_args, Val *args);
+Val bin(int n_args, ubyte *bytes);
 Val table(int n_args, Val *args);
+Val port(FILE *ios);
+
+// destructors ----------------------------------------------------------------
+void free_obj(Obj *obj);
+void free_table(Table *table);
 
 // accessors ------------------------------------------------------------------
 Val pair_fst(Pair *pair);
@@ -205,29 +215,54 @@ Val pair_sxd(Pair *pair, Val snd);
 
 Val list_head(List *list);
 List *list_tail(List *list);
+List *list_find(List *list, Val x);
+List *list_assoc(List *list, Val k);
 Val list_nth(List *list, int n);
 
+Val *vec_peep(Vec *vec, int i);
+Val *vec_find(Vec *vec, Val x);
 Val vec_ref(Vec* vec, int i);
 Val vec_set(Vec* vec, int i, Val x);
 int vec_add(Vec* vec, Val x);
 int vec_del(Vec* vec, int i, Val* buf);
 int vec_addn(Vec* vec, int n, Val* xs);
 
-usize bin_len(Bin *bin);
+usize bin_len(Bin* bin);
+ubyte *bin_find(Bin* bin, ubyte x);
+ubyte *bin_peep(Bin* bin, int i);
 ubyte bin_ref(Bin* bin, int i);
-ubyte bin_set(Bin* bin, int i, ubyte b);
-int bin_add(Bin* bin, ubyte b);
+ubyte bin_set(Bin* bin, int i, ubyte x);
+int bin_add(Bin* bin, ubyte x);
 int bin_del(Bin* bin, int i, ubyte* buf);
-int bin_addn(Bin* bin, int n, ubyte* bs);
+int bin_addn(Bin* bin, int n, ubyte* xs);
 
-usize str_len(Str *str);
-Glyph str_ref(Str *str, int i);
+usize str_len(Str* str);
+char *str_peep(Str* str, int i);
+char *str_find(Str* str, Glyph x);
+Glyph str_ref(Str* str, int i);
 
 usize table_cnt(Table* table);
-bool table_ref(Table* table, Val key, Val* buf);
-bool table_set(Table* table, Val key, Val val);
-bool table_add(Table* table, Val key, Val val);
-bool table_del(Table* table, Val key, Pair** buf);
+Pair **table_find(Table* table, Val key);
+bool  table_ref(Table* table, Val key, Val* buf);
+bool  table_set(Table* table, Val key, Val val);
+bool  table_add(Table* table, Val key, Val val);
+bool  table_del(Table* table, Val key, Pair** buf);
+
+// predicates -----------------------------------------------------------------
+// type predicates ------------------------------------------------------------
+bool is_sym(Val x);
+bool is_pair(Val x);
+bool is_list(Val x);
+bool is_vec(Val x);
+bool is_bin(Val x);
+bool is_str(Val x);
+bool is_table(Val x);
+bool is_port(Val x);
+bool is_user_fn(Val x);
+bool is_native_fn(Val x);
+
+// value predicates -----------------------------------------------------------
+bool is_empty_list(List *xs);
 
 // misc utilities -------------------------------------------------------------
 int num_locals(UserFn *closure);

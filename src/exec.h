@@ -4,6 +4,7 @@
 #include "object.h"
 
 /* API */
-Val exec(Chunk *chunk);
+Val exec(UserFn *chunk);
+Val exec_at(UserFn *chunk, ubyte label);
 
 #endif

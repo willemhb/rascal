@@ -4,57 +4,61 @@
 #include "hash.h"
 
 /* globals */
-#define FNV64_PRIME  0x00000100000001B3ul
-#define FNV64_OFFSET 0xcbf29ce484222325ul
+#define BOUNDED_HASH_BOUND 16384
+
+uhash ObjTypeHash[NUM_OBJ_TYPES];
 
 /* API */
-uhash hash_uint(uint64 x) {
-  // credit authors of FemtoLisp
-  x = (~x) + (x << 21);            // x = (x << 21) - x - 1;
-  x =  x  ^ (x >> 24);
-  x = (x + (x << 3)) + (x << 8); // x * 265
-  x =  x ^ (x >> 14);
-  x = (x + (x << 2)) + (x << 4); // x * 21
-  x =  x ^ (x >> 28);
-  x =  x + (x << 31);
+// local helpers --------------------------------------------------------------
+static uhash hash_sym_obj(Val x);
+static uhash hash_port_obj(Val x);
+static uhash hash_native_fn_obj(Val x);
+static uhash hash_str_obj(Val x);
+static uhash hash_bin_obj(Val x);
+static uhash hash_pair_obj(Val x, int bound, uhash *accum);
+static uhash hash_list_obj(Val x, int bound, uhash *accum);
+static uhash hash_vec_obj(Val x, int bound, uhash *accum);
+static uhash hash_table_obj(Val x, int bound, uhash *accum);
 
-  return x;
-}
+static uhash bounded_hash(Val x, int bound, uhash *accum);
+static uhash pointer_hash(Val x);
 
-uhash hash_float(double x) {
-  return hash_uint(mk_real(x));
-}
+// toplevel hashing dispatch --------------------------------------------------
+uhash hash_val(Val x, bool deep_hash) {
+  if (deep_hash) {
+    uhash accum = 0;
 
-uhash hash_ptr(const void *x) {
-  return hash_uint((uint64)x);
-}
-
-uhash hash_str(const char *xs) {
-  return hash_mem((const ubyte*)xs, strlen(xs));
-}
-
-uhash hash_mem(const ubyte *xs, usize n) {
-  uhash h = FNV64_OFFSET;
-
-  for (usize i=0; i<n; i++) {
-    h ^= xs[i];
-    h *= FNV64_PRIME;
+    return bounded_hash(x, BOUNDED_HASH_BOUND, &accum);
   }
 
-  return h;
+  return pointer_hash(x);
 }
 
-uhash mix_hashes(uhash hx, uhash hy) {
-  return hash_uint(hx ^ hy);
+// leaf type hashes -----------------------------------------------------------
+static uhash hash_sym_obj(Val x) {
+  return as_sym(x)->hash;
 }
 
-/* toplevel hash dispatch */
-uhash hash_val(Val x) {
-  if (!IS_OBJ(x))
-    return hash_uint(x);
-  
-  switch (OBJ_TYPE(x)) {
-  case SYM_OBJ: return AS_SYM(x)->hash;
-  default:      return hash_ptr(AS_OBJ(x));
-  }
+static uhash hash_port_obj(Val x) {
+  return mix_hashes(ObjTypeHash[PORT_OBJ], hash_ptr(as_port(x)->ios));
+}
+
+static uhash hash_native_fn_obj(Val x) {
+  return mix_hashes(ObjTypeHash[NATIVE_FN_OBJ], as_native_fn(x)->name->hash);
+}
+
+static uhash hash_str_obj(Val x) {
+  return as_str(x)->hash;
+}
+
+static uhash hash_bin_obj(Val x) {
+  Bin* xb = as_bin(x);
+
+  return mix_hashes(ObjTypeHash[BIN_OBJ], hash_mem(xb->array, xb->count));
+}
+
+/* initialization */
+void hash_init(void) {
+  for (int ot=SYM_OBJ; ot<=STR_OBJ; ot++)
+    ObjTypeHash[ot] = hash_uint(ot);
 }

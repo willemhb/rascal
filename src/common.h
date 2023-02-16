@@ -5,7 +5,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-
 /* style typedefs */
 typedef signed char    schar;
 typedef signed short   sshort;
@@ -16,6 +15,7 @@ typedef unsigned short ushort;
 typedef unsigned int   uint;
 typedef unsigned long  ulong;
 
+typedef uintptr_t      word;
 typedef unsigned char  ubyte;
 
 typedef int8_t         sint8;
@@ -32,7 +32,8 @@ typedef void          *nullptr;
 typedef void         (*funcptr)(void);
 
 #define generic _Generic
-
 #define unlikely(condition) __builtin_expect(0, (condition))
+#define unreachable __builtin_unreachable
+#define attrs __attribute__
 
 #endif

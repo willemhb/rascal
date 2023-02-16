@@ -4,8 +4,9 @@
 #include "value.h"
 
 /* API */
-int  compare(Val x, Val y);
+// value comparisons ----------------------------------------------------------
 bool same(Val x, Val y);
 bool equal(Val x, Val y);
+int  compare(Val x, Val y);
 
 #endif
