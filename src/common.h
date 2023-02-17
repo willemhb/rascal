@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <uchar.h>
 
 /* style typedefs */
 typedef signed char    schar;
@@ -17,6 +18,13 @@ typedef unsigned long  ulong;
 
 typedef uintptr_t      word;
 typedef unsigned char  ubyte;
+typedef uint32_t       flags32;
+
+typedef char ascii;
+typedef char latin1;
+typedef char utf8;
+typedef char16_t utf16;
+typedef char32_t utf32;
 
 typedef int8_t         sint8;
 typedef int16_t        sint16;

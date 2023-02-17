@@ -1,6 +1,8 @@
 #ifndef opcode_h
 #define opcode_h
 
+#include "common.h"
+
 typedef enum OpCode OpCode;
 
 enum OpCode {
@@ -25,5 +27,9 @@ enum OpCode {
   OP_CLOSURE,
   OP_RETURN
 };
+
+/* API */
+usize op_argc(OpCode op);
+void  dis_op(OpCode op, ...);
 
 #endif
