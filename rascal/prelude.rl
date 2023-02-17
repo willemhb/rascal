@@ -2,70 +2,47 @@
 
 ;; core utilities defined before macro expansion has been defined.
 
-(defv isa? (lmb (x type)
-      	   	(id? (typeof x) type)))
+;; type predicates
+(def isa?
+     (lmb (x type)
+          (id? (type-of x) type)))
 
-(defc not (lmb (x) (if x false true)))
+(def isa?-maker
+     (lmb (type)
+          (lmb (x) (isa? x type))))
 
-(defc real?       (lmb (x)  (isa? x 'real)))
-(defc fix?        (lmb (x)  (isa? x 'fix)))
-(defc small?      (lmb (x)  (isa? x 'small)))
-(defc unit?       (lmb (x)  (isa? x 'unit)))
-(defc bool?       (lmb (x)  (isa? x 'bool)))
-(defc glyph?      (lmb (x)  (isa? x 'glyph)))
-(defc sym?        (lmb (x)  (isa? x 'sym)))
-(defc port?       (lmb (x)  (isa? x 'port)))
-(defc native-fn?  (lmb (x)  (isa? x 'native-fn)))
-(defc user-fn?    (lmb (x)  (isa? x 'user-fn)))
-(defc pair?       (lmb (x)  (isa? x 'pair)))
-(defc list?       (lmb (x)  (isa? x 'list)))
-(defc vec?        (lmb (x)  (isa? x 'vec)))
-(defc table?      (lmb (x)  (isa? x 'table)))
-(defc bin?        (lmb (x)  (isa? x 'bin)))
-(defc str?        (lmb (x)  (isa? x 'str)))
+(def real?   (isa?-maker 'real))
+(def int?    (isa?-maker 'int))
+(def unit?   (isa?-maker 'unit))
+(def bool?   (isa?-maker 'bool))
+(def glyph?  (isa?-maker 'glyph))
+(def bin?    (isa?-maker 'bin))
+(def sym?    (isa?-maker 'sym))
+(def stream? (isa?-maker 'stream))
+(def func?   (isa?-maker 'func))
+(def cons?   (isa?-maker 'cons))
+(def vec?    (isa?-maker 'vec))
+(def table?  (isa?-maker 'table))
 
-(defc empty?      (lmb (xs) (id? xs '()))
+;; misc. predicates
+(def not
+     (lmb (x)
+          (cond x    false
+                else true)))
 
-(defc cons?
-      (lmb (xs) (if (list? xs)
-	       	    (not (empty? xs))
-	       	    false)))
+(def atom?
+     (lmb (x) (not (cons? x))))
 
-(defc any-pair?
-      (lmb (xs) (if (list? xs)
-      	   	    (not (empty? xs))
-		    (pair? xs))))
+(def seq?
+     (lmb (x)
+          (cond (bin? x)   true
+                (cons? x)  true
+                (vec? x)   true
+                (table? x) true
+                else       false)))
 
-(defc atom?
-      (lmb (x) (not (cons? x))))
 
-(defc literal?
-      (lmb (x) (if (sym? x)
-      	       	   (kw? x)
-		   (cons? x))))
 
-(defc car
-      (lmb (x)
-      	   (if (cons? x)
-	       (head x)
-	       (if (pair? x)
-	       	   (fst x)
-		   (raise x "Expected a pair or list")))))
-
-(defc cdr
-      (lmb (x)
-      	   (if (cons? x)
-	       (tail x)
-	       (if (pair? x)
-	       	   (snd x)
-		   (raise x "Expected a pair or list")))))
-
-(defv len=?
-      (lmb (xs n)
-      	   (= (len xs) n)))
-
-(defv car-id?
-      (lmb (xs x)
-      	   (id? (car xs) x)))
+(provide (isa? real? int? unit? bool? glyph? bin? sym? stream? func? cons? vec? table?))
 
 ;; end prelude.rl
