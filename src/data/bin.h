@@ -2,25 +2,51 @@
 #define bin_h
 
 #include "base/object.h"
+#include "base/type.h"
 
-#include "util/hash.h"
 #include "util/ctype.h"
 
 /* C types */
+typedef enum BinFl BinFl;
+
+enum BinFl {
+  ENCODED=0b00000100000
+};
+
 struct Bin {
   Obj obj;
 
   void* array;
+  ushort count, cap;
 };
 
+/* globals */
+extern Bin EmptyString;
+
 /* API */
-bool val_is_bin(Val x);
-bool obj_is_bin(Obj* o);
+bool is_bin(Val x);
+Bin* as_bin(Val x);
+Val  mk_bin(Bin* x);
 
-Bin* val_as_bin(Val x);
-Bin* obj_as_bin(Obj* o);
+// metadata ------------------------------------------------------------------
+Ctype bin_ctype(Bin* b);
+bool  is_string(Bin* b);
+usize bin_el_size(Bin* b);
+usize bin_arr_size(Bin* b);
+usize bin_used_size(Bin* b);
+usize bin_alloc_size(Bin* b);
 
-Val bin_tag(Bin* b);
-flags32 bin_flags(Bin* b);
+// constructors & memory management -------------------------------------------
+Bin*  new_bin(Ctype type, usize n, void* data, bool mutp);
+void  init_bin(Bin* self, Ctype type, usize n, void* data, bool mutp);
+void  resize_bin(Bin* self, usize n);
+
+// accessors & mutators -------------------------------------------------------
+void* bin_ref(Bin* self, int i);
+void* bin_set(Bin* self, int i, void* data);
+usize bin_write(Bin* self, usize n, void* data);
+
+// initialization -------------------------------------------------------------
+void bin_init(void);
 
 #endif

@@ -1,20 +1,20 @@
-#ifndef interpreter_h
-#define interpreter_h
+#ifndef runtime_interp_h
+#define runtime_interp_h
 
-#include "object.h"
+#include "base/object.h"
 
 /* C types */
 typedef struct Frame Frame;
 
 struct Interp {
-  Frame *fp;
-  Val   *sp;
+  Frame* fp;
+  Val*   sp;
 };
 
 struct Frame {
-  UserFn  *closure;
-  uint16  *pc;
-  Val     *slots;
+  Func*   closure;
+  uint16* pc;
+  Val*    slots;   // local arguments
 };
 
 /* globals */
@@ -27,9 +27,5 @@ Val* peep(int n);
 Val peek(int n);
 Val pop(void);
 Val popn(int n);
-
-void pushf(UserFn *closure, int n_args);
-void popf(void);
-bool is_captured(Frame *frame);
 
 #endif

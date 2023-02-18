@@ -31,17 +31,13 @@ bool is_sym(Val x);
 Sym* as_sym(Val x);
 Val tag_sym(Sym* s);
 
-void print_sym(Val x, void* state);
-uhash hash_sym(Val x, void* state);
-bool equal_syms(Val x, Val y, void* state);
-int compare_syms(Val x, Val y, void* state);
+// predicates -----------------------------------------------------------------
+bool is_literal(Sym* s);
+bool is_interned(Sym* s);
+bool is_defined(Sym* s);
+bool is_bound(Sym* s);
 
-bool is_literal(Val x);
-bool is_interned(Val x);
-bool is_defined(Val x);
-bool is_bound(Val x);
-
-Sym *mk_sym(char* name);
+Sym* intern(char* name);
 Val lookup(Sym* s);
 Val assign(Sym* s);
 Val define(char* name, Val val, bool idem);

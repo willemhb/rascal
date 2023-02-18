@@ -1,13 +1,15 @@
-#ifndef hash_h
-#define hash_h
+#ifndef lang_hash_h
+#define lang_hash_h
 
-#include "value.h"
-#include "utils.h"
+#include "base/value.h"
+#include "base/type.h"
+
+#include "util/hash.h"
+
+/* globals */
+extern uhash (*Hash[NUM_TYPES])(Val x, void* state);
 
 /* API */
-uhash hash_val(Val x, bool deep_hash);
-
-/* initialization */
-void hash_init(void);
+uhash hash(Val x, bool deep_hash);
 
 #endif

@@ -13,35 +13,57 @@ typedef Val (*ReaderFn)(Glyph g, Stream* s);
 typedef struct {
   Vec*  consts;
   Bin*  code;
-  Cons* ns;
-  Cons* env;
+  List* ns;
+  List* env;
 } Chunk;
+
+typedef union {
+  NativeFn native;
+  ReaderFn reader;
+  Chunk*   user;
+} FuncData;
 
 // flags ----------------------------------------------------------------------
 typedef enum FuncFl FuncFl;
 
 enum FuncFl {
-  NATIVE_FN=1,
-  READER_FN=2,
-  USER_FN  =3,
-  VARGS_FN =4,
-  CLOSED_FN=8,
+  NATIVE =0b00000001,
+  READER =0b00000010,
+  USER   =0b00000011,
+  VARGS  =0b00000100,
+  CLOSURE=0b00001000,
+  TYPE   =0b00010000
 };
 
 // function object ------------------------------------------------------------
 struct Func {
   Obj obj;
   Sym* name;
+  Mtable* type; // if this function is a constructor
   GuardFn guard;
-
-  union {
-    NativeFn native;
-    ReaderFn reader;
-    Chunk    user;
-  };
+  FuncData func;
 };
 
 /* API */
+bool  is_func(Val x);
+Func* as_func(Val x);
+Val   mk_func(Func* x);
+
+// predicates -----------------------------------------------------------------
+bool is_native(Func* f);
+bool is_reader(Func* f);
+bool is_user(Func* f);
+bool is_vargs(Func* f);
+bool is_closure(Func* f);
+
+// metadata -------------------------------------------------------------------
+usize func_argc(Func* f);
+usize func_varc(Func* f);
+
+// constructors ---------------------------------------------------------------
+Func* native(char* name, usize argc, bool vargs, GuardFn guard, NativeFn func);
+Func* reader(ReaderFn func);
+Func* type(char* name, usize argc, bool vargs, GuardFn guard, NativeFn func, Mtable *mtable);
 
 
 #endif

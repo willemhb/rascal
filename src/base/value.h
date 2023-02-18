@@ -4,22 +4,22 @@
 #include "common.h"
 
 /* C types */
-typedef uintptr_t  Val;
+typedef uintptr_t Val;
 typedef double Real;
 typedef sint32 Int;
 typedef bool Bool;
 typedef char Glyph;
 typedef struct Obj Obj;
-typedef struct Bin Bin;
 typedef struct Sym Sym;
 typedef struct Stream Stream;
 typedef struct Func Func;
-typedef struct Cons Cons;
+typedef struct Tuple Tuple;
+typedef struct Bin Bin;
+typedef struct List List;
 typedef struct Vec Vec;
 typedef struct Table Table;
 
 typedef union ValData ValData;
-
 
 union ValData {
   Val     as_val;
@@ -32,7 +32,8 @@ union ValData {
   Sym*    as_sym;
   Stream* as_stream;
   Func*   as_func;
-  Cons*   as_cons;
+  Tuple*  as_tuple;
+  List*   as_list;
   Vec*    as_vec;
   Table*  as_table;
 };
@@ -42,11 +43,10 @@ union ValData {
 #define SIGN       0x8000000000000000ul
 
 #define REAL_TAG   0x0000000000000000ul
-#define INT_TAG    0x7ffc000000000000ul
-#define UNIT_TAG   0x7ffd000000000000ul
-#define BOOL_TAG   0x7ffe000000000000ul
-#define GLYPH_TAG  0x7fff000000000000ul
-#define OBJ_TAG    0xfffc000000000000ul
+#define UNIT_TAG   0x7ffc000000000000ul
+#define BOOL_TAG   0x7ffd000000000000ul
+#define GLYPH_TAG  0x7ffe000000000000ul
+#define OBJ_TAG    0x7fff000000000000ul
 
 #define TAG_MASK   0xffff000000000000ul
 #define VAL_MASK   0x0000fffffffffffful
@@ -57,27 +57,5 @@ union ValData {
 #define VAL_BITS(value) ((value) & VAL_MASK)
 
 /* API */
-flags32 val_flags(Val v);
-
-// generics -------------------------------------------------------------------
-#include "util/generic.h"
-
-// tag ------------------------------------------------------------------------
-IMM_SIGS(tag, Val);
-OBJ2_SIGS(tag, Val);
-
-#define tag(x)					\
-  generic((x),					\
-	  IMM_DISPATCH(tag),			\
-	  OBJ2_DISPATCH(tag))(x)
-
-// flags ----------------------------------------------------------------------
-BASE_SIGS(flags, flags32);
-OBJ_SIGS(flags, flags32);
-
-#define flags(x)				\
-  generic((x),					\
-	  BASE_DISPATCH(flags),			\
-	  OBJ_DISPATCH(flags))(x)
 
 #endif

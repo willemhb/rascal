@@ -8,11 +8,12 @@ struct Vec {
   Obj obj;
 
   Val* array;
+  usize count, cap;
 };
 
 /* API */
-
-usize vec_len(Vec* v);
-usize vec_size(Vec* v, bool actual);
+bool is_vec(Val x);
+Vec* as_vec(Val x);
+Val tag_vec(Vec* v);
 
 #endif
