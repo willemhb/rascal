@@ -5,13 +5,22 @@
 
 #include "data/bin.h"
 #include "data/stream.h"
+#include "data/table.h"
+#include "data/sym.h"
+#include "data/func.h"
+#include "data/int.h"
 
 #include "runtime/memory.h"
+#include "runtime/error.h"
 
 #include "util/collections.h"
 #include "util/hash.h"
 
-/* C types */
+/* globals */
+Val MutOpt, ImmutOpt, U8Opt;
+
+Table CtypeMap;
+
 /* local helpers */
 static uhash hash_bin_data(Ctype type, usize arity, void* data) {
   uhash cthash = hash_uint(type);
@@ -23,23 +32,7 @@ static uhash hash_bin_data(Ctype type, usize arity, void* data) {
 }
 
 static char* ctype_name(Bin* b, bool abbrev) {
-  static char* abbreviated[] = {
-    "v",
-    "i8",  "u8",  "ascii", "latin1", "utf8",
-    "i16", "u16", "utf16",
-    "i32", "u32", "utf32", "f32", "p32",
-    "i64", "u64", "f64", "p64"
-  };
-
-  static char* fullname[] = {
-    "void",
-    "int8", "uint8", "ascii", "latin1", "utf8",
-    "int16", "uint16", "utf16",
-    "int32", "uint32", "utf32", "float32", "ptr32",
-    "int64", "uint64", "float64", "ptr64"
-  };
-
-  return (abbrev ? abbreviated : fullname)[bin_ctype(b)];
+  return (abbrev ? ShortCtypeNames : LongCtypeNames)[bin_ctype(b)];
 }
 
 static void print_u8(void* spc, Stream* ios) {
@@ -294,20 +287,61 @@ int compare_bins(Val x, Val y, void* state) {
 }
 
 // native functions -----------------------------------------------------------
+Val native_bin(int nargs, Val* args, Table* opts) {
+  bool mutable = true; Ctype type = VOID;
+
+  if (table_has(opts, ImmutOpt))
+    mutable = false;
+
+  Val* table = opts->table;
+
+  for (int i=0; i<opts->count*2; i+= 2) {
+    if (table[i] == MutOpt || table[i] == ImmutOpt)
+      continue;
+
+    Val result = table_ref(&CtypeMap, table[i]);
+
+    if (result != NOTFOUND_VAL) {
+      type = as_int(result);
+      break;
+    }
+  }
+
+  
+}
+
+Val native_bin_ref(int nargs, Val* args, Table* opts);
+Val native_bin_set(int nargs, Val* args, Table* opts);
+Val native_bin_add(int nargs, Val* args, Table* opts);
+Val native_bin_write(int nargs, Val* args, Table* opts);
+  bool mutable = true; Ctype type = VOID;
+
+  if (table_has(opts, ImmutOpt))
+    mutable = false;
+
+  Val* table = opts->table;
+
+  for (int i=0; i<opts->count*2; i+= 2) {
+    if (table[i] == MutOpt || table[i] == ImmutOpt)
+      continue;
+
+    Val result = table_ref(&CtypeMap, table[i]);
+
+    if (result != NOTFOUND_VAL) {
+      type = as_int(result);
+      break;
+    }
+  }
 
 
 // initialization -------------------------------------------------------------
-#include "data/sym.h"
-#include "data/func.h"
-
 void bin_init(void) {
-  Sym* binsym = intern("bin");
-  
-  
+  // initialize type ----------------------------------------------------------
   MetaTables[BIN_TYPE] = (Mtable) {
     "bin",
     BIN_TYPE,
     DATA,
+    sizeof(Bin),
 
     NULL,
     destruct_bin,
@@ -316,4 +350,37 @@ void bin_init(void) {
     equal_bins,
     compare_bins
   };
+  bool mutable = true; Ctype type = VOID;
+
+  if (table_has(opts, ImmutOpt))
+    mutable = false;
+
+  Val* table = opts->table;
+
+  for (int i=0; i<opts->count*2; i+= 2) {
+    if (table[i] == MutOpt || table[i] == ImmutOpt)
+      continue;
+
+    Val result = table_ref(&CtypeMap, table[i]);
+
+    if (result != NOTFOUND_VAL) {
+      type = as_int(result);
+      break;
+    }
+  }
+
+  // initialize default options -----------------------------------------------
+  MutOpt   = symbol(":mutable");
+  ImmutOpt = symbol(":immutable");
+  U8Opt    = symbol(":uint8");
+
+  deftype("bin", 0, NATIVE|VARGS|VOPTS, native_bin, &MetaTables[BIN_TYPE], MutOpt, U8Opt);
+
+  // initialize Ctype mapping & keywords --------------------------------------
+  init_table(&CtypeMap, 0, NULL, NULL, NOFREE);
+
+  for (int i=VOID; i <NUM_CTYPES; i++) {
+    table_set(&CtypeMap, keyword(ShortCtypeNames[i]), mk_int(i));
+    table_set(&CtypeMap, keyword(LongCtypeNames[i]), mk_int(i));
+  }
 }

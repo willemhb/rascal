@@ -45,6 +45,7 @@ struct Mtable {
   char*  name;
   Type   type;
   Kind   kind;
+  usize  size;
 
   // interpreter methods
   void  (*trace)(void* self);

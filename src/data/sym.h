@@ -9,15 +9,13 @@ typedef enum SymFl SymFl;
 
 enum SymFl {
   INTERNED=0b00000000001,
-  LITERAL =0b00000000010,
-  DEFINED =0b00000000100,
-  BOUND   =0b00000001000
+  LITERAL =0b00000000010
 };
 
 struct Sym {
   Obj obj;
   char *name;
-  Val bind;
+  uint64 idno;
 
   /* invasive symbol table */
   Sym *left, *right;
@@ -29,7 +27,7 @@ extern Sym* SymbolTable;
 /* API */
 bool is_sym(Val x);
 Sym* as_sym(Val x);
-Val tag_sym(Sym* s);
+Val  mk_sym(Sym* s);
 
 // predicates -----------------------------------------------------------------
 bool is_literal(Sym* s);
@@ -37,9 +35,14 @@ bool is_interned(Sym* s);
 bool is_defined(Sym* s);
 bool is_bound(Sym* s);
 
-Sym* intern(char* name);
-Val lookup(Sym* s);
-Val assign(Sym* s);
-Val define(char* name, Val val, bool idem);
+// constructors ---------------------------------------------------------------
+Sym *intern(char* name);
+Val  symbol(char* name);
+Val  keyword(char* name);
+
+// environment utilities ------------------------------------------------------
+Val lookup(Sym* s, Table* ns);
+void assign(Sym* s, Val v, Table* ns);
+Val define(char* name, Val val, Table* ns);
 
 #endif

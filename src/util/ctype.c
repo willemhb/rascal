@@ -1,5 +1,22 @@
 #include "util/ctype.h"
 
+/* globals */
+char* ShortCtypeNames[NUM_CTYPES] = {
+    "v",
+    "i8",  "u8",  "ascii", "latin1", "utf8",
+    "i16", "u16", "utf16",
+    "i32", "u32", "utf32", "f32", "p32",
+    "i64", "u64", "f64", "p64"
+  };
+
+char* LongCtypeNames[NUM_CTYPES] = {
+    "void",
+    "int8", "uint8", "ascii", "latin1", "utf8",
+    "int16", "uint16", "utf16",
+    "int32", "uint32", "utf32", "float32", "ptr32",
+    "int64", "uint64", "float64", "ptr64"
+  };
+
 /* API */
 usize ctype_size(Ctype type) {
   if (type == 0)

@@ -57,14 +57,13 @@ int clear_flags(Obj* o, int m) {
 }
 
 // lifetime & memory management -----------------------------------------------
-void init_obj(Obj* self, Init* state) {
+void init_obj(Obj* self, Type type, int fl) {
   self->next  = Heap.live;
   Heap.live   = self;
-  self->type  = state->type;
-  self->flags = state->flags;
+  self->type  = type;
+  self->flags = 0;
   self->hash  = 0;
-  self->arity = state->arity;
-  set_flags(self, state->flags|GRAY, 0x3ff);
+  set_flags(self, fl|GRAY, 0x3ff);
 }
 
 void mark_obj(Obj* self) {

@@ -30,6 +30,9 @@ enum Ctype {
 /* globals */
 #define NUM_CTYPES (PTR64+1)
 
+extern char* ShortCtypeNames[NUM_CTYPES];
+extern char* LongCtypeNames[NUM_CTYPES];
+
 /* API */
 usize ctype_size(Ctype type);
 bool is_encoding(Ctype type);

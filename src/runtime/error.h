@@ -1,9 +1,10 @@
-#ifndef error_h
-#define error_h
+#ifndef runtime_error_h
+#define runtime_error_h
 
 #include <stdarg.h>
 
-#include "value.h"
+#include "base/value.h"
+#include "base/type.h"
 
 /* C types */
 typedef enum ErrorType ErrorType;
@@ -11,7 +12,7 @@ typedef enum ErrorType ErrorType;
 enum ErrorType {
   NO_ERROR,
   READ_ERROR,
-  COMP_ERROR,
+  COMPILE_ERROR,
   EVAL_ERROR,
   APPLY_ERROR
 };
@@ -22,47 +23,22 @@ struct Error {
   bool      panicking;
   ErrorType type;
   Val       irritant;
-  char      message[2048];
+  char      message[ERROR_BUFFER_SIZE];
 };
 
 /* globals */
 extern struct Error Error;
 
 /* API */
-#define GUARD(_condition, _fname, _type, _irritant, _fmt, ...)	\
-  do {								\
-    if (!panicking() && (_condition)) {				\
-      panic((_fname),						\
-	    (_type),						\
-	    (_irritant),					\
-	    (_fmt) __VA_OPT__(,) __VA_ARGS__);			\
-    }								\
-  } while (false)
-
-#define APPLY_GUARD(_condition, _fname, _irritant, _fmt, ...)		\
-  GUARD((_condition),							\
-	(_fname),							\
-	APPLY_ERROR,							\
-	(_irritant),							\
-	(_fmt) __VA_OPT__(,) __VA_ARGS__)
-
-#define ARITY_GUARD(_fname, _argc, _n_args)			\
-  APPLY_GUARD((_argc) == (_n_args),				\
-	      (_fname),						\
-	      mk_small(_n_args),				\
-	      "expected %d arguments",				\
-	      (_argc))
-
-#define VARITY_GUARD(_fname, _argc, _n_args)		\
-  APPLY_GUARD((_n_args) >= (_argc),			\
-	      (_fname),					\
-	      mk_small(_n_args),			\
-	      "expected at least %d arguments",		\
-	      (_argc))
-
-bool panicking(void);
-void panic(const char *fname, ErrorType type, Val irritant, const char *fmt, ...);
-void vpanic(const char *fname, ErrorType type, Val irritant, const char *fmt, va_list va);
+bool      panicking(void);
+void      panic(char* func, ErrorType type, Val irritant, char *fmt, ...);
+void      vpanic(char* func, ErrorType type, Val irritant, char *fmt, va_list va);
 ErrorType recover(void);
+
+// utilities ------------------------------------------------------------------
+void argco(char* func, int argc, bool vargs, int nargs);
+void argtype(char* func, Val x, Type type);
+void argval(char* func, Val x, bool (*guard)(Val v));
+void argtypes(char* func, Val x, usize n, ...);
 
 #endif
