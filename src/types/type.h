@@ -72,7 +72,7 @@ Mtable* obj_mtable(Obj* o);
 void*   construct(Type type, usize n, usize extra);
 
 #define type_of(x)    generic((x), Val:val_type_of, Obj*:obj_has_type)(x)
-#define has_type(x,t) generic((x), Val:val_type_of, Obj*:obj_has_type)(x, t)
+#define has_type(x,t) generic((x), Val:val_has_type, Obj*:obj_has_type)(x, t)
 #define mtable(x)     generic((x), Val:val_mtable,  Obj*:obj_mtable)(x)
 
 // initialization -------------------------------------------------------------

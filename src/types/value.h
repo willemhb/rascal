@@ -1,5 +1,5 @@
-#ifndef base_value_h
-#define base_value_h
+#ifndef types_value_h
+#define types_value_h
 
 #include "common.h"
 

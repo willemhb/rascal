@@ -31,12 +31,10 @@ void   init_table(Table* self, bool eql, uint n, Val* args);
 void   resize_table(Table* self, uint n);
 
 // accessors ------------------------------------------------------------------
-Val* table_lookup(Table* self, Val key);
+int* table_lookup(Table* self, Val key);
 Val* table_nth(Table* self, uint n);
 Val  table_get(Table* self, Val key);
 Val  table_set(Table* self, Val key, Val val);
-Val  table_add(Table* self, Val key, Val val);
-Val  table_put(Table* self, Val key, Val val);
 Val  table_del(Table* self, Val key);
 
 // initialization -------------------------------------------------------------

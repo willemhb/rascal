@@ -1,11 +1,10 @@
-#ifndef compile_h
-#define compile_h
+#ifndef lang_compile_h
+#define lang_compile_h
 
-#include "object.h"
+#include "types/object.h"
 
 /* C types */
 /* API */
-UserFn *compile(Val x);
-void    compile_file(char *fname);
+Func *compile(Val x);
 
 #endif

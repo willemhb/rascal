@@ -3,8 +3,8 @@
 
 #include <stdarg.h>
 
-#include "base/value.h"
-#include "base/type.h"
+#include "types/value.h"
+#include "types/type.h"
 
 /* C types */
 typedef enum ErrorType ErrorType;
@@ -35,12 +35,23 @@ Val       panic(char* func, ErrorType type, Val irritant, char *fmt, ...);
 Val       vpanic(char* func, ErrorType type, Val irritant, char *fmt, va_list va);
 ErrorType recover(void);
 
-// 
-
 // utilities ------------------------------------------------------------------
-void argco(char* func, int argc, bool vargs, int nargs);
-void argtype(char* func, Val x, Type type);
-void argval(char* func, Val x, bool (*guard)(Val v));
-void argtypes(char* func, Val x, usize n, ...);
+#define GUARD(condition, fname, type, irr, fmt, ...)                    \
+  do {                                                                  \
+    if (!(condition))                                                   \
+      return panic(fname, type, irr, fmt __VA_OPT__(,) __VA_ARGS__);   \
+  } while (false)
+
+#define argco(fname, argc, nargs)                               \
+  GUARD(argc != nargs, fname, APPLY_ERROR, tag(nargs),          \
+        "expected %du arguments, got %du", argc, nargs)
+
+#define argtype(fname, val, type)                               \
+  GUARD(has_type(val, type), fname, APPLY_ERROR, val,           \
+        "wrong type: expected %s", MetaTables[type].name->name)
+
+#define argval(fname, test, val, msg, ...)              \
+  GUARD(test(val), fname, APPLY_ERROR, val,             \
+        "failed test: "msg __VA_OPT__(,) __VA_ARGS__)
 
 #endif

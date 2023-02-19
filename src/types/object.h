@@ -58,7 +58,7 @@ struct List {
 };
 
 // func type ------------------------------------------------------------------
-typedef Val (*NativeFn)(int n, Val* pos, List* opt, Table* kw, List* va);
+typedef Val (*NativeFn)(Val* pos, List* opt, Table* kw, List* va);
 
 typedef struct {
   Table* consts;
