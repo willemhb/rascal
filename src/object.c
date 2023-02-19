@@ -2,9 +2,9 @@
 #include <assert.h>
 #include <stdarg.h>
 
-#include "types/object.h"
+#include "object.h"
 
-#include "runtime/memory.h"
+#include "memory.h"
 
 #include "util/hash.h"
 
@@ -286,70 +286,217 @@ bool is_closure(Func* f) {
   return f->user && f->func.user->env != NULL;
 }
 
-// initialization -------------------------------------------------------------
-void object_init(void) {
-  // initialize globals -------------------------------------------------------
-  init_obj((Obj*)&EmptyList, LIST_TYPE);
-  EmptyList.head = tag(&EmptyList);
-  EmptyList.tail = &EmptyList;
+// binary type ----------------------------------------------------------------
+uhash hash_bin_data(uint n, void* data) {
+  static uhash th = 0;
 
-  // initialize types ----------------------------------------------------------
-  extern void trace_list(void* self);
-  extern void print_list(Val x, void* state);
-  extern Val  hash_list(Val x, void* state);
-  extern Val  equal_lists(Val x, Val y, void* state);
-  extern Val  compare_lists(Val x, Val y, void* state);
+  if (th == 0)
+    th = hash_uint(BIN_TYPE);
 
-  MetaTables[LIST_TYPE] = (Mtable) {
-    .name       =intern("list"),
-    .type       =LIST_TYPE,
-    .kind       =DATA_KIND,
-    .type_hash =hash_uint(LIST_TYPE),
-    .size      =sizeof(List),
-    .trace     =trace_list,
-    .print     =print_list,
-    .hash      =hash_list,
-    .equal     =equal_lists,
-    .compare   =compare_lists
-  };
+  uhash dh = hash_mem(data, n);
 
-  extern void  trace_sym(void* self);
-  extern usize destruct_sym(void* self);
-  extern void  print_sym(Val x, void* state);
-  extern Val   hash_sym(Val x, void* state);
-  extern Val   compare_syms(Val x, Val y, void* state);
-
-  MetaTables[SYM_TYPE] = (Mtable) {
-    .name      = intern("sym"),
-    .type      = SYM_TYPE,
-    .kind      = DATA_KIND,
-    .type_hash = hash_uint(SYM_TYPE),
-    .size      = sizeof(Sym),
-    .trace     = trace_sym,
-    .destruct  = destruct_sym,
-    .print     = print_sym,
-    .hash      = hash_sym,
-    .compare   = compare_syms
-  };
-
-  extern void  trace_func(void* self);
-  extern usize destruct_func(void* self);
-  extern void  print_func(Val x, void* state);
-  extern Val   hash_func(Val x, void* state);
-  extern Val   equal_funcs(Val x, Val y, void* state);
-  extern Val   compare_funcs(Val x, Val y, void* state);
-
-  MetaTables[FUNC_TYPE] = (Mtable) {
-    .name       = intern("func"),
-    .type       = FUNC_TYPE,
-    .kind       = DATA_KIND,
-    .type_hash  = hash_uint(FUNC_TYPE),
-    .size       = sizeof(Func),
-    .trace      = trace_func,
-    .destruct   = destruct_func,
-    .print      = print_func,
-    .hash       = hash_func,
-    .equal      = equal_funcs,
-    .compare    = compare_funcs
-  };
+  return mix_hashes(2, dh, th);
 }
+
+void init_bin(Bin* self, bool encoded, uint n, void* data) {
+  init_obj((Obj*)self, BIN_TYPE);
+  
+  self->obj.flags = ENCODED*encoded;
+  self->count     = n;
+  self->cap       = pad_alist_size(n+encoded, 0);
+  self->array     = allocate(self->cap);
+
+  if (data)
+    memcpy(self->array, data, self->cap);
+
+  if (data && encoded)
+    self->hash = hash_bin_data(n, data);
+}
+
+Bin* new_bin(bool encoded, uint n, void* data) {
+  Bin* out = construct(BIN_TYPE, 1, 0);
+
+  init_bin(out, encoded, n, data);
+
+  return out;
+}
+
+Bin* bytes(uint n, ubyte* bytes) {
+  return new_bin(false, n, bytes);
+}
+
+Bin* string(char* chars) {
+  return new_bin(true, strlen(chars), chars);
+}
+
+Bin* bytecode(uint n, uint16* code) {
+  return new_bin(false, n*2, code);
+}
+
+bool is_string(Bin* bin) {
+  return has_flag((Obj*)bin, ENCODED);
+}
+
+void resize_bin(Bin* self, uint n) {
+  uint cap = pad_alist_size(n+is_string(self), self->cap);
+
+  if (cap != self->cap) {
+    self->array = reallocate(self->array, cap, self->cap);
+    self->cap   = cap;
+  }
+
+  self->count = n;
+
+  if (is_string(self))
+    self->hash = 0;
+}
+
+void* bin_peep(Bin* self, int i) {
+  if (i < 0)
+    i += self->count;
+
+  assert(i >= 0 && (uint)i < self->count);
+  return self->array + i;
+}
+
+ubyte bin_ref(Bin* self, int i) {
+  return *(ubyte*)bin_peep(self, i);
+}
+
+ubyte bin_set(Bin* self, int i, ubyte byte) {
+  return (*(ubyte*)bin_peep(self, i) = byte);
+}
+
+usize bin_write(Bin* self, usize n, void* data) {
+  usize off = self->count;
+
+  resize_bin(self, self->count+n);
+
+  memcpy(self->array+off, data, n);
+
+  return self->count;
+}
+
+static void rehash_table(Table* self, uint newc) {
+  int* newo = callocate(newc, sizeof(int), -1), *oldo = self->ord;
+  uint mask = (newc-1), oldc = self->cap;
+
+  for (uint i=0, n=0; i < self->cap && n < self->count; ) {
+    if (oldo[i] < 0)
+      continue;
+
+    uhash h  = hash(self->table[i].key, self->eql);
+    uint idx = h & mask;
+
+    while (newo[idx] > 0)
+      idx = (idx+1) & mask;
+
+    newo[idx] = oldo[i];
+  }
+
+  cdeallocate(self->ord, self->cap, sizeof(int));
+  self->ord   = newo;
+  self->table = creallocate(self->table, newc*2, oldc*2, sizeof(Val), NOTFOUND);
+  self->cap   = newc;
+}
+
+/* API */
+Table* new_table(bool eql, uint n, Val* args) {
+  Table* out = construct(TABLE_TYPE, 1, 0);
+  init_table(out, eql, n, args);
+  return out;
+}
+
+void init_table(Table* self, bool eql, uint n, Val* args) {
+  init_obj((Obj*)self, TABLE_TYPE);
+
+  self->eql    = eql;
+  self->count  = 0;
+  self->cap    = pad_table_size(n, 0);
+  self->ord    = callocate(self->cap, sizeof(int), -1);
+  self->table  = callocate(self->cap*2, sizeof(Val), NOTFOUND);
+
+  if (args)
+    for (uint i=0; i<n*2; i+= 2)
+      table_set(self, args[i], args[i+1]);
+
+  self->init = true;
+}
+
+void resize_table(Table* self, uint n) {
+  uint c = pad_table_size(n, self->cap);
+
+  if (c != self->cap)
+    rehash_table(self, c);
+}
+
+int* table_lookup(Table* self, Val key) {
+  uhash h = hash(key, self->eql);
+  uint  m = self->cap-1;
+  uint  i = h & m;
+  bool (*cmp)(Val x, Val y) = self->eql ? equal : same;
+  int *o;
+
+  while (*(o=self->ord+i) > 0) {
+    if (cmp(key, self->table[*o].key))
+      break;
+
+    i = (i+1) & m;
+  }
+
+  return o;
+}
+
+Val* table_nth(Table* self, uint n) {
+  assert(n <= self->count);
+  return &self->table[n].key;
+}
+
+Val table_get(Table* self, Val key) {
+  int* o = table_lookup(self, key);
+
+  if (*o == -1)
+    return NOTFOUND;
+
+  return table_nth(self, *o)[1];
+}
+
+Val table_set(Table* self, Val key, Val val) {
+  if (self->init)
+    resize_table(self, self->count+1);
+
+  bool added = false;
+  int *o     = table_lookup(self, key);
+
+  if (*o == -1) {
+    *o = self->count++;
+    added    = true;
+  }
+
+  Val* spc = table_nth(self, *o);
+  spc[1]   = val;
+
+  if (added)
+    spc[0] = key;
+
+  return val;
+}
+
+Val table_del(Table* self, Val key) {
+  int *o = table_lookup(self, key);
+
+  if (*o == -1)
+    return NOTFOUND;
+
+  Val* spc = table_nth(self, *o);
+  Val  out = spc[1];
+  spc[0]   = NOTFOUND;
+  spc[1]   = NOTFOUND;
+
+  resize_table(self, --self->count);
+
+  return out;
+}
+
+// initialization -------------------------------------------------------------
+void object_init(void) {}
