@@ -11,11 +11,8 @@ struct Interp {
   Frame* fp;
   Val*   sp;
 
-  // global environment
-  Table* toplevel;  // repl environment
-  Table* module;    // currently executing module
-  Table* modules;   // module cache
-  Vec*   requiring; // save current form when a require form loads another module
+  // envirionment
+  Table* globals;
 };
 
 struct Frame {
@@ -31,8 +28,8 @@ extern struct Interp Interp;
 Val* push(Val x);
 Val* pushn(int n);
 Val* peep(int n);
-Val peek(int n);
-Val pop(void);
-Val popn(int n);
+Val  peek(int n);
+Val  pop(void);
+Val  popn(int n);
 
 #endif

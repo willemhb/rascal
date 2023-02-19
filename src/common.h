@@ -18,7 +18,7 @@ typedef unsigned long  ulong;
 
 typedef uintptr_t      word;
 typedef unsigned char  ubyte;
-typedef uint32_t       flags32;
+typedef uint32_t       flags;
 
 typedef char ascii;
 typedef char latin1;

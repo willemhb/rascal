@@ -11,7 +11,7 @@ typedef enum ErrorType ErrorType;
 
 enum ErrorType {
   NO_ERROR,
-  READ_ERROR,
+  READ_ERROR=4,
   COMPILE_ERROR,
   EVAL_ERROR,
   APPLY_ERROR
@@ -31,9 +31,11 @@ extern struct Error Error;
 
 /* API */
 bool      panicking(void);
-void      panic(char* func, ErrorType type, Val irritant, char *fmt, ...);
-void      vpanic(char* func, ErrorType type, Val irritant, char *fmt, va_list va);
+Val       panic(char* func, ErrorType type, Val irritant, char *fmt, ...);
+Val       vpanic(char* func, ErrorType type, Val irritant, char *fmt, va_list va);
 ErrorType recover(void);
+
+// 
 
 // utilities ------------------------------------------------------------------
 void argco(char* func, int argc, bool vargs, int nargs);

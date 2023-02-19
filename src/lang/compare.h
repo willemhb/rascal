@@ -1,12 +1,7 @@
 #ifndef lang_compare_h
 #define lang_compare_h
 
-#include "base/value.h"
-#include "base/type.h"
-
-/* globals */
-extern bool (*Equal[NUM_TYPES])(Val x, Val y, void* state);
-extern int  (*Compare[NUM_TYPES])(Val x, Val y, void* state);
+#include "types/value.h"
 
 /* API */
 bool same(Val x, Val y);
