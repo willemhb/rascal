@@ -12,8 +12,9 @@
   '(;; basic forms
     "def" "set" "defm" "defn"
     "fn" "let"
-    "quote" "do"
-    "if" "cond" "and" "or")
+    "quote" "do" "with" "cntl"
+    "if" "cond" "and" "or"
+    "require" "provide")
   '(("\\_<true\\_>" . font-lock-builtin-face)
     ("\\_<false\\_>" . font-lock-builtin-face)
     ("\\_<nul\\_>" . font-lock-builtin-face)
