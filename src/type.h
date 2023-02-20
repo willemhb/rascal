@@ -7,16 +7,16 @@
 typedef uint64 uhash;
 
 typedef enum {
-  NONE_TYPE,
-  ANY_TYPE,
-  UNIT_TYPE,
-  REAL_TYPE,
-  GLYPH_TYPE,
-  SYM_TYPE,
-  FUNC_TYPE,
-  BIN_TYPE,
-  LIST_TYPE,
-  TABLE_TYPE
+  NONE,
+  ANY,
+  UNIT,
+  REAL,
+  GLYPH,
+  SYM,
+  FUNC,
+  BIN,
+  LIST,
+  TABLE
 } Type;
 
 // type information type ------------------------------------------------------
@@ -41,7 +41,7 @@ typedef struct {
 } Mtable;
 
 // globals --------------------------------------------------------------------
-#define NUM_TYPES (TABLE_TYPE+1)
+#define NUM_TYPES (TABLE+1)
 
 extern Mtable MetaTables[NUM_TYPES];
 

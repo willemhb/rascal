@@ -11,7 +11,7 @@
   '(";")
   '(;; basic forms
     "def" "set" "defm" "defn"
-    "lmb" "let"
+    "fn" "let"
     "quote" "do"
     "if" "cond" "and" "or")
   '(("\\_<true\\_>" . font-lock-builtin-face)

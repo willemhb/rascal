@@ -66,8 +66,6 @@ Val tag_ptr(void* data);
 #define tag(x)					\
   generic((x),					\
 	  Real:tag_real,			\
-	  FixNum:tag_fixnum,			\
-	  int:tag_fixnum,			\
 	  uint:tag_fixnum,			\
 	  Glyph:tag_glyph,			\
 	  Obj*:tag_obj,				\
@@ -83,9 +81,13 @@ Bin*    as_bin(Val val);
 List*   as_list(Val val);
 Table*  as_table(Val val);
 
+// type & value predicates ----------------------------------------------------
+bool is_int(Val val);
+bool is_byte(Val val);
+bool is_string(Val val);
+ 
 // generic untagging methods --------------------------------------------------
 char* as_text(Val val);
-bool  is_int(Real r);
 
 // values array API -----------------------------------------------------------
 void init_vals(Vals* vals);
