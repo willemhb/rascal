@@ -1,27 +1,148 @@
-#include "types/type.h"
-#include "types/object.h"
-#include "types/text.h"
-#include "types/table.h"
+#include <string.h>
 
-#include "runtime/memory.h"
+#include "type.h"
+#include "object.h"
+
+#include "runtime.h"
 
 #include "util/hash.h"
 
 // globals --------------------------------------------------------------------
-Mtable MetaTables[NUM_TYPES];
+// runtime methods ------------------------------------------------------------
+// trace ----------------------------------------------------------------------
+extern void trace_sym(void* self);
+extern void trace_func(void* self);
+extern void trace_list(void* self);
+extern void trace_table(void* self);
+
+// destruct -------------------------------------------------------------------
+extern usize destruct_sym(void* self);
+extern usize destruct_func(void* self);
+extern usize destruct_bin(void* self);
+extern usize destruct_table(void* self);
+
+// print ----------------------------------------------------------------------
+extern void print_unit(Val x, void* state);
+extern void print_real(Val x, void* state);
+extern void print_glyph(Val x, void* state);
+extern void print_sym(Val x, void* state);
+extern void print_func(Val x, void* state);
+extern void print_bin(Val x, void* state);
+extern void print_list(Val x, void* state);
+extern void print_table(Val x, void* state);
+
+// hash -----------------------------------------------------------------------
+extern uhash hash_sym(Val x, void* state);
+extern uhash hash_func(Val x, void* state);
+extern uhash hash_bin(Val x, void* state);
+extern uhash hash_list(Val x, void* state);
+extern uhash hash_table(Val x, void* state);
+
+// equal ----------------------------------------------------------------------
+extern bool equal_funcs(Val x, Val y, void* state);
+extern bool equal_lists(Val x, Val y, void* state);
+extern bool equal_bins(Val x, Val y, void* state);
+extern bool equal_tables(Val x, Val y, void* state);
+
+// compare --------------------------------------------------------------------
+extern int compare_reals(Val x, Val y, void* state);
+extern int compare_glyphs(Val x, Val y, void* state);
+extern int compare_syms(Val x, Val y, void* state);
+extern int compare_funcs(Val x, Val y, void* state);
+extern int compare_lists(Val x, Val y, void* state);
+extern int compare_bins(Val x, Val y, void* state);
+extern int compare_tables(Val x, Val y, void* state);
+
+Mtable MetaTables[NUM_TYPES] = {
+  [NONE] = {
+    .name="none"
+  },
+
+  [ANY] = {
+    .name="any"
+  },
+
+  [UNIT] = {
+    .name="unit",
+    .size=sizeof(Val),
+    .print=print_unit
+  },
+
+  [REAL] = {
+    .name="real",
+    .size=sizeof(Real),
+    .print=print_real,
+    .compare=compare_reals
+  },
+
+  [GLYPH] = {
+    .name="glyph",
+    .size=sizeof(Glyph),
+    .print=print_glyph,
+    .compare=compare_glyphs
+  },
+
+  [SYM] = {
+    .name="sym",
+    .size=sizeof(Sym),
+    .trace=trace_sym,
+    .destruct=destruct_sym,
+    .print=print_sym,
+    .hash=hash_sym,
+    .compare=compare_syms
+  },
+
+  [FUNC] = {
+    .name="func",
+    .size=sizeof(Glyph),
+    .trace=trace_func,
+    .destruct=destruct_func,
+    .print=print_func,
+    .hash=hash_func,
+    .equal=equal_funcs,
+    .compare=compare_funcs
+  },
+
+  [LIST] = {
+    .name="list",
+    .size=sizeof(List),
+    .trace=trace_list,
+    .print=print_list,
+    .hash=hash_list,
+    .equal=equal_lists,
+    .compare=compare_lists
+  },
+
+  [BIN] = {
+    .name="bin",
+    .size=sizeof(Bin),
+    .destruct=destruct_bin,
+    .print=print_bin,
+    .hash=hash_bin,
+    .equal=equal_bins,
+    .compare=compare_bins
+  },
+
+  [TABLE] = {
+    .name="table",
+    .size=sizeof(Table),
+    .trace=trace_table,
+    .destruct=destruct_table,
+    .print=print_table,
+    .hash=hash_table,
+    .equal=equal_tables,
+    .compare=compare_tables
+  }
+};
 
 // API ------------------------------------------------------------------------
 // type queries & predicates --------------------------------------------------
 Type val_type_of(Val v) {
   switch (TAG_BITS(v)) {
-    case SIGNAL_TAG:
-    case CPTR_TAG:
-    case CSTR_TAG:
-    case FIXNUM_TAG: return FIXNUM_TYPE;
-    case UNIT_TAG:   return UNIT_TYPE;
-    case GLYPH_TAG:  return GLYPH_TYPE;
+    case UNIT_TAG:   return UNIT;
+    case GLYPH_TAG:  return GLYPH;
     case OBJ_TAG:    return obj_type_of(as_obj(v));
-    default:         return REAL_TYPE;
+    default:         return REAL;
   }
 }
 
@@ -30,25 +151,21 @@ Type obj_type_of(Obj* o) {
 }
 
 bool val_has_type(Val v, Type t) {
-  switch (MetaTables[t].kind) {
-    case BOTTOM_KIND: return false;
-    case UNIT_KIND:   return v == NUL;
-    case DATA_KIND:   return type_of(v) == t;
-    case TOP_KIND:    return true;
+  switch (t) {
+    case NONE: return false;
+    case UNIT: return v == NUL;
+    case ANY:  return true;
+    default:   return type_of(v) == t;
   }
-
-  unreachable();
 }
 
 bool obj_has_type(Obj* o, Type t) {
-  switch(MetaTables[t].kind) {
-    case BOTTOM_KIND: return false;
-    case UNIT_KIND:   return false;
-    case DATA_KIND:   return o->type == t;
-    case TOP_KIND:    return true;
+  switch(t) {
+    case NONE: return false;
+    case UNIT: return false;
+    case ANY:  return true;
+    default:   return o->type == t;
   }
-
-  unreachable();
 }
 
 Mtable* val_mtable(Val x) {
@@ -60,52 +177,25 @@ Mtable* obj_mtable(Obj* o) {
 }
 
 // misc utilities -------------------------------------------------------------
-void* construct(Type type, usize n, usize extra) {
-  /* these are needed statically for initialization */ 
-  static const usize ObjSizes[NUM_TYPES] = {
-    [SYM_TYPE]  = sizeof(Sym),  [STREAM_TYPE] = sizeof(Stream),
-    [FUNC_TYPE] = sizeof(Func), [BIN_TYPE]    = sizeof(Bin),
-    [LIST_TYPE] = sizeof(List), [TABLE_TYPE]  = sizeof(Table)
-  };
-  
-  usize total = ObjSizes[type] * n + extra;
+void* construct(Type type, usize n, usize extra, void* data) {
+  /* these are needed statically for initialization */
+  usize base  = MetaTables[type].size;
+  usize objs  = base * n;
+  usize total = base * n + extra;
 
-  return allocate(total, 0);
+  void* out = allocate(total, 1, 0);
+
+  if (data && extra)
+    memcpy(out+objs, data, extra);
+
+  return out;
 }
 
 // initialization -------------------------------------------------------------
-void number_init(void) {
-  // initialize top, bottom, and unit types -----------------------------------
-  extern Val native_none(Val* pos, List* opt, Table* kw, List* va);
-
-  MetaTables[NONE_TYPE] = (Mtable) {
-    .name       =intern("none"),
-    .constructor=native(0, 1, "none", &MetaTables[NONE_TYPE], native_none),
-    .type       =NONE_TYPE,
-    .kind       =BOTTOM_KIND,
-    .type_hash  =hash_uint(NONE_TYPE)
-  };
-
-  extern Val  native_unit(Val* pos, List* opt, Table* kw, List* va);
-  extern void print_unit(Val x, void* state);
-
-  MetaTables[UNIT_TYPE] = (Mtable) {
-    .name       =intern("unit"),
-    .constructor=native(0, 1, "unit", &MetaTables[UNIT_TYPE], native_unit),
-    .type       =UNIT_TYPE,
-    .kind       =UNIT_KIND,
-    .type_hash  =hash_uint(UNIT_TYPE),
-    .size       =sizeof(NUL),
-    .print      =print_unit
-  };
-
-  extern Val native_any(Val* pos, List* opt, Table* kw, List* va);
-  
-  MetaTables[ANY_TYPE] = (Mtable) {
-    .name       =intern("any"),
-    .constructor=native(0, 1, "any", &MetaTables[ANY_TYPE], native_any),
-    .type       =ANY_TYPE,
-    .kind       =TOP_KIND,
-    .type_hash  =hash_uint(ANY_TYPE)
-  };
+void type_init(void) {
+  // finish metatable initialization (called before anything else) ------------
+  for (uint i=NONE; i<NUM_TYPES; i++) {
+    MetaTables[i].type      = i;
+    MetaTables[i].type_hash = hash_uint(i);
+  }
 }

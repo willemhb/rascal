@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <uchar.h>
+#include <assert.h>
 
 /* style typedefs */
 typedef signed char    schar;
@@ -43,5 +44,6 @@ typedef void         (*funcptr)(void);
 #define unlikely(condition) __builtin_expect(0, (condition))
 #define unreachable __builtin_unreachable
 #define attrs __attribute__
+#define cleanup(f) __attribute__((cleanup(f)))
 
 #endif

@@ -1,6 +1,10 @@
 #include "value.h"
 #include "object.h"
 
+#include "runtime.h"
+
+#include "util/collections.h"
+
 /* API */
 #define TAG(type, Type, MASK, TAG)			\
   Val tag_##type(Type type) {				\
@@ -70,10 +74,41 @@ char* as_text(Val val) {
 
 // values array API -----------------------------------------------------------
 void init_vals(Vals* vals) {
-  vals->
+  vals->array = NULL;
+  vals->count = 0;
+  vals->cap   = pad_alist_size(0, 0);
 }
 
-void free_vals(Vals* vals);
-void resize_vals(Vals* vals, uint n);
-uint push_vals(Vals* vals, Val val);
-Val  pop_vals(Vals* vals);
+void free_vals(Vals* vals) {
+  deallocate(vals->array, vals->count, sizeof(Val));
+  init_vals(vals);
+}
+
+void resize_vals(Vals* vals, uint n) {
+  
+  uint c = pad_alist_size(n, vals->cap);
+
+  if (c != vals->cap) {
+    vals->array = reallocate(vals->array, vals->count, c, sizeof(Val), NOTUSED);
+    vals->cap   = c;
+  }
+}
+
+uint push_vals(Vals* vals, Val val) {
+  resize_vals(vals, vals->count+1);
+
+  vals->array[vals->count] = val;
+
+  return vals->count++;
+}
+
+Val  pop_vals(Vals* vals) {
+  assert(vals->count > 0);
+  assert(vals->array != NULL);
+
+  Val out = vals->array[--vals->count];
+
+  resize_vals(vals, vals->count);
+
+  return out;
+}

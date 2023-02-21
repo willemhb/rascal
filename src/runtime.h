@@ -30,9 +30,9 @@ typedef struct {
 } Frame;
 
 // virtual machine ------------------------------------------------------------
-typedef struct {
+struct Vm {
   // heap state ---------------------------------------------------------------
-  struct {
+  struct HeapData {
     usize allocated;
     usize next_gc;
     Obj*  live;
@@ -40,13 +40,13 @@ typedef struct {
   } heap;
 
   // error state --------------------------------------------------------------
-  struct {
+  struct ErrorData {
     Error error;
     Bin   buffer;
   } errors;
 
   // reader state -------------------------------------------------------------
-  struct {
+  struct ReaderData {
     Token  token;
     Vals   saved;
     Table  table;
@@ -54,24 +54,32 @@ typedef struct {
   } reader;
 
   // interpreter & environment ------------------------------------------------
-  struct {
-    Table* globals;
+  struct InterpreterData {
+    Table  globals;
     Val*   sp;
     Frame* fp;
   } interpreter;
-} Vm;
+};
+
+// globals --------------------------------------------------------------------
+extern struct Vm Vm;
+
+#define Heap        (Vm.heap)
+#define Reader      (Vm.reader)
+#define Interpreter (Vm.interpreter)
+#define Errors      (Vm.errors)
 
 // API ------------------------------------------------------------------------
 // heap -----------------------------------------------------------------------
-void* allocate(usize n, usize obsize, void* ini);
-void* reallocate(void* ptr, usize n, usize obsize, void* ini);
-void  deallocate(void* ptr, usize n, usize obsize);
+void* allocate(uint n, usize obsize, uint64 ini);
+void* reallocate(void* ptr, uint new, uint old, usize obsize, uint64 ini);
+void  deallocate(void* ptr, uint n, usize obsize);
 void  manage(void);
 
 // error ----------------------------------------------------------------------
-bool panicking(void);
-void panic(Error error, char* fmt, ...);
-bool recover(void);
+bool  panicking(void);
+void  panic(Error error, char* fmt, ...);
+Error recover(void);
 
 #define GUARD(test, sentinel, error, fmt, ...)              \
   do {                                                      \
@@ -84,6 +92,9 @@ bool recover(void);
 // interpreter ----------------------------------------------------------------
 Val*   push(Val x);
 Val    pop(void);
+Val*   peep(int i);
+Val    peek(int i);
+
 Frame* pushf(Func* func, uint n);
 Val    popf(void);
 

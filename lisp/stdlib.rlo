@@ -1,8 +1,8 @@
 ;;; Environment
-( { *module* 'stdlib, *file* "stdlib.rl" } )
+( #table((*module* . 'stdlib) (*file* . "stdlib.rl")) )
 
 ;;; Constants
-#{ for-each *syntax* }
+#table()
 
 ;;; Code
-#<000 000 000 001>
+#bin(000 000 000 001)

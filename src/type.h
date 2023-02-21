@@ -7,7 +7,7 @@
 typedef uint64 uhash;
 
 typedef enum {
-  NONE,
+  NONE=1,
   ANY,
   UNIT,
   REAL,
@@ -55,10 +55,10 @@ bool obj_has_type(Obj* o, Type t);
 Mtable* val_mtable(Val x);
 Mtable* obj_mtable(Obj* o);
 
-void*   construct(Type type, usize n, usize extra);
+void*   construct(Type type, usize n, usize extra, void* data);
 
 #define type_of(x)    generic((x), Val:val_type_of, Obj*:obj_has_type)(x)
 #define has_type(x,t) generic((x), Val:val_has_type, Obj*:obj_has_type)(x, t)
-#define mtable(x)     generic((x), Val:val_mtable,  Obj*:obj_mtable)(x)
+#define mtable(x)     generic((x), Val:val_mtable,  Obj*:obj_mtable, default:obj_mtable)(x)
 
 #endif

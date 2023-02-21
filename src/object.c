@@ -3,106 +3,94 @@
 #include <stdarg.h>
 
 #include "object.h"
-
-#include "memory.h"
+#include "compare.h"
+#include "runtime.h"
 
 #include "util/hash.h"
+#include "util/collections.h"
 
 /* globals */
-usize SymbolCounter = 1;
-Sym*  SymbolTable = NULL;
-List  EmptyList;
+uint32 SymbolCounter = 1;
+Sym*   SymbolTable = NULL;
+List   EmptyList = { .arity=0, .head=NUL, .tail=&EmptyList };
 
-/* API */
-// flag getters & setters -----------------------------------------------------
-bool has_flag(Obj* o, flags fl) {
-  return !!(o->flags&fl);
-}
+Bin    EmptyString;
 
-bool set_flag(Obj* o, flags fl) {
-  bool out = !has_flag(o, fl);
-  o->flags |= fl;
-  return out;
-}
-
-bool clear_flag(Obj* o, flags fl) {
-  bool out  = has_flag(o, fl);
-  o->flags &= ~fl;
-  return out;
-}
-
+// API ------------------------------------------------------------------------
+// common utilities -----------------------------------------------------------
 // lifetime & memory management -----------------------------------------------
-void init_obj(Obj* self, Type type) {
-  self->next   = Heap.live;
+void init_obj(void* self, Type type, flags fl) {
+  Obj* obj     = self;
+  obj->next    = Heap.live;
   Heap.live    = self;
-  self->type   = type;
-  self->flags  = 0;
-  self->nofree = false;
-  self->black  = false;
-  self->gray   = true;
+
+  if (has_flag(self, INITIALIZED))
+    return;
+  
+  obj->type   = type;
+  obj->flags  = fl;
+  obj->black  = false;
+  obj->gray   = true;
 }
 
-void mark_obj(Obj* self) {
+void mark_obj(void* self) {
   if (!self)
     return;
 
-  if (self->black)
+  Obj* obj = self;
+
+  if (obj->black)
     return;
 
-  self->black = true;
+  obj->black = true;
 
   if (mtable(self)->trace)
-    add_gray(self);
+    push_objs(&Vm.heap.grays, self);
 
   else
-    self->gray = false;
+    obj->gray = false;
 }
 
-void destruct_obj(Obj* self) {
+void destruct_obj(void* self) {
+  if (!self)
+    return;
+
+  assert(!has_flag(self, NOFREE));
+
   usize freed = mtable(self)->size;
 
   if (mtable(self)->destruct)
      freed += mtable(self)->destruct(self);
 
-  if (!self->nofree)
-    deallocate(self, freed);
+  if (has_flag(self, NOFREE))
+    deallocate(self, freed, 1);
 }
 
-// symbol api -----------------------------------------------------------------
-uhash hash_symbol_data(char* name, uidno idno) {
-  static uhash th = 0;
-
-  if (th == 0)
-    th = hash_uint(SYM_TYPE);
-
-  uhash ih = hash_uint(idno);
-  uhash nh = hash_str(name);
-
-  return mix_hashes(3, nh, ih, th);
+bool has_flag(void* self, flags fl) {
+  return !!(((Obj*)self)->flags&fl);
 }
 
-void init_sym(Sym* self, bool generated, char* name) {
-  
-  init_obj(&self->obj, SYM_TYPE);
+bool set_flag(void* self, flags fl) {
+  bool out = has_flag(self, fl);
 
-  self->name      = duplicate(name, strlen(name));
-  self->idno      = SymbolCounter++;
-  self->hash      = hash_symbol_data(self->name, self->idno);
-  self->obj.flags = (!generated)*INTERNED | (*name == ':')*LITERAL;
-  self->constant  = UNDEFINED;
-  self->left      = NULL;
-  self->right     = NULL;
-}
-
-Sym* new_sym(bool generated, char* name) {
-  Sym* out = construct(SYM_TYPE, 1, 0);
-
-  init_sym(out, generated, name);
+  ((Obj*)self)->flags |= fl;
 
   return out;
 }
 
+bool del_flag(void* self, flags fl) {
+  bool out = has_flag(self, fl);
+  
+  ((Obj*)self)->flags &= ~fl;
+
+  return out;
+}
+
+// symbol api -----------------------------------------------------------------
 static Sym** find_in_symbol_table(char* name) {
+  assert(name != NULL);
+  assert(*name != '\0');
+
   Sym** node = &SymbolTable;
 
   while (*node) {
@@ -121,255 +109,194 @@ static Sym** find_in_symbol_table(char* name) {
   return node;
 }
 
-Sym* intern(char* name) {
-  Sym** node = find_in_symbol_table(name);
+Sym* mk_sym(char* name) {
+  assert(name != NULL && *name != '\0');
 
-  if (*node == NULL)
-    *node = new_sym(false, name);
-
-  return *node;
+  return construct(SYM, 1, strlen(name)+1, name);
 }
 
+Sym* new_sym(bool genp, char* name) {
+  assert(SymbolCounter < UINT32_MAX);
+  assert(name != NULL && *name != '\0');
 
-Val gensym(Val name) {
-  char* text = as_text(name);
+  Sym* out = mk_sym(name);
+  init_sym(out, genp, name);
 
-  if (text == NULL)
-    text = "symbol";
-
-  return tag(new_sym(true, text));
+  return out;
 }
 
-Val symbol(Val name) {
-  if (is_sym(name))
-    return name;
+void init_sym(Sym* self, flags fl, char* name) {
+  assert(SymbolCounter < UINT32_MAX);
+  assert(name != NULL && *name != '\0');
+
+  fl |= LITERAL*(*name == ':');
   
-  char* text = as_text(name);
+  init_obj(self, SYM, fl);
 
-  return tag(intern(text));
+  self->name     = (char*)&self[1];
+  self->arity    = SymbolCounter++;
+  self->hash     = mix_hashes(3, hash_str(name), hash_uint(self->arity), MetaTables[SYM].type_hash);
+  self->constant = UNDEFINED;
+  self->left     = NULL;
+  self->right    = NULL;
+
+  set_flag(self, INITIALIZED);
 }
 
-Val keyword(Val name) {
-  if (is_sym(name) && is_keyword(as_sym(name)))
-    return name;
+Sym* get_sym(bool genp, char* name) {
+  if (name == NULL || *name == '\0')
+    name = "symbol";
 
-  char *text = as_text(name);
+  Sym* out;
 
-  char buf[strlen(text)+2];
+  if (!genp) {
+    Sym** node = find_in_symbol_table(name);
 
-  buf[0] = ':';
-  strcpy(buf+1, text);
+    if (*node == NULL)
+      *node = new_sym(false, name);
 
-  return tag(intern(buf));
-}
-
-void set_const(Sym* sym, Val val) {
-  assert(sym->constant == UNDEFINED);
-
-  sym->constant = val;
-}
-
-bool is_gensym(Sym* sym) {
-  return !has_flag((Obj*)sym, INTERNED);
-}
-
-bool is_literal(Sym* sym) {
-  return has_flag((Obj*)sym, LITERAL);
-}
-
-bool is_keyword(Sym* sym) {
-  return sym->name[0] == ':';
-}
-
-// list api -------------------------------------------------------------------
-void init_list(List* self, Val head, List* tail) {
-  init_obj((Obj*)self, LIST_TYPE);
-
-  self->head      = head;
-  self->tail      = tail;
-  self->len       = tail->len+1;
-}
-
-List* cons(Val head, List* tail) {
-  List* out = construct(LIST_TYPE, 1, 0);
-  init_list(out, head, tail);
-  return out;
-}
-
-List* list(uint n, ...) {
-  if (n == 0)
-    return &EmptyList;
-
-  Val buf[n];
-
-  va_list va; va_start(va, n);
-
-  for (uint i=0; i<n; i++)
-    buf[i] = va_arg(va, Val);
-
-  va_end(va);
-
-  List* out  = construct(LIST_TYPE, n, 0);
-  List* last = &EmptyList;
-
-  for (uint i=n; i>0; i--) {
-    init_list(out+n-1, buf[n-1], last);
-    last = out+n-1;
+    out = *node;
+  } else {
+    out = new_sym(true, name);
   }
 
   return out;
-}
-
-List* list_assc(List* ls, Val k) {
-  while (ls->len) {
-    if (ls->head == k)
-      break;
-
-    ls = ls->tail;
-  }
-
-  return ls;
-}
-
-Val list_nth(List* ls, uint n) {
-  assert(n < ls->len);
-
-  while (n--)
-    ls = ls->tail;
-
-  return ls->head;
 }
 
 // func api -------------------------------------------------------------------
-extern Bin*   new_bin(bool encoded, uint n, void* data);
-extern Table* new_table(bool eql, int n, Val* args);
+extern void init_chunk(Chunk* chunk);
 
-void init_func(Func* self, bool native, uint arity, Val name, Mtable* type, void* func) {
-  init_obj((Obj*)self, FUNC_TYPE);
+Func* new_func(flags fl, uint arity, Sym* name, Mtable* mtable, void* func) {
+  Func* out = mk_func(!!(fl&USER), func);
 
-  self->arity  = arity;
-  self->user   = !native;
-  self->native = native;
-  self->name   = as_sym(symbol(name));
-  self->type   = type;
-
-  if (native) {
-    self->func.native = func;
-  } else {
-    self->func.user   = ((void*)self) + sizeof(Func);
-
-    if (func) {
-      memcpy(self->func.user, func, sizeof(Chunk));
-    } else {
-      self->func.user->ns    = &EmptyList;
-      self->func.user->env   = NULL;
-      self->func.user->code  = new_bin(false, 0, NULL);
-      self->func.user->consts= new_table(false, 0, NULL);
-    }
-  }
-}
-
-Func* new_func(bool native, uint arity, Val name, Mtable* type, void* func) {
-  usize extra = native ? 0 : sizeof(Chunk);
-  Func* out   = construct(FUNC_TYPE, 1, extra);
-
-  init_func(out, native, arity, name, type, func);
+  init_func(out, fl, arity, name, mtable, func);
 
   return out;
 }
 
-bool is_type(Func* f) {
-  return f->type != NULL;
+Func* mk_func(bool userp, void* func) {
+  return construct(FUNC, 1, sizeof(Chunk) * userp, func);
 }
 
-bool is_closure(Func* f) {
-  return f->user && f->func.user->env != NULL;
+void  init_func(Func* self, flags fl, uint arity, Sym* name, Mtable* mtable, void* func) {
+  init_obj(self, FUNC, fl);
+
+  self->arity  = arity;
+  self->name   = name;
+  self->mtable = mtable;
+
+  if (!!(fl&USER)) {
+    self->func = &self[1];
+
+    if (func == NULL)
+      init_chunk(self->func);
+  } else {
+    assert(func);
+    self->func = func;
+  }
+
+  set_flag(self, INITIALIZED);
 }
 
-// binary type ----------------------------------------------------------------
-uhash hash_bin_data(uint n, void* data) {
-  static uhash th = 0;
+// list api -------------------------------------------------------------------
+List* new_list(Val head, List* tail) {
+  List* out = mk_list();
 
-  if (th == 0)
-    th = hash_uint(BIN_TYPE);
+  init_list(out, 0, head, tail);
 
-  uhash dh = hash_mem(data, n);
-
-  return mix_hashes(2, dh, th);
+  return out;
 }
 
-void init_bin(Bin* self, bool encoded, uint n, void* data) {
-  init_obj((Obj*)self, BIN_TYPE);
-  
-  self->obj.flags = ENCODED*encoded;
-  self->count     = n;
-  self->cap       = pad_alist_size(n+encoded, 0);
-  self->array     = allocate(self->cap);
-
-  if (data)
-    memcpy(self->array, data, self->cap);
-
-  if (data && encoded)
-    self->hash = hash_bin_data(n, data);
+List* mk_list(void) {
+  return construct(LIST, 1, 0, NULL);
 }
 
+void init_list(List* self, flags fl, Val head, List* tail) {
+  if (tail == NULL)
+    tail = &EmptyList;
+
+  init_obj(self, LIST, fl);
+
+  self->head = head;
+  self->tail = tail;
+  self->arity= tail->arity+1;
+  set_flag(self, INITIALIZED);
+}
+
+Val list_nth(List* list, uint n) {
+  assert(n < list->arity);
+
+  while (n--)
+    list = list->tail;
+
+  return list->head;
+}
+
+List* list_assoc(List* list, Val k) {
+  for (;list->arity; list=list->tail)
+    if (list->head == k)
+      break;
+
+  return list;
+}
+
+// bin api --------------------------------------------------------------------
 Bin* new_bin(bool encoded, uint n, void* data) {
-  Bin* out = construct(BIN_TYPE, 1, 0);
+  if (encoded && n == 0)
+    return &EmptyString;
+
+  Bin* out = mk_bin();
 
   init_bin(out, encoded, n, data);
 
   return out;
 }
 
-Bin* bytes(uint n, ubyte* bytes) {
-  return new_bin(false, n, bytes);
+Bin* mk_bin(void) {
+  return construct(BIN, 1, 0, NULL);
 }
 
-Bin* string(char* chars) {
-  return new_bin(true, strlen(chars), chars);
-}
+void init_bin(Bin* self, flags fl, uint n, void* data) {
+  init_obj((Obj*)self, BIN, fl);
 
-Bin* bytecode(uint n, uint16* code) {
-  return new_bin(false, n*2, code);
-}
+  uint c = pad_alist_size(n+has_flag(self, ENCODED), 0);
 
-bool is_string(Bin* bin) {
-  return has_flag((Obj*)bin, ENCODED);
+  self->array = allocate(c, 1, 0);
+  self->count = n;
+  self->cap   = c;
+
+  if (data)
+    memcpy(self->array, data, n);
+
+  set_flag(self, INITIALIZED);
 }
 
 void resize_bin(Bin* self, uint n) {
-  uint cap = pad_alist_size(n+is_string(self), self->cap);
+  uint cap = pad_alist_size(n+has_flag(self, ENCODED), self->cap);
 
   if (cap != self->cap) {
-    self->array = reallocate(self->array, cap, self->cap);
+    self->array = reallocate(self->array, cap, self->cap, 1, 0);
     self->cap   = cap;
   }
 
   self->count = n;
-
-  if (is_string(self))
-    self->hash = 0;
 }
 
-void* bin_peep(Bin* self, int i) {
-  if (i < 0)
-    i += self->count;
-
-  assert(i >= 0 && (uint)i < self->count);
-  return self->array + i;
+ubyte bin_get(Bin* self, uint n) {
+  assert(n < self->count);
+  return ((ubyte*)self->array)[n];
 }
 
-ubyte bin_ref(Bin* self, int i) {
-  return *(ubyte*)bin_peep(self, i);
+ubyte bin_set(Bin* self, uint n, ubyte xx) {
+  assert(n < self->count);
+  ((ubyte*)self->array)[n] = xx;
+
+  return xx;
 }
 
-ubyte bin_set(Bin* self, int i, ubyte byte) {
-  return (*(ubyte*)bin_peep(self, i) = byte);
-}
-
-usize bin_write(Bin* self, usize n, void* data) {
-  usize off = self->count;
-
+uint bin_write(Bin* self, uint n, void* data) {
+  uint off = self->count;
+  
   resize_bin(self, self->count+n);
 
   memcpy(self->array+off, data, n);
@@ -377,15 +304,16 @@ usize bin_write(Bin* self, usize n, void* data) {
   return self->count;
 }
 
+// table api ------------------------------------------------------------------
 static void rehash_table(Table* self, uint newc) {
-  int* newo = callocate(newc, sizeof(int), -1), *oldo = self->ord;
+  int* newo = allocate(newc, sizeof(int), -1), *oldo = self->ord;
   uint mask = (newc-1), oldc = self->cap;
 
   for (uint i=0, n=0; i < self->cap && n < self->count; ) {
     if (oldo[i] < 0)
       continue;
 
-    uhash h  = hash(self->table[i].key, self->eql);
+    uhash h  = hash(self->table[i].key, !!(self->flags&EQUAL));
     uint idx = h & mask;
 
     while (newo[idx] > 0)
@@ -394,47 +322,53 @@ static void rehash_table(Table* self, uint newc) {
     newo[idx] = oldo[i];
   }
 
-  cdeallocate(self->ord, self->cap, sizeof(int));
+  deallocate(self->ord, self->cap, sizeof(int));
   self->ord   = newo;
-  self->table = creallocate(self->table, newc*2, oldc*2, sizeof(Val), NOTFOUND);
-  self->cap   = newc;
+  self->table = reallocate(self->table, newc, oldc, sizeof(Entry), NOTFOUND);
 }
 
-/* API */
 Table* new_table(bool eql, uint n, Val* args) {
-  Table* out = construct(TABLE_TYPE, 1, 0);
+  Table* out = mk_table();
   init_table(out, eql, n, args);
   return out;
 }
 
-void init_table(Table* self, bool eql, uint n, Val* args) {
-  init_obj((Obj*)self, TABLE_TYPE);
+Table* mk_table(void) {
+  return construct(TABLE, 1, 0, 0);
+}
 
-  self->eql    = eql;
+void init_table(Table* self, flags fl, uint n, Val* args) {
+  static Val initbuf[2] = { NOTFOUND, NOTFOUND };
+  
+  init_obj((Obj*)self, TABLE, fl);
+
   self->count  = 0;
   self->cap    = pad_table_size(n, 0);
-  self->ord    = callocate(self->cap, sizeof(int), -1);
-  self->table  = callocate(self->cap*2, sizeof(Val), NOTFOUND);
+  self->ord    = allocate(self->cap, sizeof(int), -1);
+  self->table  = allocate(self->cap, sizeof(Entry), (uintptr_t)&initbuf);
 
   if (args)
     for (uint i=0; i<n*2; i+= 2)
       table_set(self, args[i], args[i+1]);
 
-  self->init = true;
+  set_flag(self, INITIALIZED);
 }
 
 void resize_table(Table* self, uint n) {
   uint c = pad_table_size(n, self->cap);
 
-  if (c != self->cap)
+  if (c != self->cap) {
     rehash_table(self, c);
+
+    self->cap = c;
+  }
 }
 
 int* table_lookup(Table* self, Val key) {
-  uhash h = hash(key, self->eql);
+  uhash h = hash(key, self->flags&EQUAL);
   uint  m = self->cap-1;
   uint  i = h & m;
-  bool (*cmp)(Val x, Val y) = self->eql ? equal : same;
+  bool (*cmp)(Val x, Val y) = self->flags&EQUAL ? equal : same;
   int *o;
 
   while (*(o=self->ord+i) > 0) {
@@ -462,7 +396,7 @@ Val table_get(Table* self, Val key) {
 }
 
 Val table_set(Table* self, Val key, Val val) {
-  if (self->init)
+  if (has_flag(self, INITIALIZED))
     resize_table(self, self->count+1);
 
   bool added = false;
@@ -498,5 +432,56 @@ Val table_del(Table* self, Val key) {
   return out;
 }
 
+// objs array API -------------------------------------------------------------
+void init_objs(Objs* objs) {
+  objs->array = NULL;
+  objs->count = 0;
+  objs->cap   = pad_alist_size(0, 0);
+}
+
+void free_objs(Objs* objs) {
+  deallocate(objs->array, objs->count, sizeof(Obj));
+  init_objs(objs);
+}
+
+void resize_objs(Objs* objs, uint n) {
+  uint c = pad_alist_size(n, objs->cap);
+
+  if (c != objs->cap) {
+    objs->array = reallocate(objs->array, objs->count, c, sizeof(Obj), NOTUSED);
+    objs->cap   = c;
+  }
+}
+
+uint push_objs(Objs* objs, Obj* obj) {
+  resize_objs(objs, objs->count+1);
+
+  objs->array[objs->count] = obj;
+
+  return objs->count++;
+}
+
+Obj* pop_objs(Objs* objs) {
+  assert(objs->count > 0);
+  assert(objs->array != NULL);
+
+  Obj* out = objs->array[--objs->count];
+
+  resize_objs(objs, objs->count);
+
+  return out;
+}
+
 // initialization -------------------------------------------------------------
-void object_init(void) {}
+extern uhash EmptyListHash, EmptyStringHash;
+
+void object_init(void) {
+  // initialize globals -------------------------------------------------------
+  SymbolTable = NULL;
+
+  init_list(&EmptyList, FROZEN|NOFREE, tag(&EmptyList), &EmptyList);
+  init_bin(&EmptyString, FROZEN|NOFREE|ENCODED, 0, "");
+
+  EmptyStringHash = mix_hashes(2, hash_ptr(&EmptyString), hash_uint(BIN));
+  EmptyListHash   = mix_hashes(2, hash_ptr(&EmptyList), hash_uint(LIST));
+}

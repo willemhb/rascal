@@ -53,6 +53,7 @@ typedef struct {
 #define NOTFOUND  (OBJ_TAG|1)
 #define UNDEFINED (OBJ_TAG|2)
 #define UNBOUND   (OBJ_TAG|3)
+#define NOTUSED   (OBJ_TAG|4)
 
 #define TAG_BITS(value) ((value) & TAG_MASK)
 #define VAL_BITS(value) ((value) & VAL_MASK)
@@ -66,7 +67,6 @@ Val tag_ptr(void* data);
 #define tag(x)					\
   generic((x),					\
 	  Real:tag_real,			\
-	  uint:tag_fixnum,			\
 	  Glyph:tag_glyph,			\
 	  Obj*:tag_obj,				\
 	  default:tag_ptr)(x)
@@ -88,6 +88,9 @@ bool is_string(Val val);
  
 // generic untagging methods --------------------------------------------------
 char* as_text(Val val);
+
+// misc runtime methods -------------------------------------------------------
+void mark_val(Val val);
 
 // values array API -----------------------------------------------------------
 void init_vals(Vals* vals);
