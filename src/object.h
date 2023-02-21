@@ -29,6 +29,7 @@ typedef enum {
   // symbol flags -------------------------------------------------------------
   GENERATED  =0x000001,
   LITERAL    =0x000002,
+  CONSTANT   =0x000004,
 
   // func flags ---------------------------------------------------------------
   NATIVE     =0x000001,
@@ -56,14 +57,15 @@ struct Sym {
   HEADER;
   char *name;
   uhash hash;
-  Val   constant;
+  Val   bind;
   Sym*  left, *right;
 };
 
 typedef struct {
-  Table* vals;
+  Vec*   vals;
   Bin*   code;
-  List*  envt;
+  List*  lenv;
+  List*  cenv;
 } Chunk;
 
 struct Func {
@@ -73,33 +75,39 @@ struct Func {
   void*   func;
 };
 
-struct List {
-  HEADER;
-  Val   head;
-  List *tail;
-};
-
 struct Bin {
   HEADER;
   void *array;
   uint  count, cap;
 };
 
-typedef struct {
-  Val key;
-  Val val;
-} Entry;
+struct List {
+  HEADER;
+  Val   head;
+  List *tail;
+};
+
+struct Vec {
+  HEADER;
+  Val *array;
+  uint count, cap;
+};
+
+struct Tuple {
+  HEADER;
+  Val slots[];
+};
 
 struct Table {
   HEADER;
-  Entry *table;
-  uint   count, cap;
-  int   *ord;
+  Obj** table;
+  uint  count, cap;
 };
 
 // globals --------------------------------------------------------------------
 extern Sym*  SymbolTable;
 extern List  EmptyList;
+extern Tuple EmptyTuple;
 extern Bin   EmptyString;
 
 // API -------------------------------------------------------------------------
@@ -121,28 +129,34 @@ Func*  new_func(flags fl, uint arity, Sym* name, Mtable* type, void* func);
 Func*  mk_func(bool userp, void* func);
 void   init_func(Func* self, flags fl , uint arity, Sym* name, Mtable* type, void* func);
 
+Bin*   new_bin(bool encp, uint n, void* data);
+Bin*   mk_bin(void);
+void   init_bin(Bin* self, flags fl, uint n, void* data);
+
 List*  new_list(Val head, List* tail);
 List*  mk_list(void);
 void   init_list(List* self, flags fl, Val head, List* tail);
 
-Bin*   new_bin(bool encp, uint n, void* data);
-Bin*   mk_bin(void);
-void   init_bin(Bin* self, flags fl, uint n, void* data);
+Vec*   new_vec(uint n, Val* args);
+Vec*   mk_vec(uint n);
+void   init_vec(Vec* self, flags fl, uint n, Val* args);
+
+Tuple* new_tuple(uint n, Val* args);
+Tuple* mk_tuple(uint n);
+void   init_tuple(Tuple* self, flags fl, uint n, Val* args);
 
 Table* new_table(bool eqlp, uint n, Val* data);
 Table* mk_table(void);
 void   init_table(Table* self, flags fl, uint n, Val* data);
 
 // accessors & mutators -------------------------------------------------------
-Val    list_nth(List* list, uint n);
-List*  list_assoc(List* list, Val k);
-
-ubyte  bin_get(Bin* b, uint n);
-ubyte  bin_set(Bin* b, uint n, ubyte xx);
 uint   bin_write(Bin* b, uint n, void* data);
 void   resize_bin(Bin* b, uint n);
 
-Val   *table_nth(Table* table, uint n);
+uint   vec_push(Vec* vec, Val v);
+Val    vec_pop(Vec* vec);
+void   resize_vec(Vec* vec, uint n);
+
 Val    table_get(Table* table, Val key);
 Val    table_set(Table* table, Val key, Val val);
 Val    table_del(Table* table, Val key);

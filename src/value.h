@@ -12,6 +12,8 @@ typedef struct Sym Sym;
 typedef struct Func Func;
 typedef struct Bin Bin;
 typedef struct List List;
+typedef struct Vec Vec;
+typedef struct Tuple Tuple;
 typedef struct Table Table;
 
 typedef union ValData ValData;
@@ -25,6 +27,8 @@ union ValData {
   Func*   as_func;
   Bin*    as_bin;
   List*   as_list;
+  Vec*    as_vec;
+  Tuple*  as_tuple;
   Table*  as_table;
 };
 
@@ -79,15 +83,20 @@ Sym*    as_sym(Val val);
 Func*   as_func(Val val);
 Bin*    as_bin(Val val);
 List*   as_list(Val val);
+Vec*    as_vec(Val val);
+Tuple*  as_tuple(Val val);
 Table*  as_table(Val val);
 
 // type & value predicates ----------------------------------------------------
 bool is_int(Val val);
 bool is_byte(Val val);
 bool is_string(Val val);
- 
+bool is_text(Val val);
+
 // generic untagging methods --------------------------------------------------
 char* as_text(Val val);
+uint  as_int(Val val);
+ubyte as_byte(Val val);
 
 // misc runtime methods -------------------------------------------------------
 void mark_val(Val val);
