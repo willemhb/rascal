@@ -46,4 +46,12 @@ typedef void         (*funcptr)(void);
 #define attrs __attribute__
 #define cleanup(f) __attribute__((cleanup(f)))
 
+static inline bool flagp(flags fls, flags fl) {
+  return !!(fls&fl);
+}
+
+static inline bool flagsp(flags fls, flags fl) {
+  return (fls&fl) == fl;
+}
+
 #endif

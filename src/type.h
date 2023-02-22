@@ -15,7 +15,10 @@ typedef enum {
   SYM,
   FUNC,
   BIN,
+  STR,
   LIST,
+  VEC,
+  TUPLE,
   TABLE
 } Type;
 
@@ -55,7 +58,7 @@ bool obj_has_type(Obj* o, Type t);
 Mtable* val_mtable(Val x);
 Mtable* obj_mtable(Obj* o);
 
-void*   construct(Type type, usize n, usize extra, void* data);
+void*   construct(Type type, usize n, usize a, usize obsize, uintptr_t ini, bool isdata);
 
 #define type_of(x)    generic((x), Val:val_type_of, Obj*:obj_has_type)(x)
 #define has_type(x,t) generic((x), Val:val_has_type, Obj*:obj_has_type)(x, t)

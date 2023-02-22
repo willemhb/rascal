@@ -6,35 +6,42 @@
 #include "util/collections.h"
 
 /* API */
-#define TAG(type, Type, MASK, TAG)			\
-  Val tag_##type(Type type) {				\
-    return (((ValData)type).as_val & MASK) | TAG;	\
+Val tag_real(Real real) {
+  return ((ValData)real).as_val;
+}
+
+Val tag_glyph(Glyph g) {
+  return ((ValData)g).as_val | GLYPH_TAG;
+}
+
+Val tag_obj(void* obj) {
+  return ((ValData)obj).as_val | OBJ_TAG;
+}
+
+Real as_real(Val val) {
+  return ((ValData)val).as_real;
+}
+
+Glyph as_glyph(Val val) {
+  return ((ValData)val).as_glyph;
+}
+
+void* as_obj(Val val) {
+  return ((ValData)(val&VAL_MASK)).as_obj;
+}
+
+#define UNTAG(T, t)				\
+  T* as_##t(Val val) {				\
+    return (T*)as_obj(val);			\
   }
 
-TAG(real, Real,  WORD_MASK, REAL_TAG);
-TAG(glyph, Glyph, VAL_MASK, GLYPH_TAG);
-TAG(obj, Obj*, VAL_MASK, OBJ_TAG);
-TAG(sym, Sym*, VAL_MASK, OBJ_TAG);
-TAG(func, Func*, VAL_MASK, OBJ_TAG);
-TAG(bin, Bin*, VAL_MASK, OBJ_TAG);
-TAG(list, List*, VAL_MASK, OBJ_TAG);
-TAG(table, Table*, VAL_MASK, OBJ_TAG);
-
-#undef TAG
-
-#define UNTAG(type, Type, MASK)			\
-  Type as_##type(Val val) {			\
-    return ((ValData)(val&MASK)).as_##type;	\
-  }
-
-UNTAG(real, Real,  WORD_MASK);
-UNTAG(glyph, Glyph, VAL_MASK);
-UNTAG(obj, Obj*, VAL_MASK);
-UNTAG(sym, Sym*, VAL_MASK);
-UNTAG(func, Func*, VAL_MASK);
-UNTAG(bin, Bin*, VAL_MASK);
-UNTAG(list, List*, VAL_MASK);
-UNTAG(table, Table*, VAL_MASK);
+UNTAG(Sym, sym);
+UNTAG(Func, func);
+UNTAG(Bin, bin);
+UNTAG(List, list);
+UNTAG(Vec, vec);
+UNTAG(Tuple, tuple);
+UNTAG(Table, table);
 
 #undef UNTAG
 
@@ -58,7 +65,7 @@ bool is_byte(Val val) {
 }
 
 bool is_string(Val val) {
-  return has_type(val, BIN) && !!(as_bin(val)->flags & ENCODED);
+  return has_type(val, BIN) && has_flag(as_obj(val), ENCODED);
 }
 
 // generic untagging methods --------------------------------------------------

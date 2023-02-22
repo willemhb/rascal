@@ -7,6 +7,8 @@
 typedef enum {
   OP_BEGIN,
 
+  OP_POP,
+
   OP_LOAD_NUL,
 
   OP_LOAD_CONST,

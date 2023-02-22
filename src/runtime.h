@@ -71,6 +71,7 @@ extern struct Vm Vm;
 
 // API ------------------------------------------------------------------------
 // heap -----------------------------------------------------------------------
+void  register_obj(void* obj);
 void* allocate(uint n, usize obsize, uint64 ini);
 void* reallocate(void* ptr, uint new, uint old, usize obsize, uint64 ini);
 void  deallocate(void* ptr, uint n, usize obsize);
@@ -87,6 +88,12 @@ Error recover(void);
       panic(error, fmt __VA_OPT__(,) __VA_ARGS__);          \
       return sentinel;                                      \
     }                                                       \
+  } while (false)
+
+#define REPANIC(sentinel)			\
+  do {						\
+    if (panicking())				\
+      return sentinel;				\
   } while (false)
 
 // interpreter ----------------------------------------------------------------

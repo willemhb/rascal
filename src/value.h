@@ -11,6 +11,7 @@ typedef struct Obj Obj;
 typedef struct Sym Sym;
 typedef struct Func Func;
 typedef struct Bin Bin;
+typedef struct Str Str;
 typedef struct List List;
 typedef struct Vec Vec;
 typedef struct Tuple Tuple;
@@ -22,14 +23,7 @@ union ValData {
   Val     as_val;
   Real    as_real;
   Glyph   as_glyph;
-  Obj*    as_obj;
-  Sym*    as_sym;
-  Func*   as_func;
-  Bin*    as_bin;
-  List*   as_list;
-  Vec*    as_vec;
-  Tuple*  as_tuple;
-  Table*  as_table;
+  void*   as_obj;
 };
 
 typedef struct {
@@ -65,32 +59,30 @@ typedef struct {
 // tagging methods ------------------------------------------------------------
 Val tag_real(Real real);
 Val tag_glyph(Glyph glyph);
-Val tag_obj(Obj* obj);
-Val tag_ptr(void* data);
+Val tag_obj(void* obj);
 
 #define tag(x)					\
   generic((x),					\
 	  Real:tag_real,			\
 	  Glyph:tag_glyph,			\
-	  Obj*:tag_obj,				\
-	  default:tag_ptr)(x)
+	  default:tag_obj)(x)
 
 // untagging methods ----------------------------------------------------------
-Real    as_real(Val val);
-Glyph   as_glyph(Val val);
-Obj*    as_obj(Val val);
-Sym*    as_sym(Val val);
-Func*   as_func(Val val);
-Bin*    as_bin(Val val);
-List*   as_list(Val val);
-Vec*    as_vec(Val val);
-Tuple*  as_tuple(Val val);
-Table*  as_table(Val val);
+Real   as_real(Val val);
+Glyph  as_glyph(Val val);
+void*  as_obj(Val val);
+Sym*   as_sym(Val val);
+Func*  as_func(Val val);
+Bin*   as_bin(Val val);
+Str*   as_str(Val val);
+List*  as_list(Val val);
+Vec*   as_vec(Val val);
+Tuple* as_tuple(Val val);
+Table* as_table(Val val);
 
 // type & value predicates ----------------------------------------------------
 bool is_int(Val val);
 bool is_byte(Val val);
-bool is_string(Val val);
 bool is_text(Val val);
 
 // generic untagging methods --------------------------------------------------
@@ -105,7 +97,8 @@ void mark_val(Val val);
 void init_vals(Vals* vals);
 void free_vals(Vals* vals);
 void resize_vals(Vals* vals, uint n);
-uint push_vals(Vals* vals, Val val);
-Val  pop_vals(Vals* vals);
+uint vals_push(Vals* vals, Val val);
+Val  vals_pop(Vals* vals);
+int  vals_search(Vals* vals, Val x);
 
 #endif

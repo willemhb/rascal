@@ -58,6 +58,11 @@ static void initialize_memory(void* spc, uint n, usize obsize, uint64 ini) {
   }
 }
 
+void  register_obj(void* obj) {
+  ((Obj*)obj)->next = Heap.live;
+  Heap.live         = obj;
+}
+
 void* allocate(uint n, usize obsize, uint64 ini) {
   check_manage(n, obsize);
 

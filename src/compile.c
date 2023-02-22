@@ -8,38 +8,80 @@
 // globals --------------------------------------------------------------------
 Val Quote, Do, Def, Set, Fn, If;
 
+Val Vargs, Vopts, Vkwargs;
+
 Sym* Toplevel, * Lambda;
 
 // local helpers --------------------------------------------------------------
-#define FNCHUNK(f) ((Chunk*)((f)->func))
-#define FNCODE(f)  (FNCHUNK(f)->code)
-#define FNLENV(f)  (FNCHUNK(f)->lenv)
-#define FNCENV(f)  (FNCHUNK(f)->cenv)
-#define FNVALS(f)  (FNCHUNK(f)->vals)
+#define FNCHUNK(fn) ((Chunk*)((fn)->func))
+#define FNVALS(fn)  (FNCHUNK(fn)->vals)
+#define FNCODE(fn)  (FNCHUNK(fn)->code)
+#define FNLENV(fn)  (FNCHUNK(fn)->lenv)
+#define FNCENV(fn)  (FNCHUNK(fn)->cenv)
 
-bool is_literal(Val x);
-uint op_argc(OpCode op);
-uint emit(Func* f, OpCode op, ...);
-uint add_const(Func* f, Val x);
+#define GUARD_STX(test, sentinel, fmt, ...)				\
+  GUARD(test, sentinel, COMPILE_ERROR, fmt __VA_OPT__(,) __VA_ARGS__)
 
-void resolve_name(Val n, Func* f, int* i, int* j);
-void define_name(Val n, Func* f, int* i, int* j);
+// chunk API ------------------------------------------------------------------
+Chunk* mk_chunk(void);
+void   init_chunk(Chunk* chunk);
 
-uint compile_expr(Func* f, Val x);
-uint compile_literal(Func* f, Val x);
-uint compile_reference(Func* f, Val x);
-uint compile_application(Func* f, Val x);
+// general utility ------------------------------------------------------------
+uint add_to_vec(Vec* vec, Val x);
 
-uint compile_quote(Func* f, List* form);
-uint compile_do(Func* f, List* form);
-uint compile_def(Func* f, List* form);
-uint compile_set(Func* f, List* form);
-uint compile_fn(Func* f, List* form);
-uint compile_if(Func* f, List* form);
-uint compile_funcall(Func* f, List* form);
+// opcodes & bytecode ---------------------------------------------------------
+uint   code_size(Bin* bin);
+uint16 code_get(Bin* bin, uint n);
+uint16 code_set(Bin* bin, uint n, uint16 byte);
+uint   code_write(Bin* bin, uint n, uint16* byte);
+uint   op_argc(OpCode op);
+uint   emit(Chunk* c, OpCode op, ...);
 
-uint compile_funargs(Func* f, List* xs);
-uint compile_sequence(Func* f, List* xs);
+// environments ---------------------------------------------------------------
+bool is_toplevel(Chunk* c);
+void resolve_name(Val n, Chunk* c, int* i, int* j);
+void define_name(Val n, Chunk* c, int* i, int* j);
+List* build_lenv(List* formals, List* parent, flags* fl);
+
+// misc -----------------------------------------------------------------------
+bool   is_literal(Val x);
+uint   add_const(Chunk* c, Val x);
+
+// compile dispatch -----------------------------------------------------------
+uint compile_expr(Chunk* c, Val x);
+uint compile_literal(Chunk* c, Val x);
+uint compile_reference(Chunk* c, Val x);
+uint compile_application(Chunk* c, Val x);
+
+// compile application dispatch -----------------------------------------------
+uint compile_quote(Chunk* c, List* form);
+uint compile_do(Chunk* c, List* form);
+uint compile_def(Chunk* c, List* form);
+uint compile_set(Chunk* c, List* form);
+uint compile_fn(Chunk* c, List* form);
+uint compile_if(Chunk* c, List* form);
+uint compile_funcall(Chunk* c, List* form);
+
+// miscellaneous compile dispatch ---------------------------------------------
+uint compile_funargs(Chunk* c, List* xs);
+uint compile_sequence(Chunk* c, List* xs);
+
+// chunk API ------------------------------------------------------------------
+Chunk* new_chunk(Vec* vals, Bin* code, List* lenv, List* cenv) {
+  
+}
+
+// misc -----------------------------------------------------------------------
+uint add_to_vec(Vec* vec, Val x) {
+  assert(vec != NULL);
+
+  int i = vec_search(vec, x);
+
+  if (i < 0)
+    i = vec_push(vec, x);
+
+  return i;
+}
 
 bool is_literal(Val x) {
   if (has_type(x, SYM))
@@ -49,6 +91,27 @@ bool is_literal(Val x) {
     return as_list(x) != &EmptyList;
 
   return true;
+}
+
+// opcodes & bytecode ---------------------------------------------------------
+uint code_size(Bin* bin) {
+  return bin->count >> 1;
+}
+
+uint16 code_get(Bin* bin, uint n) {
+  return ((uint16*)bin->array)[n];
+}
+
+uint16 code_set(Bin* bin, uint n, uint16 byte) {
+  ((uint16*)bin->array)[n] = byte;
+
+  return byte;
+}
+
+uint code_write(Bin* bin, uint n, uint16* bytes) {
+  uint out = bin_write(bin, n<<1, bytes);
+
+  return out>>1;
 }
 
 uint op_argc(OpCode op) {
@@ -65,7 +128,7 @@ uint op_argc(OpCode op) {
   }
 }
 
-uint emit(Func* f, OpCode op, ...) {
+uint emit(Chunk* c, OpCode op, ...) {
   uint n = 1;
   uint16 buf[3] = { op, 0, 0 };
   va_list va; va_start(va, op);
@@ -86,105 +149,188 @@ uint emit(Func* f, OpCode op, ...) {
 
   va_end(va);
 
-  return bin_write(FNCODE(f), n*sizeof(uint16), buf) >> 1;
+  return code_write(c->code, n, buf);
 }
 
-uint add_const(Func* f, Val x) {
-  Vec* v = FNVALS(f);
-
-  for (uint i=0; i<v->count; i++)
-    if (v->array[i] == x)
-      return i;
-
-  return vec_push(v, x);
+uint add_const(Chunk* c, Val x) {
+  return add_to_vec(c->vals, x);
 }
 
-void resolve_name(Val n, Func* f, int* i, int* j) {
-  List* e = FNLENV(f);
+// environment and variable helpers -------------------------------------------
+bool is_toplevel(Chunk* c) {
+  return c->lenv == &EmptyList;
+}
+
+void resolve_name(Val n, Chunk* c, int* i, int* j) {
+  List* lenv = c->lenv;
 
   *i = 0;
   *j = 0;
 
-  while (e->arity) {
-    Table* locals = as_table(e->head);
-    Val location  = table_get(locals, n);
+  while (lenv != &EmptyList) {
+    *j = vec_search(as_vec(lenv->head), n);
 
-    if (location == NOTFOUND) {
+    if (*j == -1)
       (*i)++;
-      e = e->tail;
-    } else {
-      (*j) = as_int(location);
+
+    else
       return;
-    }
   }
 
   *i = -1;              // signal that local value was not found
-  *j = add_const(f, n); // save the location of the key to be referenced at runtime
+  *j = add_const(c, n); // save the location of the key to be referenced at runtime
 }
 
-uint compile_expr(Func* f, Val x) {
+void define_name(Val n, Chunk* c, int* i, int* j) {
+  *i = 0;
+  *j = 0;
+
+  List* e = c->lenv;
+
+  if (e == &EmptyList) {
+    *i = -1;
+    *j = add_const(c, n);
+  } else {
+    *j = add_to_vec(as_vec(e->head), n);
+  }
+}
+
+List* build_lenv(List* formals, List* parent, flags* fl) {
+  Vec* locals = new_vec(0, NULL);
+
+  for (;formals->arity; formals = formals->tail) {
+    Val name = formals->head;
+
+    GUARD_STX(has_type(name, SYM),
+	  &EmptyList,
+	  "formal argument is not a symbol" );
+
+    if (name == Vargs) {
+      GUARD_STX(!flagp(*fl, VARGS),
+		&EmptyList,
+		"bad syntax in fn: rest syntax marker appears twice" );
+
+      *fl |= VARGS;
+    } else if (name == Vopts) {
+      GUARD_STX(!flagp(*fl, VOPTS),
+		&EmptyList,
+		"bad syntax in fn: options syntax marker appears twice" );
+
+      *fl |= VOPTS;
+    } else if (name == Vkwargs) {
+      GUARD_STX(!flagp(*fl, VKWARGS),
+		&EmptyList,
+		"bad syntax in fn: keywords syntax marker appears twice" );
+
+      *fl |= VKWARGS;
+    } else {
+      uint n = locals->count;
+
+      GUARD_STX(add_to_vec(locals, name) == n,
+		&EmptyList,
+		"bad syntax in fn: formal argument '%s' appears twice",
+		as_sym(name)->name );
+    }
+  }
+
+  return new_list(tag(locals), parent);
+}
+
+// compile dispatch -----------------------------------------------------------
+uint compile_expr(Chunk* c, Val x) {
   if (is_literal(x))
-    return compile_literal(f, x);
+    return compile_literal(c, x);
 
   else if (has_type(x, LIST))
-    return compile_application(f, x);
+    return compile_application(c, x);
 
-  return compile_reference(f, x);
+  return compile_reference(c, x);
 }
 
-uint compile_literal(Func* f, Val x) {
+uint compile_literal(Chunk* c, Val x) {
   if (x == NUL)
-    return emit(f, OP_LOAD_NUL);
+    return emit(c, OP_LOAD_NUL);
 
-  uint arg = add_const(f, x);
+  uint arg = add_const(c, x);
 
-  return emit(f, OP_LOAD_CONST, arg);
+  return emit(c, OP_LOAD_CONST, arg);
 }
 
-uint compile_reference(Func* f, Val x) {
+uint compile_reference(Chunk* c, Val x) {
   int i, j;
 
-  resolve_name(x, f, &i, &j);
+  resolve_name(x, c, &i, &j);
 
   if (i == 0)
-    return emit(f, OP_LOAD_LOCAL, j);
+    return emit(c, OP_LOAD_LOCAL, j);
 
   else if (i == -1)
-    return emit(f, OP_LOAD_GLOBAL, j);
+    return emit(c, OP_LOAD_GLOBAL, j);
 
   else
-    return emit(f, OP_LOAD_CLOSURE, i, j);
+    return emit(c, OP_LOAD_CLOSURE, i, j);
 }
 
-uint compile_application(Func* f, Val x) {
+uint compile_application(Chunk* c, Val x) {
   List* form = as_list(x);
 
   if (form->head == Quote)
-    return compile_quote(f, form);
+    return compile_quote(c, form);
 
   if (form->head == Do)
-    return compile_do(f, form);
+    return compile_do(c, form);
 
   if (form->head == Def)
-    return compile_def(f, form);
+    return compile_def(c, form);
 
   if (form->head == Set)
-    return compile_set(f, form);
+    return compile_set(c, form);
 
   if (form->head == Fn)
-    return compile_fn(f, form);
+    return compile_fn(c, form);
 
   if (form->head == If)
-    return compile_if(f, form);
+    return compile_if(c, form);
 
-  return compile_funcall(f, form);
+  return compile_funcall(c, form);
+}
+
+uint compile_quote(Chunk* c, List* form) {
+  GUARD( form->arity==2,
+	 0,
+	 COMPILE_ERROR,
+	 "bad syntax in quote: %du expressions", form->arity );
+
+  Val x = form->tail->head;
+
+  return compile_literal(c, x);
+}
+
+uint compile_do(Chunk* c, List* form) {
+  GUARD(form->arity >= 2,
+	0,
+	COMPILE_ERROR,
+	"bad syntax in do: %du expressions", form->arity );
+
+  return compile_sequence(c, form->tail);
+}
+
+// misc compile dispatch ------------------------------------------------------
+uint compile_funargs(Chunk* c, List* xs) {
+  for (;xs != &EmptyList; xs=xs->tail) {
+    Val arg = xs->head;
+    compile_expr(c, arg);
+    REPANIC(0);
+  }
+
+  return code_size(c->code);
 }
 
 // API ------------------------------------------------------------------------
 Func* compile(Val x) {
-  Func* target = new_func(TOPLEVEL, 0, Toplevel, NULL, NULL);
+  Chunk* c = new_chunk(NULL, NULL, NULL, NULL);
 
-  emit(target, OP_BEGIN);
+  emit(, OP_BEGIN);
   compile_expr(target, x);
   emit(target, OP_RETURN);
 
@@ -194,14 +340,19 @@ Func* compile(Val x) {
 // initialization -------------------------------------------------------------
 void compile_init(void) {
   // special form names -------------------------------------------------------
-  Sym* defsym  =get_sym(false, "def");   set_flag(defsym, LITERAL);   Def   = tag(defsym);
-  Sym* setsym  =get_sym(false, "set");   set_flag(setsym, LITERAL);   Set   = tag(setsym);
-  Sym* fnsym   =get_sym(false, "fn");    set_flag(fnsym, LITERAL);    Fn    = tag(fnsym);
-  Sym* dosym   =get_sym(false, "do");    set_flag(dosym, LITERAL);    Do    = tag(dosym);
-  Sym* ifsym   =get_sym(false, "if");    set_flag(ifsym, LITERAL);    If    = tag(ifsym);
-  Sym* quotesym=get_sym(false, "quote"); set_flag(quotesym, LITERAL); Quote = tag(quotesym);
+  Quote  = tag(get_sym(LITERAL, "quote"));
+  Do     = tag(get_sym(LITERAL, "do"));
+  Def    = tag(get_sym(LITERAL, "def"));
+  Set    = tag(get_sym(LITERAL, "set"));
+  Fn     = tag(get_sym(LITERAL, "fn"));
+  If     = tag(get_sym(LITERAL, "if"));
+
+  // special syntactic markers ------------------------------------------------
+  Vargs  = tag(get_sym(LITERAL, "&va"));
+  Vopts  = tag(get_sym(LITERAL, "&opt"));
+  Vkwargs= tag(get_sym(LITERAL, "&kw"));
 
   // dummy function names -----------------------------------------------------
-  Toplevel     =get_sym(false, "*toplevel*");
-  Lambda       =get_sym(false, "*lambda*");
+  Toplevel     =get_sym(0, "*toplevel*");
+  Lambda       =get_sym(0, "*lambda*");
 }

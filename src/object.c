@@ -12,25 +12,44 @@
 /* globals */
 uint32 SymbolCounter = 1;
 Sym*   SymbolTable = NULL;
-List   EmptyList = { .arity=0, .head=NUL, .tail=&EmptyList };
 
-Bin    EmptyString;
+List   EmptyList = {
+  .next=NULL,
+  .type=LIST,
+  .flags=FROZEN|NOFREE|INITIALIZED,
+  .arity=0,
+  .head=NUL,
+  .tail=&EmptyList
+};
+
+Str EmptyString = {
+  .next=NULL,
+  .type=STR,
+  .flags=FROZEN|NOFREE|ENCODED|INITIALIZED,
+  .arity=0,
+  .hash=0,
+  .chars={ '\0' }
+};
+
+Tuple EmptyTuple = {
+  .next=NULL,
+  .type=TUPLE,
+  .flags=FROZEN|NOFREE|INITIALIZED,
+  .arity=0
+};
 
 // API ------------------------------------------------------------------------
 // common utilities -----------------------------------------------------------
 // lifetime & memory management -----------------------------------------------
 void init_obj(void* self, Type type, flags fl) {
-  Obj* obj     = self;
-  obj->next    = Heap.live;
-  Heap.live    = self;
-
   if (has_flag(self, INITIALIZED))
     return;
-  
+
+  Obj* obj    = self;
   obj->type   = type;
   obj->flags  = fl;
-  obj->black  = false;
-  obj->gray   = true;
+
+  register_obj(obj);
 }
 
 void mark_obj(void* self) {
@@ -45,7 +64,7 @@ void mark_obj(void* self) {
   obj->black = true;
 
   if (mtable(self)->trace)
-    push_objs(&Vm.heap.grays, self);
+    objs_push(&Vm.heap.grays, self);
 
   else
     obj->gray = false;
@@ -55,14 +74,12 @@ void destruct_obj(void* self) {
   if (!self)
     return;
 
-  assert(!has_flag(self, NOFREE));
-
   usize freed = mtable(self)->size;
 
   if (mtable(self)->destruct)
      freed += mtable(self)->destruct(self);
 
-  if (has_flag(self, NOFREE))
+  if (!has_flag(self, NOFREE))
     deallocate(self, freed, 1);
 }
 
@@ -112,7 +129,7 @@ static Sym** find_in_symbol_table(char* name) {
 Sym* mk_sym(char* name) {
   assert(name != NULL && *name != '\0');
 
-  return construct(SYM, 1, strlen(name)+1, name);
+  return construct(SYM, 1, strlen(name)+1, sizeof(char), (uintptr_t)name, true);
 }
 
 Sym* new_sym(bool genp, char* name) {
@@ -136,7 +153,7 @@ void init_sym(Sym* self, flags fl, char* name) {
   self->name     = (char*)&self[1];
   self->arity    = SymbolCounter++;
   self->hash     = mix_hashes(3, hash_str(name), hash_uint(self->arity), MetaTables[SYM].type_hash);
-  self->constant = UNDEFINED;
+  self->bind     = UNDEFINED;
   self->left     = NULL;
   self->right    = NULL;
 
@@ -175,7 +192,7 @@ Func* new_func(flags fl, uint arity, Sym* name, Mtable* mtable, void* func) {
 }
 
 Func* mk_func(bool userp, void* func) {
-  return construct(FUNC, 1, sizeof(Chunk) * userp, func);
+  return construct(FUNC, 1, sizeof(Chunk) * userp, sizeof(ubyte), (uintptr_t)func, true);
 }
 
 void  init_func(Func* self, flags fl, uint arity, Sym* name, Mtable* mtable, void* func) {
@@ -198,6 +215,89 @@ void  init_func(Func* self, flags fl, uint arity, Sym* name, Mtable* mtable, voi
   set_flag(self, INITIALIZED);
 }
 
+
+// bin api --------------------------------------------------------------------
+Bin* new_bin(flags fl, uint n, void* data) {
+  Bin* out = mk_bin();
+
+  init_bin(out, fl, n, data);
+
+  return out;
+}
+
+Bin* mk_bin(void) {
+  return construct(BIN, 1, 0, 0, 0, false);
+}
+
+void init_bin(Bin* self, flags fl, uint n, void* data) {
+  bool isencoded = flagp(fl, ENCODED);
+  
+  init_obj((Obj*)self, BIN, fl);
+
+  self->count = 0;
+  self->cap   = pad_alist_size(n + isencoded, 0);
+  self->array = allocate(self->cap, sizeof(ubyte), 0);
+
+  if (data) {
+    self->count = n;
+    memcpy(self->array, data, n*sizeof(ubyte));
+    set_flag(self, INITIALIZED);
+  }
+}
+
+void resize_bin(Bin* self, uint n) {
+  if (has_flag(self, INITIALIZED)) {
+    uint cap = pad_alist_size(n+has_flag(self, ENCODED), self->cap);
+    
+    if (cap != self->cap) {
+      self->array = reallocate(self->array, cap, self->cap, 1, 0);
+      self->cap   = cap;
+    }
+  }
+
+  self->count = n;
+}
+
+uint bin_write(Bin* self, uint n, void* data) {
+  uint off = self->count;
+
+  resize_bin(self, self->count+n);
+
+  memcpy(self->array+off, data, n);
+
+  return self->count;
+}
+
+// str api --------------------------------------------------------------------
+Str* new_str(flags fl, uint n, char* data) {
+  if (n == 0)
+    return &EmptyString;
+  
+  Str* out = mk_str(n);
+
+  init_str(out, fl, n, data);
+
+  return out;
+}
+
+Str* mk_str(uint n) {
+  assert(n > 0);
+
+  return construct(STR, 1, n+1, sizeof(char), '\0', false);
+}
+
+void init_str(Str* self, flags fl, uint n, char* data) {
+  init_obj(self, STR, fl|ENCODED|FROZEN);
+
+  self->arity = n;
+  self->hash  = 0;
+
+  if (data) {
+    strcpy(self->chars, data);
+    set_flag(self, INITIALIZED);
+  }
+}
+
 // list api -------------------------------------------------------------------
 List* new_list(Val head, List* tail) {
   List* out = mk_list();
@@ -208,7 +308,7 @@ List* new_list(Val head, List* tail) {
 }
 
 List* mk_list(void) {
-  return construct(LIST, 1, 0, NULL);
+  return construct(LIST, 1, 0, 0, 0ul, false);
 }
 
 void init_list(List* self, flags fl, Val head, List* tail) {
@@ -240,192 +340,190 @@ List* list_assoc(List* list, Val k) {
   return list;
 }
 
-// bin api --------------------------------------------------------------------
-Bin* new_bin(bool encoded, uint n, void* data) {
-  if (encoded && n == 0)
-    return &EmptyString;
+// vec api --------------------------------------------------------------------
+Vec* new_vec(uint n, Val* args) {
+  Vec* out = mk_vec();
 
-  Bin* out = mk_bin();
-
-  init_bin(out, encoded, n, data);
+  init_vec(out, 0, n, args);
 
   return out;
 }
 
-Bin* mk_bin(void) {
-  return construct(BIN, 1, 0, NULL);
+Vec* mk_vec(void) {
+  return construct(VEC, 1, 0, 0, 0ul, false);
 }
 
-void init_bin(Bin* self, flags fl, uint n, void* data) {
-  init_obj((Obj*)self, BIN, fl);
+void init_vec(Vec* self, flags fl, uint n, Val* args) {
+  init_obj(self, VEC, fl);
 
-  uint c = pad_alist_size(n+has_flag(self, ENCODED), 0);
+  uint c = pad_alist_size(n, 0);
 
-  self->array = allocate(c, 1, 0);
-  self->count = n;
+  self->array = allocate(c, sizeof(Val), NOTUSED);
   self->cap   = c;
 
-  if (data)
-    memcpy(self->array, data, n);
-
-  set_flag(self, INITIALIZED);
-}
-
-void resize_bin(Bin* self, uint n) {
-  uint cap = pad_alist_size(n+has_flag(self, ENCODED), self->cap);
-
-  if (cap != self->cap) {
-    self->array = reallocate(self->array, cap, self->cap, 1, 0);
-    self->cap   = cap;
+  if (args) {
+    self->count = n;
+    memcpy(self->array, args, n*sizeof(Val));
+    set_flag(self, INITIALIZED);
+  } else {
+    self->count = 0;
   }
-
-  self->count = n;
 }
 
-ubyte bin_get(Bin* self, uint n) {
-  assert(n < self->count);
-  return ((ubyte*)self->array)[n];
+uint vec_push(Vec* vec, Val v) {
+  return vals_push((Vals*)&vec->array, v);
 }
 
-ubyte bin_set(Bin* self, uint n, ubyte xx) {
-  assert(n < self->count);
-  ((ubyte*)self->array)[n] = xx;
-
-  return xx;
+Val vec_pop(Vec *vec) {
+  return vals_pop((Vals*)&vec->array);
 }
 
-uint bin_write(Bin* self, uint n, void* data) {
-  uint off = self->count;
-  
-  resize_bin(self, self->count+n);
+void resize_vec(Vec *vec, uint n) {
+  resize_vals((Vals*)&vec->array, n);
+}
 
-  memcpy(self->array+off, data, n);
+// tuple api ------------------------------------------------------------------
+Tuple* new_tuple(uint n, Val* args) {
+  if (n == 0)
+    return &EmptyTuple;
 
-  return self->count;
+  Tuple* out = mk_tuple(n);
+
+  init_tuple(out, 0, n, args);
+
+  return out;
+}
+
+Tuple* mk_tuple(uint n) {
+  assert(n);
+
+  return construct(TUPLE, 1, n, sizeof(Val), NOTUSED, false);
+}
+
+void init_tuple(Tuple* self, flags fl, uint n, Val* args) {
+  init_obj(self, TUPLE, fl|FROZEN);
+
+  self->arity = n;
+
+  if (args) {
+    memcpy(self->slots, args, n*sizeof(Val));
+    set_flag(self, INITIALIZED);
+  }
 }
 
 // table api ------------------------------------------------------------------
 static void rehash_table(Table* self, uint newc) {
-  int* newo = allocate(newc, sizeof(int), -1), *oldo = self->ord;
+  Tuple** newt = allocate(newc, sizeof(Tuple*), (uintptr_t)&EmptyTuple);
   uint mask = (newc-1), oldc = self->cap;
 
   for (uint i=0, n=0; i < self->cap && n < self->count; ) {
-    if (oldo[i] < 0)
+    Tuple *kv = newt[i];
+
+    if (kv == NULL)
       continue;
 
-    uhash h  = hash(self->table[i].key, !!(self->flags&EQUAL));
+    uhash h  = hash(kv->slots[KEY], has_flag(self, EQUAL));
     uint idx = h & mask;
 
-    while (newo[idx] > 0)
+    while (newt[idx] != &EmptyTuple)
       idx = (idx+1) & mask;
 
-    newo[idx] = oldo[i];
+    newt[idx] = kv;
   }
 
-  deallocate(self->ord, self->cap, sizeof(int));
-  self->ord   = newo;
-  self->table = reallocate(self->table, newc, oldc, sizeof(Entry), NOTFOUND);
+  deallocate(self->table, self->cap, sizeof(Tuple*));
+  self->table = reallocate(self->table, newc, oldc, sizeof(Tuple*), 0ul);
 }
 
-Table* new_table(bool eql, uint n, Val* args) {
+static Tuple **find_in_table(Table* self, Val key) {
+  bool equalp               = has_flag(self, EQUAL);
+  bool (*cmp)(Val x, Val y) = equalp ? equal : same;
+  uhash h                   = hash(key, equalp);
+  uint mask                 = self->cap - 1;
+  uint idx                  = h & mask;
+
+  while (self->table[idx]) {
+    if (cmp(key, self->table[idx]->slots[KEY]))
+      break;
+
+    idx = (idx + 1) & mask;
+  }
+
+  return self->table+idx;
+}
+
+Table* new_table(flags fl, uint n, Val* args) {
   Table* out = mk_table();
-  init_table(out, eql, n, args);
+  init_table(out, fl, n, args);
   return out;
 }
 
 Table* mk_table(void) {
-  return construct(TABLE, 1, 0, 0);
+  return construct(TABLE, 1, 0, 0, 0, false);
 }
 
 void init_table(Table* self, flags fl, uint n, Val* args) {
-  static Val initbuf[2] = { NOTFOUND, NOTFOUND };
-  
+  assert(n % 2 == 0);
+
   init_obj((Obj*)self, TABLE, fl);
 
-  self->count  = 0;
-  self->cap    = pad_table_size(n, 0);
-  self->ord    = allocate(self->cap, sizeof(int), -1);
-  self->table  = allocate(self->cap, sizeof(Entry), (uintptr_t)&initbuf);
+  self->count = 0;
+  self->cap   = pad_table_size(n, 0);
+  self->table = allocate(self->cap, sizeof(Tuple*), (uintptr_t)&EmptyTuple);
 
-  if (args)
-    for (uint i=0; i<n*2; i+= 2)
-      table_set(self, args[i], args[i+1]);
+    if (args) {
+      for (uint i=0; i<n*2; i+= 2)
+	table_set(self, args[i], args[i+1]);
 
-  set_flag(self, INITIALIZED);
+      set_flag(self, INITIALIZED);
+    }
 }
 
 void resize_table(Table* self, uint n) {
-  uint c = pad_table_size(n, self->cap);
+  if (has_flag(self, INITIALIZED)) { 
+    uint c = pad_table_size(n, self->cap);
 
-  if (c != self->cap) {
-    rehash_table(self, c);
-
-    self->cap = c;
+    if (c != self->cap) {
+      rehash_table(self, c);
+      self->cap = c;
+    }
   }
-}
-
-int* table_lookup(Table* self, Val key) {
-  uhash h = hash(key, self->flags&EQUAL);
-  uint  m = self->cap-1;
-  uint  i = h & m;
-  bool (*cmp)(Val x, Val y) = self->flags&EQUAL ? equal : same;
-  int *o;
-
-  while (*(o=self->ord+i) > 0) {
-    if (cmp(key, self->table[*o].key))
-      break;
-
-    i = (i+1) & m;
-  }
-
-  return o;
-}
-
-Val* table_nth(Table* self, uint n) {
-  assert(n <= self->count);
-  return &self->table[n].key;
 }
 
 Val table_get(Table* self, Val key) {
-  int* o = table_lookup(self, key);
+  Tuple** location = find_in_table(self, key);
 
-  if (*o == -1)
+  if (*location == NULL)
     return NOTFOUND;
 
-  return table_nth(self, *o)[1];
+  return (*location)->slots[BIND];
 }
 
 Val table_set(Table* self, Val key, Val val) {
-  if (has_flag(self, INITIALIZED))
-    resize_table(self, self->count+1);
+  resize_table(self, self->count+1);
 
-  bool added = false;
-  int *o     = table_lookup(self, key);
+  Val out          = NUL;
+  Tuple** location = find_in_table(self, key);
 
-  if (*o == -1) {
-    *o = self->count++;
-    added    = true;
+  if (*location == NULL) {
+    *location = mk_pair(key, NUL);
+    out = tag((Real)self->count++);
   }
 
-  Val* spc = table_nth(self, *o);
-  spc[1]   = val;
+  (*location)->slots[BIND] = val;
 
-  if (added)
-    spc[0] = key;
-
-  return val;
+  return out;
 }
 
 Val table_del(Table* self, Val key) {
-  int *o = table_lookup(self, key);
+  Tuple** location = find_in_table(self, key);
 
-  if (*o == -1)
+  if (*location == NULL)
     return NOTFOUND;
 
-  Val* spc = table_nth(self, *o);
-  Val  out = spc[1];
-  spc[0]   = NOTFOUND;
-  spc[1]   = NOTFOUND;
+  Val out = tag(*location);
+
+  *location = NULL;
 
   resize_table(self, --self->count);
 
@@ -453,7 +551,7 @@ void resize_objs(Objs* objs, uint n) {
   }
 }
 
-uint push_objs(Objs* objs, Obj* obj) {
+uint objs_push(Objs* objs, Obj* obj) {
   resize_objs(objs, objs->count+1);
 
   objs->array[objs->count] = obj;
@@ -461,7 +559,7 @@ uint push_objs(Objs* objs, Obj* obj) {
   return objs->count++;
 }
 
-Obj* pop_objs(Objs* objs) {
+Obj* objs_pop(Objs* objs) {
   assert(objs->count > 0);
   assert(objs->array != NULL);
 
@@ -472,16 +570,21 @@ Obj* pop_objs(Objs* objs) {
   return out;
 }
 
-// initialization -------------------------------------------------------------
-extern uhash EmptyListHash, EmptyStringHash;
+int objs_search(Objs* objs, Obj* obj) {
+  for (uint i=0; i<objs->count; i++) {
+    if (objs->array[i] == obj)
+      return i;
+  }
 
+  return -1;
+}
+
+// initialization -------------------------------------------------------------
 void object_init(void) {
   // initialize globals -------------------------------------------------------
   SymbolTable = NULL;
 
-  init_list(&EmptyList, FROZEN|NOFREE, tag(&EmptyList), &EmptyList);
-  init_bin(&EmptyString, FROZEN|NOFREE|ENCODED, 0, "");
-
-  EmptyStringHash = mix_hashes(2, hash_ptr(&EmptyString), hash_uint(BIN));
-  EmptyListHash   = mix_hashes(2, hash_ptr(&EmptyList), hash_uint(LIST));
+  register_obj(&EmptyList);
+  register_obj(&EmptyString);
+  register_obj(&EmptyTuple);
 }
