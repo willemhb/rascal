@@ -1,4 +1,4 @@
-;; begin stdlib.rl
+ ;; begin stdlib.rl
 
 #| block comment |#
 
@@ -10,37 +10,24 @@
     (dict-set! *syntax* name xform)))
 
 (add-syntax 'defm
-            (fn (name args &body body)
+            (fn (name args &va body)
                `(add-syntax ~name
                             (fn ~args ~@body))))
 
-(defm defn
-  (name args &body body)
-  `(defv ~name (fn ~args ~@body)))
+(defm catch
+  (handler &va body)
+  `(with ((raise (fn ~@handler)))
+     (do ~@body)))
 
-(defm defc
-  (name value)
-  `(do (defv ~name ~value)
-       (freeze! name)))
+(defn safe-div
+  (x y)
+  (if (zero? y)
+      (raise :division-by-zero)
+      (/ x y)))
 
-(defm and
-  (&body body)
-  (if (nul? body)
-      true
-      (if (nul? (tl body))
-          (hd body)
-          (let (tmp (sym))
-            `(let (~tmp ~(hd body))
-               (if ~tmp ~(and ~@body) ~tmp))))))
-
-(defm or
-  (() false)
-  ((x) x)
-  ((x & rest)
-    (let (xsym (sym))
-      `(let (~xsym ~x)
-         (if ~xsym
-             ~xsym
-             (or ~@rest))))))
+(defn uses-safe-div
+  (x y z)
+  (catch ((_) (resume nan))
+    (+ x (safe-div y z))))
 
 ;; end stdlib.rl

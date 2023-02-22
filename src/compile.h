@@ -5,35 +5,39 @@
 
 // C types --------------------------------------------------------------------
 typedef enum {
-  OP_BEGIN          = 0,
+  OP_BEGIN               = 0,
 
-  OP_POP            = 1,
+  OP_PUSH                = 1,
+  OP_DUP                 = 2,
+  OP_POP                 = 3,
 
-  OP_LOAD_NUL       = 2,
+  OP_LOAD_NUL            = 4,
 
-  OP_LOAD_CONST     = 3,
-  OP_LOAD_GLOBAL    = 4,
-  OP_LOAD_LOCAL     = 5,
-  OP_LOAD_CLOSURE   = 6,
+  OP_LOAD_CONST          = 5,
+  OP_LOAD_GLOBAL         = 6,
+  OP_LOAD_LOCAL          = 7,
+  OP_LOAD_CLOSURE        = 8,
 
-  OP_DEF_GLOBAL     = 7,
-  OP_DEF_LOCAL      = 8,
+  OP_DEF_GLOBAL          = 9,
+  OP_DEF_LOCAL           =10,
 
-  OP_SET_GLOBAL     = 9,
-  OP_SET_LOCAL      =10,
-  OP_SET_CLOSURE    =11,
+  OP_SET_GLOBAL          =11,
+  OP_SET_LOCAL           =12,
+  OP_SET_CLOSURE         =13,
 
-  OP_JUMP           =12,
-  OP_JUMP_IF_FALSE  =13,
+  OP_JUMP                =14,
+  OP_JUMP_IF_FALSE       =15,
 
-  OP_PROMPT         =14,
-  OP_ESCAPE         =15,
-  OP_RESTORE        =16,
+  OP_SET_PROMPT          =16,
+  OP_REIFY_CONTINUATION  =17,
+  OP_INVOKE_EFFECT       =18,
+  OP_INVOKE_CONTINUATION =19,
 
-  OP_CLOSURE        =17,
-  OP_INVOKE         =18,
+  OP_CAPTURE_CLOSURE     =20,
+  OP_INVOKE_FUNCTION     =21,
+  OP_TAIL_INVOKE_FUNCTION=22,
 
-  OP_RETURN         =19
+  OP_RETURN              =23
 } OpCode;
 
 // API ------------------------------------------------------------------------

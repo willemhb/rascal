@@ -22,12 +22,14 @@ typedef enum {
   ERROR_TOKEN
 } Token;
 
-typedef struct {
-  Func*   func;
-  uint16* ip;
+typedef struct Frame Frame;
+
+struct Frame {
+  Frame*  prompt; // nearest enclosing frame added by a `with` form
+  Func*   func;   // executing code object
+  uint16* ip;     // instruction pointer
   Val*    slots;
-  bool    captured;
-} Frame;
+};
 
 // virtual machine ------------------------------------------------------------
 struct Vm {
@@ -55,9 +57,8 @@ struct Vm {
 
   // interpreter & environment ------------------------------------------------
   struct InterpreterData {
-    Table  globals;
-    Val*   sp;
-    Frame* fp;
+    Val*   sp,* sb,* se;
+    Frame* fp,* fb,* fe;
   } interpreter;
 };
 
@@ -97,6 +98,20 @@ Error recover(void);
   } while (false)
 
 // interpreter ----------------------------------------------------------------
+#define FPRX     (Interpreter.fp)
+#define SPRX     (Interpreter.sp)
+#define TOSRX    (SPRX[-1])
+#define FRAMERX  (FPRX[-1])
+#define FUNCRX   (FRAMERX.func)
+#define CHUNKRX  ((Chunk*)FUNCRX->func)
+#define IPRX     (FRAMERX.ip)
+#define SLOTSRX  (FRAMERX.slots)
+#define PROMPTRX (FRAMERX.prompt)
+#define VALSRX   (CHUNKRX->vals)
+#define LENVRX   (CHUNKRX->lenv)
+#define CENVRX   (CHUNKRX->cenv)
+#define CODERX   (CHUNKRX->code)
+
 Val*   push(Val x);
 Val    pop(void);
 Val*   peep(int i);
