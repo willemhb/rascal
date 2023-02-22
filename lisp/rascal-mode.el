@@ -8,7 +8,7 @@
 ;;; Code:
 (define-generic-mode
   'rascal-mode
-  '(";")
+  '(";" ("#|" . "|#"))
   '("defv" "setv" "defc" "defm" "defn"
     "fn" "let" "labl"
     "quote" "do"

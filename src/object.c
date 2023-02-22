@@ -181,8 +181,6 @@ Sym* get_sym(bool genp, char* name) {
 }
 
 // func api -------------------------------------------------------------------
-extern void init_chunk(Chunk* chunk);
-
 Func* new_func(flags fl, uint arity, Sym* name, Mtable* mtable, void* func) {
   Func* out = mk_func(!!(fl&USER), func);
 
@@ -202,19 +200,14 @@ void  init_func(Func* self, flags fl, uint arity, Sym* name, Mtable* mtable, voi
   self->name   = name;
   self->mtable = mtable;
 
-  if (!!(fl&USER)) {
+  if ( flagp(fl, USER) )
     self->func = &self[1];
 
-    if (func == NULL)
-      init_chunk(self->func);
-  } else {
-    assert(func);
+  else
     self->func = func;
-  }
 
   set_flag(self, INITIALIZED);
 }
-
 
 // bin api --------------------------------------------------------------------
 Bin* new_bin(flags fl, uint n, void* data) {

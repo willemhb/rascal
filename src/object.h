@@ -27,6 +27,7 @@ typedef enum {
   INITIALIZED=0x200000,
   HASHED     =0x100000,
   BORROWER   =0x080000,
+  CSTACK     =0x040000,
 
   // symbol flags -------------------------------------------------------------
   GENERATED  =0x000001,
@@ -144,6 +145,7 @@ void   init_func(Func* self, flags fl , uint arity, Sym* name, Mtable* type, voi
 Bin*   new_bin(flags fl, uint n, void* data);
 Bin*   mk_bin(void);
 void   init_bin(Bin* self, flags fl, uint n, void* data);
+void   free_bin(Bin* self);
 
 Str*   new_str(flags fl, uint n, char* data);
 Str*   mk_str(uint n);
@@ -156,6 +158,7 @@ void   init_list(List* self, flags fl, Val head, List* tail);
 Vec*   new_vec(uint n, Val* args);
 Vec*   mk_vec(void);
 void   init_vec(Vec* self, flags fl, uint n, Val* args);
+void   free_vec(Vec* self);
 
 Tuple* new_tuple(uint n, Val* args);
 Tuple* mk_tuple(uint n);
@@ -165,10 +168,12 @@ void   init_tuple(Tuple* self, flags fl, uint n, Val* args);
 Table* new_table(flags fl, uint n, Val* data);
 Table* mk_table(void);
 void   init_table(Table* self, flags fl, uint n, Val* data);
+void   free_table(Table* self);
 
 // accessors & mutators -------------------------------------------------------
 Val   list_nth(List* list, uint n);
 List* list_assoc(List* list, Val k);
+List* list_tail(List* list, uint n);
 
 uint  bin_write(Bin* b, uint n, void* data);
 void  resize_bin(Bin* b, uint n);

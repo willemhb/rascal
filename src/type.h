@@ -48,6 +48,8 @@ typedef struct {
 
 extern Mtable MetaTables[NUM_TYPES];
 
+#define MTABLE(type) (MetaTables[(type)])
+
 // API -------------------------------------------------------------------------
 Type val_type_of(Val x);
 Type obj_type_of(Obj* o);

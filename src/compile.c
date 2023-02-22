@@ -6,9 +6,9 @@
 
 // C types --------------------------------------------------------------------
 // globals --------------------------------------------------------------------
-Val Quote, Do, Def, Set, Fn, If;
+Val Quote, Do, Defv, Setv, Fn, If, Try, Catch, Raise;
 
-Val Vargs, Vopts, Vkwargs;
+Val Vargs, Vbody, Vopts, Vkwargs;
 
 Sym* Toplevel, * Lambda;
 
@@ -23,8 +23,7 @@ Sym* Toplevel, * Lambda;
   GUARD(test, sentinel, COMPILE_ERROR, fmt __VA_OPT__(,) __VA_ARGS__)
 
 // chunk API ------------------------------------------------------------------
-Chunk* mk_chunk(void);
-void   init_chunk(Chunk* chunk);
+void   init_chunk(Chunk* chunk, Vec* vals, Bin* code, List* lenv, List* cenv);
 
 // general utility ------------------------------------------------------------
 uint add_to_vec(Vec* vec, Val x);
@@ -41,7 +40,7 @@ uint   emit(Chunk* c, OpCode op, ...);
 bool is_toplevel(Chunk* c);
 void resolve_name(Val n, Chunk* c, int* i, int* j);
 void define_name(Val n, Chunk* c, int* i, int* j);
-List* build_lenv(List* formals, List* parent, flags* fl);
+List* build_lenv(List* formals, List* parent, flags* fl, uint* arity);
 
 // misc -----------------------------------------------------------------------
 bool   is_literal(Val x);
@@ -56,8 +55,8 @@ uint compile_application(Chunk* c, Val x);
 // compile application dispatch -----------------------------------------------
 uint compile_quote(Chunk* c, List* form);
 uint compile_do(Chunk* c, List* form);
-uint compile_def(Chunk* c, List* form);
-uint compile_set(Chunk* c, List* form);
+uint compile_defv(Chunk* c, List* form);
+uint compile_setv(Chunk* c, List* form);
 uint compile_fn(Chunk* c, List* form);
 uint compile_if(Chunk* c, List* form);
 uint compile_funcall(Chunk* c, List* form);
@@ -67,8 +66,20 @@ uint compile_funargs(Chunk* c, List* xs);
 uint compile_sequence(Chunk* c, List* xs);
 
 // chunk API ------------------------------------------------------------------
-Chunk* new_chunk(Vec* vals, Bin* code, List* lenv, List* cenv) {
-  
+void init_chunk(Chunk* ch, Vec* vals, Bin* code, List* lenv, List* cenv) {
+  if (vals == NULL)
+    vals = new_vec(0, NULL);
+
+  if (code == NULL)
+    code = new_bin(0, 0, NULL);
+
+  if (lenv == NULL)
+    lenv = &EmptyList;
+
+  ch->vals = vals;
+  ch->code = code;
+  ch->lenv = lenv;
+  ch->cenv = cenv;
 }
 
 // misc -----------------------------------------------------------------------
@@ -195,8 +206,10 @@ void define_name(Val n, Chunk* c, int* i, int* j) {
   }
 }
 
-List* build_lenv(List* formals, List* parent, flags* fl) {
+List* build_lenv(List* formals, List* parent, flags* fl, uint* arity) {
   Vec* locals = new_vec(0, NULL);
+
+  bool rest_argument = false;
 
   for (;formals->arity; formals = formals->tail) {
     Val name = formals->head;
@@ -205,24 +218,39 @@ List* build_lenv(List* formals, List* parent, flags* fl) {
 	  &EmptyList,
 	  "formal argument is not a symbol" );
 
-    if (name == Vargs) {
+    if (name == Vargs || name == Vbody) {
       GUARD_STX(!flagp(*fl, VARGS),
 		&EmptyList,
 		"bad syntax in fn: rest syntax marker appears twice" );
 
+      GUARD_STX(formals->arity > 1,
+                &EmptyList,
+                "bad syntax in fn: rest syntax marker but no rest formal" );
+
       *fl |= VARGS;
+      rest_argument = true;
     } else if (name == Vopts) {
       GUARD_STX(!flagp(*fl, VOPTS),
 		&EmptyList,
 		"bad syntax in fn: options syntax marker appears twice" );
 
+      GUARD_STX(formals->arity > 1,
+                &EmptyList,
+                "bad syntax in fn: options syntax marker but no options formal" );
+
       *fl |= VOPTS;
+      rest_argument = true;
     } else if (name == Vkwargs) {
       GUARD_STX(!flagp(*fl, VKWARGS),
 		&EmptyList,
 		"bad syntax in fn: keywords syntax marker appears twice" );
 
+      GUARD_STX(formals->arity > 1,
+                &EmptyList,
+                "bad syntax in fn: keywords syntax marker but no keywords formal" );
+
       *fl |= VKWARGS;
+      rest_argument = true;
     } else {
       uint n = locals->count;
 
@@ -230,6 +258,11 @@ List* build_lenv(List* formals, List* parent, flags* fl) {
 		&EmptyList,
 		"bad syntax in fn: formal argument '%s' appears twice",
 		as_sym(name)->name );
+
+      if (!rest_argument)
+        (*arity)++;
+
+      rest_argument = false;
     }
   }
 
@@ -280,11 +313,11 @@ uint compile_application(Chunk* c, Val x) {
   if (form->head == Do)
     return compile_do(c, form);
 
-  if (form->head == Def)
-    return compile_def(c, form);
+  if (form->head == Defv)
+    return compile_defv(c, form);
 
-  if (form->head == Set)
-    return compile_set(c, form);
+  if (form->head == Setv)
+    return compile_setv(c, form);
 
   if (form->head == Fn)
     return compile_fn(c, form);
@@ -296,10 +329,7 @@ uint compile_application(Chunk* c, Val x) {
 }
 
 uint compile_quote(Chunk* c, List* form) {
-  GUARD( form->arity==2,
-	 0,
-	 COMPILE_ERROR,
-	 "bad syntax in quote: %du expressions", form->arity );
+  GUARD_STX( form->arity==2, 0, "bad syntax in quote: %du expressions", form->arity);
 
   Val x = form->tail->head;
 
@@ -307,20 +337,168 @@ uint compile_quote(Chunk* c, List* form) {
 }
 
 uint compile_do(Chunk* c, List* form) {
-  GUARD(form->arity >= 2,
-	0,
-	COMPILE_ERROR,
-	"bad syntax in do: %du expressions", form->arity );
+  GUARD_STX(form->arity >= 2, 0, "bad syntax in do: %du expressions", form->arity);
 
   return compile_sequence(c, form->tail);
 }
 
+uint compile_defv(Chunk* c, List* form) {
+  GUARD_STX(form->arity == 3, 0, "bad syntax in defv: %du expressions", form->arity);
+
+  Val name = list_nth(form, 1);
+  Val bind = list_nth(form, 2);
+
+  GUARD_STX(has_type(name, SYM), 0, "bad syntax in defv: name is not a symbol");
+
+  int i, j;
+
+  OpCode assign;
+
+  define_name(name, c, &i, &j);
+
+  if (i == -1) {
+    assign = OP_SET_GLOBAL;
+    emit(c, OP_DEF_GLOBAL, j);
+  } else {
+    emit(c, OP_DEF_LOCAL, j);
+    assign = OP_SET_LOCAL;
+  }
+
+  compile_expr(c, bind);
+  REPANIC(0);
+
+  return emit(c, assign, j);
+}
+
+uint compile_setv(Chunk* c, List* form) {
+    GUARD_STX(form->arity == 3, 0, "bad syntax in setv: %du expressions", form->arity);
+
+  Val name = list_nth(form, 1);
+  Val bind = list_nth(form, 2);
+
+  GUARD_STX(has_type(name, SYM), 0, "bad syntax in setv: name is not a symbol");
+
+  int i, j;
+    
+  OpCode assign;
+
+  resolve_name(name, c, &i, &j);
+
+
+  if (i == -1)
+    assign = OP_SET_GLOBAL;
+
+  else if (i == 0)
+    assign = OP_SET_LOCAL;
+
+  else
+    assign = OP_SET_CLOSURE;
+
+  compile_expr(c, bind);
+  REPANIC(0);
+
+  return emit(c, assign, j);
+}
+
+uint compile_fn(Chunk* c, List* form) {
+  GUARD_STX(form->arity >= 3,
+            0,
+            "bad syntax in fn: %du expressions",
+            form->arity );
+
+  Val formals = list_nth(form, 1);
+  List* body  = list_tail(form, 2);
+
+  GUARD_STX(has_type(formals, LIST),
+            0,
+            "bad syntax in fn: formals is not a list" );
+
+  uint arity = 0;
+  flags fl   = USER|CLOSURE;
+  List* lenv = build_lenv(as_list(formals), c->lenv, &fl, &arity);
+
+  REPANIC(0);
+
+  Chunk lambda;
+
+  init_chunk(&lambda, NULL, NULL, lenv, NULL);
+  compile_sequence(&lambda, body);
+
+  REPANIC(0);
+
+  emit(&lambda, OP_RETURN);
+
+  Func* f = new_func(fl, arity, Lambda, NULL, &lambda);
+
+  compile_literal(c, tag(f));
+
+  return emit(c, OP_CLOSURE);
+}
+
+uint compile_if(Chunk* c, List* form) {
+  GUARD_STX(form->arity == 3 || form->arity == 4,
+            0,
+            "bad syntax in if: %du expressions",
+            form->arity );
+
+  Val test = list_nth(form, 1);
+  Val then = list_nth(form, 2);
+  Val alt  = form->arity == 3 ? NUL : list_nth(form, 3);
+
+  uint off1, off2, off3;
+
+  compile_expr(c, test);
+  REPANIC(0);
+
+  off1 = emit(c, OP_JUMP_IF_FALSE, 0) - 1;
+
+  compile_expr(c, then);
+  REPANIC(0);
+
+  off2 = emit(c, OP_JUMP, 0) - 1;
+
+  compile_expr(c, alt);
+  REPANIC(0);
+
+  off3 = code_size(c->code);
+
+  code_set(c->code, off1, off2-off1);
+  code_set(c->code, off2, off3-off2);
+
+  return code_size(c->code);
+}
+
+uint compile_funcall(Chunk* c, List* form) {
+  Val   head = form->head;
+  List* args = form->tail;
+  uint  argc = args->arity;
+
+  compile_expr(c, head);
+  REPANIC(0);
+
+  compile_funargs(c, args);
+  REPANIC(0);
+
+  return emit(c, OP_INVOKE, argc);
+}
+
 // misc compile dispatch ------------------------------------------------------
 uint compile_funargs(Chunk* c, List* xs) {
-  for (;xs != &EmptyList; xs=xs->tail) {
-    Val arg = xs->head;
-    compile_expr(c, arg);
+  for (Val x=xs->head; xs != &EmptyList; xs=xs->tail, x=xs->head) {
+    compile_expr(c, x);
     REPANIC(0);
+  }
+
+  return code_size(c->code);
+}
+
+uint compile_sequence(Chunk* c, List* xs) {
+  for (Val x=xs->head;xs != &EmptyList; xs=xs->tail, x=xs->head) {
+    compile_expr(c, x);
+    REPANIC(0);
+
+    if (xs->arity > 1)
+      emit(c, OP_POP);
   }
 
   return code_size(c->code);
@@ -328,13 +506,20 @@ uint compile_funargs(Chunk* c, List* xs) {
 
 // API ------------------------------------------------------------------------
 Func* compile(Val x) {
-  Chunk* c = new_chunk(NULL, NULL, NULL, NULL);
+  Chunk c;
 
-  emit(, OP_BEGIN);
-  compile_expr(target, x);
-  emit(target, OP_RETURN);
+  init_chunk(&c, NULL, NULL, NULL, NULL);
 
-  return target;
+  emit(&c, OP_BEGIN);
+  compile_expr(&c, x);
+  REPANIC(NULL);
+  emit(&c, OP_RETURN);
+
+  Func* out = new_func(TOPLEVEL, 0, Toplevel, NULL, &c);
+
+  FNCENV(out) = &EmptyList;
+
+  return out;
 }
 
 // initialization -------------------------------------------------------------
@@ -342,13 +527,17 @@ void compile_init(void) {
   // special form names -------------------------------------------------------
   Quote  = tag(get_sym(LITERAL, "quote"));
   Do     = tag(get_sym(LITERAL, "do"));
-  Def    = tag(get_sym(LITERAL, "def"));
-  Set    = tag(get_sym(LITERAL, "set"));
+  Defv   = tag(get_sym(LITERAL, "defv"));
+  Setv   = tag(get_sym(LITERAL, "setv"));
   Fn     = tag(get_sym(LITERAL, "fn"));
   If     = tag(get_sym(LITERAL, "if"));
+  Try    = tag(get_sym(LITERAL, "try"));
+  Catch  = tag(get_sym(LITERAL, "catch"));
+  Raise  = tag(get_sym(LITERAL, "raise"));
 
   // special syntactic markers ------------------------------------------------
   Vargs  = tag(get_sym(LITERAL, "&va"));
+  Vbody  = tag(get_sym(LITERAL, "&body"));
   Vopts  = tag(get_sym(LITERAL, "&opt"));
   Vkwargs= tag(get_sym(LITERAL, "&kw"));
 
