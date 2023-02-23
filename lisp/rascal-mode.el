@@ -9,10 +9,11 @@
 (define-generic-mode
   'rascal-mode
   '(";" ("#|" . "|#"))
-  '("defv" "setv"
-    "fn"
-    "quote" "do" "if"
-    "with" "resume")
+  '("var" "val" "put" "fn" "mac" "type"
+    "lmb" "let" "labl"
+    "quote" "do" "do*"
+    "if" "cond" "case" "and" "or"
+    "with" "resume" "catch" "raise")
   '(("\\_<true[[:space:][:cntrl:]\\s)]" . font-lock-builtin-face)
     ("\\_<false[[:space:][:cntrl:]\\s)]" . font-lock-builtin-face)
     ("\\_<nul[[:space:][:cntrl:]\\s)]" . font-lock-builtin-face)

@@ -6,7 +6,7 @@
 
 // C types --------------------------------------------------------------------
 // globals --------------------------------------------------------------------
-Val Quote, Do, Defv, Setv, Fn, If, Try, Catch, Raise;
+Val Quote, Do, Var, Put, Lmb, If;
 
 Val Vargs, Vbody, Vopts, Vkwargs;
 
@@ -313,13 +313,13 @@ uint compile_application(Chunk* c, Val x) {
   if (form->head == Do)
     return compile_do(c, form);
 
-  if (form->head == Defv)
+  if (form->head == Var)
     return compile_defv(c, form);
 
-  if (form->head == Setv)
+  if (form->head == Put)
     return compile_setv(c, form);
 
-  if (form->head == Fn)
+  if (form->head == Lmb)
     return compile_fn(c, form);
 
   if (form->head == If)
@@ -432,7 +432,7 @@ uint compile_fn(Chunk* c, List* form) {
 
   compile_literal(c, tag(f));
 
-  return emit(c, OP_CLOSURE);
+  return emit(c, OP_CAPTURE_CLOSURE);
 }
 
 uint compile_if(Chunk* c, List* form) {
@@ -479,7 +479,7 @@ uint compile_funcall(Chunk* c, List* form) {
   compile_funargs(c, args);
   REPANIC(0);
 
-  return emit(c, OP_INVOKE, argc);
+  return emit(c, OP_INVOKE_FUNCTION, argc);
 }
 
 // misc compile dispatch ------------------------------------------------------
@@ -525,23 +525,19 @@ Func* compile(Val x) {
 // initialization -------------------------------------------------------------
 void compile_init(void) {
   // special form names -------------------------------------------------------
-  Quote  = tag(get_sym(LITERAL, "quote"));
-  Do     = tag(get_sym(LITERAL, "do"));
-  Defv   = tag(get_sym(LITERAL, "defv"));
-  Setv   = tag(get_sym(LITERAL, "setv"));
-  Fn     = tag(get_sym(LITERAL, "fn"));
-  If     = tag(get_sym(LITERAL, "if"));
-  Try    = tag(get_sym(LITERAL, "try"));
-  Catch  = tag(get_sym(LITERAL, "catch"));
-  Raise  = tag(get_sym(LITERAL, "raise"));
+  Quote    = tag(get_sym(LITERAL, "quote"));
+  Do       = tag(get_sym(LITERAL, "do"));
+  Var      = tag(get_sym(LITERAL, "var"));
+  Put      = tag(get_sym(LITERAL, "put"));
+  Lmb      = tag(get_sym(LITERAL, "lmb"));
+  If       = tag(get_sym(LITERAL, "if"));
 
   // special syntactic markers ------------------------------------------------
-  Vargs  = tag(get_sym(LITERAL, "&va"));
-  Vbody  = tag(get_sym(LITERAL, "&body"));
-  Vopts  = tag(get_sym(LITERAL, "&opt"));
-  Vkwargs= tag(get_sym(LITERAL, "&kw"));
+  Vargs    = tag(get_sym(LITERAL, "&va"));
+  Vopts    = tag(get_sym(LITERAL, "&opt"));
+  Vkwargs  = tag(get_sym(LITERAL, "&kw"));
 
   // dummy function names -----------------------------------------------------
-  Toplevel     =get_sym(0, "*toplevel*");
-  Lambda       =get_sym(0, "*lambda*");
+  Toplevel = get_sym(0, "*toplevel*");
+  Lambda   = get_sym(0, "*lambda*");
 }

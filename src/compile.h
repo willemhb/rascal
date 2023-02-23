@@ -7,7 +7,6 @@
 typedef enum {
   OP_BEGIN               = 0,
 
-  OP_PUSH                = 1,
   OP_DUP                 = 2,
   OP_POP                 = 3,
 

@@ -1,8 +1,18 @@
 #include <string.h>
+#include <stdarg.h>
 
-#include "utils.h"
-#include "value.h"
+#include "util/hash.h"
 
+// C types --------------------------------------------------------------------
+union fbits {
+  double as_double;
+  uint64 as_uint64;
+  struct {
+    uint64 frac : 52;
+    uint64 expt : 11;
+    uint64 sign :  1;
+  } as_parts;
+};
 
 // hashing --------------------------------------------------------------------
 #define FNV64_PRIME  0x00000100000001B3ul
@@ -23,18 +33,18 @@ uhash hash_uint(uint64 x) {
 }
 
 uhash hash_float(double x) {
-  return hash_uint(mk_real(x));
+  return hash_uint(((union fbits)x).as_uint64);
 }
 
-uhash hash_ptr(const void *x) {
+uhash hash_pointer(const void *x) {
   return hash_uint((uint64)x);
 }
 
-uhash hash_str(const char *xs) {
-  return hash_mem((const ubyte*)xs, strlen(xs));
+uhash hash_string(const char *xs) {
+  return hash_memory((const ubyte*)xs, strlen(xs));
 }
 
-uhash hash_mem(const ubyte *xs, usize n) {
+uhash hash_memory(const ubyte *xs, usize n) {
   uhash h = FNV64_OFFSET;
 
   for (usize i=0; i<n; i++) {
@@ -45,6 +55,15 @@ uhash hash_mem(const ubyte *xs, usize n) {
   return h;
 }
 
-uhash mix_hashes(uhash hx, uhash hy) {
-  return hash_uint(hx ^ hy);
+uhash mix_hashes(usize n, ...) {
+  va_list va; va_start(va, n);
+
+  uhash hx = 0;
+
+  for (usize i=0; i<n; i++)
+    hx = hash_uint(hx ^ va_arg(va, uint64));
+
+  va_end(va);
+  
+  return hx;
 }

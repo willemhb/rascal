@@ -3,31 +3,47 @@
 #| block comment |#
 
 ;; syntax table
-(defv *syntax* (dict))
+(var *syntax* (dict))
 
-(defv add-syntax
-  (fn (name xform)
+(var add-syntax
+  (lmb (name xform)
     (dict-set! *syntax* name xform)))
 
-(add-syntax 'defm
+(add-syntax 'mac
             (fn (name args &va body)
-               `(add-syntax ~name
-                            (fn ~args ~@body))))
+              `(add-syntax ~name
+                          (fn ~args ~@body))))
 
-(defm catch
+(mac catch
   (handler &va body)
   `(with ((raise (fn ~@handler)))
      (do ~@body)))
 
-(defn safe-div
+(fn safe-div
   (x y)
   (if (zero? y)
       (raise :division-by-zero)
       (/ x y)))
 
-(defn uses-safe-div
+(fn uses-safe-div
   (x y z)
   (catch ((_) (resume nan))
     (+ x (safe-div y z))))
+
+(fn map
+  ([f xs]
+   (if (empty? xs)
+       xs
+       (conj (map f xs.rst)
+             (f xs.fst))))
+  ([f & xs]
+   (cond (empty? xs)       (raise :arity-underflow)
+         (some? empty? xs) (empty xs.hd)
+         :otherwise        (let [fsts   (map fst xs)
+                                 rsts   (map rst xs)]
+                             (conj (map f .. rsts)
+                                   (f .. fsts))))))
+
+
 
 ;; end stdlib.rl

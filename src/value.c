@@ -93,7 +93,7 @@ void free_vals(Vals* vals) {
 
 void resize_vals(Vals* vals, uint n) {
   
-  uint c = pad_alist_size(n, vals->cap);
+  uint c = pad_alist_size(vals->count, n, vals->cap);
 
   if (c != vals->cap) {
     vals->array = reallocate(vals->array, vals->count, c, sizeof(Val), NOTUSED);

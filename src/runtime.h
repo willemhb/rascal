@@ -92,7 +92,7 @@ Error recover(void);
   } while (false)
 
 #define REPANIC(sentinel)			\
-  do {						\
+  do {                              \
     if (panicking())				\
       return sentinel;				\
   } while (false)
@@ -107,7 +107,7 @@ Error recover(void);
 #define IPRX     (FRAMERX.ip)
 #define SLOTSRX  (FRAMERX.slots)
 #define PROMPTRX (FRAMERX.prompt)
-#define VALSRX   (CHUNKRX->vals)
+#define VALSRX   (CHUNKRX->vals->array)
 #define LENVRX   (CHUNKRX->lenv)
 #define CENVRX   (CHUNKRX->cenv)
 #define CODERX   (CHUNKRX->code)
@@ -119,6 +119,9 @@ Val    peek(int i);
 
 Frame* pushf(Func* func, uint n);
 Val    popf(void);
+
+void   reset_sp(void);
+void   reset_fp(void);
 
 // initialization -------------------------------------------------------------
 void runtime_init(void);

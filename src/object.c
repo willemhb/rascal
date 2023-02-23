@@ -228,7 +228,7 @@ void init_bin(Bin* self, flags fl, uint n, void* data) {
   init_obj((Obj*)self, BIN, fl);
 
   self->count = 0;
-  self->cap   = pad_alist_size(n + isencoded, 0);
+  self->cap   = pad_stack_size(n + isencoded, 0);
   self->array = allocate(self->cap, sizeof(ubyte), 0);
 
   if (data) {
@@ -240,8 +240,8 @@ void init_bin(Bin* self, flags fl, uint n, void* data) {
 
 void resize_bin(Bin* self, uint n) {
   if (has_flag(self, INITIALIZED)) {
-    uint cap = pad_alist_size(n+has_flag(self, ENCODED), self->cap);
-    
+    uint cap = pad_stack_size(n+has_flag(self, ENCODED), self->cap);
+
     if (cap != self->cap) {
       self->array = reallocate(self->array, cap, self->cap, 1, 0);
       self->cap   = cap;
@@ -349,7 +349,7 @@ Vec* mk_vec(void) {
 void init_vec(Vec* self, flags fl, uint n, Val* args) {
   init_obj(self, VEC, fl);
 
-  uint c = pad_alist_size(n, 0);
+  uint c = pad_alist_size(0, n, 0);
 
   self->array = allocate(c, sizeof(Val), NOTUSED);
   self->cap   = c;
@@ -527,7 +527,7 @@ Val table_del(Table* self, Val key) {
 void init_objs(Objs* objs) {
   objs->array = NULL;
   objs->count = 0;
-  objs->cap   = pad_alist_size(0, 0);
+  objs->cap   = pad_alist_size(0, 0, 0);
 }
 
 void free_objs(Objs* objs) {
@@ -536,7 +536,7 @@ void free_objs(Objs* objs) {
 }
 
 void resize_objs(Objs* objs, uint n) {
-  uint c = pad_alist_size(n, objs->cap);
+  uint c = pad_alist_size(objs->count, n, objs->cap);
 
   if (c != objs->cap) {
     objs->array = reallocate(objs->array, objs->count, c, sizeof(Obj), NOTUSED);
