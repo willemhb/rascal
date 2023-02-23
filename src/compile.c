@@ -8,7 +8,7 @@
 // globals --------------------------------------------------------------------
 Val Quote, Do, Var, Put, Lmb, If;
 
-Val Vargs, Vbody, Vopts, Vkwargs;
+Val Vargs, Vopts, Vkwargs;
 
 Sym* Toplevel, * Lambda;
 
@@ -127,10 +127,13 @@ uint code_write(Bin* bin, uint n, uint16* bytes) {
 
 uint op_argc(OpCode op) {
   switch (op) {
-
   case OP_LOAD_CONST ... OP_LOAD_LOCAL:
+  case OP_DEF_LOCAL ... OP_SET_LOCAL:
+  case OP_JUMP ... OP_JUMP_IF_FALSE:
+  case OP_INVOKE_FUNCTION ... OP_TAIL_INVOKE_FUNCTION:
     return 1;
 
+  case OP_SET_CLOSURE:
   case OP_LOAD_CLOSURE:
     return 2;
 

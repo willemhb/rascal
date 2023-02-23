@@ -99,6 +99,8 @@ Error recover(void);
 
 // interpreter ----------------------------------------------------------------
 #define FPRX     (Interpreter.fp)
+#define FBRX     (Interpreter.fb)
+#define FERX     (Interpreter.fe)
 #define SPRX     (Interpreter.sp)
 #define TOSRX    (SPRX[-1])
 #define FRAMERX  (FPRX[-1])
@@ -122,6 +124,8 @@ Val    popf(void);
 
 void   reset_sp(void);
 void   reset_fp(void);
+
+bool   is_closed(Frame* frame);
 
 // initialization -------------------------------------------------------------
 void runtime_init(void);
