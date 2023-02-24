@@ -5,21 +5,45 @@
 
 // C types --------------------------------------------------------------------
 typedef uint64 uhash;
+typedef uint64 uidno;
 
 typedef enum {
+  BOTTOM,
+  TOP,
+  UNARY,
+  DATA,
+  UNION
+} Kind;
+
+typedef enum {
+  // fucked up types ----------------------------------------------------------
   NONE=1,
   ANY,
   UNIT,
+
+  // data types ---------------------------------------------------------------
   REAL,
+  FIXNUM,
   GLYPH,
   SYM,
+  STREAM,
   FUNC,
   BIN,
   STR,
   LIST,
   VEC,
   TUPLE,
-  TABLE
+  DICT,
+  SET,
+  RECORD,
+
+  // strictly internal ---------------------------------------------------------
+  SYSPTR,   // raw C pointer ---------------------------------------------------
+  CHUNK,    // compiled code ---------------------------------------------------
+  UPVAL,    // closed-over local -----------------------------------------------
+  DISPATCH, // method table ----------------------------------------------------
+  METHOD,   // single method ---------------------------------------------------
+  CNTL      // reified continuation --------------------------------------------
 } Type;
 
 // type information type ------------------------------------------------------
@@ -27,35 +51,40 @@ typedef struct {
   // metaobject information ---------------------------------------------------
   char*  name;
   Type   type;
-  uhash  type_hash;
+  Kind   kind;
+  
+  uhash  hash;
+  uidno  idno;
 
   // size and layout information ----------------------------------------------
   usize  size;
 
   // lifetime and runtime methods ---------------------------------------------
-  void  (*trace)(void* self);
-  usize (*destruct)(void* self);
+  struct {
+    void  (*trace)(void* self);
+    usize (*destruct)(void* self);
 
-  // interface methods --------------------------------------------------------
-  void  (*print)(Val x, void* state);
-  uhash (*hash)(Val x, void* state);
-  bool  (*equal)(Val x, Val y, void* state);
-  int   (*compare)(Val x, Val y, void* state);
+    // interface methods --------------------------------------------------------
+    void  (*print)(Val x, void* state);
+    uhash (*hash)(Val x, void* state);
+    bool  (*equal)(Val x, Val y, void* state);
+    int   (*compare)(Val x, Val y, void* state);
+  } m;
 } Mtable;
 
 // globals --------------------------------------------------------------------
-#define NUM_TYPES (TABLE+1)
+#define NUM_TYPES (CNTL+1)
 
 extern Mtable MetaTables[NUM_TYPES];
 
 #define MTABLE(type) (MetaTables[(type)])
 
 // API -------------------------------------------------------------------------
-Type val_type_of(Val x);
-Type obj_type_of(Obj* o);
+Type    val_type_of(Val x);
+Type    obj_type_of(Obj* o);
 
-bool val_has_type(Val x, Type t);
-bool obj_has_type(Obj* o, Type t);
+bool    val_has_type(Val x, Type t);
+bool    obj_has_type(Obj* o, Type t);
 
 Mtable* val_mtable(Val x);
 Mtable* obj_mtable(Obj* o);

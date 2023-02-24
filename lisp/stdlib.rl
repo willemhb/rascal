@@ -3,47 +3,39 @@
 #| block comment |#
 
 ;; syntax table
-(var *syntax* (dict))
+(var *syntax* {})
 
 (var add-syntax
-  (lmb (name xform)
-    (dict-set! *syntax* name xform)))
+  (lmb (name transformer)
+    (if (has? *syntax* name)
+        (add-method (ref *syntax* name) transformer)
+        (xef *syntax* name) (function name nul transformer))))
+
+(freeze! '*syntax*)
+(freeze! 'add-syntax)
 
 (add-syntax 'mac
-            (fn (name args &va body)
-              `(add-syntax ~name
-                          (fn ~args ~@body))))
+  (lmb (name args & body)
+    `(add-syntax '~name (lmb ~args ~@body))))
 
-(mac catch
-  (handler &va body)
-  `(with ((raise (fn ~@handler)))
-     (do ~@body)))
+(mac val
+  [(name symbol) bind]
+  `(do (var ~name ~bind)
+       (freeze! ~name)))
 
-(fn safe-div
-  (x y)
-  (if (zero? y)
-      (raise :division-by-zero)
-      (/ x y)))
+(mac fn
+  [(args tuple) & body]
+  `(lmb ~args ~@body))
 
-(fn uses-safe-div
-  (x y z)
-  (catch ((_) (resume nan))
-    (+ x (safe-div y z))))
+(mac fn
+  [(overload list) & more]
+  `(add-method (fn ~@more) (fn ~@overload)))
 
-(fn map
-  ([f xs]
-   (if (empty? xs)
-       xs
-       (conj (map f xs.rst)
-             (f xs.fst))))
-  ([f & xs]
-   (cond (empty? xs)       (raise :arity-underflow)
-         (some? empty? xs) (empty xs.hd)
-         :otherwise        (let [fsts   (map fst xs)
-                                 rsts   (map rst xs)]
-                             (conj (map f .. rsts)
-                                   (f .. fsts))))))
-
-
+(mac fn
+  ((name symbol) args & body)
+  (var f `(lmb ~args ~@body))
+  `(if (bound? '~name)
+       (add-method ~name ~f)
+       (eval '(val ~name (func ~name nul ~f)))))
 
 ;; end stdlib.rl

@@ -1,54 +1,52 @@
 #ifndef object_h
 #define object_h
 
+#include <stdio.h>
+
 #include "value.h"
 #include "type.h"
 
 // C types --------------------------------------------------------------------
-#define HEADER					\
-  Obj* next;					\
-  uint  flags : 24;				\
-  uint  black :  1;				\
-  uint  gray  :  1;				\
-  uint  type  :  6;				\
-  uint  arity
+#define HEADER                    \
+  Obj* next_live;                 \
+  uint64 hash   : 48;             \
+  uint64 flags  : 11;             \
+  uint64 type   :  5
 
 typedef uint64 uhash;
-
-typedef struct {
-  Obj** array;
-  uint  count, cap;
-} Objs;
+typedef struct Objs Objs;
 
 typedef enum {
   // common flags -------------------------------------------------------------
-  NOFREE     =0x800000,
-  FROZEN     =0x400000,
-  INITIALIZED=0x200000,
-  HASHED     =0x100000,
-  BORROWER   =0x080000,
-  CSTACK     =0x040000,
+  BLACK      =0x400,
+  GRAY       =0x200,
+  HASHED     =0x100,
+  FROZEN     =0x080,
 
   // symbol flags -------------------------------------------------------------
-  GENERATED  =0x000001,
-  LITERAL    =0x000002,
-  CONSTANT   =0x000004,
+  GENERATED  =0x001,
+  LITERAL    =0x002,
+  CONSTANT   =0x004,
 
-  // func flags ---------------------------------------------------------------
-  NATIVE     =0x000001,
-  USER       =0x000002,
-  CLOSURE    =0x000004,
-  TOPLEVEL   =0x000008,
-  SCRIPT     =0x000010,
-  VARGS      =0x000020,
-  VOPTS      =0x000040,
-  VKWARGS    =0x000080,
+  // stream flags -------------------------------------------------------------
+  TEXT       =0x001,
+  BINARY     =0x002,
+  INPUT      =0x004,
+  OUTPUT     =0x008,
+  CREATE     =0x010,
+  UPDATE     =0x020,
+
+  // method flags -------------------------------------------------------------
+  VARGS      =0x001,
 
   // bin flags ----------------------------------------------------------------
-  ENCODED    =0x000001,
+  ENCODED    =0x001,
 
   // table flags --------------------------------------------------------------
-  EQUAL      =0x000001
+  EQUAL      =0x001,
+
+  // upval flags --------------------------------------------------------------
+  OPEN       =0x001
 } ObjFl;
 
 struct Obj {
@@ -59,39 +57,38 @@ struct Obj {
 struct Sym {
   HEADER;
   char *name;
-  uhash hash;
+  uidno idno;
   Val   bind;
   Sym*  left, *right;
 };
 
-typedef struct {
-  Vec*   vals;
-  Bin*   code;
-  List*  lenv;
-  List*  cenv;
-} Chunk;
+struct Stream {
+  HEADER;
+  FILE* ios;
+};
 
 struct Func {
   HEADER;
   Sym*    name;
   Mtable* mtable;
-  void*   func;
+  Disp*   methods;
 };
 
 struct Bin {
   HEADER;
   ubyte *array;
-  uint   count, cap;
+  usize len, cap;
 };
 
 struct Str {
   HEADER;
-  uhash hash;
+  usize len;
   char  chars[];
 };
 
 struct List {
   HEADER;
+  usize len;
   Val   head;
   List *tail;
 };
@@ -99,18 +96,91 @@ struct List {
 struct Vec {
   HEADER;
   Val *array;
-  uint count, cap;
+  usize len, cap;
 };
 
 struct Tuple {
   HEADER;
+  usize len;
   Val slots[];
 };
 
-struct Table {
+struct Dict {
   HEADER;
-  Tuple** table;      // sequence of 2-tuples, each one a key/value pair
-  uint  count, cap;
+  Tuple** entries;
+  usize len, cap;
+
+  union {
+    sint8*  o8;
+    sint16* o16;
+    sint32* o32;
+    sint64* o64;
+  };
+
+  usize ocap;
+};
+
+struct Set {
+  HEADER;
+  Val *members;
+  usize len, cap;
+
+  union {
+    sint8*  o8;
+    sint16* o16;
+    sint32* o32;
+    sint64* o64;
+  };
+
+  usize ocap;
+};
+
+struct Record {
+  HEADER;
+  Dict    fields;
+  Record* rtype;
+};
+
+// internal types -------------------------------------------------------------
+struct Chunk {
+  HEADER;
+  Vec*   vals;
+  Bin*   code;
+  Dict*  locals;
+  Dict*  nonlocals;
+  Objs*  upvals;
+};
+
+struct UpVal {
+  HEADER;
+  UpVal *next;
+  union {
+    Val *location;
+    Val  value;
+  };
+};
+
+struct Disp {
+  HEADER;
+  Dict*   cache;
+  Vec*    fmethods;
+  Method* vmethods;
+};
+
+struct Method {
+  HEADER;
+  Method* next;
+  Tuple*  signature;
+  Val     method;
+};
+
+typedef struct Frame Frame;
+
+struct Cntl {
+  HEADER;
+  usize nvals, nframes;
+  Frame* frames;
+  Val*   vals;
 };
 
 // globals --------------------------------------------------------------------
@@ -134,66 +204,51 @@ bool set_flag(void* self, flags fl);
 bool del_flag(void* self, flags fl);
 
 // lifetimes ------------------------------------------------------------------
-Sym*   get_sym(flags fl, char* name);
-Sym*   mk_sym(char* name);
-void   init_sym(Sym* self, flags fl, char* name);
+Sym*    get_sym(flags fl, char* name);
+Stream* mk_stream(flags fl, FILE* ios);
+Func*   mk_func(Sym* name, Mtable* type);
+Str*    mk_str(usize n, char* data);
+List*   mk_list(Val head, List* tail);
+Vec*    mk_vec(usize n, Val* args);
+Tuple*  mk_tuple(usize n, Val* args);
 
-Func*  new_func(flags fl, uint arity, Sym* name, Mtable* type, void* func);
-Func*  mk_func(bool userp, void* func);
-void   init_func(Func* self, flags fl , uint arity, Sym* name, Mtable* type, void* func);
+Bin*    mk_bin(flags fl, usize n, ubyte* data);
+void    init_bin(Bin* self, flags fl, usize n, ubyte* data);
+void    free_bin(Bin* self);
 
-Bin*   new_bin(flags fl, uint n, void* data);
-Bin*   mk_bin(void);
-void   init_bin(Bin* self, flags fl, uint n, void* data);
-void   free_bin(Bin* self);
+Dict*   mk_dict(flags fl, usize n, Val* data);
+void    init_dict(Dict* dict, flags fl, usize n, Val* data);
+void    free_dict(Dict* dict);
 
-Str*   new_str(flags fl, uint n, char* data);
-Str*   mk_str(uint n);
-void   init_str(Str* self, flags fl, uint n, char* data);
+Set*    mk_set(Set* self, flags fl, usize n, Val* vals);
+void    init_set(Set* self, flags fl, usize n, Val* vals);
+void    free_set(Set* self);
 
-List*  new_list(Val head, List* tail);
-List*  mk_list(void);
-void   init_list(List* self, flags fl, Val head, List* tail);
+Record* mk_record(Record* type, flags fl, usize n, Val* args);
 
-Vec*   new_vec(uint n, Val* args);
-Vec*   mk_vec(void);
-void   init_vec(Vec* self, flags fl, uint n, Val* args);
-void   free_vec(Vec* self);
+Chunk*  mk_chunk(flags fl, Vec* vals, Bin* code, Dict* locals, Dict* nonlocals, Objs* upvals);
+void    init_chunk(Chunk* self, flags fl, Vec* vals, Bin* code, Dict* locals, Dict* nonlocals, Objs* upvals);
+void    free_chunk(Chunk* self);
 
-Tuple* new_tuple(uint n, Val* args);
-Tuple* mk_tuple(uint n);
-Tuple* mk_pair(Val key, Val val);
-void   init_tuple(Tuple* self, flags fl, uint n, Val* args);
+UpVal*  get_upval(flags fl, Val* location);
 
-Table* new_table(flags fl, uint n, Val* data);
-Table* mk_table(void);
-void   init_table(Table* self, flags fl, uint n, Val* data);
-void   free_table(Table* self);
+Disp*   mk_disp(void);
+
+Method* mk_method(flags fl, Tuple* signature, Method* next, Val func);
+
+Cntl*   mk_cntl(flags fl, usize nframes, usize nvals, Frame* frames, Val* vals);
 
 // accessors & mutators -------------------------------------------------------
 Val   list_nth(List* list, uint n);
 List* list_assoc(List* list, Val k);
 List* list_tail(List* list, uint n);
 
-uint  bin_write(Bin* b, uint n, void* data);
-void  resize_bin(Bin* b, uint n);
+Val   dict_get(Dict* dict, Val key);
+Val   dict_set(Dict* dict, Val key, Val val);
+Val   dict_del(Dict* dict, Val key);
 
-uint  vec_push(Vec* vec, Val v);
-Val   vec_pop(Vec* vec);
-void  resize_vec(Vec* vec, uint n);
-int   vec_search(Vec* vec, Val x);
-
-Val   table_get(Table* table, Val key);
-Val   table_set(Table* table, Val key, Val val);
-Val   table_del(Table* table, Val key);
-void  resize_table(Table* table, uint n);
-
-// objs api -------------------------------------------------------------------
-void init_objs(Objs* objs);
-void free_objs(Objs* objs);
-void resize_objs(Objs* objs, uint n);
-uint objs_push(Objs* objs, Obj* obj);
-Obj* objs_pop(Objs* objs);
-int  objs_search(Objs* objs, Obj* obj);
+bool  set_has(Set* set, Val key);
+bool  set_add(Set* set, Val key);
+bool  set_del(Set* set, Val key);
 
 #endif

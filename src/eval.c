@@ -158,7 +158,9 @@ Val exec_at(Func* closure, OpCode op, uint16 argx, uint16 argy) {
 
   int argc;
 
-  List* env; Frame* frame;
+  List* env, *opt, *va;
+  Table* kw;
+  Frame* frame;
 
   goto *labels[op];
 
@@ -315,11 +317,15 @@ Val exec_at(Func* closure, OpCode op, uint16 argx, uint16 argy) {
   x     = TOSRX;
 
   capture_frame(frame);
-  
-  
+
   goto fetch;
 
  op_tail_invoke_func:
+  Val f = SPRX[-argx];
+
+  GUARD(has_type(f),
+        );
+  
  op_invoke_func:
  op_return:
   v = popf();

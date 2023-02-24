@@ -168,9 +168,8 @@ Frame* pushf(Func* func, uint n) {
   Frame* out = Vm.interpreter.fp++;
 
   out->func     = func;
-  out->ip       = ((Chunk*)func->func)->code->array;
+  out->ip       = (uint16*)((Chunk*)func->func)->code->array;
   out->slots    = Vm.interpreter.sp-n;
-  out->captured = false;
 
   return out;
 }
@@ -194,7 +193,4 @@ void runtime_init(void) {
   // initialize reader state --------------------------------------------------
   init_bin(&Reader.buffer, ENCODED|NOFREE, 0, NULL);
   init_table(&Reader.table, NOFREE, 0, NULL);
-
-  // initialize interpreter state ----------------------------------------------
-  init_table(&Interpreter.globals, NOFREE, 0, NULL);
 }

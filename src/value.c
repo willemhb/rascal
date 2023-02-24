@@ -5,7 +5,8 @@
 
 #include "util/collections.h"
 
-/* API */
+// API ------------------------------------------------------------------------
+// tag ------------------------------------------------------------------------
 Val tag_real(Real real) {
   return ((ValData)real).as_val;
 }
@@ -14,10 +15,15 @@ Val tag_glyph(Glyph g) {
   return ((ValData)g).as_val | GLYPH_TAG;
 }
 
+Val tag_ptr(void* ptr) {
+  return ((ValData)ptr).as_val | SYS_TAG;
+}
+
 Val tag_obj(void* obj) {
   return ((ValData)obj).as_val | OBJ_TAG;
 }
 
+// untag ----------------------------------------------------------------------
 Real as_real(Val val) {
   return ((ValData)val).as_real;
 }
@@ -26,11 +32,15 @@ Glyph as_glyph(Val val) {
   return ((ValData)val).as_glyph;
 }
 
+void* as_ptr(Val val) {
+  return ((ValData)(val&VAL_MASK)).as_ptr;
+}
+
 void* as_obj(Val val) {
   return ((ValData)(val&VAL_MASK)).as_obj;
 }
 
-#define UNTAG(T, t)				\
+#define UNTAG(T, t)                 \
   T* as_##t(Val val) {				\
     return (T*)as_obj(val);			\
   }
@@ -46,6 +56,16 @@ UNTAG(Table, table);
 #undef UNTAG
 
 // type & value predicates ----------------------------------------------------
+bool is_text(Val val) {
+  if (has_type(val, SYM))
+    return true;
+
+  if (has_type(val, STR))
+    return true;
+
+  return has_type(val, BIN) && has_flag(as_obj(val), ENCODED);
+}
+
 bool is_int(Val val) {
   if (!has_type(val, REAL))
     return false;
@@ -64,17 +84,16 @@ bool is_byte(Val val) {
   return l <= UINT8_MAX && l >= 0;
 }
 
-bool is_string(Val val) {
-  return has_type(val, BIN) && has_flag(as_obj(val), ENCODED);
-}
-
 // generic untagging methods --------------------------------------------------
 char* as_text(Val val) {
   if (has_type(val, SYM))
     return as_sym(val)->name;
 
-  if (is_string(val))
-    return as_bin(val)->array ? : "";
+  if (has_type(val, STR))
+    return as_str(val)->chars ? : "";
+
+  if (has_type(val, BIN) && has_flag(as_obj(val), ENCODED))
+    return (char*)as_bin(val)->array;
 
   return NULL;
 }
@@ -83,7 +102,7 @@ char* as_text(Val val) {
 void init_vals(Vals* vals) {
   vals->array = NULL;
   vals->count = 0;
-  vals->cap   = pad_alist_size(0, 0);
+  vals->cap   = pad_alist_size(0, 0, 0);
 }
 
 void free_vals(Vals* vals) {

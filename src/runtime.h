@@ -4,6 +4,8 @@
 #include "value.h"
 #include "object.h"
 
+#include "util/collections.h"
+
 /* global runtime state & API */
 
 // C types --------------------------------------------------------------------
@@ -25,20 +27,21 @@ typedef enum {
 typedef struct Frame Frame;
 
 struct Frame {
-  Frame*  prompt; // nearest enclosing frame added by a `with` form
-  Func*   func;   // executing code object
-  uint16* ip;     // instruction pointer
+  Frame*  prompt;  // nearest enclosing frame added by a `with` form
+  Chunk*  closure; // executing code object
+  uint16* ip;      // instruction pointer
   Val*    slots;
+  usize   nstack;
 };
 
 // virtual machine ------------------------------------------------------------
 struct Vm {
   // heap state ---------------------------------------------------------------
   struct HeapData {
-    usize allocated;
-    usize next_gc;
-    Obj*  live;
-    Objs  grays;
+    usize     allocated;
+    usize     next_gc;
+    Obj*      live;
+    Objs      grays;
   } heap;
 
   // error state --------------------------------------------------------------
@@ -51,7 +54,7 @@ struct Vm {
   struct ReaderData {
     Token  token;
     Vals   saved;
-    Table  table;
+    Dict   table;
     Bin    buffer;
   } reader;
 
@@ -73,9 +76,10 @@ extern struct Vm Vm;
 // API ------------------------------------------------------------------------
 // heap -----------------------------------------------------------------------
 void  register_obj(void* obj);
-void* allocate(uint n, usize obsize, uint64 ini);
-void* reallocate(void* ptr, uint new, uint old, usize obsize, uint64 ini);
-void  deallocate(void* ptr, uint n, usize obsize);
+void  unregister_obj(void* obj);
+void* allocate(usize n, usize obsize, uint64 ini);
+void* reallocate(void* ptr, usize new, usize old, usize obsize, uint64 ini);
+void  deallocate(void* ptr, usize n, usize obsize);
 void  manage(void);
 
 // error ----------------------------------------------------------------------
