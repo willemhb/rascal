@@ -71,7 +71,7 @@ struct Func {
   HEADER;
   Sym*    name;
   Mtable* mtable;
-  Disp*   methods;
+  Method* methods;
 };
 
 struct Bin {
@@ -160,16 +160,10 @@ struct UpVal {
   };
 };
 
-struct Disp {
-  HEADER;
-  Dict*   cache;
-  Vec*    fmethods;
-  Method* vmethods;
-};
-
 struct Method {
   HEADER;
   Method* next;
+  Dict*   cache;
   Tuple*  signature;
   Val     method;
 };
@@ -232,9 +226,7 @@ void    free_chunk(Chunk* self);
 
 UpVal*  get_upval(flags fl, Val* location);
 
-Disp*   mk_disp(void);
-
-Method* mk_method(flags fl, Tuple* signature, Method* next, Val func);
+Method* mk_method(flags fl, Method* next, Dict* cache, Tuple* sig, Val func);
 
 Cntl*   mk_cntl(flags fl, usize nframes, usize nvals, Frame* frames, Val* vals);
 

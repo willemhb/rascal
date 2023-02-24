@@ -87,6 +87,12 @@ bool  panicking(void);
 void  panic(Error error, char* fmt, ...);
 Error recover(void);
 
+#define PANIC(sentinel, error, fmt, ...)		    \
+  do {                                                      \
+      panic(error, fmt __VA_OPT__(,) __VA_ARGS__);          \
+      return sentinel;                                      \
+  } while (false)
+
 #define GUARD(test, sentinel, error, fmt, ...)              \
   do {                                                      \
     if(!(test)) {                                           \

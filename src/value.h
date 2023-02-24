@@ -8,6 +8,7 @@ typedef uintptr_t     Val;
 typedef double        Real;
 typedef uintptr_t     FixNum;
 typedef char          Glyph;
+typedef bool          Bool;
 
 typedef struct Obj    Obj;
 typedef struct Sym    Sym;
@@ -24,7 +25,6 @@ typedef struct Record Record;
 
 typedef struct Chunk  Chunk;
 typedef struct UpVal  UpVal;
-typedef struct Disp   Disp;
 typedef struct Method Method;
 typedef struct Cntl   Cntl;
 
@@ -90,13 +90,13 @@ Val tag_ptr(void* ptr);
           Set*:tag_obj,                         \
           Record*:tag_obj,                      \
           UpVal*:tag_obj,                       \
-          Disp*:tag_obj,                        \
           Method*:tag_obj,                      \
           Cntl*:tag_obj,                        \
           default:tag_ptr)(x)
 
 // untagging methods ----------------------------------------------------------
 Real    as_real(Val val);
+FixNum  as_fixnum(Val val);
 Glyph   as_glyph(Val val);
 void*   as_ptr(Val val);
 void*   as_obj(Val val);
@@ -112,7 +112,6 @@ Dict*   as_dict(Val val);
 Set*    as_set(Val val);
 Record* as_record(Val val);
 UpVal*  as_upval(Val val);
-Disp*   as_disp(Val val);
 Method* as_method(Val val);
 Cntl*   as_cntl(Val val);
 
