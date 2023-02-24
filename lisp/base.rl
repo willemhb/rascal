@@ -1,10 +1,21 @@
 ;;; begin base.rl
 
+;;; type predicates
 (fn real?
-  (x) (id? (type-of x) real))
+  (x)
+  (isa? x real))
 
 (fn fixnum?
-  (x) (id? (type-of x) fixnum))
+  (x)
+  (isa? x fixnum))
+
+(fn int?
+  (x)
+  (isa? x int))
+
+(fn symbol?
+  (x)
+  (isa? x symbol))
 
 (fn not
   (x)
@@ -39,5 +50,58 @@
   (f x)
   (fn (& xs)
     (f x .. xs)))
+
+;;; sequences
+(fn len
+  ((list xs))
+  (list-len xs))
+
+(fn len
+  ((tuple xs))
+  (tuple-len xs))
+
+(fn len
+  ((vector xs))
+  (vector-len xs))
+
+(fn len
+  ((string xs))
+  (string-len xs))
+
+(fn len
+  ((binary xs))
+  (binary-len xs))
+
+(fn len
+  ((dict xs))
+  (dict-len xs))
+
+(fn len
+  ((set xs))
+  (set-len xs))
+
+(fn empty?
+  (xs)
+  (= 0 (len xs)))
+
+(fn first
+  ((list xs))
+  (if (empty? xs)
+      nul
+      (head xs)))
+
+(fn rest
+  ((list xs))
+  (if (empty? xs)
+      nul
+      (tail xs)))
+
+;;; error handling
+(mac catch
+  (handler & body)
+  `(with (raise (fn ~@handler))
+     (do ~@body)))
+
+
 
 ;;; end base.rl
