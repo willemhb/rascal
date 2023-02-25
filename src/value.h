@@ -4,128 +4,71 @@
 #include "common.h"
 
 // C types --------------------------------------------------------------------
-typedef uintptr_t     Val;
-typedef double        Real;
-typedef uintptr_t     FixNum;
-typedef char          Glyph;
-typedef bool          Bool;
+typedef uintptr_t  value_t;
+typedef double     real_t;
 
-typedef struct Obj    Obj;
-typedef struct Sym    Sym;
-typedef struct Stream Stream;
-typedef struct Func   Func;
-typedef struct Bin    Bin;
-typedef struct Str    Str;
-typedef struct List   List;
-typedef struct Vec    Vec;
-typedef struct Tuple  Tuple;
-typedef struct Dict   Dict;
-typedef struct Set    Set;
-typedef struct Record Record;
+typedef struct object_t object_t;
+typedef struct symbol_t symbol_t;
 
-typedef struct Chunk  Chunk;
-typedef struct UpVal  UpVal;
-typedef struct Method Method;
-typedef struct Cntl   Cntl;
+typedef enum {
+  UNIT=1,
+  REAL,
+  SYMBOL
+} type_t;
 
-typedef union ValData ValData;
+typedef enum {
+  HASHED=1
+} objfl_t;
 
-union ValData {
-  Val     as_val;
-  Real    as_real;
-  FixNum  as_fixnum;
-  Glyph   as_glyph;
-  void*   as_obj;
-  void*   as_ptr;
+struct object_t {
+  object_t *next;
+  uword     hash  : 48;
+  uword     flags :  9;
+  uword     gray  :  1;
+  uword     black :  1;
+  uword     type  :  5;
+};
+
+#define HEADER object_t obj
+
+struct symbol_t {
+  HEADER;
+  symbol_t *left, *right;
+  char*     name;
+  value_t   bind;
+  uword     idno;
 };
 
 // globals --------------------------------------------------------------------
-// tags -----------------------------------------------------------------------
 #define QNAN        0x7ff8000000000000ul
-#define SIGN        0x8000000000000000ul
-
-#define REAL_TAG    0x0000000000000000ul // dummy tag
-#define FIXNUM_TAG  0x7ffc000000000000ul
-#define UNIT_TAG    0x7ffd000000000000ul
-#define GLYPH_TAG   0x7ffe000000000000ul
-#define OBJ_TAG     0x7fff000000000000ul
-#define SYS_TAG     0xfffc000000000000ul // pointer to C data, don't touch basically
+#define NUL         0x7ffc000000000000ul
+#define OBJTAG      0x7ffd000000000000ul
 
 #define TAG_MASK    0xffff000000000000ul
 #define VAL_MASK    0x0000fffffffffffful
-#define WORD_MASK  (TAG_MASK|VAL_MASK)
 
-#define NUL        (UNIT_TAG|UINT32_MAX)
+#define tag_of(x)   ((x)&TAG_MASK)
+#define val_of(x)   ((x)&VAL_MASK)
 
-// signal values (invalid objects) --------------------------------------------
-#define NOTFOUND  (OBJ_TAG|1)
-#define UNDEFINED (OBJ_TAG|2)
-#define UNBOUND   (OBJ_TAG|3)
-#define NOTUSED   (OBJ_TAG|4)
+// API ------------------------------------------------------------------------
+// tags, tagging, types -------------------------------------------------------
+type_t  type_of(value_t val);
 
-#define TAG_BITS(value) ((value) & TAG_MASK)
-#define VAL_BITS(value) ((value) & VAL_MASK)
+bool    is_real(value_t val);
+bool    is_object(value_t val);
 
-// tagging methods ------------------------------------------------------------
-Val tag_real(Real real);
-Val tag_fixnum(FixNum fixnum);
-Val tag_glyph(Glyph glyph);
-Val tag_obj(void* obj);
-Val tag_ptr(void* ptr);
+value_t tag_ptr(void* p, uword t);
+value_t tag_word(uword w, uword t);
+value_t tag_dbl(double dbl);
 
-#define tag(x)                                  \
-  generic((x),                                  \
-          Real:tag_real,                        \
-          FixNum:tag_fixnum,                    \
-          Glyph:tag_glyph,                      \
-          Obj*:tag_obj,                         \
-          Sym*:tag_obj,                         \
-          Func*:tag_obj,                        \
-          Bin*:tag_obj,                         \
-          Str*:tag_obj,                         \
-          List*:tag_obj,                        \
-          Vec*:tag_obj,                         \
-          Tuple*:tag_obj,                       \
-          Dict*:tag_obj,                        \
-          Set*:tag_obj,                         \
-          Record*:tag_obj,                      \
-          UpVal*:tag_obj,                       \
-          Method*:tag_obj,                      \
-          Cntl*:tag_obj,                        \
-          default:tag_ptr)(x)
+uword   as_word(value_t val);
+real_t  as_real(value_t val);
+void*   as_ptr(value_t val);
 
-// untagging methods ----------------------------------------------------------
-Real    as_real(Val val);
-FixNum  as_fixnum(Val val);
-Glyph   as_glyph(Val val);
-void*   as_ptr(Val val);
-void*   as_obj(Val val);
-Sym*    as_sym(Val val);
-Stream* as_stream(Val val);
-Func*   as_func(Val val);
-Bin*    as_bin(Val val);
-Str*    as_str(Val val);
-List*   as_list(Val val);
-Vec*    as_vec(Val val);
-Tuple*  as_tuple(Val val);
-Dict*   as_dict(Val val);
-Set*    as_set(Val val);
-Record* as_record(Val val);
-UpVal*  as_upval(Val val);
-Method* as_method(Val val);
-Cntl*   as_cntl(Val val);
+#define as_object(x) ((object_t*)as_ptr(x))
+#define as_symbol(x) ((symbol_t*)as_ptr(x))
 
-// type & value predicates ----------------------------------------------------
-bool is_text(Val val);
-bool is_int(Val val);
-bool is_byte(Val val);
-
-// generic untagging methods --------------------------------------------------
-char* as_text(Val val);
-uint  as_int(Val val);
-ubyte as_byte(Val val);
-
-// misc runtime methods -------------------------------------------------------
-void mark_val(Val val);
+// constructors ---------------------------------------------------------------
+value_t symbol(char* name);
 
 #endif

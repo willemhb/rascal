@@ -1,61 +1,67 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "common.h"
 #include "value.h"
-#include "object.h"
-#include "type.h"
+#include "memory.h"
+#include "number.h"
+#include "io.h"
 
-#include "read.h"
-#include "eval.h"
-#include "print.h"
-#include "compile.h"
-#include "compare.h"
+// interpreter ----------------------------------------------------------------
+#define PROMPT "rascal>"
 
-#include "util/io.h"
+value_t read(void) {
+  char* buffer = getln(),* send;
 
-// globals --------------------------------------------------------------------
+  real_t real = strtod(buffer, &send);
+
+  return dtow(real);
+}
+
+value_t eval(value_t val) {
+  return val;
+}
+
+void print(value_t val) {
+  switch(type_of(val)) {
+    case UNIT:   printf("nul"); break;
+    case SYMBOL: printf("%s", as_symbol(val)->name); break;
+    case REAL:   printf("%g", as_real(val)); break;
+  }
+}
+
+void repl(void) {
+  for (;;) {
+    printf(PROMPT" ");
+    value_t x = read();
+    value_t v = eval(x);
+
+    print(v);
+    newln();
+  }
+}
+
+// startup --------------------------------------------------------------------
 #define MAJOR       0
 #define MINOR       0
 #define DEVELOPMENT 1
 #define PATCH       "a"
 #define VERSION     "%d.%d.%d.%s"
 
-// main sequence --------------------------------------------------------------
-void rascal_init(void);
-void rascal_welcome(void);
-void rascal_main(int argc, const char* argv[argc]);
-void rascal_cleanup(void);
-void rascal_goodbye(void);
-
-void rascal_init(void) {
-  extern void type_init(void);
-  extern void object_init(void);
-  extern void runtime_init(void);
-  extern void native_init(void);
-
-  type_init();
-  object_init();
-  runtime_init();
-  native_init();
+void startup(void) {
+  printf("Welcome to rascal version "VERSION"!", MAJOR, MINOR, DEVELOPMENT, PATCH);
+  newln();
 }
 
-void rascal_welcome(void) {
-  printf("welcome to rascal version "VERSION"!\n\n", MAJOR, MINOR, DEVELOPMENT, PATCH);
-}
+// shutdown -------------------------------------------------------------------
 
-void rascal_main(int argc, const char* argv[argc]) {
+// main -----------------------------------------------------------------------
+int main(int argc, const char* argv[argc]) {
   (void)argv;
+
+  startup();
   repl();
-}
 
-void rascal_goodbye(void) {
-  printf("rascal version "VERSION"exiting normally. Later sluts.\n\n", MAJOR, MINOR, DEVELOPMENT, PATCH);
-}
-
-void rascal_cleanup(void) {}
-
-int main(const int argc, const char *argv[argc]) {
-  rascal_init();
-  rascal_welcome();
-  rascal_main(argc, argv);
-  rascal_cleanup();
-  rascal_goodbye();
   return 0;
 }

@@ -1,140 +1,102 @@
+#include <string.h>
+
 #include "value.h"
-#include "object.h"
+#include "memory.h"
+#include "number.h"
 
-#include "runtime.h"
+// globals --------------------------------------------------------------------
+// symbol table ---------------------------------------------------------------
+uword     SymbolCounter = 1;
+symbol_t* SymbolTable = NULL;
 
-#include "util/collections.h"
+extern object_t *LiveObjects;
 
-// API ------------------------------------------------------------------------
-// tag ------------------------------------------------------------------------
-Val tag_real(Real real) {
-  return ((ValData)real).as_val;
-}
-
-Val tag_glyph(Glyph g) {
-  return ((ValData)g).as_val | GLYPH_TAG;
-}
-
-Val tag_ptr(void* ptr) {
-  return ((ValData)ptr).as_val | SYS_TAG;
-}
-
-Val tag_obj(void* obj) {
-  return ((ValData)obj).as_val | OBJ_TAG;
-}
-
-// untag ----------------------------------------------------------------------
-Real as_real(Val val) {
-  return ((ValData)val).as_real;
-}
-
-Glyph as_glyph(Val val) {
-  return ((ValData)val).as_glyph;
-}
-
-void* as_ptr(Val val) {
-  return ((ValData)(val&VAL_MASK)).as_ptr;
-}
-
-void* as_obj(Val val) {
-  return ((ValData)(val&VAL_MASK)).as_obj;
-}
-
-#define UNTAG(T, t)                 \
-  T* as_##t(Val val) {				\
-    return (T*)as_obj(val);			\
-  }
-
-UNTAG(Sym, sym);
-UNTAG(Func, func);
-UNTAG(Bin, bin);
-UNTAG(List, list);
-UNTAG(Vec, vec);
-UNTAG(Tuple, tuple);
-UNTAG(Table, table);
-
-#undef UNTAG
-
-// type & value predicates ----------------------------------------------------
-bool is_text(Val val) {
-  if (has_type(val, SYM))
-    return true;
-
-  if (has_type(val, STR))
-    return true;
-
-  return has_type(val, BIN) && has_flag(as_obj(val), ENCODED);
-}
-
-bool is_int(Val val) {
-  if (!has_type(val, REAL))
-    return false;
-
-  Real real = as_real(val);
-
-  return (real - (long)real) == 0;
-}
-
-bool is_byte(Val val) {
-  if (!is_int(val))
-    return false;
-
-  long l = as_real(val);
-
-  return l <= UINT8_MAX && l >= 0;
-}
-
-// generic untagging methods --------------------------------------------------
-char* as_text(Val val) {
-  if (has_type(val, SYM))
-    return as_sym(val)->name;
-
-  if (has_type(val, STR))
-    return as_str(val)->chars ? : "";
-
-  if (has_type(val, BIN) && has_flag(as_obj(val), ENCODED))
-    return (char*)as_bin(val)->array;
-
-  return NULL;
-}
-
-// values array API -----------------------------------------------------------
-void init_vals(Vals* vals) {
-  vals->array = NULL;
-  vals->count = 0;
-  vals->cap   = pad_alist_size(0, 0, 0);
-}
-
-void free_vals(Vals* vals) {
-  deallocate(vals->array, vals->count, sizeof(Val));
-  init_vals(vals);
-}
-
-void resize_vals(Vals* vals, uint n) {
-  
-  uint c = pad_alist_size(vals->count, n, vals->cap);
-
-  if (c != vals->cap) {
-    vals->array = reallocate(vals->array, vals->count, c, sizeof(Val), NOTUSED);
-    vals->cap   = c;
+// values ---------------------------------------------------------------------
+// general --------------------------------------------------------------------
+type_t type_of(value_t val) {
+  switch (tag_of(val)) {
+    case NUL:    return UNIT;
+    case OBJTAG: return as_obj(val)->type;
+    default:     return REAL;
   }
 }
 
-uint push_vals(Vals* vals, Val val) {
-  resize_vals(vals, vals->count+1);
-
-  vals->array[vals->count] = val;
-
-  return vals->count++;
+value_t tag_ptr(void* p, uword t) {
+  return tag_word((uword)p, t);
 }
 
-Val  pop_vals(Vals* vals) {
-  assert(vals->count > 0);
-  assert(vals->array != NULL);
+value_t tag_word(uword w, uword t) {
+  return (w&VAL_MASK) | t;
+}
 
-  Val out = vals->array[--vals->count];
+value_t tag_dbl(double dbl) {
+  return dtow(dbl);
+}
 
-  resize_vals(vals, vals->count);
+real_t as_real(value_t val) {
+  return wtod(val);
+}
 
-  return out;
+uword as_word(value_t val) {
+  return val_of(val);
+}
+
+void* as_ptr(value_t val) {
+  return (void*)val_of(val);
+}
+
+// objects --------------------------------------------------------------------
+static void init_object(object_t *object, type_t type, flags fl) {
+  object->next  = LiveObjects;
+  LiveObjects   = object;
+  object->type  = type;
+  object->flags = fl;
+  object->black = false;
+  object->gray  = true;
+  object->hash  = 0;
+}
+
+static symbol_t **find_symbol(char* name) {
+  symbol_t **node = &SymbolTable;
+
+  while (*node) {
+    int o = strcmp(name, (*node)->name);
+
+    if (o < 0)
+      node = &(*node)->left;
+
+    else if (o > 0)
+      node = &(*node)->right;
+
+    else
+      break;
+  }
+
+  return node;
+}
+
+static void init_symbol(symbol_t *self, char* name) {
+  init_object(&self->obj, SYMBOL, 0);
+  self->left  = NULL;
+  self->right = NULL;
+  self->idno  = SymbolCounter++;
+  self->bind  = NUL;
+  self->name  = strdup(name);
+}
+
+static symbol_t *new_symbol(char* name) {
+  symbol_t *sym = allocate(sizeof(symbol_t));
+
+  init_symbol(sym, name);
+
+  return sym;
+}
+
+value_t symbol(char* name) {
+  symbol_t **node = find_symbol(name);
+
+  if (*node == NULL)
+    *node = new_symbol(name);
+
+  return tag_ptr(*node, OBJTAG);
 }
