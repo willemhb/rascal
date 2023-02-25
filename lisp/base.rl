@@ -1,6 +1,9 @@
-;;; begin base.rl
+#| begin base.rl |#
 
-;;; type predicates
+(val *loaded* #{})
+(val *syntax*  {})
+
+;; builtin type predicates
 (fn real?
   (x)
   (isa? x real))
@@ -16,6 +19,18 @@
 (fn symbol?
   (x)
   (isa? x symbol))
+
+(fn function?
+  (x)
+  (isa? x function))
+
+(fn stream?
+  (x)
+  (isa? x stream))
+
+(fn list?
+  (x)
+  (isa? x list))
 
 (fn not
   (x)
@@ -96,12 +111,28 @@
       nul
       (tail xs)))
 
+(fn first
+  ((string cs))
+  (if (empty? cs)
+      nul
+      (string-ref cs 0)))
+
+(fn rest
+  ((string cs))
+  (if (empty? cs)
+      nul
+      (substring cs 1)))
+
+(fn first
+  ((binary bs))
+  (if (empty? bs)
+      nul
+      (string-ref bs 0)))
+
 ;;; error handling
 (mac catch
   (handler & body)
   `(with (raise (fn ~@handler))
      (do ~@body)))
 
-
-
-;;; end base.rl
+#| end base.rl |#
