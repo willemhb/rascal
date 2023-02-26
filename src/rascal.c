@@ -33,12 +33,19 @@ void repl(void) {
 #define PATCH       "a"
 #define VERSION     "%d.%d.%d.%s"
 
+extern void reader_init(void);
+extern void memory_init(void);
+
 void startup(void) {
-  printf("Welcome to rascal version "VERSION"!", MAJOR, MINOR, DEVELOPMENT, PATCH);
-  newln();
+  memory_init();
+  reader_init();
+  printf("Welcome to rascal version "VERSION"!\n\n", MAJOR, MINOR, DEVELOPMENT, PATCH);
 }
 
 // shutdown -------------------------------------------------------------------
+void shutdown(void) {
+  printf("Exiting rascal normally.\n");
+}
 
 // main -----------------------------------------------------------------------
 int main(int argc, const char* argv[argc]) {
@@ -46,6 +53,7 @@ int main(int argc, const char* argv[argc]) {
 
   startup();
   repl();
+  shutdown();
 
   return 0;
 }

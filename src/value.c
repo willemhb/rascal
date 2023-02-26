@@ -16,9 +16,17 @@ extern object_t *LiveObjects;
 type_t type_of(value_t val) {
   switch (tag_of(val)) {
     case NUL:    return UNIT;
-    case OBJTAG: return as_obj(val)->type;
+    case OBJTAG: return as_object(val)->type;
     default:     return REAL;
   }
+}
+
+bool is_real(value_t val) {
+  return (val&QNAN) != QNAN;
+}
+
+bool is_object(value_t val) {
+  return tag_of(val) == OBJTAG;
 }
 
 value_t tag_ptr(void* p, uword t) {

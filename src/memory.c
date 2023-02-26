@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 #include "memory.h"
+#include "htable.h"
 #include "value.h"
 
 // heap -----------------------------------------------------------------------
@@ -13,44 +14,15 @@ usize     NHeap = 0xfffff, NUsed = 0;
 double    HeapLoad = 0.75;
 bool      Collecting = false;
 
-struct {
-  object_t** objects;
-  usize      len, cap;
-} Grays = {
-  NULL,
-  0,
-  MIN_GRAYS
-};
+objects_t Grays;
 
 // local helpers --------------------------------------------------------------
-static void grow_grays(void) {
-    Grays.cap <<= 1;
-    Grays.objects = ALLOC_S(realloc, Grays.objects, Grays.cap*sizeof(object_t*));
-}
-
-static void shrink_grays(void) {
-  if (Grays.cap > MIN_GRAYS) {
-    Grays.cap >>= 1;
-    Grays.objects = ALLOC_S(realloc, Grays.objects, Grays.cap*sizeof(object_t*));
-  }
-}
-
 static void push_gray(object_t *obj) {
-  if (Grays.len+1 >= Grays.cap)
-    grow_grays();
-
-  Grays.objects[Grays.len++] = obj;
+  objects_push(&Grays, obj);
 }
 
 static object_t *pop_gray(void) {
-  assert(Grays.len > 0);
-
-  object_t* out = Grays.objects[--Grays.len];
-
-  if (Grays.len < (Grays.cap >> 1))
-    shrink_grays();
-
-  return out;
+  return objects_pop(&Grays);
 }
 
 static void update_heap(usize n) {
@@ -204,4 +176,9 @@ void manage(void) {
   sweep_objects();
   resize_heap();
   manage_cleanup();
+}
+
+// initialization -------------------------------------------------------------
+void memory_init(void) {
+  init_objects(&Grays);
 }
