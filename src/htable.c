@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "memory.h"
 #include "htable.h"
@@ -31,14 +32,14 @@ usize pad_table_size(usize newct, usize oldcap) {
 // API template macros --------------------------------------------------------
 #undef ALIST_API
 
-#define ALIST_API(A, X, mincap)                             \
-  void init_##A(TYPE(A)* A) {                               \
-    A->len   = 0;                                           \
-    A->cap   = mincap;                                      \
-    A->array = allocate(mincap*sizeof(X));                  \
-  }                                                         \
-  void free_##A(TYPE(A)* A) {                               \
-    deallocate(A);                                                      \
+#define ALIST_API(A, X, mincap)						\
+  void init_##A(TYPE(A)* A) {						\
+    A->len   = 0;							\
+    A->cap   = mincap;							\
+    A->array = allocate(mincap*sizeof(X));				\
+  }									\
+  void free_##A(TYPE(A)* A) {						\
+    deallocate(A, A->cap * sizeof(X));					\
     init_##A(A);                                                        \
   }                                                                     \
   void resize_##A(TYPE(A)* A, usize len) {                              \
@@ -47,11 +48,30 @@ usize pad_table_size(usize newct, usize oldcap) {
       A->array = reallocate(A->array,newc*sizeof(X),A->cap*sizeof(X));  \
       A->cap   = newc;                                                  \
     }                                                                   \
-    A->len = len;                                                       \
   }                                                                     \
-  usize push_##A(TYPE(A)* A, X x) {                                     \
-                                                                        \
+  usize A##_push(TYPE(A)* A, X x) {                                     \
+    resize_##A(A, A->len+1);						\
+    A->array[A->len] = x;						\
+    return A->len++;							\
   }                                                                     \
+  X A##_pop(TYPE(A)* A) {						\
+    assert(A->len > 0);							\
+    X out = A->array[--A->len];						\
+    resize_##A(A, A->len);						\
+    return out;								\
+  }									\
+  usize A##_write(TYPE(A)* A, usize n, X* buf) {			\
+    usize off = A->len;							\
+    resize_##A(A, (A->len += n));					\
+    memcpy(A->array+off, buf, n * sizeof(X));				\
+    return off;								\
+  }
+
+ALIST_API(bytes, ubyte, 32);
+ALIST_API(values, value_t, 8);
+ALIST_API(objects, object_t*, 8);
+ALIST_API(buffer, char, 512);
+
   
 #undef HTABLE_API
 #define HTKEY(table, i, ktype) (*(ktype*)((table)+((i)*2)))

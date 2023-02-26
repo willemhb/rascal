@@ -17,6 +17,4 @@ int   peekc(void);
 value_t read(void);
 void    print(value_t val);
 
-// initialization -------------------------------------------------------------
-
 #endif

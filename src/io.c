@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
+#include <string.h>
 
 #include "io.h"
 #include "number.h"
@@ -17,72 +19,72 @@ typedef enum {
 } token_t;
 
 // globals --------------------------------------------------------------------
-#define MIN_BUFFER 512
+#define MIN_BUFFER    512
+#define MIN_SUBEXPR   8
+#define MIN_READTABLE 8
 
-struct {
-  char *chars;
-  usize len, cap;
-} Buffer = {
-  NULL,
-  0,
-  MIN_BUFFER
-};
+buffer_t Buffer  = { NULL, 0, MIN_BUFFER    };
+values_t Subexpr = { NULL, 0, MIN_SUBEXPR   };
+htable_t Reader  = { NULL, 0, MIN_READTABLE };
+token_t  Token   = ready_token;
+value_t  Expr    = NUL;
 
-struct {
-  
-};
+#define UPPER  "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+#define LOWER  "abcdefghijklmnopqrstuvwxyz"
+#define DIGIT  "0123456789"
+#define SYMCHR "$%&^#:?!+-_*/<=>."
 
-token_t Token = ready_token;
-
-htable_t Readtable;
 // internal helpers -----------------------------------------------------------
-reader get_reader(int ch) {
-  return (reader)reader_get(&Readtable, ch);
+static void reset_reader(bool total) {
+  free_buffer(&Buffer);
+  Token = ready_token;
+  Expr  = NUL;
+
+  if (total)
+    free_values(&Subexpr);
 }
 
-void set_reader(int ch, reader dispatch) {
-  reader_set(&Readtable, ch, (funcptr)dispatch);
+static usize accumulate(int ch) {
+  return buffer_push(&Buffer, ch);
 }
 
-void set_readers(const char* chs, reader dispatch) {
-  for (const char* ch=chs; *ch !='\0'; ch++)
-    set_reader(*ch, dispatch);
+static char* token(void) {
+  return Buffer.array;
 }
 
-void init_buffer(void) {
-  Buffer.len   = 0;
-  Buffer.cap   = pad_array_size(0, 0, MIN_BUFFER, 1.0);
-  Buffer.chars = allocate(Buffer.cap*sizeof(char));
+
+static value_t take(bool total) {
+  value_t expr = Expr;
+
+  reset_reader(total);
+
+  return expr;
 }
 
-void reset_buffer(void) {
-  deallocate(Buffer.chars, Buffer.cap*sizeof(char));
-  init_buffer();
+static void give(value_t val, token_t token) {
+  assert(Token == ready_token);
+  Token = token;
+  Expr  = val;
 }
 
-void resize_buffer(usize n) {
-  usize newcap = pad_array_size(n, Buffer.cap, MIN_BUFFER, 1.0);
-
-  if (newcap != Buffer.cap) {
-    Buffer.chars = reallocate(Buffer.chars, newcap*sizeof(char), Buffer.cap*sizeof(char));
-    Buffer.cap   = newcap;
-  }
+static void subexpr(void) {
+  value_t expr = take(false);
+  values_push(&Subexpr, expr);
 }
 
-void buffer_write(char ch) {
-  resize_buffer(Buffer.len+1);
-  Buffer.chars[Buffer.len++] = ch;
+static bool isrlspace(int ch) {
+  return isspace(ch) || ch == '\t' || ch == ',';
 }
 
-void reset_reader(void) {
-  reset_buffer();
-  Token = ;
+static bool issymchar(int ch) {
+  return isalnum(ch) || strchr("$%&^#:?!+-_*/<=>.", ch);
 }
 
 // API ------------------------------------------------------------------------
 int newln(void) {
   return fnewln(stdin);
 }
+
 
 int fnewln(FILE* ios) {
   return fprintf(ios, "\n");
@@ -93,13 +95,18 @@ int peekc(void) {
 }
 
 int fpeekc(FILE* ios) {
-  
+  int out = fgetc(ios);
+
+  if (out != EOF)
+    ungetc(out, ios);
+
+  return out;
 }
 
 // interpreter ----------------------------------------------------------------
 void print_real(value_t val)   { printf("%g", as_real(val));         }
 void print_symbol(value_t val) { printf("%s", as_symbol(val)->name); }
-void print_unit(value_t val)   { }
+void print_unit(value_t val)   { (void)val; printf("nul");           }
 
 void (*Print[])(value_t val) = {
   [REAL]   = print_real,
@@ -107,15 +114,104 @@ void (*Print[])(value_t val) = {
   [SYMBOL] = print_symbol
 };
 
-value_t read(void) {
-  reset_buffer();
-  
-  while (!Token) {
-    int ch   = peekc();
-    reader r = 
+value_t read_expr(FILE* ios) {
+  int ch;
+  reader readfn;
+
+  while (Token) {
+    ch     = fgetc(ios);
+    readfn = (reader)reader_get(&Reader, ch);
+
+    assert(readfn != NULL);
+    readfn(ch, ios);
   }
+
+  return take(true);
+}
+
+value_t read(void) {
+  reset_reader(true);
+
+  value_t out = read_expr(stdin);
+
+  return out;
 }
 
 void print(value_t val) {
   Print[type_of(val)](val);
+}
+
+// reader dispatches ----------------------------------------------------------
+void read_space(int ch, FILE* ios) {
+  while (isrlspace(ch))
+    ch = fgetc(ios);
+
+  if (ch != EOF)
+    ungetc(ch, ios);
+}
+
+void read_eof(int ch, FILE* ios) {
+  (void)ch;
+  (void)ios;
+
+  give(NUL, eof_token);
+}
+
+void read_symbol(int ch, FILE* ios) {
+  accumulate(ch);
+
+  while (issymchar((ch=fgetc(ios))))
+    accumulate(ch);
+
+  if (ch != EOF)
+    ungetc(ch, ios);
+
+  char* t = token();
+
+  if (strcmp(t, "nul") == 0)
+    give(NUL, expr_token);
+
+  else
+    give(symbol(t), expr_token); 
+}
+
+void read_number(int ch, FILE* ios) {
+  accumulate(ch);
+
+  while (issymchar((ch=fgetc(ios))))
+    accumulate(ch);
+
+  char* t  = token(),* tend;
+  real_t r = strtod(t, &tend);
+
+  if (*tend != '\0')
+    give(symbol(t), expr_token);
+
+  else
+    give(tag_dbl(r), expr_token);
+}
+
+// initialization -------------------------------------------------------------
+static void add_reader(int ch, reader handler) {
+  reader_set(&Reader, ch, (funcptr)handler);
+}
+
+static void add_readers(char* chs, reader handler) {
+  for (;*chs != '\0'; chs++)
+    add_reader(*chs, handler);
+}
+
+void reader_init(void) {
+  // initialize global state --------------------------------------------------
+  init_buffer(&Buffer);
+  init_values(&Subexpr);
+  init_reader(&Reader);
+
+  // add readers --------------------------------------------------------------
+  add_readers(" \t\n\v\f\r,", read_space);
+  add_readers("0123456789", read_number);
+  add_readers(UPPER,  read_symbol);
+  add_readers(LOWER,  read_symbol);
+  add_readers(SYMCHR, read_symbol);
+  add_reader(EOF, read_eof);
 }
