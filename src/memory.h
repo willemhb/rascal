@@ -4,12 +4,12 @@
 #include "common.h"
 
 // API ------------------------------------------------------------------------
-#define ALLOC_S(func, args...)			\
-  ({						\
-    void* __out = func(args);			\
-    if (__out == NULL)				\
+#define ALLOC_S(func, args...)                  \
+  ({                                            \
+    void* __out = func(args);                   \
+    if (__out == NULL)                          \
       FAIL(1, "in %s: out of memory", #func);	\
-    __out;					\
+    __out;                                      \
   })
 
 void* allocate(usize size);

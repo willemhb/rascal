@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <stdbool.h>
 
+typedef uint8_t    ubyte;
 typedef uintptr_t  uword;
 typedef uintptr_t  uhash;
 typedef size_t     usize;
@@ -18,5 +19,7 @@ typedef uint32_t   flags;
     fprintf(stderr, msg".\n" __VA_OPT__(,) __VA_ARGS__);	\
     exit(status);						\
   } while (false)
+
+#define TYPE(T) T##_t
 
 #endif

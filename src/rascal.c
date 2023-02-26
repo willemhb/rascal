@@ -9,28 +9,12 @@
 #include "io.h"
 
 // interpreter ----------------------------------------------------------------
-#define PROMPT "rascal>"
-
-value_t read(void) {
-  char* buffer = getln(),* send;
-
-  real_t real = strtod(buffer, &send);
-
-  return dtow(real);
-}
 
 value_t eval(value_t val) {
   return val;
 }
 
-void print(value_t val) {
-  switch(type_of(val)) {
-    case UNIT:   printf("nul"); break;
-    case SYMBOL: printf("%s", as_symbol(val)->name); break;
-    case REAL:   printf("%g", as_real(val)); break;
-  }
-}
-
+#define PROMPT "rascal>"
 void repl(void) {
   for (;;) {
     printf(PROMPT" ");

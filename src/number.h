@@ -14,19 +14,19 @@ typedef union {
   } parts;
 } ieee64_t;
 
-#define MIN(x, y)				\
-  ({						\
-    __auto_type _x = x;				\
-    __auto_type _y = y;				\
-    _x > _y ? _y : _x;				\
+#define MIN(x, y)                               \
+  ({                                            \
+    __auto_type _x = x;                         \
+    __auto_type _y = y;                         \
+    _x > _y ? _y : _x;                          \
   })
 
 
-#define MAX(x, y)				\
-  ({						\
-    __auto_type _x = x;				\
-    __auto_type _y = y;				\
-    _x < _y ? _y : _x;				\
+#define MAX(x, y)                               \
+  ({                                            \
+    __auto_type _x = x;                         \
+    __auto_type _y = y;                         \
+    _x < _y ? _y : _x;                          \
   })
 
 // API ------------------------------------------------------------------------
