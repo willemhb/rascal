@@ -15,17 +15,20 @@ extern object_t *LiveObjects;
 // general --------------------------------------------------------------------
 type_t type_of(value_t val) {
   switch (tag_of(val)) {
-    case NUL:    return UNIT;
-    case OBJTAG: return as_object(val)->type;
-    default:     return REAL;
+    case NUL:       return UNIT;
+    case NATIVETAG: return NATIVE;
+    case OBJTAG:    return as_object(val)->type;
+    default:        return REAL;
   }
 }
 
 char* type_name_of(value_t val) {
   static char* type_names[] = {
     [UNIT]   = "unit",
+    [NATIVE] = "native",
     [REAL]   = "real",
-    [SYMBOL] = "symbol"
+    [SYMBOL] = "symbol",
+    [LIST]   = "list"
   };
 
   return type_names[type_of(val)];
@@ -63,7 +66,7 @@ void* as_ptr(value_t val) {
   return (void*)val_of(val);
 }
 
-// objects --------------------------------------------------------------------
+// object apis ----------------------------------------------------------------
 static void init_object(object_t *object, type_t type, flags fl) {
   object->next  = LiveObjects;
   LiveObjects   = object;
@@ -74,6 +77,7 @@ static void init_object(object_t *object, type_t type, flags fl) {
   object->hash  = 0;
 }
 
+// symbol ---------------------------------------------------------------------
 static symbol_t **find_symbol(char* name) {
   symbol_t **node = &SymbolTable;
 
@@ -117,4 +121,51 @@ value_t symbol(char* name) {
     *node = new_symbol(name);
 
   return tag_ptr(*node, OBJTAG);
+}
+
+// list -----------------------------------------------------------------------
+list_t EmptyList = {
+  .obj={
+    .next =NULL,
+    .type =LIST,
+    .hash =0,
+    .flags=0,
+    .black=true,
+    .gray =false
+  },
+  .len=0,
+  .head=NUL,
+  .tail=&EmptyList
+};
+
+static void init_list(list_t* self, value_t head, list_t* tail) {
+  init_object(&self->obj, LIST, 0);
+
+  self->head = head;
+  self->tail = tail;
+  self->len  = 1 + tail->len;
+}
+
+value_t cons(value_t head, list_t* tail) {
+  list_t* out = allocate(sizeof(list_t));
+  init_list(out, head, tail);
+  return tag_ptr(out, OBJTAG);
+}
+
+value_t list(usize n, value_t* args) {
+  if (n == 0)
+    return NUL;
+
+  if (n == 1)
+    return cons(args[0], &EmptyList);
+
+  list_t* out  = allocate(n * sizeof(list_t));
+  list_t* curr = &out[n-1], *last = &EmptyList;
+
+  for (usize i=n; i>0; i--) {
+    init_list(curr, args[n-1], last);
+    last = curr--;
+  }
+
+  return tag_ptr(out, OBJTAG);
 }

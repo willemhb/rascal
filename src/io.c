@@ -69,8 +69,7 @@ static void give(value_t val, token_t token) {
   Expr  = val;
 }
 
-static void subexpr(void) {
-  value_t expr = take(false);
+static void subexpr(value_t expr) {
   values_push(&Subexpr, expr);
 }
 
@@ -127,11 +126,31 @@ int fpeekc(FILE* ios) {
 void print_real(value_t val)   { printf("%g", as_real(val));         }
 void print_symbol(value_t val) { printf("%s", as_symbol(val)->name); }
 void print_unit(value_t val)   { (void)val; printf("nul");           }
+void print_native(value_t val) { (void)val; printf("#'native");      }
+
+void print_list(value_t val) {
+  printf("(");
+
+  list_t* xs = as_list(val);
+
+  while (xs->len) {
+    print(xs->head);
+
+    xs = xs->tail;
+
+    if (xs->len)
+      printf(" ");
+  }
+
+  printf(")");
+}
 
 void (*Print[])(value_t val) = {
   [REAL]   = print_real,
   [UNIT]   = print_unit,
-  [SYMBOL] = print_symbol
+  [NATIVE] = print_native,
+  [SYMBOL] = print_symbol,
+  [LIST]   = print_list
 };
 
 value_t read_expr(FILE* ios) {
@@ -145,7 +164,7 @@ value_t read_expr(FILE* ios) {
     readfn(ch, ios);
   }
 
-  return take(true);
+  return take(false);
 }
 
 value_t read(void) {
@@ -208,6 +227,18 @@ void read_number(int ch, FILE* ios) {
 
   else
     give(tag_dbl(r), expr_token);
+}
+
+void read_list(int ch, FILE* ios) {
+  usize n = 0;
+
+  while ((ch=fpeekc(ios)) != ')') {
+    assert(ch != EOF);
+
+    read_expr(ios);
+    subexpr();
+    n++;
+  }
 }
 
 // initialization -------------------------------------------------------------

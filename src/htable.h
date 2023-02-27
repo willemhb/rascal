@@ -34,6 +34,7 @@ usize pad_table_size(usize newct, usize oldcap);
   void    resize_##A(TYPE(A)* A, usize len);                    \
   usize   A##_push(TYPE(A)* A, X x);                            \
   X       A##_pop(TYPE(A)* A);                                  \
+  X       A##_popn(TYPE(A)* A, usize n);			\
   usize   A##_write(TYPE(A)* A, usize n, X* buf)
 
 ALIST(bytes, ubyte);
