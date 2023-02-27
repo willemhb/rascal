@@ -21,6 +21,16 @@ type_t type_of(value_t val) {
   }
 }
 
+char* type_name_of(value_t val) {
+  static char* type_names[] = {
+    [UNIT]   = "unit",
+    [REAL]   = "real",
+    [SYMBOL] = "symbol"
+  };
+
+  return type_names[type_of(val)];
+}
+
 bool is_real(value_t val) {
   return (val&QNAN) != QNAN;
 }

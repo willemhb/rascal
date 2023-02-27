@@ -53,6 +53,7 @@ struct symbol_t {
 // API ------------------------------------------------------------------------
 // tags, tagging, types -------------------------------------------------------
 type_t  type_of(value_t val);
+char*   type_name_of(value_t val);
 
 bool    is_real(value_t val);
 bool    is_object(value_t val);

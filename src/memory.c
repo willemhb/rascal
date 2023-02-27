@@ -63,7 +63,6 @@ void deallocate(void* ptr, usize size) {
   free(ptr);
 }
 
-
 // GC internals ---------------------------------------------------------------
 void manage_init(void) {
   Collecting = true;
@@ -71,7 +70,7 @@ void manage_init(void) {
 
 void mark_object(void* ptr) {
   object_t* obj = ptr;
-  
+
   if (obj == NULL)
     return;
 
@@ -79,7 +78,7 @@ void mark_object(void* ptr) {
     return;
 
   obj->black = true;
-  
+
   push_gray(obj);
 }
 

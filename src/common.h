@@ -13,6 +13,8 @@ typedef size_t     usize;
 typedef void     (*funcptr)(void);
 typedef uint32_t   flags;
 
+#define RASCAL_DEBUG
+
 // utilities ------------------------------------------------------------------
 #define FAIL(status, msg, ...)					\
   do {								\

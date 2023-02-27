@@ -15,14 +15,19 @@ value_t eval(value_t val) {
 }
 
 #define PROMPT "rascal>"
+
 void repl(void) {
   for (;;) {
     printf(PROMPT" ");
     value_t x = read();
     value_t v = eval(x);
 
+#ifdef RASCAL_DEBUG
+    printf("%s> ", type_name_of(v));
+#endif
+
     print(v);
-    newln();
+    printf("\n");
   }
 }
 

@@ -19,6 +19,8 @@ typedef enum {
 } token_t;
 
 // globals --------------------------------------------------------------------
+int EOS = EOF;
+
 #define MIN_BUFFER    512
 #define MIN_SUBEXPR   8
 #define MIN_READTABLE 8
@@ -80,6 +82,24 @@ static bool issymchar(int ch) {
   return isalnum(ch) || strchr("$%&^#:?!+-_*/<=>.", ch);
 }
 
+static void show_readtable(void) {
+  printf("Readtable:\n\n");
+
+  for (usize i=0; i<Reader.cap; i++) {
+    int    key = *(int*)&Reader.table[i*2];
+    reader val = *(reader*)&Reader.table[i*2+1];
+
+    if (key == EOF)
+      continue;
+    
+    if ((isspace(key) && key != ' ') || key=='\t')
+      printf("[%3zu] %x = %p\n", i, key, val);
+
+    else
+      printf("[%3zu] %c = %p\n", i, key, val);
+  }
+}
+
 // API ------------------------------------------------------------------------
 int newln(void) {
   return fnewln(stdin);
@@ -118,11 +138,10 @@ value_t read_expr(FILE* ios) {
   int ch;
   reader readfn;
 
-  while (Token) {
+  while (!Token) {
     ch     = fgetc(ios);
     readfn = (reader)reader_get(&Reader, ch);
-
-    assert(readfn != NULL);
+    // assert(readfn != NULL);
     readfn(ch, ios);
   }
 
@@ -194,11 +213,13 @@ void read_number(int ch, FILE* ios) {
 // initialization -------------------------------------------------------------
 static void add_reader(int ch, reader handler) {
   reader_set(&Reader, ch, (funcptr)handler);
+  // show_readtable();
 }
 
 static void add_readers(char* chs, reader handler) {
-  for (;*chs != '\0'; chs++)
+  for (;(*chs) != '\0'; chs++) {
     add_reader(*chs, handler);
+  }
 }
 
 void reader_init(void) {
@@ -214,4 +235,6 @@ void reader_init(void) {
   add_readers(LOWER,  read_symbol);
   add_readers(SYMCHR, read_symbol);
   add_reader(EOF, read_eof);
+
+  // show_readtable();
 }

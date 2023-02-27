@@ -35,17 +35,17 @@ usize pad_table_size(usize newct, usize oldcap) {
 #define ALIST_API(A, X, mincap)						\
   void init_##A(TYPE(A)* A) {						\
     A->len   = 0;							\
-    A->cap   = mincap;							\
-    A->array = allocate(mincap*sizeof(X));				\
+    A->cap   = pad_array_size(0, 0, mincap, 1.0);			\
+    A->array = allocate(A->cap * sizeof(X));				\
   }									\
   void free_##A(TYPE(A)* A) {						\
-    deallocate(A, A->cap * sizeof(X));					\
+    deallocate(A->array, A->cap * sizeof(X));				\
     init_##A(A);                                                        \
   }                                                                     \
   void resize_##A(TYPE(A)* A, usize len) {                              \
-    usize newc = pad_array_size(len, A->cap, mincap, 1.0);              \
+    usize newc = pad_array_size(len, A->cap, mincap, 1.0);		\
     if (newc != A->cap) {                                               \
-      A->array = reallocate(A->array,newc*sizeof(X),A->cap*sizeof(X));  \
+      A->array = reallocate(A->array,newc*sizeof(X),A->cap*sizeof(X));	\
       A->cap   = newc;                                                  \
     }                                                                   \
   }                                                                     \
@@ -72,90 +72,105 @@ ALIST_API(values, value_t, 8);
 ALIST_API(objects, object_t*, 8);
 ALIST_API(buffer, char, 512);
 
+// hash table apis ------------------------------------------------------------
+static void init_reader_table(void** table, usize cap) {            
+  memset(table, 0, cap*2*sizeof(void*));
   
-#undef HTABLE_API
-#define HTKEY(table, i, ktype) (*(ktype*)((table)+((i)*2)))
-#define HTVAL(table, i, vtype) (*(vtype*)((table)+((i)*2+1)))
+  for (usize i=0; i < cap; i++) {
+    *(int*)&table[i*2]       = EOF;
+    *(funcptr*)&table[i*2+1] = NULL;
+  }
+}
 
-#define HTABLE_API(type, ktype, vtype, hashk, cmpk, nokey, noval)       \
-  static void init_##type##_table(void** table, usize cap) {            \
-    for (usize i=0; i < cap; i++) {                                     \
-      HTKEY(table, i, ktype) = nokey;                                   \
-      HTVAL(table, i, vtype) = noval;                                   \
-    }                                                                   \
-  }                                                                     \
-  static void** type##_locate(htable_t* htable, ktype key) {            \
-    uhash h = hashk(key);                                               \
-    uword m = htable->cap-1;                                            \
-    usize i = h & m;                                                    \
-    ktype ikey;                                                         \
-    while ((ikey=HTKEY(htable->table, i, ktype)) != nokey) {            \
-      if (cmpk(key, ikey))                                              \
-        break;                                                          \
-      i = (i+1) & m;                                                    \
-    }                                                                   \
-    return htable->table + i*2;                                         \
-  }                                                                     \
-  void init_##type(htable_t* htable) {                                  \
-    htable->count = 0;                                                  \
-    htable->cap   = pad_table_size(0, 0);                               \
-    htable->table = ALLOC_S(calloc, MIN_CAP, sizeof(void*));            \
-    init_##type##_table(htable->table, MIN_CAP);                        \
-  }                                                                     \
-  void free_##type(htable_t* htable) {                                  \
-    free(htable->table);                                                \
-    init_##type(htable);                                                \
-  }                                                                     \
-  void resize_##type(htable_t* htable, usize count) {                   \
-    usize newc = pad_table_size(count, htable->cap);                    \
-    if (newc != htable->cap) {                                          \
-      usize  newm = newc-1;                                             \
-      void** newt = ALLOC_S(calloc, newc, sizeof(void*));               \
-      init_##type##_table(newt, newc);                                  \
-      for (usize i=0, n=0; i<htable->cap && n < htable->count; i++) {	\
-        ktype k       = HTKEY(htable->table, i, ktype);                 \
-        if (k == nokey)                                                 \
-          continue;                                                     \
-        vtype v   = HTVAL(htable->table, i, vtype);                     \
-        uhash h   = hashk(k);                                           \
-        usize idx = h & newm;                                           \
-        while (HTKEY(newt, idx, ktype) != nokey)                        \
-          idx = (idx+1) & newm;                                         \
-        HTKEY(newt, idx, ktype) = k;                                    \
-        HTVAL(newt, idx, vtype) = v;                                    \
-      }                                                                 \
-      htable->cap = newc;                                               \
-    }                                                                   \
-  }                                                                     \
-  vtype type##_get(htable_t* htable, ktype key) {                       \
-    void** loc = type##_locate(htable, key);                            \
-                                                                        \
-    return HTVAL(loc, 0, vtype);                                        \
-  }                                                                     \
-  vtype type##_set(htable_t* htable, ktype key, vtype val) {            \
-    resize_##type(htable, htable->count+1);                             \
-    void** loc = type##_locate(htable, key);                            \
-    if (HTKEY(loc, 0, ktype) == nokey) {                                \
-      htable->count++;                                                  \
-      HTKEY(loc, 0, ktype) = key;                                       \
-    }                                                                   \
-    vtype out            = HTVAL(loc, 0, vtype);                        \
-    HTVAL(loc, 0, vtype) = val;                                         \
-    return out;                                                         \
-  }                                                                     \
-  vtype type##_del(htable_t *htable, ktype key) {                       \
-    void** loc = type##_locate(htable, key);                            \
-    vtype out = (vtype)loc[1];                                          \
-    if (HTKEY(loc, 0, ktype) != nokey) {                                \
-      HTKEY(loc, 0, ktype) = nokey;                                     \
-      HTVAL(loc, 0, vtype) = noval;                                     \
-      resize_##type(htable, --htable->count);                           \
-    }                                                                   \
-    return out;                                                         \
+static void** reader_locate(htable_t* htable, int key) {		
+  uhash h = hash_uword(key);                                               
+  uword m = htable->cap-1;                                            
+  usize i = h & m;                                                    
+  int ikey;                                                         
+  while ((ikey=*(int*)&htable->table[i*2]) != EOF) {
+    if (key == ikey)
+      break;                                                          
+    i = (i+1) & m;                                                    
+  }                                                                   
+  return &htable->table[i*2];
+}
+
+static void rehash_reader_table(void** oldt, usize oldc, usize oldl, void** newt, usize newc) {
+  init_reader_table(newt, newc);
+  usize m = newc-1;
+  
+  for (usize i=0, n=0; i<oldc && n<oldl; i++) {
+    int k = *(int*)&oldt[i*2];
+
+    if (k == EOF)
+      continue;
+
+    funcptr v = *(funcptr*)&oldt[i*2+1];
+    uhash h = hash_uword(k);
+    usize j = h & m;
+
+    while (*(int*)&newt[j*2] != EOF)
+      j = (j+1) & m;
+
+    *(int*)&newt[j*2]       = k;
+    *(funcptr*)&newt[j*2+1] = v;
+
+    n++;
+  }
+}
+
+void init_reader(htable_t* htable) {
+  htable->count = 0;
+  htable->cap   = pad_table_size(0, 0);
+  htable->table = allocate(htable->cap * 2 * sizeof(void*));
+  init_reader_table(htable->table, htable->cap);
+}
+
+void free_reader(htable_t* htable) {
+  deallocate(htable->table, htable->cap * 2 * sizeof(void*));
+  init_reader(htable);
+}
+
+void resize_reader(htable_t* htable, usize n) {
+  usize newc = pad_table_size(n, htable->cap);
+
+  if (newc != htable->cap) {
+    void** newt = allocate(newc * 2 * sizeof(void*));
+    rehash_reader_table(htable->table, htable->cap, htable->count, newt, newc);
+    deallocate(htable->table, htable->cap * 2 * sizeof(void*));
+    htable->table = newt;
+    htable->cap = newc;
+  }
+}
+
+funcptr reader_get(htable_t* htable, int key) {
+  return reader_locate(htable, key)[1];
+}
+
+funcptr reader_set(htable_t* htable, int key, funcptr val) {
+  resize_reader(htable, htable->count+1);
+  
+  void** spc = reader_locate(htable, key);
+
+  if (*(int*)spc == EOF) {
+    *(int*)spc = key;
+    htable->count++;
   }
 
-#define READT_CMP(x, y) ((x)==(y))
+  funcptr out = spc[1];
+  spc[1] = val;
+  return out;
+}
 
-HTABLE_API(reader, int, funcptr, hash_uword, READT_CMP, -1, NULL);
+funcptr reader_del(htable_t* htable, int key) {
+  void** spc = reader_locate(htable, key);
+  funcptr out = spc[1];
+  
+  if (*(int*)spc != EOF) {
+    *(int*)spc = EOF;
+    spc[1] = NULL;
+    resize_reader(htable, --htable->count);
+  }
 
-#undef READT_CMP
+  return out;
+}
