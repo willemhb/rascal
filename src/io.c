@@ -69,10 +69,6 @@ static void give(value_t val, token_t token) {
   Expr  = val;
 }
 
-static void subexpr(value_t expr) {
-  values_push(&Subexpr, expr);
-}
-
 static bool isrlspace(int ch) {
   return isspace(ch) || ch == '\t' || ch == ',';
 }
@@ -230,15 +226,20 @@ void read_number(int ch, FILE* ios) {
 }
 
 void read_list(int ch, FILE* ios) {
-  usize n = 0;
+  usize n = 0; value_t x;
 
   while ((ch=fpeekc(ios)) != ')') {
     assert(ch != EOF);
-
-    read_expr(ios);
-    subexpr();
+    x = read_expr(ios);
+    values_push(&Subexpr, x);
     n++;
   }
+
+  fgetc(ios); // clear terminal ')'
+
+  x = list(n, &Subexpr.array[Subexpr.len-n]);
+  values_popn(&Subexpr, n);
+  give(x, expr_token);
 }
 
 // initialization -------------------------------------------------------------
@@ -265,6 +266,7 @@ void reader_init(void) {
   add_readers(UPPER,  read_symbol);
   add_readers(LOWER,  read_symbol);
   add_readers(SYMCHR, read_symbol);
+  add_reader('(', read_list);
   add_reader(EOF, read_eof);
 
   // show_readtable();

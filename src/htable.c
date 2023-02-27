@@ -32,39 +32,45 @@ usize pad_table_size(usize newct, usize oldcap) {
 // API template macros --------------------------------------------------------
 #undef ALIST_API
 
-#define ALIST_API(A, X, mincap)						\
-  void init_##A(TYPE(A)* A) {						\
-    A->len   = 0;							\
-    A->cap   = pad_array_size(0, 0, mincap, 1.0);			\
-    A->array = allocate(A->cap * sizeof(X));				\
-  }									\
-  void free_##A(TYPE(A)* A) {						\
-    deallocate(A->array, A->cap * sizeof(X));				\
+#define ALIST_API(A, X, mincap)                                         \
+  void init_##A(TYPE(A)* A) {                                           \
+    A->len   = 0;                                                       \
+    A->cap   = pad_array_size(0, 0, mincap, 1.0);                       \
+    A->array = allocate(A->cap * sizeof(X));                            \
+  }                                                                     \
+  void free_##A(TYPE(A)* A) {                                           \
+    deallocate(A->array, A->cap * sizeof(X));                           \
     init_##A(A);                                                        \
   }                                                                     \
   void resize_##A(TYPE(A)* A, usize len) {                              \
-    usize newc = pad_array_size(len, A->cap, mincap, 1.0);		\
+    usize newc = pad_array_size(len, A->cap, mincap, 1.0);              \
     if (newc != A->cap) {                                               \
       A->array = reallocate(A->array,newc*sizeof(X),A->cap*sizeof(X));	\
       A->cap   = newc;                                                  \
     }                                                                   \
   }                                                                     \
   usize A##_push(TYPE(A)* A, X x) {                                     \
-    resize_##A(A, A->len+1);						\
-    A->array[A->len] = x;						\
-    return A->len++;							\
+    resize_##A(A, A->len+1);                                            \
+    A->array[A->len] = x;                                               \
+    return A->len++;                                                    \
   }                                                                     \
-  X A##_pop(TYPE(A)* A) {						\
-    assert(A->len > 0);							\
-    X out = A->array[--A->len];						\
-    resize_##A(A, A->len);						\
-    return out;								\
-  }									\
-  usize A##_write(TYPE(A)* A, usize n, X* buf) {			\
-    usize off = A->len;							\
-    resize_##A(A, (A->len += n));					\
-    memcpy(A->array+off, buf, n * sizeof(X));				\
-    return off;								\
+  X A##_pop(TYPE(A)* A) {                                               \
+    assert(A->len > 0);                                                 \
+    X out = A->array[--A->len];                                         \
+    resize_##A(A, A->len);                                              \
+    return out;                                                         \
+  }                                                                     \
+  X A##_popn(TYPE(A)* A, usize n) {                                     \
+    assert(A->len >= n);                                                \
+    X out = A->array[A->len-1];                                         \
+    resize_##A(A, (A->len -= n));                                       \
+    return out;                                                         \
+  }                                                                     \
+  usize A##_write(TYPE(A)* A, usize n, X* buf) {                        \
+    usize off = A->len;                                                 \
+    resize_##A(A, (A->len += n));                                       \
+    memcpy(A->array+off, buf, n * sizeof(X));                           \
+    return off;                                                         \
   }
 
 ALIST_API(bytes, ubyte, 32);

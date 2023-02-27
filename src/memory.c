@@ -95,11 +95,19 @@ void trace_symbol(void* ptr) {
   mark_object(sym->right);
 }
 
+void trace_list(void* ptr) {
+  list_t* list = ptr;
+
+  mark_value(list->head);
+  mark_object(list->tail);
+}
+
 void trace_object(void* ptr) {
   object_t* obj = ptr;
 
   switch (obj->type) {
     case SYMBOL: trace_symbol(ptr); break;
+    case LIST:   trace_list(ptr);   break;
     default: break;
   }
 
@@ -128,16 +136,23 @@ void free_symbol(void* ptr) {
 
 void free_object(void* ptr) {
   object_t* obj = ptr;
+  usize obsize;
 
   switch(obj->type) {
     case SYMBOL:
       free_symbol(ptr);
-      deallocate(ptr, sizeof(symbol_t));
+      obsize = sizeof(symbol_t);
+      break;
+
+    case LIST:
+      obsize = sizeof(list_t);
       break;
 
     default:
       break;
   }
+
+  deallocate(ptr, obsize);
 }
 
 void sweep_objects(void) {

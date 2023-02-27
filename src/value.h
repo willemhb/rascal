@@ -94,4 +94,8 @@ value_t symbol(char* name);
 value_t cons(value_t head, list_t* tail);
 value_t list(usize n, value_t* args);
 
+// accessors ------------------------------------------------------------------
+value_t nth_hd(list_t* xs, usize n);
+list_t *nth_tl(list_t* xs, usize n);
+
 #endif
