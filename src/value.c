@@ -10,12 +10,15 @@ uword     SymbolCounter = 1;
 symbol_t* SymbolTable = NULL;
 
 extern object_t *LiveObjects;
+value_t Unbound = UNBOUND;
 
 // values ---------------------------------------------------------------------
 // general --------------------------------------------------------------------
 type_t type_of(value_t val) {
   switch (tag_of(val)) {
+    case FIXNUMTAG: return FIXNUM;
     case NUL:       return UNIT;
+    case BOOLTAG:   return BOOL;
     case NATIVETAG: return NATIVE;
     case OBJTAG:    return as_object(val)->type;
     default:        return REAL;
@@ -23,23 +26,62 @@ type_t type_of(value_t val) {
 }
 
 char* type_name_of(value_t val) {
+  return type_name_of_type(type_of(val));
+}
+
+char* type_name_of_type(type_t t) {
   static char* type_names[] = {
     [UNIT]   = "unit",
+    [BOOL]   = "bool",
     [NATIVE] = "native",
     [REAL]   = "real",
     [SYMBOL] = "symbol",
     [LIST]   = "list"
   };
 
-  return type_names[type_of(val)];
+  return type_names[t];
 }
 
 bool is_real(value_t val) {
   return (val&QNAN) != QNAN;
 }
 
+bool is_native(value_t val) {
+  return type_of(val) == NATIVE;
+}
+
+bool is_unit(value_t val) {
+  return val == NUL;
+}
+
+bool is_bool(value_t val) {
+  return type_of(val) == BOOL;
+}
+
 bool is_object(value_t val) {
   return tag_of(val) == OBJTAG;
+}
+
+bool is_symbol(value_t val) {
+  return type_of(val) == SYMBOL;
+}
+
+bool is_list(value_t val) {
+  return type_of(val) == LIST;
+}
+
+bool is_binary(value_t val) {
+  return type_of(val) == BINARY;
+}
+
+bool is_function(value_t val) {
+  return is_native(val);
+}
+
+bool is_number(value_t val) {
+  type_t type = type_of(val);
+
+  return type == REAL || type == FIXNUM;
 }
 
 value_t tag_ptr(void* p, uword t) {
@@ -67,7 +109,7 @@ void* as_ptr(value_t val) {
 }
 
 // object apis ----------------------------------------------------------------
-static void init_object(object_t *object, type_t type, flags fl) {
+static void init_object(object_t* object, type_t type, flags fl) {
   object->next  = LiveObjects;
   LiveObjects   = object;
   object->type  = type;
@@ -78,8 +120,8 @@ static void init_object(object_t *object, type_t type, flags fl) {
 }
 
 // symbol ---------------------------------------------------------------------
-static symbol_t **find_symbol(char* name) {
-  symbol_t **node = &SymbolTable;
+static symbol_t** find_symbol(char* name) {
+  symbol_t** node = &SymbolTable;
 
   while (*node) {
     int o = strcmp(name, (*node)->name);
@@ -102,7 +144,7 @@ static void init_symbol(symbol_t *self, char* name) {
   self->left  = NULL;
   self->right = NULL;
   self->idno  = SymbolCounter++;
-  self->bind  = NUL;
+  self->bind  = Unbound;
   self->name  = strdup(name);
 }
 
@@ -163,9 +205,66 @@ value_t list(usize n, value_t* args) {
   list_t* curr = &out[n-1], *last = &EmptyList;
 
   for (usize i=n; i>0; i--) {
-    init_list(curr, args[n-1], last);
+    init_list(curr, args[i-1], last);
     last = curr--;
   }
 
   return tag_ptr(out, OBJTAG);
+}
+
+value_t nth_hd(list_t* xs, usize n) {
+  assert(n < xs->len);
+
+  while (n--)
+    xs = xs->tail;
+
+  return xs->head;
+}
+
+list_t* nth_tail(list_t* xs, usize n) {
+  assert(n < xs->len);
+
+  while (n--)
+    xs = xs->tail;
+
+  return xs;
+}
+
+// binary ---------------------------------------------------------------------
+binary_t EmptyBinary = {
+  .obj={
+    .next =NULL,
+    .hash =0,
+    .flags=0,
+    .type =BINARY,
+    .gray =false,
+    .black=true
+  },
+  .len=0
+};
+
+static binary_t* allocate_binary(usize n) {
+  return allocate(sizeof(binary_t) + n * sizeof(ubyte));
+}
+
+static void init_binary(binary_t* binary, usize n, value_t* args) {
+  init_object(&binary->obj, BINARY, 0);
+
+  binary->len = n;
+
+  for (usize i=0; i<n; i++)
+    binary->array[n] = (ubyte)as_fixnum(args[i]);
+}
+
+value_t binary(usize n, value_t* args) {
+  binary_t* bin;
+  if (n == 0)
+    bin = &EmptyBinary;
+
+  else {
+    bin = allocate_binary(n);
+    init_binary(bin, n, args);
+  }
+
+  return tag_ptr(bin, OBJTAG);
 }

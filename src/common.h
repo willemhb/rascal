@@ -24,4 +24,6 @@ typedef uint32_t   flags;
 
 #define TYPE(T) T##_t
 
+#define generic _Generic
+
 #endif

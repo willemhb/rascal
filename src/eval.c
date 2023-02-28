@@ -1,15 +1,19 @@
-#include "eval.h"
+#include <stdio.h>
 
+#include "error.h"
+#include "eval.h"
+#include "io.h"
 
 
 // globals --------------------------------------------------------------------
 value_t Stack[N_STACK], *Sp, *Se;
 
+value_t Quote, Put, If, Lmb, Do;
 
 // local helpers --------------------------------------------------------------
 bool is_literal(value_t x) {
   if (is_list(x))
-    return as_list(x)->len > 0;
+    return as_list(x)->len == 0;
 
   if (is_symbol(x))
     return as_symbol(x)->name[0] == ':';
@@ -21,10 +25,16 @@ usize evargs(list_t* args, bool noev) {
   usize n = 0;
 
   while (args->len) {
+    if (panicking()) {
+      popn(n);
+      return 0;
+    }
+
     value_t x = args->head;
     value_t v = noev ? x : eval(x);
     push(v);
     n++;
+    args = args->tail;
   }
 
   return n;
@@ -70,22 +80,76 @@ value_t popn(usize n) {
 
 // interpreter ----------------------------------------------------------------
 value_t eval(value_t x) {
+  repanic(x);
+
   if (is_literal(x))
     return x;
 
-  if (is_symbol(x))
+  if (is_symbol(x)) {
+    require(as_symbol(x)->bind != UNBOUND,
+	    EVAL_ERROR,
+	    NUL,
+	    "unbound symbol '%s",
+	    as_symbol(x)->name);
+ 
     return as_symbol(x)->bind;
+  }
 
   // TODO: apply
-  return apply(eval(as_list(x)->head), as_list(x)->tail, false);
+  value_t h = as_list(x)->head;
+  value_t f = eval(h); repanic(NUL);
+  list_t* a = as_list(x)->tail;
+
+  argtest(is_function, f, "can't apply non-function");
+
+  return apply(f, a, false);
 }
 
 value_t apply(value_t x, list_t* args, bool noev) {
+  assert(is_function(x));
   usize n = evargs(args, noev);
+  repanic(NUL);
   value_t out = invoke(x, n, peep(-n));
   popn(n);
   return out;
 }
 
-value_t invoke(value_t f, usize n, value_t* args);
-void    repl(void);
+value_t invoke(value_t f, usize n, value_t* args) {
+  value_t out;
+  assert(is_function(f));
+  out = as_native(f)(n, args);
+  return out;
+}
+
+#define PROMPT "rascal>"
+
+void repl(void) {
+  value_t a;
+
+  for (;;) {
+    printf(PROMPT" ");
+    value_t x = read();
+    value_t v = recover(&a) ? a : eval(x);
+
+    if (recover(&a))
+      v = a;
+
+#ifdef RASCAL_DEBUG
+    printf("%s> ", type_name_of(v));
+#endif
+
+    print(v);
+    printf("\n");
+  }
+}
+
+// initialization -------------------------------------------------------------
+void eval_init(void) {
+  Quote = symbol("quote");
+  Put   = symbol("put");
+  If    = symbol("if");
+  Lmb   = symbol("lmb");
+  Do    = symbol("do");
+  Sp    = Stack;
+  Se    = Stack+N_STACK;
+}

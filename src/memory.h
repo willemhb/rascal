@@ -17,4 +17,7 @@ void* reallocate(void* ptr, usize old, usize new);
 void  deallocate(void* ptr, usize size);
 void  manage(void);
 
+// initialization -------------------------------------------------------------
+void memory_init(void);
+
 #endif

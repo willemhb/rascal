@@ -24,4 +24,7 @@ value_t  apply(value_t x, list_t* args, bool noev);
 value_t  invoke(value_t f, usize n, value_t* args);
 void     repl(void);
 
+// initialization -------------------------------------------------------------
+void eval_init(void);
+
 #endif

@@ -7,9 +7,10 @@
 #include "number.h"
 #include "htable.h"
 #include "memory.h"
+#include "error.h"
 
 // C types --------------------------------------------------------------------
-typedef void (*reader)(int dispatch, FILE* ios);
+typedef value_t (*reader)(int dispatch, FILE* ios);
 
 typedef enum {
   ready_token,
@@ -25,9 +26,11 @@ int EOS = EOF;
 #define MIN_SUBEXPR   8
 #define MIN_READTABLE 8
 
-buffer_t Buffer  = { NULL, 0, MIN_BUFFER    };
-values_t Subexpr = { NULL, 0, MIN_SUBEXPR   };
-htable_t Reader  = { NULL, 0, MIN_READTABLE };
+buffer_t Buffer         = { NULL, 0, MIN_BUFFER    };
+values_t Subexpr        = { NULL, 0, MIN_SUBEXPR   };
+htable_t Reader         = { NULL, 0, MIN_READTABLE };
+htable_t DispatchReader = { NULL, 0, MIN_READTABLE };
+
 token_t  Token   = ready_token;
 value_t  Expr    = NUL;
 
@@ -37,6 +40,8 @@ value_t  Expr    = NUL;
 #define SYMCHR "$%&^#:?!+-_*/<=>."
 
 // internal helpers -----------------------------------------------------------
+value_t read_expr(FILE* ios);
+
 static void reset_reader(bool total) {
   free_buffer(&Buffer);
   Token = ready_token;
@@ -54,7 +59,6 @@ static char* token(void) {
   return Buffer.array;
 }
 
-
 static value_t take(bool total) {
   value_t expr = Expr;
 
@@ -63,10 +67,11 @@ static value_t take(bool total) {
   return expr;
 }
 
-static void give(value_t val, token_t token) {
+static value_t give(value_t val, token_t token) {
   assert(Token == ready_token);
   Token = token;
   Expr  = val;
+  return Expr;
 }
 
 static bool isrlspace(int ch) {
@@ -95,6 +100,41 @@ static void show_readtable(void) {
   }
 }
 
+static usize read_sequence(FILE* ios, char* type, int term, bool (*test)(value_t x)) {
+  int ch;
+
+  usize n = 0;
+  
+  while ((ch=fpeekc(ios)) != term) {
+    if (ch == EOF) {
+      raise_error(READ_ERROR, NUL, "unexpected EOF reading %s", type);
+      break;
+    }
+
+    value_t expr = read_expr(ios);
+
+    if (panicking())
+      break;
+
+    if (test && !test(expr)) {
+      raise_error(READ_ERROR, NUL, "test failed reading %s", type);
+      break;
+    }
+
+    values_push(&Subexpr, expr);
+    n++;
+  }
+
+  if (panicking()) {
+    values_popn(&Subexpr, n);
+    return 0;
+  }
+
+  fgetc(ios); // clear terminal
+
+  return n;
+}
+
 // API ------------------------------------------------------------------------
 int newln(void) {
   return fnewln(stdin);
@@ -119,10 +159,12 @@ int fpeekc(FILE* ios) {
 }
 
 // interpreter ----------------------------------------------------------------
-void print_real(value_t val)   { printf("%g", as_real(val));         }
-void print_symbol(value_t val) { printf("%s", as_symbol(val)->name); }
-void print_unit(value_t val)   { (void)val; printf("nul");           }
-void print_native(value_t val) { (void)val; printf("#'native");      }
+void print_real(value_t val)   { printf("%g", as_real(val));                 }
+void print_fixnum(value_t val) { printf("%lu", as_fixnum(val));              }
+void print_symbol(value_t val) { printf("%s", as_symbol(val)->name);         }
+void print_unit(value_t val)   { (void)val; printf("nul");                   }
+void print_bool(value_t val)   { printf(val == TRUE_VAL ? "true" : "false"); }
+void print_native(value_t val) { (void)val; printf("#'native");              }
 
 void print_list(value_t val) {
   printf("(");
@@ -141,26 +183,48 @@ void print_list(value_t val) {
   printf(")");
 }
 
+void print_binary(value_t val) {
+  printf("#\"");
+
+  binary_t* bs = as_binary(val);
+
+  for (usize i=0; i<bs->len; i++) {
+    printf(".3%d", bs->array[i]);
+
+    if (i+i < bs->len)
+      printf(" ");
+  }
+
+  printf("\"");
+}
+
 void (*Print[])(value_t val) = {
   [REAL]   = print_real,
+  [FIXNUM] = print_fixnum,
   [UNIT]   = print_unit,
+  [BOOL]   = print_bool,
   [NATIVE] = print_native,
   [SYMBOL] = print_symbol,
-  [LIST]   = print_list
+  [LIST]   = print_list,
+  [BINARY] = print_binary
 };
 
 value_t read_expr(FILE* ios) {
   int ch;
   reader readfn;
 
-  while (!Token) {
+  while (!Token && !panicking()) {
     ch     = fgetc(ios);
     readfn = (reader)reader_get(&Reader, ch);
-    // assert(readfn != NULL);
-    readfn(ch, ios);
+
+    if (readfn == NULL)
+      raise_error(READ_ERROR, NUL, "unrecognized dispatch '%c'", (char)ch);
+
+    else
+      readfn(ch, ios);
   }
 
-  return take(false);
+  return take(panicking());
 }
 
 value_t read(void) {
@@ -175,26 +239,36 @@ void print(value_t val) {
   Print[type_of(val)](val);
 }
 
+value_t read_error(value_t expr) {
+  return give(expr, error_token);
+}
+
 // reader dispatches ----------------------------------------------------------
-void read_space(int ch, FILE* ios) {
-  while (isrlspace(ch))
+value_t read_space(int ch, FILE* ios) {
+  while (isrlspace(ch)) {
     ch = fgetc(ios);
+  }
+
+  assert(!isrlspace(ch));
 
   if (ch != EOF)
     ungetc(ch, ios);
+
+  return NUL;
 }
 
-void read_eof(int ch, FILE* ios) {
+value_t read_eof(int ch, FILE* ios) {
   (void)ch;
   (void)ios;
 
   give(NUL, eof_token);
+  return NUL;
 }
 
-void read_symbol(int ch, FILE* ios) {
+value_t read_symbol(int ch, FILE* ios) {
   accumulate(ch);
 
-  while (issymchar((ch=fgetc(ios))))
+  while (issymchar(ch=fgetc(ios)))
     accumulate(ch);
 
   if (ch != EOF)
@@ -203,46 +277,79 @@ void read_symbol(int ch, FILE* ios) {
   char* t = token();
 
   if (strcmp(t, "nul") == 0)
-    give(NUL, expr_token);
+    return give(NUL, expr_token);
+
+  else if (strcmp(t, "true") == 0)
+    return give(TRUE_VAL, expr_token);
+
+  else if (strcmp(t, "false") == 0)
+    return give(FALSE_VAL, expr_token);
 
   else
-    give(symbol(t), expr_token); 
+    return give(symbol(t), expr_token); 
 }
 
-void read_number(int ch, FILE* ios) {
+value_t read_number(int ch, FILE* ios) {
   accumulate(ch);
 
-  while (issymchar((ch=fgetc(ios))))
+  while (issymchar(ch=fgetc(ios)))
     accumulate(ch);
+
+  if (ch != EOF)
+    ungetc(ch, ios);
 
   char* t  = token(),* tend;
   real_t r = strtod(t, &tend);
 
   if (*tend != '\0')
-    give(symbol(t), expr_token);
+    return give(symbol(t), expr_token);
 
   else
-    give(tag_dbl(r), expr_token);
+    return give(tag_dbl(r), expr_token);
 }
 
-void read_list(int ch, FILE* ios) {
-  usize n = 0; value_t x;
+value_t read_list(int ch, FILE* ios) {
+  (void)ch;
 
-  while ((ch=fpeekc(ios)) != ')') {
-    assert(ch != EOF);
-    x = read_expr(ios);
-    values_push(&Subexpr, x);
-    n++;
+  usize n = read_sequence(ios, "list", ')', NULL);
+  repanic(NUL);
+  value_t x = list(n, &Subexpr.array[Subexpr.len-n]);
+  values_popn(&Subexpr, n);
+  return give(x, expr_token);
+}
+
+value_t read_binary(int ch, FILE* ios) {
+  (void)ch;
+
+  usize n = read_sequence(ios, "binary", '"', is_byte);
+  repanic(NUL);
+  value_t x = binary(n, &Subexpr.array[Subexpr.len-n]);
+  values_popn(&Subexpr, n);
+  return give(x, expr_token);
+}
+
+value_t read_dispatch(int ch, FILE* ios) {
+  reader readfn;
+
+  while (!Token && !panicking()) {
+    ch     = fgetc(ios);
+    readfn = (reader)reader_get(&DispatchReader, ch);
+
+    if (readfn == NULL)
+      raise_error(READ_ERROR, NUL, "unrecognized dispatch '%c'", (char)ch);
+
+    else
+      readfn(ch, ios);
   }
 
-  fgetc(ios); // clear terminal ')'
-
-  x = list(n, &Subexpr.array[Subexpr.len-n]);
-  values_popn(&Subexpr, n);
-  give(x, expr_token);
+  return take(panicking());
 }
 
 // initialization -------------------------------------------------------------
+static void add_dispatch_reader(int ch, reader handler) {
+  reader_set(&Reader, ch, (funcptr)handler);
+}
+
 static void add_reader(int ch, reader handler) {
   reader_set(&Reader, ch, (funcptr)handler);
   // show_readtable();
@@ -259,15 +366,21 @@ void reader_init(void) {
   init_buffer(&Buffer);
   init_values(&Subexpr);
   init_reader(&Reader);
+  init_reader(&DispatchReader);
 
   // add readers --------------------------------------------------------------
+  // toplevel -----------------------------------------------------------------
   add_readers(" \t\n\v\f\r,", read_space);
   add_readers("0123456789", read_number);
   add_readers(UPPER,  read_symbol);
   add_readers(LOWER,  read_symbol);
   add_readers(SYMCHR, read_symbol);
   add_reader('(', read_list);
+  add_reader('#', read_dispatch);
   add_reader(EOF, read_eof);
+
+  // dispatch -----------------------------------------------------------------
+  add_dispatch_reader('"', read_binary);
 
   // show_readtable();
 }
