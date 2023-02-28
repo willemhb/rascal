@@ -17,14 +17,6 @@ bool      Collecting = false;
 objects_t Grays;
 
 // local helpers --------------------------------------------------------------
-static void push_gray(object_t *obj) {
-  objects_push(&Grays, obj);
-}
-
-static object_t *pop_gray(void) {
-  return objects_pop(&Grays);
-}
-
 static void update_heap(usize n) {
   NUsed += n;
   
@@ -64,9 +56,40 @@ void deallocate(void* ptr, usize size) {
 }
 
 // GC internals ---------------------------------------------------------------
-void manage_init(void) {
-  Collecting = true;
+void mark_value(value_t val);
+void mark_object(void* ptr);
+
+void trace_symbol(void* ptr);
+void trace_list(void* ptr);
+void trace_tuple(void* ptr);
+
+void free_symbol(void* ptr);
+void free_tuple(void* ptr);
+void free_binary(void* ptr);
+
+void trace_values(usize n, value_t* vals) {
+  for (usize i=0; i<n; i++)
+    mark_value(vals[i]);
 }
+
+usize ObjSize[NUM_TYPES] = {
+  [SYMBOL] = sizeof(symbol_t),
+  [TUPLE]  = sizeof(tuple_t),
+  [LIST]   = sizeof(list_t),
+  [BINARY] = sizeof(binary_t)
+};
+
+void (*Trace[NUM_TYPES])(void* ptr) = {
+  [SYMBOL] = trace_symbol,
+  [LIST]   = trace_list,
+  [TUPLE]  = trace_tuple
+};
+
+void (*Free[NUM_TYPES])(void* ptr) = {
+  [SYMBOL] = free_symbol,
+  [TUPLE]  = free_tuple,
+  [BINARY] = free_binary
+};
 
 void mark_object(void* ptr) {
   object_t* obj = ptr;
@@ -79,7 +102,11 @@ void mark_object(void* ptr) {
 
   obj->black = true;
 
-  push_gray(obj);
+  if (Trace[obj->type])
+    objects_push(&Grays, obj);
+
+  else
+    obj->gray = false;
 }
 
 void mark_value(value_t val) {
@@ -102,16 +129,14 @@ void trace_list(void* ptr) {
   mark_object(list->tail);
 }
 
-void trace_object(void* ptr) {
-  object_t* obj = ptr;
+void trace_tuple(void* ptr) {
+  tuple_t* tuple = ptr;
 
-  switch (obj->type) {
-    case SYMBOL: trace_symbol(ptr); break;
-    case LIST:   trace_list(ptr);   break;
-    default: break;
-  }
+  trace_values(tuple->len, tuple->slots);
+}
 
-  obj->gray = false;
+void manage_init(void) {
+  Collecting = true;
 }
 
 void mark_roots(void) {
@@ -122,9 +147,11 @@ void mark_roots(void) {
 
 void trace_grays(void) {
   while (Grays.len > 0) {
-    object_t* next_obj = pop_gray();
+    object_t* next_obj = objects_pop(&Grays);
 
-    trace_object(next_obj);
+    Trace[next_obj->type](next_obj);
+
+    next_obj->gray = false;
   }
 }
 
@@ -132,27 +159,29 @@ void free_symbol(void* ptr) {
   symbol_t* sym = ptr;
 
   deallocate(sym->name, strlen(sym->name)+1);
+  deallocate(sym, sizeof(symbol_t));
+}
+
+void free_tuple(void* ptr) {
+  tuple_t* tup = ptr;
+  assert(tup != &EmptyTuple);
+  deallocate(ptr, sizeof(tuple_t) + tup->len * sizeof(value_t));
+}
+
+void free_binary(void* ptr) {
+  binary_t* bin = ptr;
+  assert(ptr != &EmptyBinary);
+  deallocate(ptr, sizeof(binary_t) + bin->len * sizeof(ubyte));
 }
 
 void free_object(void* ptr) {
   object_t* obj = ptr;
-  usize obsize;
 
-  switch(obj->type) {
-    case SYMBOL:
-      free_symbol(ptr);
-      obsize = sizeof(symbol_t);
-      break;
+  if (Free[obj->type])
+    Free[obj->type](obj);
 
-    case LIST:
-      obsize = sizeof(list_t);
-      break;
-
-    default:
-      break;
-  }
-
-  deallocate(ptr, obsize);
+  else
+    deallocate(ptr, ObjSize[obj->type]);
 }
 
 void sweep_objects(void) {

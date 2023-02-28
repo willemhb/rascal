@@ -29,10 +29,19 @@ typedef union {
     _x < _y ? _y : _x;                          \
   })
 
+#define CMP(x, y)                                \
+  ({                                             \
+    __auto_type _x = x;                          \
+    __auto_type _y = y;                          \
+    int _r = 0;                                  \
+    if (_x < _y) _r = -1;                        \
+    if (_x > _y) _r =  1;                        \
+    _r;                                          \
+  })
+
 // API ------------------------------------------------------------------------
 uword  dtow(double dbl);
 double wtod(uword word);
 uword  ceil2(uword word);
-uword  hash_uword(uword word);
 
 #endif

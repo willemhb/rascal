@@ -4,6 +4,11 @@
 // globals --------------------------------------------------------------------
 value_t TypeNames[NUM_TYPES];
 
+// local helpers --------------------------------------------------------------
+static bool is_nonzero(value_t val) {
+  return is_number(val) && as_number(val) != 0;
+}
+
 // API ------------------------------------------------------------------------
 void define_native(char* name, native_t native) {
   value_t s = symbol(name);
@@ -15,52 +20,52 @@ void define_native(char* name, native_t native) {
 // arithmetic -----------------------------------------------------------------
 value_t native_add(usize n, value_t* args) {
   argco(2, n);
-  argtype(REAL, args[0]);
-  argtype(REAL, args[1]);
+  argtest(is_number, args[0], "not a number");
+  argtest(is_number, args[1], "not a number");
 
-  return tag_dbl(as_real(args[0]) + as_real(args[1]));
+  return tag_dbl(as_number(args[0]) + as_number(args[1]));
 }
 
 value_t native_sub(usize n, value_t* args) {
   argco(2, n);
-  argtype(REAL, args[0]);
-  argtype(REAL, args[1]);
+  argtest(is_number, args[0], "not a number");
+  argtest(is_number, args[1], "not a number");
 
-  return tag_dbl(as_real(args[0]) - as_real(args[1]));
+  return tag_dbl(as_number(args[0]) - as_number(args[1]));
 }
 
 value_t native_mul(usize n, value_t* args) {
   argco(2, n);
-  argtype(REAL, args[0]);
-  argtype(REAL, args[1]);
+  argtest(is_number, args[0], "not a number");
+  argtest(is_number, args[1], "not a number");
 
-  return tag_dbl(as_real(args[0]) * as_real(args[1]));
+  return tag_dbl(as_number(args[0]) * as_number(args[1]));
 }
 
 value_t native_div(usize n, value_t* args) {
   argco(2, n);
-  argtype(REAL, args[0]);
-  argtype(REAL, args[1]);
-  argval_c(0, args[1], "0.00");
+  argtest(is_number,  args[0], "not a number");
+  argtest(is_number,  args[1], "not a number");
+  argtest(is_nonzero, args[1], "0 in divisor");
 
-  return tag_dbl(as_real(args[0]) / as_real(args[1]));
+  return tag_dbl(as_number(args[0]) / as_number(args[1]));
 }
 
 
 value_t native_eqp(usize n, value_t* args) {
   argco(2, n);
-  argtype(REAL, args[0]);
-  argtype(REAL, args[1]);
+  argtest(is_number, args[0], "not a number");
+  argtest(is_number, args[1], "not a number");
 
-  return args[0] == args[1] ? TRUE_VAL : FALSE_VAL;
+  return as_number(args[0]) == as_number(args[1]) ? TRUE_VAL : FALSE_VAL;
 }
 
 value_t native_ltp(usize n, value_t* args) {
   argco(2, n);
-  argtype(REAL, args[0]);
-  argtype(REAL, args[1]);
+  argtest(is_number, args[0], "not a number");
+  argtest(is_number, args[1], "not a number");
 
-  return as_real(args[0]) < as_real(args[1]) ? TRUE_VAL : FALSE_VAL;
+  return as_number(args[0]) < as_number(args[1]) ? TRUE_VAL : FALSE_VAL;
 }
 
 // constructors ---------------------------------------------------------------
@@ -70,7 +75,7 @@ value_t native_list(usize n, value_t* args) {
 
 value_t native_binary(usize n, value_t* args) {
   for (usize i=0; i<n; i++)
-    argtest(is_byte, args[i], "000-255");
+    argtest(is_byte, args[i], "not a number in the range 000-255");
 
   return binary(n, args);
 }

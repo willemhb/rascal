@@ -104,7 +104,7 @@ static usize read_sequence(FILE* ios, char* type, int term, bool (*test)(value_t
   int ch;
 
   usize n = 0;
-  
+
   while ((ch=fpeekc(ios)) != term) {
     if (ch == EOF) {
       raise_error(READ_ERROR, NUL, "unexpected EOF reading %s", type);
@@ -189,7 +189,7 @@ void print_binary(value_t val) {
   binary_t* bs = as_binary(val);
 
   for (usize i=0; i<bs->len; i++) {
-    printf(".3%d", bs->array[i]);
+    printf("%.3d", bs->array[i]);
 
     if (i+i < bs->len)
       printf(" ");
@@ -286,7 +286,7 @@ value_t read_symbol(int ch, FILE* ios) {
     return give(FALSE_VAL, expr_token);
 
   else
-    return give(symbol(t), expr_token); 
+    return give(symbol(t), expr_token);
 }
 
 value_t read_number(int ch, FILE* ios) {
@@ -299,13 +299,24 @@ value_t read_number(int ch, FILE* ios) {
     ungetc(ch, ios);
 
   char* t  = token(),* tend;
-  real_t r = strtod(t, &tend);
 
-  if (*tend != '\0')
-    return give(symbol(t), expr_token);
+  if (strchr(t, '.')) {
+    real_t r = strtod(t, &tend);
+
+    if (*tend != '\0')
+      return give(symbol(t), expr_token);
 
   else
     return give(tag_dbl(r), expr_token);
+  } else {
+    fixnum_t f = strtol(t, &tend, 10);
+
+    if (*tend != '\0')
+      return give(symbol(t), expr_token);
+
+    else
+      return give(tag_word(f, FIXNUMTAG), expr_token);
+  }
 }
 
 value_t read_list(int ch, FILE* ios) {
@@ -342,12 +353,12 @@ value_t read_dispatch(int ch, FILE* ios) {
       readfn(ch, ios);
   }
 
-  return take(panicking());
+  return Expr;
 }
 
 // initialization -------------------------------------------------------------
 static void add_dispatch_reader(int ch, reader handler) {
-  reader_set(&Reader, ch, (funcptr)handler);
+  reader_set(&DispatchReader, ch, (funcptr)handler);
 }
 
 static void add_reader(int ch, reader handler) {

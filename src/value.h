@@ -12,6 +12,7 @@ typedef value_t  (*native_t)(usize n, value_t* args);
 
 typedef struct object_t object_t;
 typedef struct symbol_t symbol_t;
+typedef struct tuple_t  tuple_t;
 typedef struct list_t   list_t;
 typedef struct binary_t binary_t;
 
@@ -22,6 +23,7 @@ typedef enum {
   REAL,
   FIXNUM,
   SYMBOL,
+  TUPLE,
   LIST,
   BINARY
 } type_t;
@@ -47,6 +49,12 @@ struct symbol_t {
   char*     name;
   value_t   bind;
   uword     idno;
+};
+
+struct tuple_t {
+  HEADER;
+  usize   len;
+  value_t slots[];
 };
 
 struct list_t {
@@ -83,6 +91,7 @@ struct binary_t {
 
 #define NUM_TYPES (BINARY+1)
 
+extern tuple_t  EmptyTuple;
 extern list_t   EmptyList;
 extern binary_t EmptyBinary;
 
@@ -93,10 +102,10 @@ char*   type_name_of(value_t val);
 char*   type_name_of_type(type_t type);
 
 #define type_name(x)							\
-  generic((x),								\
-	  int: type_name_of_type,					\
-	  type_t:type_name_of_type,					\
-	  value_t:type_name_of)(x)
+  generic((x),                                  \
+          int: type_name_of_type,               \
+          type_t:type_name_of_type,             \
+          value_t:type_name_of)(x)
 
 bool    is_real(value_t val);
 bool    is_fixnum(value_t val);
@@ -105,6 +114,7 @@ bool    is_unit(value_t val);
 bool    is_bool(value_t val);
 bool    is_object(value_t val);
 bool    is_symbol(value_t val);
+bool    is_tuple(value_t val);
 bool    is_list(value_t val);
 bool    is_binary(value_t val);
 
@@ -121,16 +131,21 @@ real_t  as_number(value_t val);
 real_t  as_real(value_t val);
 void*   as_ptr(value_t val);
 
+bool    has_flag(void* ptr, flags fl);
+bool    set_flag(void* ptr, flags fl);
+
 #define as_bool(x)   ((x)==TRUE_VAL)
-#define as_fixnum(x) as_word(x)
+#define as_fixnum(x) ((fixnum_t)as_word(x))
+#define as_native(x) ((native_t)as_ptr(x))
 #define as_object(x) ((object_t*)as_ptr(x))
 #define as_symbol(x) ((symbol_t*)as_ptr(x))
-#define as_native(x) ((native_t)as_ptr(x))
+#define as_tuple(x)  ((tuple_t*)as_ptr(x))
 #define as_list(x)   ((list_t*)as_ptr(x))
 #define as_binary(x) ((binary_t*)as_ptr(x))
 
 // constructors ---------------------------------------------------------------
 value_t symbol(char* name);
+value_t tuple(usize n, value_t* args);
 value_t cons(value_t head, list_t* tail);
 value_t list(usize n, value_t* args);
 value_t binary(usize n, value_t* args);

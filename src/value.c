@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <string.h>
 
 #include "value.h"
@@ -35,8 +36,11 @@ char* type_name_of_type(type_t t) {
     [BOOL]   = "bool",
     [NATIVE] = "native",
     [REAL]   = "real",
+    [FIXNUM] = "fixnum",
     [SYMBOL] = "symbol",
-    [LIST]   = "list"
+    [TUPLE]  = "tuple",
+    [LIST]   = "list",
+    [BINARY] = "binary"
   };
 
   return type_names[t];
@@ -44,6 +48,10 @@ char* type_name_of_type(type_t t) {
 
 bool is_real(value_t val) {
   return (val&QNAN) != QNAN;
+}
+
+bool is_fixnum(value_t val) {
+  return type_of(val) == FIXNUM;
 }
 
 bool is_native(value_t val) {
@@ -74,6 +82,10 @@ bool is_binary(value_t val) {
   return type_of(val) == BINARY;
 }
 
+bool is_byte(value_t val) {
+  return is_fixnum(val) && as_fixnum(val) <= UINT8_MAX;
+}
+
 bool is_function(value_t val) {
   return is_native(val);
 }
@@ -102,6 +114,13 @@ real_t as_real(value_t val) {
 
 uword as_word(value_t val) {
   return val_of(val);
+}
+
+real_t as_number(value_t val) {
+  if (is_real(val))
+    return as_real(val);
+
+  return as_fixnum(val);
 }
 
 void* as_ptr(value_t val) {
@@ -247,17 +266,18 @@ static binary_t* allocate_binary(usize n) {
   return allocate(sizeof(binary_t) + n * sizeof(ubyte));
 }
 
-static void init_binary(binary_t* binary, usize n, value_t* args) {
-  init_object(&binary->obj, BINARY, 0);
+static void init_binary(binary_t* bin, usize n, value_t* args) {
+  init_object(&bin->obj, BINARY, 0);
 
-  binary->len = n;
+  bin->len = n;
 
   for (usize i=0; i<n; i++)
-    binary->array[n] = (ubyte)as_fixnum(args[i]);
+    bin->array[i] = as_fixnum(args[i]);
 }
 
 value_t binary(usize n, value_t* args) {
   binary_t* bin;
+
   if (n == 0)
     bin = &EmptyBinary;
 
@@ -267,4 +287,46 @@ value_t binary(usize n, value_t* args) {
   }
 
   return tag_ptr(bin, OBJTAG);
+}
+
+// tuple ----------------------------------------------------------------------
+tuple_t EmptyTuple = {
+  .obj={
+    .next=NULL,
+    .hash=0,
+    .flags=0,
+    .type=TUPLE,
+    .black=true,
+    .gray=false
+  },
+  .len=0
+};
+
+static tuple_t* allocate_tuple(usize n) {
+  assert(n > 0);
+
+  return allocate(sizeof(tuple_t) + n * sizeof(value_t));
+}
+
+static void init_tuple(tuple_t* self, usize n, value_t* args) {
+  assert(n > 0);
+  assert(self != &EmptyTuple);
+
+  init_object(&self->obj, TUPLE, 0);
+  self->len = n;
+  memcpy(self->slots, args, n*sizeof(value_t));
+}
+
+value_t tuple(usize n, value_t* args) {
+  tuple_t* tup;
+
+  if (n == 0)
+    tup = &EmptyTuple;
+
+  else {
+    tup = allocate_tuple(n);
+    init_tuple(tup, n, args);
+  }
+
+  return tag_ptr(tup, OBJTAG);
 }

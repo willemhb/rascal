@@ -16,10 +16,10 @@ typedef uint32_t   flags;
 #define RASCAL_DEBUG
 
 // utilities ------------------------------------------------------------------
-#define FAIL(status, msg, ...)					\
-  do {								\
+#define FAIL(status, msg, ...)                              \
+  do {                                                      \
     fprintf(stderr, msg".\n" __VA_OPT__(,) __VA_ARGS__);	\
-    exit(status);						\
+    exit(status);                                           \
   } while (false)
 
 #define TYPE(T) T##_t
