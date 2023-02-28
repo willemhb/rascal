@@ -198,6 +198,21 @@ void print_binary(value_t val) {
   printf("\"");
 }
 
+void print_tuple(value_t val) {
+  printf("[");
+
+  tuple_t* xs = as_tuple(val);
+
+  for (usize i=0; i<xs->len; i++) {
+    print(xs->slots[i]);
+
+    if (i+1 < xs->len)
+      printf(" ");
+  }
+
+  printf("]");
+}
+
 void (*Print[])(value_t val) = {
   [REAL]   = print_real,
   [FIXNUM] = print_fixnum,
@@ -205,6 +220,7 @@ void (*Print[])(value_t val) = {
   [BOOL]   = print_bool,
   [NATIVE] = print_native,
   [SYMBOL] = print_symbol,
+  [TUPLE]  = print_tuple,
   [LIST]   = print_list,
   [BINARY] = print_binary
 };
@@ -319,6 +335,16 @@ value_t read_number(int ch, FILE* ios) {
   }
 }
 
+value_t read_tuple(int ch, FILE* ios) {
+  (void)ch;
+
+  usize n = read_sequence(ios, "tuple", ']', NULL);
+  repanic(NUL);
+  value_t x = tuple(n, &Subexpr.array[Subexpr.len-n]);
+  values_popn(&Subexpr, n);
+  return give(x, expr_token);
+}
+
 value_t read_list(int ch, FILE* ios) {
   (void)ch;
 
@@ -387,6 +413,7 @@ void reader_init(void) {
   add_readers(LOWER,  read_symbol);
   add_readers(SYMCHR, read_symbol);
   add_reader('(', read_list);
+  add_reader('[', read_tuple);
   add_reader('#', read_dispatch);
   add_reader(EOF, read_eof);
 

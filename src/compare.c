@@ -85,10 +85,9 @@ int compare(value_t x, value_t y) {
 uhash hash(value_t x) {
   type_t xt = type_of(x);
 
-  if (Hash[xt])
-    return Hash[xt](x);
+  uhash out = Hash[xt] ? Hash[xt](x) : hash_uword(x);
 
-  return hash_uword(x);
+  return out & VAL_MASK; // compress into 48 bits
 }
 
 // equal methods --------------------------------------------------------------
@@ -250,7 +249,6 @@ uhash hash_list(value_t x) {
 
   return lx->obj.hash;
 }
-
 
 uhash hash_binary(value_t x) {
   binary_t* bin = as_binary(x);
