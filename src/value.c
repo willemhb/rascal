@@ -127,6 +127,23 @@ void* as_ptr(value_t val) {
   return (void*)val_of(val);
 }
 
+bool has_flag(void* ptr, flags fl) {
+  assert(ptr);
+
+  object_t* obj = ptr;
+
+  return !!(obj->flags&fl);
+}
+
+bool set_flag(void* ptr, flags fl) {
+  assert(ptr);
+  
+  bool out = !has_flag(ptr, fl);
+
+  ((object_t*)ptr)->flags |= fl;
+  return out;
+}
+
 // object apis ----------------------------------------------------------------
 static void init_object(object_t* object, type_t type, flags fl) {
   object->next  = LiveObjects;
@@ -329,4 +346,14 @@ value_t tuple(usize n, value_t* args) {
   }
 
   return tag_ptr(tup, OBJTAG);
+}
+
+// vector ---------------------------------------------------------------------
+value_t vector_ref(vector_t* xs, usize n) {
+  while (xs->height) {
+    usize i = xs->bitmap >> xs->height*6 & 0x3f;
+    xs      = as_vector(xs->array[i]);
+  }
+
+  return xs->array[n&0x3f];
 }

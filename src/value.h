@@ -14,6 +14,7 @@ typedef struct object_t object_t;
 typedef struct symbol_t symbol_t;
 typedef struct tuple_t  tuple_t;
 typedef struct list_t   list_t;
+typedef struct vector_t vector_t;
 typedef struct binary_t binary_t;
 
 typedef enum {
@@ -25,6 +26,7 @@ typedef enum {
   SYMBOL,
   TUPLE,
   LIST,
+  VECTOR,
   BINARY
 } type_t;
 
@@ -62,6 +64,15 @@ struct list_t {
   usize   len;
   value_t head;
   list_t* tail;
+};
+
+struct vector_t {
+  HEADER;
+  usize arity  : 48;
+  usize height :  8;
+  usize length :  8;
+  usize bitmap;
+  value_t array[];
 };
 
 struct binary_t {
@@ -116,6 +127,7 @@ bool    is_object(value_t val);
 bool    is_symbol(value_t val);
 bool    is_tuple(value_t val);
 bool    is_list(value_t val);
+bool    is_vector(value_t val);
 bool    is_binary(value_t val);
 
 bool    is_byte(value_t val);
@@ -141,6 +153,7 @@ bool    set_flag(void* ptr, flags fl);
 #define as_symbol(x) ((symbol_t*)as_ptr(x))
 #define as_tuple(x)  ((tuple_t*)as_ptr(x))
 #define as_list(x)   ((list_t*)as_ptr(x))
+#define as_vector(x) ((vector_t*)as_ptr(x))
 #define as_binary(x) ((binary_t*)as_ptr(x))
 
 // constructors ---------------------------------------------------------------
@@ -148,10 +161,13 @@ value_t symbol(char* name);
 value_t tuple(usize n, value_t* args);
 value_t cons(value_t head, list_t* tail);
 value_t list(usize n, value_t* args);
+value_t vector(usize n, value_t* args);
 value_t binary(usize n, value_t* args);
 
 // accessors ------------------------------------------------------------------
 value_t nth_hd(list_t* xs, usize n);
 list_t *nth_tl(list_t* xs, usize n);
+
+value_t vector_ref(vector_t* xs, usize n);
 
 #endif

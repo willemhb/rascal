@@ -14,7 +14,7 @@
 // startup --------------------------------------------------------------------
 #define MAJOR       0
 #define MINOR       0
-#define DEVELOPMENT 3
+#define DEVELOPMENT 4
 #define PATCH       "a"
 #define VERSION     "%d.%d.%d.%s"
 
