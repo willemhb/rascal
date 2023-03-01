@@ -234,7 +234,7 @@ static void init_symbol(symbol_t *self, char* name) {
   self->left  = NULL;
   self->right = NULL;
   self->idno  = SymbolCounter++;
-  self->bind  = Unbound;
+  self->bind  = UNBOUND;
   self->name  = strdup(name);
 }
 
@@ -334,8 +334,49 @@ vector_t EmptyVector = {
     .black=true
   },
   .len =0,
-  .vals=NULL
+  .vals=&EmptyStencil
 };
+
+static vector_t* allocate_vector(void) {
+  return allocate(sizeof(vector_t));
+}
+
+static void calc_vector_dim(usize n, usize* ns, usize* mh) {
+  *ns = 0;
+  *mh = 0;
+
+  while (n) {
+    if (n & 63)
+      (*ns)++;
+
+    (*ns) += (n >>= 6);
+
+    if (n)
+      (*mh)++;
+  }
+}
+
+value_t vector(usize n, value_t* args) {
+  vector_t* vec;
+
+  if (n == 0)
+    vec = &EmptyVector;
+
+  else {
+    usize ns, mh;
+    calc_vector_dim(n, &ns, &mh);
+    
+  }
+
+  return tag_ptr(vec, OBJTAG);
+}
+
+static void init_vector(vector_t* self, usize n, stencil_t* st) {
+  init_object((object_t*)self, VECTOR, 0);
+
+  self->len  = n;
+  self->vals = st;
+}
 
 value_t vector_ref(vector_t* xs, usize n) {
   assert(n < xs->len);
@@ -353,14 +394,60 @@ value_t vector_ref(vector_t* xs, usize n) {
 }
 
 vector_t* vector_set(vector_t* xs, usize n, value_t val) {
-  assert(n < xs->len);
+  assert(n <= xs->len);
 
-  
+  stencil_t* sbuffer[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+  usize      ibuffer[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+  stencil_t* st         = xs->vals;
+  usize      maxheight  = stencil_height(st);
+
+  for (usize i=0; i < maxheight; i++) {
+    sbuffer[i] = st;
+    ibuffer[i] = stencil_lidx(st, n);
+    st         = as_stencil(stencil_nth(st, ibuffer[i]));
+  }
+
+  st = stencil_update(st, 0, 1 << (n & 63), &val);
+
+  for (usize i=maxheight; i > 0; i--) {
+    val          = tag_ptr(st, OBJTAG);
+    sbuffer[i-1] = stencil_update(sbuffer[i-1], 0, 1 << (ibuffer[i-1] & 63), &val);
+    st           = sbuffer[i-1];
+  }
+
+  vector_t* out = allocate_vector();
+  init_vector(out, xs->len + n == xs->len, st);
+
+  return out;
 }
 
-vector_t* vector_del(vector_t* xs, usize n);
-vector_t* vector_add(vector_t* xs, value_t val);
-vector_t* vector_rmv(vector_t* xs);
+vector_t* vector_del(vector_t* xs, usize n) {
+    assert(n < xs->len);
+
+  stencil_t* sbuffer[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+  usize      ibuffer[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+  stencil_t* st         = xs->vals;
+  usize      maxheight  = stencil_height(st);
+
+  for (usize i=0; i < maxheight; i++) {
+    sbuffer[i] = st;
+    ibuffer[i] = stencil_lidx(st, n);
+    st         = as_stencil(stencil_nth(st, ibuffer[i]));
+  }
+
+  st = stencil_update(st, 1 << (n & 63), 0, NULL);
+
+  for (usize i=maxheight; i > 0; i--) {
+    value_t val  = tag_ptr(st, OBJTAG);
+    sbuffer[i-1] = stencil_update(sbuffer[i-1], 0, 1 << (ibuffer[i-1] & 63), &val);
+    st           = sbuffer[i-1];
+  }
+
+  vector_t* out = allocate_vector();
+  init_vector(out, xs->len + n == xs->len, st);
+
+  return out;
+}
 
 // binary ---------------------------------------------------------------------
 binary_t EmptyBinary = {

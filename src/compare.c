@@ -11,6 +11,7 @@ bool  equal_vectors(value_t x, value_t y);
 bool  equal_binaries(value_t x, value_t y);
 bool  equal_stencils(value_t x, value_t y);
 
+
 int   compare_bools(value_t x, value_t y);
 int   compare_reals(value_t x, value_t y);
 int   compare_fixnums(value_t x, value_t y);

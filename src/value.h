@@ -30,7 +30,7 @@ typedef enum {
   LIST,
   VECTOR,
   BINARY,
-  STENCIL,  // internal bitmapped vector type
+  STENCIL,  // internal HAMT node type
   ANY
 } type_t;
 
@@ -201,16 +201,14 @@ value_t stencil(usize n, value_t* args);
 value_t nth_hd(list_t* xs, usize n);
 list_t* nth_tl(list_t* xs, usize n);
 
-value_t vector_ref(vector_t* xs, usize n);
+value_t   vector_ref(vector_t* xs, usize n);
 vector_t* vector_set(vector_t* xs, usize n, value_t val);
 vector_t* vector_del(vector_t* xs, usize n);
-vector_t* vector_add(vector_t* xs, value_t val);
-vector_t* vector_rmv(vector_t* xs);
 
-usize stencil_len(stencil_t* xs);
-bool stencil_has(stencil_t* xs, usize i);
-value_t stencil_nth(stencil_t* xs, usize n);
-value_t stencil_ref(stencil_t* xs, usize i);
+usize      stencil_len(stencil_t* xs);
+bool       stencil_has(stencil_t* xs, usize i);
+value_t    stencil_nth(stencil_t* xs, usize n);
+value_t    stencil_ref(stencil_t* xs, usize i);
 stencil_t* stencil_update(stencil_t* xs, usize rmv, usize add, value_t* args);
 
 #endif
