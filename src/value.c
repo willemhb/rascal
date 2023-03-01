@@ -11,7 +11,6 @@ uword     SymbolCounter = 1;
 symbol_t* SymbolTable = NULL;
 
 extern object_t *LiveObjects;
-value_t Unbound = UNBOUND;
 
 // dispatch tables ------------------------------------------------------------
 usize size_of_tuple(void* ptr);
@@ -33,9 +32,28 @@ usize BaseSize[NUM_TYPES] = {
   [SYMBOL]  = sizeof(symbol_t),
   [TUPLE]   = sizeof(tuple_t),
   [LIST]    = sizeof(list_t),
+  [VECTOR]  = sizeof(vector_t),
   [BINARY]  = sizeof(binary_t),
   [STENCIL] = sizeof(stencil_t)
 };
+
+usize size_of_tuple(void* ptr) {
+  tuple_t* tup = ptr;
+
+  return sizeof(tuple_t) + tup->len * sizeof(value_t);
+}
+
+usize size_of_stencil(void* ptr) {
+  stencil_t* st = ptr;
+
+  return sizeof(stencil_t) + stencil_len(st) * sizeof(value_t);
+}
+
+usize size_of_binary(void* ptr) {
+  binary_t* bin = ptr;
+
+  return sizeof(binary_t) + bin->len;
+}
 
 // values ---------------------------------------------------------------------
 // general --------------------------------------------------------------------
@@ -50,13 +68,26 @@ type_t type_of(value_t val) {
   }
 }
 
-usize size_of(value_t val) {
+usize size_of_type(type_t type) {
+  return BaseSize[type];
+}
+
+usize size_of_val(value_t val) {
   type_t t = type_of(val);
 
   if (SizeOf[t])
     return SizeOf[t](as_object(val));
 
-  return BaseSize[t];
+  return size_of_type(t);
+}
+
+usize size_of_obj(void* ptr) {
+  object_t* obj = ptr;
+
+  if (SizeOf[obj->type])
+    return SizeOf[obj->type](obj);
+
+  return size_of_type(obj->type);
 }
 
 char* type_name_of(value_t val) {
@@ -74,6 +105,7 @@ char* type_name_of_type(type_t t) {
     [SYMBOL]  = "symbol",
     [TUPLE]   = "tuple",
     [LIST]    = "list",
+    [VECTOR]  = "vector",
     [BINARY]  = "binary",
     [STENCIL] = "stencil",
     [ANY]     = "any"
@@ -287,6 +319,48 @@ list_t* nth_tail(list_t* xs, usize n) {
 
   return xs;
 }
+
+// vector ---------------------------------------------------------------------
+usize stencil_height(stencil_t* st);
+usize stencil_lidx(stencil_t* st, usize n);
+
+vector_t EmptyVector = {
+  .obj={
+    .next =NULL,
+    .hash =0,
+    .flags=0,
+    .type =VECTOR,
+    .gray =false,
+    .black=true
+  },
+  .len =0,
+  .vals=NULL
+};
+
+value_t vector_ref(vector_t* xs, usize n) {
+  assert(n < xs->len);
+
+  stencil_t* st = xs->vals;
+
+  while (stencil_height(st)) {
+    usize h   = st->obj.flags & 7;
+    usize i   = n >> (h * 6) & 63;
+    value_t v = stencil_nth(st, i);
+    st        = as_stencil(v);
+  }
+
+  return stencil_nth(st, n&63);
+}
+
+vector_t* vector_set(vector_t* xs, usize n, value_t val) {
+  assert(n < xs->len);
+
+  
+}
+
+vector_t* vector_del(vector_t* xs, usize n);
+vector_t* vector_add(vector_t* xs, value_t val);
+vector_t* vector_rmv(vector_t* xs);
 
 // binary ---------------------------------------------------------------------
 binary_t EmptyBinary = {

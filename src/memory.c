@@ -35,6 +35,14 @@ void* allocate(usize size) {
   return out;
 }
 
+void* duplicate(void* ptr, usize size) {
+  void* out = allocate(size);
+
+  memcpy(out, ptr, size);
+
+  return out;
+}
+
 void* reallocate(void* ptr, usize old, usize new) {
   if (old > new)
     NUsed -= (old-new);
@@ -62,22 +70,14 @@ void mark_object(void* ptr);
 void trace_symbol(void* ptr);
 void trace_list(void* ptr);
 void trace_tuple(void* ptr);
+void trace_stencil(void* ptr);
 
 void free_symbol(void* ptr);
-void free_tuple(void* ptr);
-void free_binary(void* ptr);
 
 void trace_values(usize n, value_t* vals) {
   for (usize i=0; i<n; i++)
     mark_value(vals[i]);
 }
-
-usize ObjSize[NUM_TYPES] = {
-  [SYMBOL] = sizeof(symbol_t),
-  [TUPLE]  = sizeof(tuple_t),
-  [LIST]   = sizeof(list_t),
-  [BINARY] = sizeof(binary_t)
-};
 
 void (*Trace[NUM_TYPES])(void* ptr) = {
   [SYMBOL] = trace_symbol,
@@ -86,9 +86,7 @@ void (*Trace[NUM_TYPES])(void* ptr) = {
 };
 
 void (*Free[NUM_TYPES])(void* ptr) = {
-  [SYMBOL] = free_symbol,
-  [TUPLE]  = free_tuple,
-  [BINARY] = free_binary
+  [SYMBOL] = free_symbol
 };
 
 void mark_object(void* ptr) {
@@ -135,6 +133,12 @@ void trace_tuple(void* ptr) {
   trace_values(tuple->len, tuple->slots);
 }
 
+void trace_stencil(void* ptr) {
+  stencil_t* st = ptr;
+
+  trace_values(stencil_len(st), st->array);
+}
+
 void manage_init(void) {
   Collecting = true;
 }
@@ -159,19 +163,6 @@ void free_symbol(void* ptr) {
   symbol_t* sym = ptr;
 
   deallocate(sym->name, strlen(sym->name)+1);
-  deallocate(sym, sizeof(symbol_t));
-}
-
-void free_tuple(void* ptr) {
-  tuple_t* tup = ptr;
-  assert(tup != &EmptyTuple);
-  deallocate(ptr, sizeof(tuple_t) + tup->len * sizeof(value_t));
-}
-
-void free_binary(void* ptr) {
-  binary_t* bin = ptr;
-  assert(ptr != &EmptyBinary);
-  deallocate(ptr, sizeof(binary_t) + bin->len * sizeof(ubyte));
 }
 
 void free_object(void* ptr) {
@@ -180,8 +171,7 @@ void free_object(void* ptr) {
   if (Free[obj->type])
     Free[obj->type](obj);
 
-  else
-    deallocate(ptr, ObjSize[obj->type]);
+  deallocate(ptr, size_of(obj));
 }
 
 void sweep_objects(void) {

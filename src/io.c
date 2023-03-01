@@ -74,6 +74,14 @@ static value_t give(value_t val, token_t token) {
   return Expr;
 }
 
+static bool isbindigit(int ch) {
+  return ch == '1' || ch == '0';
+}
+
+static bool isoctdigit(int ch) {
+  return strchr("01234567", ch);
+}
+
 static bool isrlspace(int ch) {
   return isspace(ch) || ch == '\t' || ch == ',';
 }
@@ -213,16 +221,34 @@ void print_tuple(value_t val) {
   printf("]");
 }
 
+void print_stencil(value_t val) {
+  stencil_t* st = as_stencil(val);
+  
+  printf("#stencil<%lxu>(", st->bitmap);
+
+  usize l = stencil_len(st);
+
+  for (usize i=0; i<l; i++) {
+    print(st->array[i]);
+
+    if (i + 1 < l)
+      printf(" ");
+  }
+
+  printf(")");
+}
+
 void (*Print[])(value_t val) = {
-  [REAL]   = print_real,
-  [FIXNUM] = print_fixnum,
-  [UNIT]   = print_unit,
-  [BOOL]   = print_bool,
-  [NATIVE] = print_native,
-  [SYMBOL] = print_symbol,
-  [TUPLE]  = print_tuple,
-  [LIST]   = print_list,
-  [BINARY] = print_binary
+  [REAL]    = print_real,
+  [FIXNUM]  = print_fixnum,
+  [UNIT]    = print_unit,
+  [BOOL]    = print_bool,
+  [NATIVE]  = print_native,
+  [SYMBOL]  = print_symbol,
+  [TUPLE]   = print_tuple,
+  [LIST]    = print_list,
+  [BINARY]  = print_binary,
+  [STENCIL] = print_stencil
 };
 
 value_t read_expr(FILE* ios) {
@@ -335,6 +361,69 @@ value_t read_number(int ch, FILE* ios) {
   }
 }
 
+value_t read_binary_number(int ch, FILE* ios) {
+  usize counter = 0;
+  
+  while (isbindigit(ch=fpeekc(ios))) {
+    accumulate(fgetc(ios));
+    counter++;
+  }
+
+  require(counter,
+          READ_ERROR,
+          NUL,
+          "empty binary literal" );
+
+  char* t = token(),* e;
+  fixnum_t fx = strtol(t, &e, 2);
+
+  assert(*e == '\0');
+
+  return give(tag_word(fx, FIXNUMTAG), expr_token);
+}
+
+value_t read_octal_number(int ch, FILE* ios) {
+  usize counter = 0;
+  
+  while (isoctdigit(ch=fpeekc(ios))) {
+    accumulate(fgetc(ios));
+    counter++;
+  }
+
+  require(counter,
+          READ_ERROR,
+          NUL,
+          "empty octal literal" );
+
+  char* t = token(),* e;
+  fixnum_t fx = strtol(t, &e, 8);
+
+  assert(*e == '\0');
+
+  return give(tag_word(fx, FIXNUMTAG), expr_token);
+}
+
+value_t read_hexadecimal_number(int ch, FILE* ios) {
+  usize counter = 0;
+  
+  while (isxdigit(ch=fpeekc(ios))) {
+    accumulate(fgetc(ios));
+    counter++;
+  }
+
+  require(counter,
+          READ_ERROR,
+          NUL,
+          "empty hexadecimal literal" );
+
+  char* t = token(),* e;
+  fixnum_t fx = strtol(t, &e, 16);
+
+  assert(*e == '\0');
+
+  return give(tag_word(fx, FIXNUMTAG), expr_token);
+}
+
 value_t read_tuple(int ch, FILE* ios) {
   (void)ch;
 
@@ -351,6 +440,16 @@ value_t read_list(int ch, FILE* ios) {
   usize n = read_sequence(ios, "list", ')', NULL);
   repanic(NUL);
   value_t x = list(n, &Subexpr.array[Subexpr.len-n]);
+  values_popn(&Subexpr, n);
+  return give(x, expr_token);
+}
+
+value_t read_vector(int ch, FILE* ios) {
+  (void)ch;
+
+  usize n = read_sequence(ios, "vector", ']', NULL);
+  repanic(NUL);
+  value_t x = vector(n, &Subexpr.array[Subexpr.len-n]);
   values_popn(&Subexpr, n);
   return give(x, expr_token);
 }
@@ -419,6 +518,7 @@ void reader_init(void) {
 
   // dispatch -----------------------------------------------------------------
   add_dispatch_reader('"', read_binary);
+  add_dispatch_reader('[', read_vector);
   add_dispatch_reader('b', read_binary_number);
   add_dispatch_reader('o', read_octal_number);
   add_dispatch_reader('x', read_hexadecimal_number);

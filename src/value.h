@@ -11,10 +11,10 @@ typedef bool       bool_t;
 typedef value_t  (*native_t)(usize n, value_t* args);
 
 typedef struct object_t  object_t;
-typedef struct bigint_t  bigint_t;
 typedef struct symbol_t  symbol_t;
 typedef struct tuple_t   tuple_t;
 typedef struct list_t    list_t;
+typedef struct vector_t  vector_t;
 typedef struct binary_t  binary_t;
 typedef struct stencil_t stencil_t;
 
@@ -23,14 +23,12 @@ typedef enum {
   UNIT,
   BOOL,
   NATIVE,
-  SYSPTR,
   REAL,
   FIXNUM,
-  INT,
-  BIGINT,
   SYMBOL,
   TUPLE,
   LIST,
+  VECTOR,
   BINARY,
   STENCIL,  // internal bitmapped vector type
   ANY
@@ -72,6 +70,12 @@ struct list_t {
   list_t* tail;
 };
 
+struct vector_t {
+  HEADER;
+  usize      len;
+  stencil_t* vals;
+};
+
 struct binary_t {
   HEADER;
   usize  len;
@@ -111,18 +115,33 @@ struct stencil_t {
 
 extern tuple_t   EmptyTuple;
 extern list_t    EmptyList;
+extern vector_t  EmptyVector;
 extern binary_t  EmptyBinary;
 extern stencil_t EmptyStencil;
 
 // API ------------------------------------------------------------------------
 // tags, tagging, types -------------------------------------------------------
 type_t  type_of(value_t val);
-usize   size_of(value_t val);
+usize   size_of_val(value_t val);
+usize   size_of_obj(void* ptr);
+usize   size_of_type(type_t type);
 char*   type_name_of(value_t val);
 char*   type_name_of_type(type_t type);
 bool    has_type(value_t val, type_t type);
 
-#define type_name(x)				\
+#define size_of(x)                              \
+  generic((x),                                  \
+          type_t:size_of_type,                  \
+          value_t:size_of_val,                  \
+          object_t*:size_of_obj,                \
+          symbol_t*:size_of_obj,                \
+          tuple_t*:size_of_obj,                 \
+          list_t*:size_of_obj,                  \
+          vector_t*:size_of_obj,                \
+          binary_t*:size_of_obj,                \
+          stencil_t*:size_of_obj)(x)
+
+#define type_name(x)                            \
   generic((x),                                  \
           int: type_name_of_type,               \
           type_t:type_name_of_type,             \
@@ -154,6 +173,7 @@ bool    del_flag(void* ptr, flags fl);
 #define is_symbol(x)   has_type(x, SYMBOL)
 #define is_tuple(x)    has_type(x, TUPLE)
 #define is_list(x)     has_type(x, LIST)
+#define is_vector(x)   has_type(x, VECTOR)
 #define is_binary(x)   has_type(x, BINARY)
 #define is_stencil(x)  has_type(x, STENCIL)
 
@@ -164,6 +184,7 @@ bool    del_flag(void* ptr, flags fl);
 #define as_symbol(x)  ((symbol_t*)as_ptr(x))
 #define as_tuple(x)   ((tuple_t*)as_ptr(x))
 #define as_list(x)    ((list_t*)as_ptr(x))
+#define as_vector(x)  ((vector_t*)as_ptr(x))
 #define as_binary(x)  ((binary_t*)as_ptr(x))
 #define as_stencil(x) ((stencil_t*)as_ptr(x))
 
@@ -172,6 +193,7 @@ value_t symbol(char* name);
 value_t tuple(usize n, value_t* args);
 value_t cons(value_t head, list_t* tail);
 value_t list(usize n, value_t* args);
+value_t vector(usize n, value_t* args);
 value_t binary(usize n, value_t* args);
 value_t stencil(usize n, value_t* args);
 
@@ -179,10 +201,16 @@ value_t stencil(usize n, value_t* args);
 value_t nth_hd(list_t* xs, usize n);
 list_t* nth_tl(list_t* xs, usize n);
 
-usize      stencil_len(stencil_t* xs);
-bool       stencil_has(stencil_t* xs, usize i);
-value_t    stencil_nth(stencil_t* xs, usize n);
-value_t    stencil_ref(stencil_t* xs, usize i);
+value_t vector_ref(vector_t* xs, usize n);
+vector_t* vector_set(vector_t* xs, usize n, value_t val);
+vector_t* vector_del(vector_t* xs, usize n);
+vector_t* vector_add(vector_t* xs, value_t val);
+vector_t* vector_rmv(vector_t* xs);
+
+usize stencil_len(stencil_t* xs);
+bool stencil_has(stencil_t* xs, usize i);
+value_t stencil_nth(stencil_t* xs, usize n);
+value_t stencil_ref(stencil_t* xs, usize i);
 stencil_t* stencil_update(stencil_t* xs, usize rmv, usize add, value_t* args);
 
 #endif
