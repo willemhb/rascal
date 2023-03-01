@@ -13,6 +13,7 @@
   })
 
 void* allocate(usize size);
+void* duplicate(void* ptr, usize size);
 void* reallocate(void* ptr, usize old, usize new);
 void  deallocate(void* ptr, usize size);
 void  manage(void);

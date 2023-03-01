@@ -13,6 +13,30 @@ symbol_t* SymbolTable = NULL;
 extern object_t *LiveObjects;
 value_t Unbound = UNBOUND;
 
+// dispatch tables ------------------------------------------------------------
+usize size_of_tuple(void* ptr);
+usize size_of_stencil(void* ptr);
+usize size_of_binary(void* ptr);
+
+usize (*SizeOf[NUM_TYPES])(void* ptr) = {
+  [TUPLE]   = size_of_tuple,
+  [STENCIL] = size_of_stencil,
+  [BINARY]  = size_of_binary
+};
+
+usize BaseSize[NUM_TYPES] = {
+  [UNIT]    = sizeof(NUL),
+  [BOOL]    = sizeof(bool_t),
+  [NATIVE]  = sizeof(native_t),
+  [REAL]    = sizeof(real_t),
+  [FIXNUM]  = sizeof(fixnum_t),
+  [SYMBOL]  = sizeof(symbol_t),
+  [TUPLE]   = sizeof(tuple_t),
+  [LIST]    = sizeof(list_t),
+  [BINARY]  = sizeof(binary_t),
+  [STENCIL] = sizeof(stencil_t)
+};
+
 // values ---------------------------------------------------------------------
 // general --------------------------------------------------------------------
 type_t type_of(value_t val) {
@@ -26,60 +50,49 @@ type_t type_of(value_t val) {
   }
 }
 
+usize size_of(value_t val) {
+  type_t t = type_of(val);
+
+  if (SizeOf[t])
+    return SizeOf[t](as_object(val));
+
+  return BaseSize[t];
+}
+
 char* type_name_of(value_t val) {
   return type_name_of_type(type_of(val));
 }
 
 char* type_name_of_type(type_t t) {
   static char* type_names[] = {
-    [UNIT]   = "unit",
-    [BOOL]   = "bool",
-    [NATIVE] = "native",
-    [REAL]   = "real",
-    [FIXNUM] = "fixnum",
-    [SYMBOL] = "symbol",
-    [TUPLE]  = "tuple",
-    [LIST]   = "list",
-    [BINARY] = "binary"
+    [NONE]    = "none",
+    [UNIT]    = "unit",
+    [BOOL]    = "bool",
+    [NATIVE]  = "native",
+    [REAL]    = "real",
+    [FIXNUM]  = "fixnum",
+    [SYMBOL]  = "symbol",
+    [TUPLE]   = "tuple",
+    [LIST]    = "list",
+    [BINARY]  = "binary",
+    [STENCIL] = "stencil",
+    [ANY]     = "any"
   };
 
   return type_names[t];
 }
 
-bool is_real(value_t val) {
-  return (val&QNAN) != QNAN;
-}
-
-bool is_fixnum(value_t val) {
-  return type_of(val) == FIXNUM;
-}
-
-bool is_native(value_t val) {
-  return type_of(val) == NATIVE;
-}
-
-bool is_unit(value_t val) {
-  return val == NUL;
-}
-
-bool is_bool(value_t val) {
-  return type_of(val) == BOOL;
+bool has_type(value_t val, type_t type) {
+  switch (type) {
+    case NONE: return false;
+    case ANY:  return true;
+    case UNIT: return val == NUL;
+    default:   return type_of(val) == type;
+  }
 }
 
 bool is_object(value_t val) {
   return tag_of(val) == OBJTAG;
-}
-
-bool is_symbol(value_t val) {
-  return type_of(val) == SYMBOL;
-}
-
-bool is_list(value_t val) {
-  return type_of(val) == LIST;
-}
-
-bool is_binary(value_t val) {
-  return type_of(val) == BINARY;
 }
 
 bool is_byte(value_t val) {
@@ -128,7 +141,7 @@ void* as_ptr(value_t val) {
 }
 
 bool has_flag(void* ptr, flags fl) {
-  assert(ptr);
+  assert(ptr && (((uword)ptr) & 7) == 0);
 
   object_t* obj = ptr;
 
@@ -136,11 +149,20 @@ bool has_flag(void* ptr, flags fl) {
 }
 
 bool set_flag(void* ptr, flags fl) {
-  assert(ptr);
-  
+  assert(ptr && (((uword)ptr) & 7) == 0);
+
   bool out = !has_flag(ptr, fl);
 
   ((object_t*)ptr)->flags |= fl;
+  return out;
+}
+
+bool del_flag(void* ptr, flags fl) {
+  assert(ptr && (((uword)ptr) & 7) == 0);
+
+  bool out = has_flag(ptr, fl);
+
+  ((object_t*)ptr)->flags &= ~fl;
   return out;
 }
 
@@ -348,12 +370,100 @@ value_t tuple(usize n, value_t* args) {
   return tag_ptr(tup, OBJTAG);
 }
 
-// vector ---------------------------------------------------------------------
-value_t vector_ref(vector_t* xs, usize n) {
-  while (xs->height) {
-    usize i = xs->bitmap >> xs->height*6 & 0x3f;
-    xs      = as_vector(xs->array[i]);
+// stencil --------------------------------------------------------------------
+stencil_t EmptyStencil = {
+  .obj={
+    .next=NULL,
+    .hash=0,
+    .flags=0,
+    .gray=false,
+    .black=true,
+    .type=STENCIL
+  },
+  .bitmap=0
+};
+
+#define MAX_STENCIL_DEPTH 8
+
+stencil_t* allocate_stencil(usize bitmap) {
+  usize l = popcnt(bitmap);
+  assert(l > 0);
+
+  return allocate(sizeof(stencil_t) + l * sizeof(value_t));
+}
+
+void init_stencil(stencil_t* xs, usize h, usize bitmap, value_t* args) {
+  assert(h < 8);
+  assert(popcnt(bitmap) > 0);
+  init_object(&xs->obj, STENCIL, h);
+  xs->bitmap = bitmap;
+  memcpy(xs->array, args, popcnt(bitmap) * sizeof(value_t));
+}
+
+value_t stencil(usize bitmap, value_t* args) {
+  stencil_t* new;
+
+  if (popcnt(bitmap) == 0)
+    new = &EmptyStencil;
+
+  else {
+    new = allocate_stencil(bitmap);
+    init_stencil(new, 0, bitmap, args);
   }
 
-  return xs->array[n&0x3f];
+  return tag_ptr(new, OBJTAG);
+}
+
+usize stencil_height(stencil_t* xs) {
+  return xs->obj.flags & 7;
+}
+
+usize stencil_idx(stencil_t* xs, usize i) {
+  return popcnt(xs->bitmap & ((1 << i) - 1));
+}
+
+
+usize stencil_len(stencil_t* xs) {
+  return popcnt(xs->bitmap);
+}
+
+bool stencil_has(stencil_t* xs, usize i) {
+  return !!(xs->bitmap & ((1 << i)));
+}
+
+value_t stencil_nth(stencil_t* xs, usize n) {
+  assert(n <= 63);
+  assert(n < stencil_len(xs));
+
+  return xs->array[n];
+}
+
+value_t stencil_ref(stencil_t* xs, usize i) {
+  assert(i <= 63);
+
+  if (stencil_has(xs, i))
+    return xs->array[stencil_idx(xs, i)];
+
+  return NOTFOUND;
+}
+
+stencil_t* stencil_update(stencil_t* xs, usize rmv, usize add, value_t* args) {
+  usize oldmap   = xs->bitmap;
+  usize newmap   = (oldmap & ~rmv) | add;
+  value_t buffer[popcnt(newmap)];
+
+  for (usize n=0; n<64; n++) {
+    usize i = 1 << n;
+
+    if (i & newmap)
+      buffer[popcnt(newmap & (i - 1))] = args[popcnt(add & (i - 1))];
+
+    else if (i & oldmap && !(i & rmv))
+      buffer[popcnt(newmap & (i - 1))] = xs->array[popcnt(oldmap & (i - 1))];
+  }
+
+  stencil_t* out = allocate_stencil(newmap);
+  init_stencil(out, 0, newmap, buffer);
+
+  return out;
 }

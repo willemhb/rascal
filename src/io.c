@@ -365,16 +365,6 @@ value_t read_binary(int ch, FILE* ios) {
   return give(x, expr_token);
 }
 
-value_t read_vector(int ch, FILE* ios) {
-  (void)ch;
-
-  usize n = read_sequence(ios, "vector", ']', NULL);
-  repanic(NUL);
-  value_t x = vector(n, &Subexpr.array[Subexpr.len-n]);
-  values_popn(&Subexpr, n);
-  return give(x, expr_token);
-}
-
 value_t read_dispatch(int ch, FILE* ios) {
   reader readfn;
 
@@ -429,7 +419,9 @@ void reader_init(void) {
 
   // dispatch -----------------------------------------------------------------
   add_dispatch_reader('"', read_binary);
-  add_dispatch_reader('[', read_vector);
+  add_dispatch_reader('b', read_binary_number);
+  add_dispatch_reader('o', read_octal_number);
+  add_dispatch_reader('x', read_hexadecimal_number);
 
   // show_readtable();
 }

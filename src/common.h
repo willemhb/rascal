@@ -15,6 +15,7 @@ typedef uint32_t   flags;
 
 #define RASCAL_DEBUG
 
+
 // utilities ------------------------------------------------------------------
 #define FAIL(status, msg, ...)                              \
   do {                                                      \
@@ -25,5 +26,10 @@ typedef uint32_t   flags;
 #define TYPE(T) T##_t
 
 #define generic _Generic
+
+#define popcnt(x)				\
+  generic((x),					\
+	  uint32_t: __builtin_popcount,		\
+	  uint64_t: __builtin_popcountl )(x)
 
 #endif

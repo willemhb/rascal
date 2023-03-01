@@ -9,7 +9,7 @@
 (define-generic-mode
   'rascal-mode
   '(";" ("#|" . "|#"))
-  '("put" "lmb" "quote" "do" "if")
+  '("var" "put" "lmb" "quote" "do" "if" "prompt" "cntl")
   '((":[-a-zA-Z?*+0-9]+[[:space:][:cntrl:],\\s)]" . font-lock-reference-face)
     ("\\_<error[[:space:][:cntrl:],\\s)]" . font-lock-warning-face))
   '("\\.rl$" "\\.rdn$" "\\.rlo$") ;; source file, serialization format, object file
