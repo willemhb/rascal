@@ -137,7 +137,7 @@ void repl(void) {
 #ifdef RASCAL_DEBUG
     printf("%s> ", type_name_of(v));
 #endif
-
+    
     print(v);
     printf("\n");
   }

@@ -7,7 +7,9 @@
 // forward declarations -------------------------------------------------------
 bool  equal_tuples(value_t x, value_t y);
 bool  equal_lists(value_t x, value_t y);
+bool  equal_vectors(value_t x, value_t y);
 bool  equal_binaries(value_t x, value_t y);
+bool  equal_stencils(value_t x, value_t y);
 
 int   compare_bools(value_t x, value_t y);
 int   compare_reals(value_t x, value_t y);
@@ -15,14 +17,18 @@ int   compare_fixnums(value_t x, value_t y);
 int   compare_symbols(value_t x, value_t y);
 int   compare_tuples(value_t x, value_t y);
 int   compare_lists(value_t x, value_t y);
+int   compare_vectors(value_t x, value_t y);
 int   compare_binaries(value_t x, value_t y);
+int   compare_stencils(value_t x, value_t y);
 
 uhash hash_unit(value_t x);
 uhash hash_bool(value_t x);
 uhash hash_symbol(value_t x);
 uhash hash_tuple(value_t x);
 uhash hash_list(value_t x);
+uhash hash_vector(value_t x);
 uhash hash_binary(value_t x);
+uhash hash_stencil(value_t x);
 
 // globals --------------------------------------------------------------------
 uhash NulHash = 0, TrueHash = 0, FalseHash = 0;
@@ -30,21 +36,24 @@ uhash NulHash = 0, TrueHash = 0, FalseHash = 0;
 uhash TypeHashes[NUM_TYPES];
 
 uhash (*Hash[NUM_TYPES])(value_t x) = {
-  [UNIT]   = hash_unit,   [BOOL]   = hash_bool,
-  [SYMBOL] = hash_symbol, [TUPLE]  = hash_tuple,
-  [LIST]   = hash_list,   [BINARY] = hash_binary
+  [UNIT]   = hash_unit,   [BOOL]    = hash_bool,
+  [SYMBOL] = hash_symbol, [TUPLE]   = hash_tuple,
+  [LIST]   = hash_list,   [VECTOR]  = hash_vector,
+  [BINARY] = hash_binary, [STENCIL] = hash_stencil
 };
 
 bool (*Equal[NUM_TYPES])(value_t x, value_t y) = {
-  [TUPLE]  = equal_tuples,   [LIST] = equal_lists,
-  [BINARY] = equal_binaries
+  [TUPLE]   = equal_tuples,   [LIST]   = equal_lists,
+  [VECTOR]  = equal_vectors,  [BINARY] = equal_binaries,
+  [STENCIL] = equal_stencils
 };
 
 int (*Compare[NUM_TYPES])(value_t x, value_t y) = {
-  [BOOL]   = compare_bools,   [REAL]   = compare_reals,
-  [FIXNUM] = compare_fixnums, [SYMBOL] = compare_symbols,
-  [TUPLE]  = compare_tuples,  [LIST]   = compare_lists,
-  [BINARY] = compare_binaries
+  [BOOL]    = compare_bools,    [REAL]   = compare_reals,
+  [FIXNUM]  = compare_fixnums,  [SYMBOL] = compare_symbols,
+  [TUPLE]   = compare_tuples,   [LIST]   = compare_lists,
+  [VECTOR]  = compare_vectors,  [BINARY] = compare_binaries,
+  [STENCIL] = compare_stencils
 };
 
 // API ------------------------------------------------------------------------
