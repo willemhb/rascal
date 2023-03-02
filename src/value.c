@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -26,6 +27,7 @@ usize (*SizeOf[NUM_TYPES])(void* ptr) = {
 usize BaseSize[NUM_TYPES] = {
   [UNIT]    = sizeof(NUL),
   [BOOL]    = sizeof(bool_t),
+  [SYSPTR]  = sizeof(sysptr_t),
   [NATIVE]  = sizeof(native_t),
   [REAL]    = sizeof(real_t),
   [FIXNUM]  = sizeof(fixnum_t),
@@ -33,6 +35,8 @@ usize BaseSize[NUM_TYPES] = {
   [TUPLE]   = sizeof(tuple_t),
   [LIST]    = sizeof(list_t),
   [VECTOR]  = sizeof(vector_t),
+  [DICT]    = sizeof(dict_t),
+  [SET]     = sizeof(set_t),
   [BINARY]  = sizeof(binary_t),
   [STENCIL] = sizeof(stencil_t)
 };
@@ -62,6 +66,7 @@ type_t type_of(value_t val) {
     case FIXNUMTAG: return FIXNUM;
     case NUL:       return UNIT;
     case BOOLTAG:   return BOOL;
+    case SYSPTRTAG: return SYSPTR;
     case NATIVETAG: return NATIVE;
     case OBJTAG:    return as_object(val)->type;
     default:        return REAL;
@@ -99,6 +104,7 @@ char* type_name_of_type(type_t t) {
     [NONE]    = "none",
     [UNIT]    = "unit",
     [BOOL]    = "bool",
+    [SYSPTR]  = "sysptr",
     [NATIVE]  = "native",
     [REAL]    = "real",
     [FIXNUM]  = "fixnum",
@@ -106,6 +112,8 @@ char* type_name_of_type(type_t t) {
     [TUPLE]   = "tuple",
     [LIST]    = "list",
     [VECTOR]  = "vector",
+    [DICT]    = "dict",
+    [SET]     = "set",
     [BINARY]  = "binary",
     [STENCIL] = "stencil",
     [ANY]     = "any"
@@ -121,6 +129,10 @@ bool has_type(value_t val, type_t type) {
     case UNIT: return val == NUL;
     default:   return type_of(val) == type;
   }
+}
+
+bool is_object_type(type_t type) {
+  return type > FIXNUM && type < ANY;
 }
 
 bool is_object(value_t val) {
@@ -271,6 +283,7 @@ list_t EmptyList = {
 };
 
 static void init_list(list_t* self, value_t head, list_t* tail) {
+  assert(tail->len < FIXNUM_MAX);
   init_object(&self->obj, LIST, 0);
 
   self->head = head;
@@ -286,7 +299,7 @@ value_t cons(value_t head, list_t* tail) {
 
 value_t list(usize n, value_t* args) {
   if (n == 0)
-    return NUL;
+    return object(&EmptyList);
 
   if (n == 1)
     return cons(args[0], &EmptyList);
@@ -321,8 +334,19 @@ list_t* nth_tail(list_t* xs, usize n) {
 }
 
 // vector ---------------------------------------------------------------------
+static stencil_t* allocate_stencil(usize bm);
+static void init_stencil(stencil_t* self, usize h, usize bitmap, value_t* args);
 usize stencil_height(stencil_t* st);
-usize stencil_lidx(stencil_t* st, usize n);
+bool stencil_has(stencil_t* xs, usize i);
+value_t stencil_nth(stencil_t* xs, usize n);
+value_t stencil_ref(stencil_t* xs, usize i);
+stencil_t* stencil_update(stencil_t* xs, usize rmv, usize add, value_t* args);
+
+typedef struct {
+  usize maxh;
+  usize full[8];
+  usize extra[8];
+} vector_init_map_t;
 
 vector_t EmptyVector = {
   .obj={
@@ -341,36 +365,6 @@ static vector_t* allocate_vector(void) {
   return allocate(sizeof(vector_t));
 }
 
-static void calc_vector_dim(usize n, usize* ns, usize* mh) {
-  *ns = 0;
-  *mh = 0;
-
-  while (n) {
-    if (n & 63)
-      (*ns)++;
-
-    (*ns) += (n >>= 6);
-
-    if (n)
-      (*mh)++;
-  }
-}
-
-value_t vector(usize n, value_t* args) {
-  vector_t* vec;
-
-  if (n == 0)
-    vec = &EmptyVector;
-
-  else {
-    usize ns, mh;
-    calc_vector_dim(n, &ns, &mh);
-    
-  }
-
-  return tag_ptr(vec, OBJTAG);
-}
-
 static void init_vector(vector_t* self, usize n, stencil_t* st) {
   init_object((object_t*)self, VECTOR, 0);
 
@@ -378,7 +372,75 @@ static void init_vector(vector_t* self, usize n, stencil_t* st) {
   self->vals = st;
 }
 
-value_t vector_ref(vector_t* xs, usize n) {
+static void calc_vector_dim(usize n, vector_init_map_t* m) {
+  for (usize i=0; i<8; i++) {
+    m->full[m->maxh]  = n >> 6;
+    m->extra[m->maxh] = n & 63;
+
+    if (m->full[m->maxh] == 0)
+      break;
+
+    n = m->full[m->maxh] + !!m->extra[m->maxh];
+    m->maxh++;
+  }
+}
+
+static usize fill_bitmap(usize n) {
+  usize out  = 0;
+
+  for (usize i=0; i<n; i++)
+    out |= 1 << i;
+
+  return out;
+}
+
+value_t vector(usize n, value_t* args) {
+  assert(n <= FIXNUM_MAX);
+
+  vector_t* vec;
+
+  if (n == 0)
+    vec = &EmptyVector;
+
+  else {
+    vector_init_map_t dim = {
+      .maxh  = 0,
+      .full  = { 0, 0, 0, 0, 0, 0, 0, 0 },
+      .extra = { 0, 0, 0, 0, 0, 0, 0, 0 }
+    };
+
+    calc_vector_dim(n, &dim);
+    stencil_t* st = NULL;
+
+    assert(dim.maxh < 8);
+
+    for (usize h=0; h <= dim.maxh; h++) {
+      value_t* theseargs = args;
+      usize f;
+
+      for (f=0; f < dim.full[h]; f++) {
+	st = allocate_stencil(FULL_SMASK);
+	init_stencil(st, h, FULL_SMASK, theseargs);
+	args[f] = object(st);
+	theseargs += 64;
+      }
+
+      if (dim.extra[h]) {
+	usize bm = fill_bitmap(dim.extra[h]);
+	st = allocate_stencil(bm);
+	init_stencil(st, h, bm, theseargs);
+	args[f] = object(st);
+      }
+    }
+
+    vec = allocate_vector();
+    init_vector(vec, n, st);
+  }
+
+  return object(vec);
+}
+
+value_t vector_get(vector_t* xs, usize n) {
   assert(n < xs->len);
 
   stencil_t* st = xs->vals;
@@ -518,6 +580,7 @@ static void init_tuple(tuple_t* self, usize n, value_t* args) {
 }
 
 value_t tuple(usize n, value_t* args) {
+  assert(n <= FIXNUM_MAX);
   tuple_t* tup;
 
   if (n == 0)
@@ -579,6 +642,10 @@ usize stencil_height(stencil_t* xs) {
   return xs->obj.flags & 7;
 }
 
+usize stencil_lidx(stencil_t* xs, usize n) {
+  return n >> (stencil_height(xs) * 6) & 63;
+}
+
 usize stencil_idx(stencil_t* xs, usize i) {
   return popcnt(xs->bitmap & ((1 << i) - 1));
 }
@@ -593,14 +660,13 @@ bool stencil_has(stencil_t* xs, usize i) {
 }
 
 value_t stencil_nth(stencil_t* xs, usize n) {
-  assert(n <= 63);
   assert(n < stencil_len(xs));
 
   return xs->array[n];
 }
 
 value_t stencil_ref(stencil_t* xs, usize i) {
-  assert(i <= 63);
+  assert(i <= stencil_len(xs));
 
   if (stencil_has(xs, i))
     return xs->array[stencil_idx(xs, i)];

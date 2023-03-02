@@ -8,13 +8,16 @@ typedef uintptr_t  value_t;
 typedef double     real_t;
 typedef uintptr_t  fixnum_t;
 typedef bool       bool_t;
-typedef value_t  (*native_t)(usize n, value_t* args);
+typedef void      *sysptr_t;
 
 typedef struct object_t  object_t;
+typedef struct native_t  native_t;
 typedef struct symbol_t  symbol_t;
 typedef struct tuple_t   tuple_t;
 typedef struct list_t    list_t;
 typedef struct vector_t  vector_t;
+typedef struct dict_t    dict_t;
+typedef struct set_t     set_t;
 typedef struct binary_t  binary_t;
 typedef struct stencil_t stencil_t;
 
@@ -22,13 +25,16 @@ typedef enum {
   NONE,
   UNIT,
   BOOL,
-  NATIVE,
+  SYSPTR,
   REAL,
   FIXNUM,
+  NATIVE,
   SYMBOL,
   TUPLE,
   LIST,
   VECTOR,
+  DICT,
+  SET,
   BINARY,
   STENCIL,  // internal HAMT node type
   ANY
@@ -48,6 +54,12 @@ struct object_t {
 };
 
 #define HEADER object_t obj
+
+struct native_t {
+  HEADER;
+  symbol_t*  name;
+  value_t  (*func)(usize n, value_t* args);
+};
 
 struct symbol_t {
   HEADER;
@@ -74,6 +86,20 @@ struct vector_t {
   HEADER;
   usize      len;
   stencil_t* vals;
+};
+
+struct dict_t {
+  HEADER;
+  usize      len;
+  stencil_t* vals;
+  stencil_t* map;
+};
+
+struct set_t {
+  HEADER;
+  usize      len;
+  stencil_t* vals;
+  stencil_t* map;
 };
 
 struct binary_t {
@@ -111,11 +137,16 @@ struct stencil_t {
 #define tag_of(x)   ((x)&TAG_MASK)
 #define val_of(x)   ((x)&VAL_MASK)
 
+#define FIXNUM_MAX  VAL_MASK
+#define FULL_SMASK  (TAG_MASK|VAL_MASK)
+
 #define NUM_TYPES (ANY+1)
 
 extern tuple_t   EmptyTuple;
 extern list_t    EmptyList;
 extern vector_t  EmptyVector;
+extern dict_t    EmptyDict;
+extern set_t     EmptySet;
 extern binary_t  EmptyBinary;
 extern stencil_t EmptyStencil;
 
@@ -127,6 +158,7 @@ usize   size_of_obj(void* ptr);
 usize   size_of_type(type_t type);
 char*   type_name_of(value_t val);
 char*   type_name_of_type(type_t type);
+bool    is_object_type(type_t type);
 bool    has_type(value_t val, type_t type);
 
 #define size_of(x)                              \
@@ -167,6 +199,7 @@ bool    del_flag(void* ptr, flags fl);
 
 #define is_unit(x)     has_type(x, UNIT)
 #define is_bool(x)     has_type(x, BOOL)
+#define is_sysptr(x)   has_type(x, SYSPTR)
 #define is_native(x)   has_type(x, NATIVE)
 #define is_real(x)     has_type(x, REAL)
 #define is_fixnum(x)   has_type(x, FIXNUM)
@@ -174,26 +207,39 @@ bool    del_flag(void* ptr, flags fl);
 #define is_tuple(x)    has_type(x, TUPLE)
 #define is_list(x)     has_type(x, LIST)
 #define is_vector(x)   has_type(x, VECTOR)
+#define is_dict(x)     has_type(x, DICT)
+#define is_set(x)      has_type(x, SET) 
 #define is_binary(x)   has_type(x, BINARY)
 #define is_stencil(x)  has_type(x, STENCIL)
 
 #define as_bool(x)    ((x)==TRUE_VAL)
 #define as_fixnum(x)  ((fixnum_t)as_word(x))
-#define as_native(x)  ((native_t)as_ptr(x))
+#define as_sysptr(x)  ((sysptr_t)as_ptr(x))
 #define as_object(x)  ((object_t*)as_ptr(x))
+#define as_native(x)  ((native_t*)as_ptr(x))
 #define as_symbol(x)  ((symbol_t*)as_ptr(x))
 #define as_tuple(x)   ((tuple_t*)as_ptr(x))
 #define as_list(x)    ((list_t*)as_ptr(x))
 #define as_vector(x)  ((vector_t*)as_ptr(x))
+#define as_dict(x)    ((dict_t*)as_ptr(x))
+#define as_set(x)     ((set_t*)as_ptr(x))
 #define as_binary(x)  ((binary_t*)as_ptr(x))
 #define as_stencil(x) ((stencil_t*)as_ptr(x))
 
 // constructors ---------------------------------------------------------------
+#define object(ptr)  tag_ptr((ptr), OBJTAG)
+#define fixnum(fxn)  tag_word((fxn), FIXNUMTAG)
+#define sysptr(ptr)  tag_ptr((ptr), SYSPTRTAG)
+
+value_t native(char* name, value_t (*func)(usize n, value_t* args));
 value_t symbol(char* name);
+value_t pair(value_t k, value_t v);
 value_t tuple(usize n, value_t* args);
 value_t cons(value_t head, list_t* tail);
 value_t list(usize n, value_t* args);
 value_t vector(usize n, value_t* args);
+value_t dict(usize n, value_t* args);
+value_t set(usize n, value_t* args);
 value_t binary(usize n, value_t* args);
 value_t stencil(usize n, value_t* args);
 
@@ -201,14 +247,21 @@ value_t stencil(usize n, value_t* args);
 value_t nth_hd(list_t* xs, usize n);
 list_t* nth_tl(list_t* xs, usize n);
 
-value_t   vector_ref(vector_t* xs, usize n);
+value_t   vector_get(vector_t* xs, usize n);
 vector_t* vector_set(vector_t* xs, usize n, value_t val);
 vector_t* vector_del(vector_t* xs, usize n);
 
-usize      stencil_len(stencil_t* xs);
-bool       stencil_has(stencil_t* xs, usize i);
-value_t    stencil_nth(stencil_t* xs, usize n);
-value_t    stencil_ref(stencil_t* xs, usize i);
-stencil_t* stencil_update(stencil_t* xs, usize rmv, usize add, value_t* args);
+value_t dict_nth(dict_t* ks, usize n);
+value_t dict_get(dict_t* ks, value_t k);
+dict_t* dict_set(dict_t* ks, value_t k, value_t v);
+dict_t* dict_del(dict_t* ks, value_t k);
+
+value_t set_nth(set_t* ks, usize n);
+bool    set_get(set_t* ks, value_t k);
+set_t*  set_add(set_t* ks, value_t k);
+set_t*  set_del(set_t* ks, value_t k);
+
+usize stencil_height(stencil_t* xs);
+usize stencil_len(stencil_t* xs);
 
 #endif

@@ -19,7 +19,7 @@ typedef uint32_t   flags;
 // utilities ------------------------------------------------------------------
 #define FAIL(status, msg, ...)                              \
   do {                                                      \
-    fprintf(stderr, msg".\n" __VA_OPT__(,) __VA_ARGS__);	\
+    fprintf(stderr, msg".\n" __VA_OPT__(,) __VA_ARGS__);    \
     exit(status);                                           \
   } while (false)
 

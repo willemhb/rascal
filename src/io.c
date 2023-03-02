@@ -148,7 +148,6 @@ int newln(void) {
   return fnewln(stdin);
 }
 
-
 int fnewln(FILE* ios) {
   return fprintf(ios, "\n");
 }
@@ -167,11 +166,39 @@ int fpeekc(FILE* ios) {
 }
 
 // interpreter ----------------------------------------------------------------
+// print helpers --------------------------------------------------------------
+void print_value_array(usize n, value_t* vals) {
+  for (usize i=0; i<n; i++) {
+    print(vals[i]);
+
+    if (i + 1 < n)
+      printf(" ");
+  }
+}
+
+void print_table_members(stencil_t* st) {
+  usize n    = stencil_len(st);
+  value_t* v = st->array;
+  usize h    = stencil_height(st);
+  
+  if (h)
+    for (usize i=0; i<n; i++) {
+      print_table_members(as_stencil(v[i]));
+
+      if (h == 1 && i + 1 < n) // add padding between leaves
+	printf(" ");
+    }
+
+  else
+    print_value_array(n, v);
+}
+
 void print_real(value_t val)   { printf("%g", as_real(val));                 }
 void print_fixnum(value_t val) { printf("%lu", as_fixnum(val));              }
 void print_symbol(value_t val) { printf("%s", as_symbol(val)->name);         }
 void print_unit(value_t val)   { (void)val; printf("nul");                   }
 void print_bool(value_t val)   { printf(val == TRUE_VAL ? "true" : "false"); }
+void print_sysptr(value_t val) { printf("#<sysptr: %.48lux>", as_word(val)); }
 void print_native(value_t val) { (void)val; printf("#'native");              }
 
 void print_list(value_t val) {
@@ -189,6 +216,12 @@ void print_list(value_t val) {
   }
 
   printf(")");
+}
+
+void print_vector(value_t val) {
+  printf("#[");
+  print_table_members(as_vector(val)->vals);
+  printf("]");
 }
 
 void print_binary(value_t val) {
@@ -209,14 +242,7 @@ void print_binary(value_t val) {
 void print_tuple(value_t val) {
   printf("[");
 
-  tuple_t* xs = as_tuple(val);
-
-  for (usize i=0; i<xs->len; i++) {
-    print(xs->slots[i]);
-
-    if (i+1 < xs->len)
-      printf(" ");
-  }
+  tuple_t* xs = as_tuple(val); print_value_array(xs->len, xs->slots);
 
   printf("]");
 }
@@ -225,16 +251,7 @@ void print_stencil(value_t val) {
   stencil_t* st = as_stencil(val);
   
   printf("#stencil<%lxu>(", st->bitmap);
-
-  usize l = stencil_len(st);
-
-  for (usize i=0; i<l; i++) {
-    print(st->array[i]);
-
-    if (i + 1 < l)
-      printf(" ");
-  }
-
+  print_value_array(stencil_len(st), st->array);
   printf(")");
 }
 
@@ -243,10 +260,12 @@ void (*Print[])(value_t val) = {
   [FIXNUM]  = print_fixnum,
   [UNIT]    = print_unit,
   [BOOL]    = print_bool,
+  [SYSPTR]  = print_sysptr,
   [NATIVE]  = print_native,
   [SYMBOL]  = print_symbol,
   [TUPLE]   = print_tuple,
   [LIST]    = print_list,
+  [VECTOR]  = print_vector,
   [BINARY]  = print_binary,
   [STENCIL] = print_stencil
 };

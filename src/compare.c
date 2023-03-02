@@ -1,4 +1,5 @@
 #include <string.h>
+#include <stdio.h>
 
 #include "compare.h"
 #include "number.h"
@@ -10,7 +11,6 @@ bool  equal_lists(value_t x, value_t y);
 bool  equal_vectors(value_t x, value_t y);
 bool  equal_binaries(value_t x, value_t y);
 bool  equal_stencils(value_t x, value_t y);
-
 
 int   compare_bools(value_t x, value_t y);
 int   compare_reals(value_t x, value_t y);
@@ -24,23 +24,28 @@ int   compare_stencils(value_t x, value_t y);
 
 uhash hash_unit(value_t x);
 uhash hash_bool(value_t x);
-uhash hash_symbol(value_t x);
-uhash hash_tuple(value_t x);
-uhash hash_list(value_t x);
-uhash hash_vector(value_t x);
-uhash hash_binary(value_t x);
-uhash hash_stencil(value_t x);
+uhash hash_object(void* self);
+uhash hash_symbol(void* self);
+uhash hash_tuple(void* self);
+uhash hash_list(void* self);
+uhash hash_vector(void* self);
+uhash hash_binary(void* self);
+uhash hash_stencil(void* self);
 
 // globals --------------------------------------------------------------------
-uhash NulHash = 0, TrueHash = 0, FalseHash = 0;
+uhash NulHashVal = 0, TrueHashVal = 0, FalseHashVal = 0;
 
-uhash TypeHashes[NUM_TYPES];
+uhash TypeHash[NUM_TYPES];
 
-uhash (*Hash[NUM_TYPES])(value_t x) = {
-  [UNIT]   = hash_unit,   [BOOL]    = hash_bool,
+uhash (*HashVal[NUM_TYPES])(value_t x) = {
+  [UNIT]   = hash_unit,   [BOOL]    = hash_bool
+};
+
+uhash (*HashObj[NUM_TYPES])(void* ptr) = {
   [SYMBOL] = hash_symbol, [TUPLE]   = hash_tuple,
   [LIST]   = hash_list,   [VECTOR]  = hash_vector,
   [BINARY] = hash_binary, [STENCIL] = hash_stencil
+
 };
 
 bool (*Equal[NUM_TYPES])(value_t x, value_t y) = {
@@ -95,24 +100,67 @@ int compare(value_t x, value_t y) {
 uhash hash(value_t x) {
   type_t xt = type_of(x);
 
-  uhash out = Hash[xt] ? Hash[xt](x) : hash_uword(x);
+  if (is_object_type(xt)) {
+    if (HashObj[xt])
+      return hash_object(as_object(x));
+  }
 
-  return out & VAL_MASK; // compress into 48 bits
+  return HashVal[xt] ? HashVal[xt](x) : hash_uword(x) & VAL_MASK; // compress to 48 bits
 }
 
-// equal methods --------------------------------------------------------------
-bool  equal_tuples(value_t x, value_t y) {
-  tuple_t* tx = as_tuple(x),* ty = as_tuple(y);
-
-  if (tx->len != ty->len)
+// helpers --------------------------------------------------------------------
+bool equal_value_arrays(usize nx, value_t* xs, usize ny, value_t* ys) {
+  if (nx != ny)
     return false;
 
-  for (usize i=0; i<tx->len; i++) {
-    if (!equal(tx->slots[i], ty->slots[i]))
+  for (usize i=0; i<nx; i++) {
+    if (!equal(xs[i], ys[i]))
       return false;
   }
 
   return true;
+}
+
+int compare_value_arrays(usize nx, value_t* xs, usize ny, value_t* ys) {
+  usize maxc = MAX(nx, ny);
+
+  int o;
+
+  for (usize i=0; i<maxc; i++) {
+    if ((o=compare(xs[i], ys[i])))
+      return o;
+  }
+
+  return 0 - (nx < ny) + (nx > ny);
+}
+
+uhash hash_value_array(usize nx, value_t* xs) {
+  uhash accum = 0;
+
+  for (usize i=0; i<nx; i++)
+    accum = mix_2_hashes(accum, hash(xs[i]));
+
+  return accum;
+}
+
+uhash hash_object(void* ptr) {
+  object_t* obj = ptr;
+
+  if (!has_flag(ptr, HASHED)) {
+    uhash base  = TypeHash[obj->type];
+    uhash vals  = HashObj[obj->type](ptr);
+    obj->flags |= HASHED;
+    obj->hash   = mix_2_hashes(base, vals) & VAL_MASK;
+  }
+
+  return obj->hash;
+}
+
+// equal methods --------------------------------------------------------------
+bool  equal_tuples(value_t x, value_t y) {
+  tuple_t* xt = as_tuple(x),* yt = as_tuple(y);
+
+  return equal_value_arrays(xt->len, xt->slots, yt->len, yt->slots);
 }
 
 bool equal_lists(value_t x, value_t y) {
@@ -131,7 +179,16 @@ bool equal_lists(value_t x, value_t y) {
   return true;
 }
 
-bool  equal_binaries(value_t x, value_t y) {
+bool equal_vectors(value_t x, value_t y) {
+  vector_t* vx = as_vector(x),* vy = as_vector(y);
+
+  if (vx->len != vy->len)
+    return false;
+
+  return equal_stencils(tag_ptr(vx->vals, OBJTAG), tag_ptr(vy->vals, OBJTAG));
+}
+
+bool equal_binaries(value_t x, value_t y) {
   binary_t* bx = as_binary(x),*by = as_binary(y);
 
   if (bx->len != by->len)
@@ -141,6 +198,12 @@ bool  equal_binaries(value_t x, value_t y) {
     return memcmp(bx->array, by->array, bx->len);
 
   return true;
+}
+
+bool equal_stencils(value_t x, value_t y) {
+  stencil_t* xst = as_stencil(x),* yst = as_stencil(y);
+
+  return equal_value_arrays(stencil_len(xst), xst->array, stencil_len(yst), yst->array);
 }
 
 // compare methods ------------------------------------------------------------
@@ -164,15 +227,8 @@ int compare_symbols(value_t x, value_t y) {
 
 int compare_tuples(value_t x, value_t y) {
   tuple_t* tx  = as_tuple(x),* ty = as_tuple(y);
-  usize maxcmp = MIN(tx->len, ty->len);
-  int o;
 
-  for (usize i=0; i<maxcmp; i++) {
-    if ((o=compare(tx->slots[i], ty->slots[i])))
-      return o;
-  }
-
-  return 0 - (tx->len < ty->len) + (tx->len > ty->len);
+  return compare_value_arrays(tx->len, tx->slots, ty->len, ty->slots);
 }
 
 int compare_lists(value_t x, value_t y) {
@@ -188,6 +244,16 @@ int compare_lists(value_t x, value_t y) {
   return 0 - !!lx->len - !!ly->len;
 }
 
+int compare_vectors(value_t x, value_t y) {
+  vector_t* vx = as_vector(x),* vy = as_vector(y);
+  int o = compare_stencils(object(vx->vals), object(vy->vals));
+
+  if (o)
+    return o;
+
+  return 0 - (vx->len < vy->len) + (vx->len > vy->len);
+}
+
 int compare_binaries(value_t x, value_t y) {
   binary_t* bx = as_binary(x),* by = as_binary(y);
   usize maxcmp = MIN(bx->len, by->len);
@@ -199,88 +265,81 @@ int compare_binaries(value_t x, value_t y) {
   return 0 - (bx->len < by->len) + (bx->len > by->len);
 }
 
+int compare_stencils(value_t x, value_t y) {
+  stencil_t* stx = as_stencil(x),* sty = as_stencil(y);
+
+  return compare_value_arrays(stencil_len(stx), stx->array, stencil_len(sty), sty->array);
+}
+
 // hash methods ---------------------------------------------------------------
 uhash hash_unit(value_t x) {
   (void)x;
 
-  return NulHash;
+  return NulHashVal;
 }
 
 uhash hash_bool(value_t x) {
-  return x == TRUE_VAL ? TrueHash : FalseHash;
+  return x == TRUE_VAL ? TrueHashVal : FalseHashVal;
 }
 
-uhash hash_symbol(value_t x) {
-  symbol_t* sx = as_symbol(x);
+uhash hash_symbol(void* ptr) {
+  symbol_t* sx = ptr;
 
-  if (!has_flag(sx, HASHED)) {
-    uhash base     = TypeHashes[SYMBOL];
-    uhash ihash    = hash_uword(sx->idno);
-    uhash nhash    = hash_str(sx->name);
-    sx->obj.hash   = mix_3_hashes(base, nhash, ihash);
-    sx->obj.flags |= HASHED;
-  }
+  uhash ihash    = hash_uword(sx->idno);
+  uhash nhash    = hash_str(sx->name);
 
-  return sx->obj.hash;
+  return mix_2_hashes(nhash, ihash);
 }
 
-uhash hash_tuple(value_t x) {
-  tuple_t* tx = as_tuple(x);
+uhash hash_tuple(void* ptr) {
+  tuple_t* tx = ptr;
 
-  if (!has_flag(tx, HASHED)) {
-    uhash h = TypeHashes[TUPLE];
-    
-    for (usize i=0; i<tx->len; i++)
-      h = mix_2_hashes(h, hash(tx->slots[i]));
-    
-    tx->obj.hash   = h;
-    tx->obj.flags |= HASHED;
-  }
-
-  return tx->obj.hash;
+  return hash_value_array(tx->len, tx->slots);
 }
 
-uhash hash_list(value_t x) {
-  list_t* lx = as_list(x);
+uhash hash_list(void* ptr) {
+  list_t* lx = ptr;
 
-  // TODO: convert to loop
-  if (!has_flag(lx, HASHED)) {
-    uhash base    = TypeHashes[LIST];
-    uhash hdh     = hash(lx->head);
+  uhash out = hash(lx->head);
 
-    if (lx->len)
-      lx->obj.hash = mix_3_hashes(base, hdh, hash_list(tag_ptr(lx->tail, OBJTAG)));
-
-    else
-      lx->obj.hash = mix_2_hashes(base, hdh);
-
-    lx->obj.flags |= HASHED;
+  if (lx->len) {
+    uhash th = hash_object(lx->tail);
+    out      = mix_2_hashes(out, th);
   }
 
-  return lx->obj.hash;
+  return out;
 }
 
-uhash hash_binary(value_t x) {
-  binary_t* bin = as_binary(x);
+uhash hash_vector(void* ptr) {
+  vector_t* vx = ptr;
 
-  if (!has_flag(bin, HASHED)) {
-    uhash base      = TypeHashes[BINARY];
-    uhash mhash     = hash_mem(bin->array, bin->len);
+  return hash_object(vx->vals);
+}
 
-    bin->obj.hash   = mix_2_hashes(base, mhash);
-    bin->obj.flags |= HASHED;
-  }
+uhash hash_binary(void* ptr) {
+  binary_t* bin = ptr;
+  
+  return hash_mem(bin->array, bin->len);
+}
 
-  return bin->obj.hash;
+uhash hash_stencil(void* ptr) {
+  stencil_t* stx = ptr;
+
+  return hash_value_array(stencil_len(stx), stx->array);
 }
 
 // initialization -------------------------------------------------------------
 void compare_init(void) {
-  NulHash   = hash_uword(NUL);
-  TrueHash  = hash_uword(TRUE_VAL);
-  FalseHash = hash_uword(FALSE_VAL);
+  NulHashVal   = hash_uword(NUL);
+  TrueHashVal  = hash_uword(TRUE_VAL);
+  FalseHashVal = hash_uword(FALSE_VAL);
 
   // initialize type hashes ---------------------------------------------------
-  for (type_t t = UNIT; t < NUM_TYPES; t++)
-    TypeHashes[t] = hash_uword(t);
+  for (type_t t = NONE; t < NUM_TYPES; t++) {
+    TypeHash[t] = hash_uword(t);
+
+#ifdef RASCAL_DEBUG
+    // printf("hash of %s: %lu\n", type_name(t), TypeHash[t]);
+#endif
+  }
 }

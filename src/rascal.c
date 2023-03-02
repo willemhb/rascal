@@ -10,6 +10,7 @@
 #include "io.h"
 #include "native.h"
 #include "error.h"
+#include "compare.h"
 
 // startup --------------------------------------------------------------------
 #define MAJOR       0
@@ -20,6 +21,7 @@
 
 void startup(void) {
   memory_init();
+  compare_init();
   reader_init();
   error_init();
   native_init();

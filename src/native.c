@@ -13,10 +13,10 @@ static bool is_nonzero(value_t val) {
 }
 
 // API ------------------------------------------------------------------------
-void define_native(char* name, native_t native) {
+void define_native(char* name, native_t ptr) {
   value_t s = symbol(name);
 
-  as_symbol(s)->bind = tag_ptr(native, NATIVETAG);
+  as_symbol(s)->bind = native(ptr);
 }
 
 // native functions -----------------------------------------------------------
@@ -54,7 +54,6 @@ value_t native_div(usize n, value_t* args) {
   return tag_dbl(as_number(args[0]) / as_number(args[1]));
 }
 
-
 value_t native_eqp(usize n, value_t* args) {
   argco(2, n);
   argtest(is_number, args[0], "not a number");
@@ -74,6 +73,10 @@ value_t native_ltp(usize n, value_t* args) {
 // constructors ---------------------------------------------------------------
 value_t native_list(usize n, value_t* args) {
   return list(n, args);
+}
+
+value_t native_vector(usize n, value_t* args) {
+  return vector(n, args);
 }
 
 value_t native_tuple(usize n, value_t* args) {
@@ -111,7 +114,7 @@ value_t native_equal(usize n, value_t* args) {
 value_t native_hash(usize n, value_t* args) {
   argco(1, n);
 
-  return tag_word(hash(args[0]), FIXNUM);
+  return fixnum(hash(args[0]));
 }
 
 value_t native_idp(usize n, value_t* args) {
@@ -140,8 +143,12 @@ void native_init(void) {
   define_native("=", native_eqp);
   define_native("<", native_ltp);
   define_native("list", native_list);
+  define_native("vector", native_vector);
   define_native("binary", native_binary);
   define_native("tuple", native_tuple);
   define_native("id?", native_idp);
+  define_native("eql?", native_equal);
+  define_native("compare", native_compare);
+  define_native("hash", native_hash);
   define_native("type-of", native_type_of);
 }
