@@ -176,14 +176,43 @@ void print_value_array(usize n, value_t* vals) {
   }
 }
 
+void print_pairs_array(usize n, value_t* vals) {
+  for (usize i=0; i<n; i++) {
+    tuple_t* tx = as_tuple(vals[i]);
+    print(tx->slots[0]);
+    printf(" ");
+    print(tx->slots[1]);
+
+    if (i+1 < n)
+      printf(", ");
+  }
+}
+
 void print_table_members(stencil_t* st) {
   usize n    = stencil_len(st);
   value_t* v = st->array;
   usize h    = stencil_height(st);
-  
+
   if (h)
     for (usize i=0; i<n; i++) {
       print_table_members(as_stencil(v[i]));
+
+      if (h == 1 && i + 1 < n) // add padding between leaves
+	printf(" ");
+    }
+
+  else
+    print_pairs_array(n, v);
+}
+
+void print_array_members(stencil_t* st) {
+  usize n    = stencil_len(st);
+  value_t* v = st->array;
+  usize h    = stencil_height(st);
+
+  if (h)
+    for (usize i=0; i<n; i++) {
+      print_array_members(as_stencil(v[i]));
 
       if (h == 1 && i + 1 < n) // add padding between leaves
 	printf(" ");
@@ -195,11 +224,17 @@ void print_table_members(stencil_t* st) {
 
 void print_real(value_t val)   { printf("%g", as_real(val));                 }
 void print_fixnum(value_t val) { printf("%lu", as_fixnum(val));              }
-void print_symbol(value_t val) { printf("%s", as_symbol(val)->name);         }
 void print_unit(value_t val)   { (void)val; printf("nul");                   }
 void print_bool(value_t val)   { printf(val == TRUE_VAL ? "true" : "false"); }
 void print_sysptr(value_t val) { printf("#<sysptr: %.48lux>", as_word(val)); }
-void print_native(value_t val) { (void)val; printf("#'native");              }
+
+void print_symbol(value_t val) {
+  printf("%s", as_symbol(val)->name);
+}
+
+void print_native(value_t val) {
+  printf("#'native/%s", as_native(val)->name->name);
+}
 
 void print_list(value_t val) {
   printf("(");
@@ -220,8 +255,20 @@ void print_list(value_t val) {
 
 void print_vector(value_t val) {
   printf("#[");
-  print_table_members(as_vector(val)->vals);
+  print_array_members(as_vector(val)->vals);
   printf("]");
+}
+
+void print_dict(value_t val) {
+  printf("#{");
+  print_table_members(as_dict(val)->vals);
+  printf("}");
+}
+
+void print_set(value_t val) {
+  printf("{");
+  print_array_members(as_set(val)->vals);
+  printf("}");
 }
 
 void print_binary(value_t val) {
@@ -266,6 +313,8 @@ void (*Print[])(value_t val) = {
   [TUPLE]   = print_tuple,
   [LIST]    = print_list,
   [VECTOR]  = print_vector,
+  [DICT]    = print_dict,
+  [SET]     = print_set,
   [BINARY]  = print_binary,
   [STENCIL] = print_stencil
 };
@@ -403,7 +452,7 @@ value_t read_binary_number(int ch, FILE* ios) {
 
 value_t read_octal_number(int ch, FILE* ios) {
   usize counter = 0;
-  
+
   while (isoctdigit(ch=fpeekc(ios))) {
     accumulate(fgetc(ios));
     counter++;
@@ -424,7 +473,7 @@ value_t read_octal_number(int ch, FILE* ios) {
 
 value_t read_hexadecimal_number(int ch, FILE* ios) {
   usize counter = 0;
-  
+
   while (isxdigit(ch=fpeekc(ios))) {
     accumulate(fgetc(ios));
     counter++;
@@ -469,6 +518,27 @@ value_t read_vector(int ch, FILE* ios) {
   usize n = read_sequence(ios, "vector", ']', NULL);
   repanic(NUL);
   value_t x = vector(n, &Subexpr.array[Subexpr.len-n]);
+  values_popn(&Subexpr, n);
+  return give(x, expr_token);
+}
+
+value_t read_dict(int ch, FILE* ios) {
+  (void)ch;
+
+  usize n = read_sequence(ios, "dict", '}', NULL);
+  repanic(NUL);
+  require(n % 2 == 0, READ_ERROR, NUL, "unpaired key reading dict");
+  value_t x = dict(n, &Subexpr.array[Subexpr.len-n]);
+  values_popn(&Subexpr, n);
+  return give(x, expr_token);
+}
+
+value_t read_set(int ch, FILE* ios) {
+  (void)ch;
+
+  usize n = read_sequence(ios, "set", '}', NULL);
+  repanic(NUL);
+  value_t x = set(n, &Subexpr.array[Subexpr.len-n]);
   values_popn(&Subexpr, n);
   return give(x, expr_token);
 }
@@ -532,12 +602,14 @@ void reader_init(void) {
   add_readers(SYMCHR, read_symbol);
   add_reader('(', read_list);
   add_reader('[', read_tuple);
+  add_reader('{', read_set);
   add_reader('#', read_dispatch);
   add_reader(EOF, read_eof);
 
   // dispatch -----------------------------------------------------------------
   add_dispatch_reader('"', read_binary);
   add_dispatch_reader('[', read_vector);
+  add_dispatch_reader('{', read_dict);
   add_dispatch_reader('b', read_binary_number);
   add_dispatch_reader('o', read_octal_number);
   add_dispatch_reader('x', read_hexadecimal_number);
