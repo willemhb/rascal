@@ -5,6 +5,7 @@
 #include "value.h"
 #include "memory.h"
 #include "number.h"
+#include "compare.h"
 
 // globals --------------------------------------------------------------------
 // symbol table ---------------------------------------------------------------
@@ -221,6 +222,26 @@ static void init_object(object_t* object, type_t type, flags fl) {
   object->hash  = 0;
 }
 
+// native ---------------------------------------------------------------------
+static native_t* allocate_native(void) {
+  return allocate(sizeof(native_t));
+}
+
+static void init_native(native_t* self, char* name, value_t (*func)(usize n, value_t* args)) {
+  init_object((object_t*)self, NATIVE, 0);
+
+  self->name = as_symbol(symbol(name));
+  self->func = func;
+  
+  self->name->bind = object(self);
+}
+
+value_t native(char* name, value_t (*func)(usize n, value_t* args)) {
+  native_t* self = allocate_native();
+  init_native(self, name, func);
+  return object(self);
+}
+
 // symbol ---------------------------------------------------------------------
 static symbol_t** find_symbol(char* name) {
   symbol_t** node = &SymbolTable;
@@ -324,7 +345,7 @@ value_t nth_hd(list_t* xs, usize n) {
   return xs->head;
 }
 
-list_t* nth_tail(list_t* xs, usize n) {
+list_t* nth_tl(list_t* xs, usize n) {
   assert(n < xs->len);
 
   while (n--)
@@ -337,6 +358,7 @@ list_t* nth_tail(list_t* xs, usize n) {
 static stencil_t* allocate_stencil(usize bm);
 static void init_stencil(stencil_t* self, usize h, usize bitmap, value_t* args);
 usize stencil_height(stencil_t* st);
+usize stencil_lidx(stencil_t* st, usize n);
 bool stencil_has(stencil_t* xs, usize i);
 value_t stencil_nth(stencil_t* xs, usize n);
 value_t stencil_ref(stencil_t* xs, usize i);
@@ -346,7 +368,7 @@ typedef struct {
   usize maxh;
   usize full[8];
   usize extra[8];
-} vector_init_map_t;
+} hamt_init_map_t;
 
 vector_t EmptyVector = {
   .obj={
@@ -372,7 +394,7 @@ static void init_vector(vector_t* self, usize n, stencil_t* st) {
   self->vals = st;
 }
 
-static void calc_vector_dim(usize n, vector_init_map_t* m) {
+static void calc_hamt_dim(usize n, hamt_init_map_t* m) {
   for (usize i=0; i<8; i++) {
     m->full[m->maxh]  = n >> 6;
     m->extra[m->maxh] = n & 63;
@@ -403,13 +425,13 @@ value_t vector(usize n, value_t* args) {
     vec = &EmptyVector;
 
   else {
-    vector_init_map_t dim = {
+    hamt_init_map_t dim = {
       .maxh  = 0,
       .full  = { 0, 0, 0, 0, 0, 0, 0, 0 },
       .extra = { 0, 0, 0, 0, 0, 0, 0, 0 }
     };
 
-    calc_vector_dim(n, &dim);
+    calc_hamt_dim(n, &dim);
     stencil_t* st = NULL;
 
     assert(dim.maxh < 8);
@@ -579,6 +601,12 @@ static void init_tuple(tuple_t* self, usize n, value_t* args) {
   memcpy(self->slots, args, n*sizeof(value_t));
 }
 
+value_t pair(value_t k, value_t v) {
+  value_t vals[2] = { k, v };
+
+  return tuple(2, vals);
+}
+
 value_t tuple(usize n, value_t* args) {
   assert(n <= FIXNUM_MAX);
   tuple_t* tup;
@@ -593,6 +621,171 @@ value_t tuple(usize n, value_t* args) {
 
   return tag_ptr(tup, OBJTAG);
 }
+
+// dict -----------------------------------------------------------------------
+dict_t EmptyDict = {
+  .obj={
+    .next =NULL,
+    .hash =0,
+    .flags=0,
+    .gray =false,
+    .black=true,
+    .type =DICT
+  },
+  .len =0,
+  .map =&EmptyStencil,
+  .vals=&EmptyStencil
+};
+
+static dict_t* allocate_dict(void) {
+  return allocate(sizeof(dict_t));
+}
+
+static void init_dict(dict_t* self, usize n, stencil_t* map, stencil_t* vals) {
+  init_object((object_t*)self, DICT, 0);
+
+  self->len = n;
+  self->map = map;
+  self->vals= vals;
+}
+
+value_t dict(usize n, value_t* args) {
+  assert((n & 1) == 0);
+
+  n >>= 1;
+
+  dict_t* out;
+
+  if (n == 0)
+    out = &EmptyDict;
+
+  else {
+    hamt_init_map_t dim = {
+      .maxh  = 0,
+      .full  = { 0, 0, 0, 0, 0, 0, 0, 0 },
+      .extra = { 0, 0, 0, 0, 0, 0, 0, 0 }
+    };
+
+    calc_hamt_dim(n, &dim);
+    stencil_t* map = NULL,* vals = NULL;
+
+    assert(dim.maxh < 8);
+
+    
+
+    out = allocate_dict();
+    init_dict(out, n, map, vals);
+  }
+  
+  return object(out);
+}
+
+tuple_t* dict_nth(dict_t* ks, usize n) {
+  assert(n < ks->len);
+
+  stencil_t* st = ks->vals;
+
+  while (stencil_height(st)) {
+    usize h   = st->obj.flags & 7;
+    usize i   = n >> (h * 6) & 63;
+    value_t v = stencil_nth(st, i);
+    st        = as_stencil(v);
+  }
+
+  return as_tuple(stencil_nth(st, n&63));
+}
+
+value_t dict_get(dict_t* ks, value_t k) {
+  if (ks->len == 0)
+    return NOTFOUND;
+
+  uhash h = hash(k);
+  value_t x = NOTFOUND;
+
+  stencil_t* map = ks->map;
+
+  for (;;) {
+    usize i = stencil_lidx(map, h);
+    x       = stencil_ref(map, i);
+
+    if (x == NOTFOUND)
+      return x;
+
+    else if (stencil_height(map) == 0)
+      break;
+
+    else
+      map = as_stencil(x);    
+  }
+
+  if (is_fixnum(x)) {
+    tuple_t* p = dict_nth(ks, as_fixnum(x));
+
+    if (equal(p->slots[0], k))
+      return p->slots[1];
+
+    return NOTFOUND;
+  } else {
+    assert(is_list(x));
+    list_t* ords = as_list(x);
+
+    while (ords->len) {
+      tuple_t* p = dict_nth(ks, as_fixnum(ords->head));
+
+      if (equal(p->slots[0], k))
+        return p->slots[1];
+
+      ords = ords->tail;
+    }
+
+    return NOTFOUND;
+  }
+}
+
+// set ------------------------------------------------------------------------
+set_t EmptySet = {
+  .obj={
+    .next =NULL,
+    .hash =0,
+    .flags=0,
+    .gray =false,
+    .black=true,
+    .type =SET
+  },
+  .len =0,
+  .map =&EmptyStencil,
+  .vals=&EmptyStencil
+};
+
+
+static set_t* allocate_set(void) {
+  return allocate(sizeof(set_t));
+}
+
+static void init_set(set_t* self, usize n, stencil_t* map, stencil_t* vals) {
+  init_object((object_t*)self, SET, 0);
+
+  self->len = n;
+  self->map = map;
+  self->vals= vals;
+}
+
+value_t set(usize n, value_t* args) {
+  assert((n & 1) == 0);
+
+  set_t* out;
+
+  if (n == 0)
+    out = &EmptySet;
+
+  else {
+    
+  }
+
+  return object(out);
+}
+
+
 
 // stencil --------------------------------------------------------------------
 stencil_t EmptyStencil = {
@@ -666,8 +859,6 @@ value_t stencil_nth(stencil_t* xs, usize n) {
 }
 
 value_t stencil_ref(stencil_t* xs, usize i) {
-  assert(i <= stencil_len(xs));
-
   if (stencil_has(xs, i))
     return xs->array[stencil_idx(xs, i)];
 

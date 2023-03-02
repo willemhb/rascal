@@ -7,7 +7,7 @@
 #define N_STACK UINT16_MAX
 
 extern value_t Stack[N_STACK], *Sp, *Se;
-extern value_t Quote;
+extern value_t Quote, Do, If, Put;
 
 // API ------------------------------------------------------------------------
 // stack ----------------------------------------------------------------------

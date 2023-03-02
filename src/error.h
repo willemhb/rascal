@@ -17,10 +17,10 @@ error_t raise_error(error_t err, value_t agitant, const char* fmt, ...);
 error_t catch_error(value_t* agbuf);
 bool    panicking(void);
 
-#define panic(err, ag, fmt, ...)				\
-  do {								\
+#define panic(err, ag, fmt, ...)                            \
+  do {                                                      \
     raise_error(err, ag, fmt __VA_OPT__(,) __VA_ARGS__);	\
-    return ag;							\
+    return ag;                                              \
   } while (false)
 
 #define repanic(ag)                             \
@@ -42,6 +42,40 @@ bool    panicking(void);
           "bad arity: expected %zu, got %zu",   \
           expect,                               \
           got)
+
+#define stxarity(expect, got, form)                                 \
+  require((expect)==(got),                                          \
+          EVAL_ERROR,                                               \
+          NUL,                                                      \
+          "bad syntax in %s: expected %zu expressions, got %zu",    \
+          form,                                                     \
+          expect,                                                   \
+          got)
+
+#define stxvarity(expect, got, form)                                    \
+  require((expect)>=(got),                                              \
+          EVAL_ERROR,                                                   \
+          NUL,                                                          \
+          "bad syntax in %s: expected at least %zu expressions, got %zu", \
+          form,                                                         \
+          expect,                                                       \
+          got)
+
+#define stxtype(expect, val, form)                      \
+  require((expect)==type_of((val)),                     \
+          EVAL_ERROR,                                   \
+          NUL,                                          \
+          "bad syntax in %s: expected %s",              \
+          form,                                         \
+          type_name((expect)))
+
+#define stxtest(test, val, form, ...)             \
+  require(test(val),                              \
+          APPLY_ERROR,                            \
+          NUL,                                    \
+          "bas syntax in %s: "msg,                \
+          form __VA_OPT__(,)                      \
+          __VA_ARGS__)
 
 #define argtype(expect, val)                    \
   require((expect)==type_of((val)),             \

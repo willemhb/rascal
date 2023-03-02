@@ -40,6 +40,50 @@ typedef enum {
   ANY
 } type_t;
 
+/*
+  full set of 0.1.0 types (object types ordered first to fit in 5 bits)
+
+  typedef enum {
+  STREAM=1,
+  FUNCTION,
+  SYMBOL,
+  TUPLE,
+  LIST,
+  VECTOR,
+  DICT,
+  SET,
+  STRING,
+  BINARY,
+  STENCIL,
+  BUFFER,
+  TABLE,
+  STACK,
+  ENVIRONMENT,
+  NAMESPACE,
+  MODULE,
+  VARIABLE,
+  CHUNK,
+  CLOSURE,
+  METHOD,
+  DISPATCH,
+  CONTROL,
+  RECORD,
+  STRUCT,
+  BIG,
+  RATIO,
+  COMPLEX,
+  SMALL,
+  FIXNUM,
+  REAL,
+  BOOL,
+  GLYPH,
+  SYSPTR,
+  UNIT,
+  ANY,
+  NONE
+  } type_t;
+*/
+
 typedef enum {
   HASHED=0x100
 } objfl_t;
@@ -244,6 +288,9 @@ value_t binary(usize n, value_t* args);
 value_t stencil(usize n, value_t* args);
 
 // accessors ------------------------------------------------------------------
+value_t first(tuple_t* kv);
+value_t second(tuple_t* kv);
+
 value_t nth_hd(list_t* xs, usize n);
 list_t* nth_tl(list_t* xs, usize n);
 
@@ -251,12 +298,10 @@ value_t   vector_get(vector_t* xs, usize n);
 vector_t* vector_set(vector_t* xs, usize n, value_t val);
 vector_t* vector_del(vector_t* xs, usize n);
 
-value_t dict_nth(dict_t* ks, usize n);
 value_t dict_get(dict_t* ks, value_t k);
 dict_t* dict_set(dict_t* ks, value_t k, value_t v);
 dict_t* dict_del(dict_t* ks, value_t k);
 
-value_t set_nth(set_t* ks, usize n);
 bool    set_get(set_t* ks, value_t k);
 set_t*  set_add(set_t* ks, value_t k);
 set_t*  set_del(set_t* ks, value_t k);

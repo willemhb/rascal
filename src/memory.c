@@ -69,6 +69,9 @@ void mark_object(void* ptr);
 
 void trace_symbol(void* ptr);
 void trace_list(void* ptr);
+void trace_vector(void* ptr);
+void trace_dict(void* ptr);
+void trace_set(void* ptr);
 void trace_tuple(void* ptr);
 void trace_stencil(void* ptr);
 
@@ -80,9 +83,13 @@ void trace_values(usize n, value_t* vals) {
 }
 
 void (*Trace[NUM_TYPES])(void* ptr) = {
-  [SYMBOL] = trace_symbol,
-  [LIST]   = trace_list,
-  [TUPLE]  = trace_tuple
+  [SYMBOL]  = trace_symbol,
+  [LIST]    = trace_list,
+  [VECTOR]  = trace_vector,
+  [DICT]    = trace_dict,
+  [SET]     = trace_set,
+  [TUPLE]   = trace_tuple,
+  [STENCIL] = trace_stencil
 };
 
 void (*Free[NUM_TYPES])(void* ptr) = {
@@ -125,6 +132,26 @@ void trace_list(void* ptr) {
 
   mark_value(list->head);
   mark_object(list->tail);
+}
+
+void trace_vector(void* ptr) {
+  vector_t* vec = ptr;
+
+  mark_object(vec->vals);
+}
+
+void trace_dict(void* ptr) {
+  dict_t* dict = ptr;
+
+  mark_object(dict->map);
+  mark_object(dict->vals);
+}
+
+void trace_set(void* ptr) {
+  set_t* set = ptr;
+
+  mark_object(set->map);
+  mark_object(set->vals);
 }
 
 void trace_tuple(void* ptr) {
