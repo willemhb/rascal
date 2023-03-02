@@ -9,9 +9,7 @@
 (define-generic-mode
   'rascal-mode
   '(";" ("#|" . "|#"))
-  '("var" "put" "lmb" "quote" "do" "if" "prompt" "cntl"
-    "fn" "mac" "let"
-    "and" "or" "cond" "case")
+  '("var" "val" "put" "mac" "lmb" "do" "quote" "if")
   '((":[-a-zA-Z?*+0-9]+[[:space:][:cntrl:],\\s)]" . font-lock-reference-face)
     ("\\_<any[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<none[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
@@ -23,6 +21,9 @@
     ("\\_<symbol[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<tuple[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<list[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
+    ("\\_<vector[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
+    ("\\_<dict[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
+    ("\\_<set[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<binary[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("&" . font-lock-function-name-face)
     ("\\_<error[[:space:][:cntrl:],\\s)]" . font-lock-warning-face))

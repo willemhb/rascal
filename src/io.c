@@ -39,6 +39,8 @@ value_t  Expr    = NUL;
 #define DIGIT  "0123456789"
 #define SYMCHR "$%&^#:?!+-_*/<=>."
 
+value_t Backquote, Unquote, Splice;
+  
 // internal helpers -----------------------------------------------------------
 value_t read_expr(FILE* ios);
 
@@ -106,6 +108,16 @@ static void show_readtable(void) {
     else
       printf("[%3zu] %c = %p\n", i, key, val);
   }
+}
+
+static value_t read_quotation(value_t head, FILE* ios) {
+  values_push(&Subexpr, head);
+  value_t quoted = read_expr(ios);
+  repanic(NUL);
+  values_push(&Subexpr, quoted);
+  value_t out = list(2, &Subexpr.array[Subexpr.len-2]);
+  values_popn(&Subexpr, 2);
+  return give(out, expr_token);
 }
 
 static usize read_sequence(FILE* ios, char* type, int term, bool (*test)(value_t x)) {
@@ -492,6 +504,28 @@ value_t read_hexadecimal_number(int ch, FILE* ios) {
   return give(tag_word(fx, FIXNUMTAG), expr_token);
 }
 
+value_t read_quote(int ch, FILE* ios) {
+  (void)ch;
+
+  extern value_t Quote;
+  return read_quotation(Quote, ios);
+}
+
+value_t read_backquote(int ch, FILE* ios) {
+  (void)ch;
+  return read_quotation(Backquote, ios);
+}
+
+value_t read_unquote(int ch, FILE* ios) {
+  (void)ch;
+  return read_quotation(Unquote, ios);
+}
+
+value_t read_splice(int ch, FILE* ios) {
+  (void)ch;
+  return read_splice(Splice, ios);
+}
+
 value_t read_tuple(int ch, FILE* ios) {
   (void)ch;
 
@@ -593,6 +627,11 @@ void reader_init(void) {
   init_reader(&Reader);
   init_reader(&DispatchReader);
 
+  // initialize macro symbols -------------------------------------------------
+  Backquote = symbol("backquote");
+  Unquote   = symbol("unquote");
+  Splice    = symbol("splice");
+
   // add readers --------------------------------------------------------------
   // toplevel -----------------------------------------------------------------
   add_readers(" \t\n\v\f\r,", read_space);
@@ -600,6 +639,10 @@ void reader_init(void) {
   add_readers(UPPER,  read_symbol);
   add_readers(LOWER,  read_symbol);
   add_readers(SYMCHR, read_symbol);
+  add_reader('\'', read_quote);
+  add_reader('`', read_backquote);
+  add_reader('~', read_unquote);
+  add_reader('@', read_splice);
   add_reader('(', read_list);
   add_reader('[', read_tuple);
   add_reader('{', read_set);
