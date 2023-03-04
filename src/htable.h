@@ -11,6 +11,7 @@ typedef struct {
 } htable_t;
 
 // API ------------------------------------------------------------------------
+// tables & alists ------------------------------------------------------------
 usize pad_array_size(usize newct, usize oldcap, usize mincap, double loadf);
 usize pad_table_size(usize newct, usize oldcap);
 

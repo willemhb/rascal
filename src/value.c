@@ -16,12 +16,16 @@ extern object_t *LiveObjects;
 
 // dispatch tables ------------------------------------------------------------
 usize size_of_tuple(void* ptr);
-usize size_of_stencil(void* ptr);
+usize size_of_vector(void* ptr);
+usize size_of_dict(void* ptr);
+usize size_of_set(void* ptr);
 usize size_of_binary(void* ptr);
 
 usize (*SizeOf[NUM_TYPES])(void* ptr) = {
   [TUPLE]   = size_of_tuple,
-  [STENCIL] = size_of_stencil,
+  [VECTOR]  = size_of_vector,
+  [DICT]    = size_of_dict,
+  [SET]     = size_of_set,
   [BINARY]  = size_of_binary
 };
 
@@ -38,20 +42,13 @@ usize BaseSize[NUM_TYPES] = {
   [VECTOR]  = sizeof(vector_t),
   [DICT]    = sizeof(dict_t),
   [SET]     = sizeof(set_t),
-  [BINARY]  = sizeof(binary_t),
-  [STENCIL] = sizeof(stencil_t)
+  [BINARY]  = sizeof(binary_t)
 };
 
 usize size_of_tuple(void* ptr) {
   tuple_t* tup = ptr;
 
   return sizeof(tuple_t) + tup->len * sizeof(value_t);
-}
-
-usize size_of_stencil(void* ptr) {
-  stencil_t* st = ptr;
-
-  return sizeof(stencil_t) + stencil_len(st) * sizeof(value_t);
 }
 
 usize size_of_binary(void* ptr) {
@@ -116,7 +113,6 @@ char* type_name_of_type(type_t t) {
     [DICT]    = "dict",
     [SET]     = "set",
     [BINARY]  = "binary",
-    [STENCIL] = "stencil",
     [ANY]     = "any"
   };
 
@@ -212,14 +208,23 @@ bool del_flag(void* ptr, flags fl) {
 }
 
 // object apis ----------------------------------------------------------------
-static void init_object(object_t* object, type_t type, flags fl) {
-  object->next  = LiveObjects;
-  LiveObjects   = object;
-  object->type  = type;
-  object->flags = fl;
-  object->black = false;
-  object->gray  = true;
-  object->hash  = 0;
+static void init_object(void* ptr, type_t type, flags fl) {
+  object_t* obj = ptr;
+  obj->next   = LiveObjects;
+  LiveObjects = obj;
+  obj->type   = type;
+  obj->flags  = fl;
+  obj->black  = false;
+  obj->gray   = true;
+  obj->hash   = 0;
+}
+
+static usize hamt_height(void* ptr) {
+  return ((object_t*)ptr)->flags & 7;
+}
+
+static usize hamt_local_key(void* ptr, usize k) {
+  return k >> 6 * hamt_height(ptr) & 63;
 }
 
 // native ---------------------------------------------------------------------
@@ -232,7 +237,7 @@ static void init_native(native_t* self, char* name, value_t (*func)(usize n, val
 
   self->name = as_symbol(symbol(name));
   self->func = func;
-  
+
   self->name->bind = object(self);
 }
 
@@ -355,21 +360,6 @@ list_t* nth_tl(list_t* xs, usize n) {
 }
 
 // vector ---------------------------------------------------------------------
-static stencil_t* allocate_stencil(usize bm);
-static void init_stencil(stencil_t* self, usize h, usize bitmap, value_t* args);
-usize stencil_height(stencil_t* st);
-usize stencil_bits(stencil_t* st, usize n);
-bool stencil_has(stencil_t* xs, usize i);
-value_t stencil_nth(stencil_t* xs, usize n);
-value_t stencil_ref(stencil_t* xs, usize i);
-stencil_t* stencil_update(stencil_t* xs, usize rmv, usize add, value_t* args);
-
-typedef struct {
-  usize maxh;
-  usize full[8];
-  usize extra[8];
-} hamt_init_map_t;
-
 vector_t EmptyVector = {
   .obj={
     .next =NULL,
@@ -379,159 +369,100 @@ vector_t EmptyVector = {
     .gray =false,
     .black=true
   },
-  .len =0,
-  .vals=&EmptyStencil
+  .arity =0,
+  .len   =0
 };
 
-static vector_t* allocate_vector(void) {
-  return allocate(sizeof(vector_t));
+static vector_t* allocate_vector(usize len) {
+  return allocate(sizeof(vector_t) + len * sizeof(value_t));
 }
 
-static void init_vector(vector_t* self, usize n, stencil_t* st) {
-  init_object((object_t*)self, VECTOR, 0);
+static void init_vector(vector_t* self, flags height, usize arity, usize len, value_t* values) {
+  init_object(self, VECTOR, height);
 
-  self->len  = n;
-  self->vals = st;
+  self->arity = arity;
+  self->len   = len;
+  memcpy(self->array, values, len * sizeof(value_t));
 }
 
-static void calc_hamt_dim(usize n, hamt_init_map_t* m) {
-  for (usize i=0; i<8; i++) {
-    m->full[m->maxh]  = n >> 6;
-    m->extra[m->maxh] = n & 63;
+value_t vector_ref(vector_t* self, usize n) {
+  usize h = hamt_height(self);
+  usize i = n >> (6 * h) & 63;
 
-    if (m->full[m->maxh] == 0)
-      break;
+  assert(i < self->len);
 
-    n = m->full[m->maxh] + !!m->extra[m->maxh];
-    m->maxh++;
-  }
+  value_t v = self->array[i];
+
+  if (h)
+    return vector_ref(as_vector(v), n);
+
+  return v;
 }
 
-static usize fill_bitmap(usize n) {
-  usize out  = 0;
+vector_t* vector_set(vector_t* self, usize n, value_t v) {
+  usize h = hamt_height(self);
+  usize i = n >> (6 * h) & 63;
 
-  for (usize i=0; i<n; i++)
-    out |= 1 << i;
+  assert(i < self->len);
 
+  vector_t* out = duplicate(self, size_of(self));
+
+  if (h)
+    v = object(vector_set(as_vector(out->array[i]), n, v));
+
+  out->array[i] = v;
   return out;
 }
 
-value_t vector(usize n, value_t* args) {
-  assert(n <= FIXNUM_MAX);
+static vector_t* vector_add_help(vector_t* self, value_t v, bool top) {
+  if (hamt_height(self)) {
+    vector_t* lc  = as_vector(self->array[self->len-1]);
+    vector_t* lca = vector_add_help(lc, v, false);
 
-  vector_t* vec;
-
-  if (n == 0)
-    vec = &EmptyVector;
-
-  else {
-    hamt_init_map_t dim = {
-      .maxh  = 0,
-      .full  = { 0, 0, 0, 0, 0, 0, 0, 0 },
-      .extra = { 0, 0, 0, 0, 0, 0, 0, 0 }
-    };
-
-    calc_hamt_dim(n, &dim);
-    stencil_t* st = NULL;
-
-    assert(dim.maxh < 8);
-
-    for (usize h=0; h <= dim.maxh; h++) {
-      value_t* theseargs = args;
-      usize f;
-
-      for (f=0; f < dim.full[h]; f++) {
-	st = allocate_stencil(FULL_SMASK);
-	init_stencil(st, h, FULL_SMASK, theseargs);
-	args[f] = object(st);
-	theseargs += 64;
-      }
-
-      if (dim.extra[h]) {
-	usize bm = fill_bitmap(dim.extra[h]);
-	st = allocate_stencil(bm);
-	init_stencil(st, h, bm, theseargs);
-	args[f] = object(st);
+    if (lc == lca) { // subtree full, couldn't add
+      if (top) {
+	vector_t* singleton = allocate_vector(1);
+	init_vector();
       }
     }
-
-    vec = allocate_vector();
-    init_vector(vec, n, st);
   }
-
-  return object(vec);
 }
 
-value_t vector_get(vector_t* xs, usize n) {
-  assert(n < xs->len);
-
-  stencil_t* st = xs->vals;
-
-  while (stencil_height(st)) {
-    usize h   = st->obj.flags & 7;
-    usize i   = n >> (h * 6) & 63;
-    value_t v = stencil_nth(st, i);
-    st        = as_stencil(v);
-  }
-
-  return stencil_nth(st, n&63);
+vector_t* vector_add(vector_t* self, value_t v) {
+  return vector_add_help(self, v, true);
 }
 
-vector_t* vector_set(vector_t* xs, usize n, value_t val) {
-  assert(n <= xs->len);
+// dict -----------------------------------------------------------------------
+dict_t EmptyDict = {
+  .obj={
+    .next =NULL,
+    .hash =0,
+    .flags=0,
+    .gray =false,
+    .black=true,
+    .type =DICT
+  },
+  .arity =0,
+  .len   =0,
+  .leaves=0,
+  .links =0
+};
 
-  stencil_t* sbuffer[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-  usize      ibuffer[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-  stencil_t* st         = xs->vals;
-  usize      maxheight  = stencil_height(st);
-
-  for (usize i=0; i < maxheight; i++) {
-    sbuffer[i] = st;
-    ibuffer[i] = stencil_bits(st, n);
-    st         = as_stencil(stencil_nth(st, ibuffer[i]));
-  }
-
-  st = stencil_update(st, 0, 1 << (n & 63), &val);
-
-  for (usize i=maxheight; i > 0; i--) {
-    val          = tag_ptr(st, OBJTAG);
-    sbuffer[i-1] = stencil_update(sbuffer[i-1], 0, 1 << (ibuffer[i-1] & 63), &val);
-    st           = sbuffer[i-1];
-  }
-
-  vector_t* out = allocate_vector();
-  init_vector(out, xs->len + n == xs->len, st);
-
-  return out;
-}
-
-vector_t* vector_del(vector_t* xs, usize n) {
-    assert(n < xs->len);
-
-  stencil_t* sbuffer[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-  usize      ibuffer[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-  stencil_t* st         = xs->vals;
-  usize      maxheight  = stencil_height(st);
-
-  for (usize i=0; i < maxheight; i++) {
-    sbuffer[i] = st;
-    ibuffer[i] = stencil_bits(st, n);
-    st         = as_stencil(stencil_nth(st, ibuffer[i]));
-  }
-
-  st = stencil_update(st, 1 << (n & 63), 0, NULL);
-
-  for (usize i=maxheight; i > 0; i--) {
-    value_t val  = tag_ptr(st, OBJTAG);
-    sbuffer[i-1] = stencil_update(sbuffer[i-1], 0, 1 << (ibuffer[i-1] & 63), &val);
-    st           = sbuffer[i-1];
-  }
-
-  vector_t* out = allocate_vector();
-  init_vector(out, xs->len + n == xs->len, st);
-
-  return out;
-}
+// set ------------------------------------------------------------------------
+set_t EmptySet = {
+  .obj={
+    .next =NULL,
+    .hash =0,
+    .flags=0,
+    .gray =false,
+    .black=true,
+    .type =SET
+  },
+  .arity =0,
+  .len   =0,
+  .leaves=0,
+  .links =0
+};
 
 // binary ---------------------------------------------------------------------
 binary_t EmptyBinary = {
@@ -620,368 +551,4 @@ value_t tuple(usize n, value_t* args) {
   }
 
   return tag_ptr(tup, OBJTAG);
-}
-
-// dict -----------------------------------------------------------------------
-dict_t EmptyDict = {
-  .obj={
-    .next =NULL,
-    .hash =0,
-    .flags=0,
-    .gray =false,
-    .black=true,
-    .type =DICT
-  },
-  .len =0,
-  .map =&EmptyStencil,
-  .vals=&EmptyStencil
-};
-
-static dict_t* allocate_dict(void) {
-  return allocate(sizeof(dict_t));
-}
-
-static void init_dict(dict_t* self, usize n, stencil_t* map, stencil_t* vals) {
-  init_object((object_t*)self, DICT, 0);
-
-  self->len = n;
-  self->map = map;
-  self->vals= vals;
-}
-
-value_t dict(usize n, value_t* args) {
-  assert((n & 1) == 0);
-
-  n >>= 1;
-
-  dict_t* out;
-
-  if (n == 0)
-    out = &EmptyDict;
-
-  else {
-    hamt_init_map_t dim = {
-      .maxh  = 0,
-      .full  = { 0, 0, 0, 0, 0, 0, 0, 0 },
-      .extra = { 0, 0, 0, 0, 0, 0, 0, 0 }
-    };
-
-    calc_hamt_dim(n, &dim);
-    stencil_t* map = NULL,* vals = NULL;
-
-    assert(dim.maxh < 8);
-
-    
-
-    out = allocate_dict();
-    init_dict(out, n, map, vals);
-  }
-  
-  return object(out);
-}
-
-tuple_t* dict_nth(dict_t* ks, usize n) {
-  assert(n < ks->len);
-
-  stencil_t* st = ks->vals;
-
-  while (stencil_height(st)) {
-    usize h   = st->obj.flags & 7;
-    usize i   = n >> (h * 6) & 63;
-    value_t v = stencil_nth(st, i);
-    st        = as_stencil(v);
-  }
-
-  return as_tuple(stencil_nth(st, n&63));
-}
-
-value_t dict_get(dict_t* ks, value_t k) {
-  if (ks->len == 0)
-    return NOTFOUND;
-
-  uhash h = hash(k);
-  value_t x = NOTFOUND;
-
-  stencil_t* map = ks->map;
-
-  for (;;) {
-    usize i = stencil_bits(map, h);
-    x       = stencil_ref(map, i);
-
-    if (x == NOTFOUND)
-      return x;
-
-    else if (stencil_height(map) == 0)
-      break;
-
-    else
-      map = as_stencil(x);    
-  }
-
-  if (is_fixnum(x)) {
-    tuple_t* p = dict_nth(ks, as_fixnum(x));
-
-    if (equal(p->slots[0], k))
-      return p->slots[1];
-
-    return NOTFOUND;
-  } else {
-    assert(is_list(x));
-    list_t* ords = as_list(x);
-
-    while (ords->len) {
-      tuple_t* p = dict_nth(ks, as_fixnum(ords->head));
-
-      if (equal(p->slots[0], k))
-        return p->slots[1];
-
-      ords = ords->tail;
-    }
-
-    return NOTFOUND;
-  }
-}
-
-// set ------------------------------------------------------------------------
-value_t stencil_href(stencil_t* xs, usize h);
-value_t stencil_iref(stencil_t* xs, usize n);
-
-set_t EmptySet = {
-  .obj={
-    .next =NULL,
-    .hash =0,
-    .flags=0,
-    .gray =false,
-    .black=true,
-    .type =SET
-  },
-  .len =0,
-  .map =&EmptyStencil,
-  .vals=&EmptyStencil
-};
-
-static set_t* allocate_set(void) {
-  return allocate(sizeof(set_t));
-}
-
-static void init_set(set_t* self, usize n, stencil_t* map, stencil_t* vals) {
-  init_object((object_t*)self, SET, 0);
-
-  self->len = n;
-  self->map = map;
-  self->vals= vals;
-}
-
-value_t set(usize n, value_t* args) {
-  assert((n & 1) == 0);
-
-  set_t* out;
-
-  if (n == 0)
-    out = &EmptySet;
-
-  else {
-    
-  }
-
-  return object(out);
-}
-
-bool set_has(set_t* ks, value_t k) {
-  if (ks->len == 0)
-    return false;
-
-  uhash h         = hash(k);
-  stencil_t* map  = ks->map;
-  stencil_t* vals = ks->vals;
-  value_t r       = stencil_href(map, h);
-
-  if (r == NOTFOUND)
-    return false;
-
-  if (is_fixnum(r))
-    return equal(k, stencil_iref(vals, as_fixnum(r)));
-
-  assert(is_list(r));
-
-  list_t* rs = as_list(r);
-
-  while (rs->len) {
-    r = stencil_iref(vals, as_fixnum(rs->head));
-
-    if (equal(r, k))
-      return true;
-
-    rs = rs->tail;
-  }
-
-  return false;
-}
-
-set_t* set_add(set_t* ks, value_t k) {
-  uhash h = hash(k);
-
-  stencil_t* sbuf[8];
-}
-
-set_t* set_del(set_t* xs, usize n) {
-    assert(n < xs->len);
-
-  stencil_t* sbuffer[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-  usize      ibuffer[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-  stencil_t* st         = xs->vals;
-  usize      maxheight  = stencil_height(st);
-
-  for (usize i=0; i < maxheight; i++) {
-    sbuffer[i] = st;
-    ibuffer[i] = stencil_bits(st, n);
-    st         = as_stencil(stencil_nth(st, ibuffer[i]));
-  }
-
-  st = stencil_update(st, 1 << (n & 63), 0, NULL);
-
-  for (usize i=maxheight; i > 0; i--) {
-    value_t val  = tag_ptr(st, OBJTAG);
-    sbuffer[i-1] = stencil_update(sbuffer[i-1], 0, 1 << (ibuffer[i-1] & 63), &val);
-    st           = sbuffer[i-1];
-  }
-
-  set_t* out = allocate_set();
-  init_set(out, xs->len + n == xs->len, st);
-
-  return out;
-}
-
-// stencil --------------------------------------------------------------------
-stencil_t EmptyStencil = {
-  .obj={
-    .next=NULL,
-    .hash=0,
-    .flags=0,
-    .gray=false,
-    .black=true,
-    .type=STENCIL
-  },
-  .bitmap=0
-};
-
-#define MAX_STENCIL_DEPTH 8
-
-stencil_t* allocate_stencil(usize bitmap) {
-  usize l = popcnt(bitmap);
-  assert(l > 0);
-
-  return allocate(sizeof(stencil_t) + l * sizeof(value_t));
-}
-
-void init_stencil(stencil_t* xs, usize h, usize bitmap, value_t* args) {
-  assert(h < 8);
-  assert(popcnt(bitmap) > 0);
-  init_object(&xs->obj, STENCIL, h);
-  xs->bitmap = bitmap;
-  memcpy(xs->array, args, popcnt(bitmap) * sizeof(value_t));
-}
-
-value_t stencil(usize bitmap, value_t* args) {
-  stencil_t* new;
-
-  if (popcnt(bitmap) == 0)
-    new = &EmptyStencil;
-
-  else {
-    new = allocate_stencil(bitmap);
-    init_stencil(new, 0, bitmap, args);
-  }
-
-  return tag_ptr(new, OBJTAG);
-}
-
-usize stencil_height(stencil_t* xs) {
-  return xs->obj.flags & 7;
-}
-
-usize stencil_bits(stencil_t* xs, usize n) {
-  return n >> (stencil_height(xs) * 6) & 63;
-}
-
-usize stencil_idx(stencil_t* xs, usize i) {
-  return popcnt(xs->bitmap & ((1 << i) - 1));
-}
-
-usize stencil_lidx(stencil_t* xs, usize h) {
-  return stencil_idx(xs, stencil_bits(xs, h));
-}
-
-usize stencil_len(stencil_t* xs) {
-  return popcnt(xs->bitmap);
-}
-
-bool stencil_has(stencil_t* xs, usize i) {
-  return !!(xs->bitmap & ((1 << i)));
-}
-
-value_t stencil_nth(stencil_t* xs, usize n) {
-  assert(n < stencil_len(xs));
-
-  return xs->array[n];
-}
-
-value_t stencil_ref(stencil_t* xs, usize i) {
-  if (stencil_has(xs, i))
-    return xs->array[stencil_idx(xs, i)];
-
-  return NOTFOUND;
-}
-
-value_t stencil_iref(stencil_t* xs, usize n) {
-  for (;;) {
-    usize i = stencil_bits(xs, n);
-
-    if (i > stencil_len(xs))
-      return NOTFOUND;
-
-    else if (stencil_height(xs))
-      xs = as_stencil(xs->array[i]);
-
-    else
-      return xs->array[i];
-  }
-}
-
-value_t stencil_href(stencil_t* xs, usize h) {
-  for (;;) {
-    usize hb = stencil_bits(xs, h);
-    
-    if (!stencil_has(xs, hb))
-      return NOTFOUND;
-
-    value_t x = xs->array[stencil_idx(xs, hb)];
-
-    if (is_stencil(x))
-      xs = as_stencil(x);
-
-    else
-      return x;
-  }
-}
-
-stencil_t* stencil_update(stencil_t* xs, usize rmv, usize add, value_t* args) {
-  usize oldmap   = xs->bitmap;
-  usize newmap   = (oldmap & ~rmv) | add;
-  value_t buffer[popcnt(newmap)];
-
-  for (usize n=0; n<64; n++) {
-    usize i = 1 << n;
-
-    if (i & newmap)
-      buffer[popcnt(newmap & (i - 1))] = args[popcnt(add & (i - 1))];
-
-    else if (i & oldmap && !(i & rmv))
-      buffer[popcnt(newmap & (i - 1))] = xs->array[popcnt(oldmap & (i - 1))];
-  }
-
-  stencil_t* out = allocate_stencil(newmap);
-  init_stencil(out, 0, newmap, buffer);
-
-  return out;
 }

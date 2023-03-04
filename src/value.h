@@ -19,7 +19,6 @@ typedef struct vector_t  vector_t;
 typedef struct dict_t    dict_t;
 typedef struct set_t     set_t;
 typedef struct binary_t  binary_t;
-typedef struct stencil_t stencil_t;
 
 typedef enum {
   NONE,
@@ -36,7 +35,6 @@ typedef enum {
   DICT,
   SET,
   BINARY,
-  STENCIL,  // internal HAMT node type
   ANY
 } type_t;
 
@@ -128,34 +126,33 @@ struct list_t {
 
 struct vector_t {
   HEADER;
-  usize      len;
-  stencil_t* vals;
+  usize      arity;   // abstract arity (includes sub-vectors)
+  usize      len;     // actual allocated size of this node
+  value_t    array[];
 };
 
 struct dict_t {
   HEADER;
-  usize      len;
-  stencil_t* vals;
-  stencil_t* map;
+  usize   arity;
+  usize   len;
+  usize   leaves;
+  usize   links;
+  value_t array[];
 };
 
 struct set_t {
   HEADER;
-  usize      len;
-  stencil_t* vals;
-  stencil_t* map;
+  usize   len;
+  usize   arity;
+  usize   leaves; // bitmap of slots containing set values
+  usize   links;  // bitmap of slots containing non-leaf nodes (either another set or a list of collisions)
+  value_t array[];
 };
 
 struct binary_t {
   HEADER;
   usize  len;
   ubyte  array[];
-};
-
-struct stencil_t {
-  HEADER;
-  usize bitmap;
-  value_t array[];
 };
 
 // globals --------------------------------------------------------------------
@@ -192,7 +189,6 @@ extern vector_t  EmptyVector;
 extern dict_t    EmptyDict;
 extern set_t     EmptySet;
 extern binary_t  EmptyBinary;
-extern stencil_t EmptyStencil;
 
 // API ------------------------------------------------------------------------
 // tags, tagging, types -------------------------------------------------------
@@ -214,8 +210,9 @@ bool    has_type(value_t val, type_t type);
           tuple_t*:size_of_obj,                 \
           list_t*:size_of_obj,                  \
           vector_t*:size_of_obj,                \
-          binary_t*:size_of_obj,                \
-          stencil_t*:size_of_obj)(x)
+	  dict_t*:size_of_obj,			\
+	  set_t*:size_of_obj,			\
+          binary_t*:size_of_obj)(x)
 
 #define type_name(x)                            \
   generic((x),                                  \
@@ -296,7 +293,8 @@ list_t* nth_tl(list_t* xs, usize n);
 
 value_t   vector_get(vector_t* xs, usize n);
 vector_t* vector_set(vector_t* xs, usize n, value_t val);
-vector_t* vector_del(vector_t* xs, usize n);
+vector_t* vector_add(vector_t* xs, value_t val);
+vector_t* vector_pop(vector_t* xs);
 
 value_t dict_get(dict_t* ks, value_t k);
 dict_t* dict_set(dict_t* ks, value_t k, value_t v);
@@ -305,8 +303,5 @@ dict_t* dict_del(dict_t* ks, value_t k);
 bool    set_has(set_t* ks, value_t k);
 set_t*  set_add(set_t* ks, value_t k);
 set_t*  set_del(set_t* ks, value_t k);
-
-usize stencil_height(stencil_t* xs);
-usize stencil_len(stencil_t* xs);
 
 #endif

@@ -30,6 +30,11 @@ typedef uint32_t   flags;
 #define popcnt(x)				\
   generic((x),					\
 	  uint32_t: __builtin_popcount,		\
-	  uint64_t: __builtin_popcountl )(x)
+	  uint64_t: __builtin_popcountl)(x)
+
+#define ctz(x)					\
+  generic((x),					\
+	  uint32_t: __builtin_ctz,		\
+	  uint64_t: __builtin_ctzl)(x)
 
 #endif
