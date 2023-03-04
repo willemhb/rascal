@@ -302,7 +302,7 @@ value_t dict_get(dict_t* ks, value_t k);
 dict_t* dict_set(dict_t* ks, value_t k, value_t v);
 dict_t* dict_del(dict_t* ks, value_t k);
 
-bool    set_get(set_t* ks, value_t k);
+bool    set_has(set_t* ks, value_t k);
 set_t*  set_add(set_t* ks, value_t k);
 set_t*  set_del(set_t* ks, value_t k);
 

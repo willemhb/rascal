@@ -358,7 +358,7 @@ list_t* nth_tl(list_t* xs, usize n) {
 static stencil_t* allocate_stencil(usize bm);
 static void init_stencil(stencil_t* self, usize h, usize bitmap, value_t* args);
 usize stencil_height(stencil_t* st);
-usize stencil_lidx(stencil_t* st, usize n);
+usize stencil_bits(stencil_t* st, usize n);
 bool stencil_has(stencil_t* xs, usize i);
 value_t stencil_nth(stencil_t* xs, usize n);
 value_t stencil_ref(stencil_t* xs, usize i);
@@ -487,7 +487,7 @@ vector_t* vector_set(vector_t* xs, usize n, value_t val) {
 
   for (usize i=0; i < maxheight; i++) {
     sbuffer[i] = st;
-    ibuffer[i] = stencil_lidx(st, n);
+    ibuffer[i] = stencil_bits(st, n);
     st         = as_stencil(stencil_nth(st, ibuffer[i]));
   }
 
@@ -515,7 +515,7 @@ vector_t* vector_del(vector_t* xs, usize n) {
 
   for (usize i=0; i < maxheight; i++) {
     sbuffer[i] = st;
-    ibuffer[i] = stencil_lidx(st, n);
+    ibuffer[i] = stencil_bits(st, n);
     st         = as_stencil(stencil_nth(st, ibuffer[i]));
   }
 
@@ -705,7 +705,7 @@ value_t dict_get(dict_t* ks, value_t k) {
   stencil_t* map = ks->map;
 
   for (;;) {
-    usize i = stencil_lidx(map, h);
+    usize i = stencil_bits(map, h);
     x       = stencil_ref(map, i);
 
     if (x == NOTFOUND)
@@ -743,6 +743,9 @@ value_t dict_get(dict_t* ks, value_t k) {
 }
 
 // set ------------------------------------------------------------------------
+value_t stencil_href(stencil_t* xs, usize h);
+value_t stencil_iref(stencil_t* xs, usize n);
+
 set_t EmptySet = {
   .obj={
     .next =NULL,
@@ -756,7 +759,6 @@ set_t EmptySet = {
   .map =&EmptyStencil,
   .vals=&EmptyStencil
 };
-
 
 static set_t* allocate_set(void) {
   return allocate(sizeof(set_t));
@@ -785,7 +787,70 @@ value_t set(usize n, value_t* args) {
   return object(out);
 }
 
+bool set_has(set_t* ks, value_t k) {
+  if (ks->len == 0)
+    return false;
 
+  uhash h         = hash(k);
+  stencil_t* map  = ks->map;
+  stencil_t* vals = ks->vals;
+  value_t r       = stencil_href(map, h);
+
+  if (r == NOTFOUND)
+    return false;
+
+  if (is_fixnum(r))
+    return equal(k, stencil_iref(vals, as_fixnum(r)));
+
+  assert(is_list(r));
+
+  list_t* rs = as_list(r);
+
+  while (rs->len) {
+    r = stencil_iref(vals, as_fixnum(rs->head));
+
+    if (equal(r, k))
+      return true;
+
+    rs = rs->tail;
+  }
+
+  return false;
+}
+
+set_t* set_add(set_t* ks, value_t k) {
+  uhash h = hash(k);
+
+  stencil_t* sbuf[8];
+}
+
+set_t* set_del(set_t* xs, usize n) {
+    assert(n < xs->len);
+
+  stencil_t* sbuffer[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+  usize      ibuffer[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+  stencil_t* st         = xs->vals;
+  usize      maxheight  = stencil_height(st);
+
+  for (usize i=0; i < maxheight; i++) {
+    sbuffer[i] = st;
+    ibuffer[i] = stencil_bits(st, n);
+    st         = as_stencil(stencil_nth(st, ibuffer[i]));
+  }
+
+  st = stencil_update(st, 1 << (n & 63), 0, NULL);
+
+  for (usize i=maxheight; i > 0; i--) {
+    value_t val  = tag_ptr(st, OBJTAG);
+    sbuffer[i-1] = stencil_update(sbuffer[i-1], 0, 1 << (ibuffer[i-1] & 63), &val);
+    st           = sbuffer[i-1];
+  }
+
+  set_t* out = allocate_set();
+  init_set(out, xs->len + n == xs->len, st);
+
+  return out;
+}
 
 // stencil --------------------------------------------------------------------
 stencil_t EmptyStencil = {
@@ -835,7 +900,7 @@ usize stencil_height(stencil_t* xs) {
   return xs->obj.flags & 7;
 }
 
-usize stencil_lidx(stencil_t* xs, usize n) {
+usize stencil_bits(stencil_t* xs, usize n) {
   return n >> (stencil_height(xs) * 6) & 63;
 }
 
@@ -843,6 +908,9 @@ usize stencil_idx(stencil_t* xs, usize i) {
   return popcnt(xs->bitmap & ((1 << i) - 1));
 }
 
+usize stencil_lidx(stencil_t* xs, usize h) {
+  return stencil_idx(xs, stencil_bits(xs, h));
+}
 
 usize stencil_len(stencil_t* xs) {
   return popcnt(xs->bitmap);
@@ -863,6 +931,38 @@ value_t stencil_ref(stencil_t* xs, usize i) {
     return xs->array[stencil_idx(xs, i)];
 
   return NOTFOUND;
+}
+
+value_t stencil_iref(stencil_t* xs, usize n) {
+  for (;;) {
+    usize i = stencil_bits(xs, n);
+
+    if (i > stencil_len(xs))
+      return NOTFOUND;
+
+    else if (stencil_height(xs))
+      xs = as_stencil(xs->array[i]);
+
+    else
+      return xs->array[i];
+  }
+}
+
+value_t stencil_href(stencil_t* xs, usize h) {
+  for (;;) {
+    usize hb = stencil_bits(xs, h);
+    
+    if (!stencil_has(xs, hb))
+      return NOTFOUND;
+
+    value_t x = xs->array[stencil_idx(xs, hb)];
+
+    if (is_stencil(x))
+      xs = as_stencil(x);
+
+    else
+      return x;
+  }
 }
 
 stencil_t* stencil_update(stencil_t* xs, usize rmv, usize add, value_t* args) {
