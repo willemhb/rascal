@@ -107,12 +107,13 @@ char* type_name_of_type(type_t t) {
     [REAL]    = "real",
     [FIXNUM]  = "fixnum",
     [SYMBOL]  = "symbol",
+    [BINARY]  = "binary",
     [TUPLE]   = "tuple",
     [LIST]    = "list",
+    [STENCIL] = "stencil",
     [VECTOR]  = "vector",
     [DICT]    = "dict",
     [SET]     = "set",
-    [BINARY]  = "binary",
     [ANY]     = "any"
   };
 
@@ -219,14 +220,6 @@ static void init_object(void* ptr, type_t type, flags fl) {
   obj->hash   = 0;
 }
 
-static usize hamt_height(void* ptr) {
-  return ((object_t*)ptr)->flags & 7;
-}
-
-static usize hamt_local_key(void* ptr, usize k) {
-  return k >> 6 * hamt_height(ptr) & 63;
-}
-
 // native ---------------------------------------------------------------------
 static native_t* allocate_native(void) {
   return allocate(sizeof(native_t));
@@ -292,177 +285,6 @@ value_t symbol(char* name) {
 
   return tag_ptr(*node, OBJTAG);
 }
-
-// list -----------------------------------------------------------------------
-list_t EmptyList = {
-  .obj={
-    .next =NULL,
-    .type =LIST,
-    .hash =0,
-    .flags=0,
-    .black=true,
-    .gray =false
-  },
-  .len=0,
-  .head=NUL,
-  .tail=&EmptyList
-};
-
-static void init_list(list_t* self, value_t head, list_t* tail) {
-  assert(tail->len < FIXNUM_MAX);
-  init_object(&self->obj, LIST, 0);
-
-  self->head = head;
-  self->tail = tail;
-  self->len  = 1 + tail->len;
-}
-
-value_t cons(value_t head, list_t* tail) {
-  list_t* out = allocate(sizeof(list_t));
-  init_list(out, head, tail);
-  return tag_ptr(out, OBJTAG);
-}
-
-value_t list(usize n, value_t* args) {
-  if (n == 0)
-    return object(&EmptyList);
-
-  if (n == 1)
-    return cons(args[0], &EmptyList);
-
-  list_t* out  = allocate(n * sizeof(list_t));
-  list_t* curr = &out[n-1], *last = &EmptyList;
-
-  for (usize i=n; i>0; i--) {
-    init_list(curr, args[i-1], last);
-    last = curr--;
-  }
-
-  return tag_ptr(out, OBJTAG);
-}
-
-value_t nth_hd(list_t* xs, usize n) {
-  assert(n < xs->len);
-
-  while (n--)
-    xs = xs->tail;
-
-  return xs->head;
-}
-
-list_t* nth_tl(list_t* xs, usize n) {
-  assert(n < xs->len);
-
-  while (n--)
-    xs = xs->tail;
-
-  return xs;
-}
-
-// vector ---------------------------------------------------------------------
-vector_t EmptyVector = {
-  .obj={
-    .next =NULL,
-    .hash =0,
-    .flags=0,
-    .type =VECTOR,
-    .gray =false,
-    .black=true
-  },
-  .arity =0,
-  .len   =0
-};
-
-static vector_t* allocate_vector(usize len) {
-  return allocate(sizeof(vector_t) + len * sizeof(value_t));
-}
-
-static void init_vector(vector_t* self, flags height, usize arity, usize len, value_t* values) {
-  init_object(self, VECTOR, height);
-
-  self->arity = arity;
-  self->len   = len;
-  memcpy(self->array, values, len * sizeof(value_t));
-}
-
-value_t vector_ref(vector_t* self, usize n) {
-  usize h = hamt_height(self);
-  usize i = n >> (6 * h) & 63;
-
-  assert(i < self->len);
-
-  value_t v = self->array[i];
-
-  if (h)
-    return vector_ref(as_vector(v), n);
-
-  return v;
-}
-
-vector_t* vector_set(vector_t* self, usize n, value_t v) {
-  usize h = hamt_height(self);
-  usize i = n >> (6 * h) & 63;
-
-  assert(i < self->len);
-
-  vector_t* out = duplicate(self, size_of(self));
-
-  if (h)
-    v = object(vector_set(as_vector(out->array[i]), n, v));
-
-  out->array[i] = v;
-  return out;
-}
-
-static vector_t* vector_add_help(vector_t* self, value_t v, bool top) {
-  if (hamt_height(self)) {
-    vector_t* lc  = as_vector(self->array[self->len-1]);
-    vector_t* lca = vector_add_help(lc, v, false);
-
-    if (lc == lca) { // subtree full, couldn't add
-      if (top) {
-	vector_t* singleton = allocate_vector(1);
-	init_vector();
-      }
-    }
-  }
-}
-
-vector_t* vector_add(vector_t* self, value_t v) {
-  return vector_add_help(self, v, true);
-}
-
-// dict -----------------------------------------------------------------------
-dict_t EmptyDict = {
-  .obj={
-    .next =NULL,
-    .hash =0,
-    .flags=0,
-    .gray =false,
-    .black=true,
-    .type =DICT
-  },
-  .arity =0,
-  .len   =0,
-  .leaves=0,
-  .links =0
-};
-
-// set ------------------------------------------------------------------------
-set_t EmptySet = {
-  .obj={
-    .next =NULL,
-    .hash =0,
-    .flags=0,
-    .gray =false,
-    .black=true,
-    .type =SET
-  },
-  .arity =0,
-  .len   =0,
-  .leaves=0,
-  .links =0
-};
 
 // binary ---------------------------------------------------------------------
 binary_t EmptyBinary = {
@@ -551,4 +373,212 @@ value_t tuple(usize n, value_t* args) {
   }
 
   return tag_ptr(tup, OBJTAG);
+}
+
+// list -----------------------------------------------------------------------
+list_t EmptyList = {
+  .obj={
+    .next =NULL,
+    .type =LIST,
+    .hash =0,
+    .flags=0,
+    .black=true,
+    .gray =false
+  },
+  .len=0,
+  .head=NUL,
+  .tail=&EmptyList
+};
+
+static void init_list(list_t* self, value_t head, list_t* tail) {
+  assert(tail->len < FIXNUM_MAX);
+  init_object(&self->obj, LIST, 0);
+
+  self->head = head;
+  self->tail = tail;
+  self->len  = 1 + tail->len;
+}
+
+value_t cons(value_t head, list_t* tail) {
+  list_t* out = allocate(sizeof(list_t));
+  init_list(out, head, tail);
+  return tag_ptr(out, OBJTAG);
+}
+
+value_t list(usize n, value_t* args) {
+  if (n == 0)
+    return object(&EmptyList);
+
+  if (n == 1)
+    return cons(args[0], &EmptyList);
+
+  list_t* out  = allocate(n * sizeof(list_t));
+  list_t* curr = &out[n-1], *last = &EmptyList;
+
+  for (usize i=n; i>0; i--) {
+    init_list(curr, args[i-1], last);
+    last = curr--;
+  }
+
+  return tag_ptr(out, OBJTAG);
+}
+
+value_t nth_hd(list_t* xs, usize n) {
+  assert(n < xs->len);
+
+  while (n--)
+    xs = xs->tail;
+
+  return xs->head;
+}
+
+list_t* nth_tl(list_t* xs, usize n) {
+  assert(n < xs->len);
+
+  while (n--)
+    xs = xs->tail;
+
+  return xs;
+}
+
+// stencil --------------------------------------------------------------------
+stencil_t EmptyStencil = {
+  .obj={
+    .next =NULL,
+    .hash =0,
+    .flags=0,
+    .black=true,
+    .gray =false,
+    .type =STENCIL
+  },
+  .len   =0,
+  .height=0,
+  .bitmap=0
+};
+
+static stencil_t* allocate_stencil(uint len) {
+  assert(len <= 64);
+  assert(len > 0);
+
+  return allocate(sizeof(stencil_t) + len * sizeof(value_t));
+}
+
+static void init_stencil(stencil_t* self, uint len, uint height, usize bitmap, value_t* args) {
+  assert(height < 8);
+  assert(len <= 64);
+  assert(len > 6);
+  
+  init_object(self, STENCIL, 0);
+
+  self->len    = len;
+  self->height = height;
+  self->bitmap = bitmap;
+
+  if (args)
+    memcpy(self->array, args, len * sizeof(value_t));
+}
+
+value_t stencil(uint len, uint height, usize bitmap, value_t* args) {
+  stencil_t* out;
+  
+  if (len == 0) {
+    assert(popcnt(bitmap) == 0);
+    out = &EmptyStencil;
+  } else {
+    out = allocate_stencil(len);
+    init_stencil(out, len, height, bitmap, args);
+  }
+
+  return object(out);
+}
+
+// vector ---------------------------------------------------------------------
+vector_t EmptyVector = {
+  .obj={
+    .next =NULL,
+    .hash =0,
+    .flags=0,
+    .black=true,
+    .gray =false,
+    .type =VECTOR
+  },
+  .len   =0,
+  .map   =&EmptyStencil
+};
+
+static vector_t* allocate_vector(void) {
+  return allocate(sizeof(vector_t));
+}
+
+static void init_vector(vector_t* self, usize n, stencil_t* map) {
+  init_object(self, VECTOR, 0);
+
+  self->len = n;
+  self->map = map;
+}
+
+static vector_t* mk_vector(usize n, stencil_t* map) {
+  vector_t* out = allocate_vector(); init_vector(out, n, map);
+  
+  return out;
+}
+
+value_t vector(usize n, value_t* args) {
+  (void)n;
+  (void)args;
+  
+  return NUL;
+}
+
+value_t vector_get(vector_t* self, usize n) {
+  assert(n < self->len);
+
+  stencil_t* map = self->map;
+
+  for (;;) {
+    usize i = n >> (map->height * 6) & 63;
+
+    if (map->height)
+      map = as_stencil(map->array[i]);
+
+    else
+      return map->array[i];
+  }
+}
+
+vector_t* vector_set(vector_t* self, usize n, value_t val) {
+  assert(n < self->len);
+
+  stencil_t* map     = self->map;
+  stencil_t* maps[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+  usize      idxs[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+  usize      maxh    = map->height;
+
+  for (;;) {
+    usize i = n >> (map->height * 6) & 63;
+    maps[map->height] = map;
+    idxs[map->height] = i;
+
+    if (map->height)
+      map = as_stencil(map->array[i]);
+
+    else
+      break;
+  }
+
+  for (usize i=0; i<=maxh; i++) {
+    map = maps[i] = duplicate(maps[i], size_of(maps[i]));
+
+    if (i)
+      map->array[idxs[i]] = object(maps[i-1]);
+
+    else
+      map->array[idxs[i]] = val;
+  }
+
+  return mk_vector(self->len, map);
+}
+
+vector_t* vector_push(vector_t* self, value_t v) {
+  
 }

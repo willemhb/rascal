@@ -7,6 +7,7 @@
 #include <stdbool.h>
 
 typedef uint8_t    ubyte;
+typedef uint32_t   uint;
 typedef uintptr_t  uword;
 typedef uintptr_t  uhash;
 typedef size_t     usize;

@@ -13,12 +13,14 @@ typedef void      *sysptr_t;
 typedef struct object_t  object_t;
 typedef struct native_t  native_t;
 typedef struct symbol_t  symbol_t;
+typedef struct binary_t  binary_t;
 typedef struct tuple_t   tuple_t;
 typedef struct list_t    list_t;
 typedef struct vector_t  vector_t;
 typedef struct dict_t    dict_t;
 typedef struct set_t     set_t;
-typedef struct binary_t  binary_t;
+
+typedef struct stencil_t stencil_t;
 
 typedef enum {
   NONE,
@@ -29,12 +31,13 @@ typedef enum {
   FIXNUM,
   NATIVE,
   SYMBOL,
+  BINARY,
   TUPLE,
   LIST,
+  STENCIL,
   VECTOR,
   DICT,
   SET,
-  BINARY,
   ANY
 } type_t;
 
@@ -111,6 +114,12 @@ struct symbol_t {
   uword     idno;
 };
 
+struct binary_t {
+  HEADER;
+  usize  len;
+  ubyte  array[];
+};
+
 struct tuple_t {
   HEADER;
   usize   len;
@@ -124,35 +133,29 @@ struct list_t {
   list_t* tail;
 };
 
+struct stencil_t {
+  HEADER;
+  uint    len, height;
+  usize   bitmap;
+  value_t array[];
+};
+
 struct vector_t {
   HEADER;
-  usize      arity;   // abstract arity (includes sub-vectors)
-  usize      len;     // actual allocated size of this node
-  value_t    array[];
+  usize      len;
+  stencil_t* map;
 };
 
 struct dict_t {
   HEADER;
-  usize   arity;
-  usize   len;
-  usize   leaves;
-  usize   links;
-  value_t array[];
+  usize      len;
+  stencil_t* map;
 };
 
 struct set_t {
   HEADER;
-  usize   len;
-  usize   arity;
-  usize   leaves; // bitmap of slots containing set values
-  usize   links;  // bitmap of slots containing non-leaf nodes (either another set or a list of collisions)
-  value_t array[];
-};
-
-struct binary_t {
-  HEADER;
-  usize  len;
-  ubyte  array[];
+  usize      len;
+  stencil_t* map;
 };
 
 // globals --------------------------------------------------------------------
@@ -185,10 +188,12 @@ struct binary_t {
 
 extern tuple_t   EmptyTuple;
 extern list_t    EmptyList;
+extern stencil_t EmptyStencil;
 extern vector_t  EmptyVector;
 extern dict_t    EmptyDict;
 extern set_t     EmptySet;
 extern binary_t  EmptyBinary;
+
 
 // API ------------------------------------------------------------------------
 // tags, tagging, types -------------------------------------------------------
@@ -209,9 +214,10 @@ bool    has_type(value_t val, type_t type);
           symbol_t*:size_of_obj,                \
           tuple_t*:size_of_obj,                 \
           list_t*:size_of_obj,                  \
+          stencil_t*:size_of_obj,               \
           vector_t*:size_of_obj,                \
-	  dict_t*:size_of_obj,			\
-	  set_t*:size_of_obj,			\
+          dict_t*:size_of_obj,                  \
+          set_t*:size_of_obj,                   \
           binary_t*:size_of_obj)(x)
 
 #define type_name(x)                            \
@@ -245,13 +251,13 @@ bool    del_flag(void* ptr, flags fl);
 #define is_real(x)     has_type(x, REAL)
 #define is_fixnum(x)   has_type(x, FIXNUM)
 #define is_symbol(x)   has_type(x, SYMBOL)
+#define is_binary(x)   has_type(x, BINARY)
 #define is_tuple(x)    has_type(x, TUPLE)
 #define is_list(x)     has_type(x, LIST)
+#define is_stencil(x)  has_type(x, STENCIL)
 #define is_vector(x)   has_type(x, VECTOR)
 #define is_dict(x)     has_type(x, DICT)
 #define is_set(x)      has_type(x, SET) 
-#define is_binary(x)   has_type(x, BINARY)
-#define is_stencil(x)  has_type(x, STENCIL)
 
 #define as_bool(x)    ((x)==TRUE_VAL)
 #define as_fixnum(x)  ((fixnum_t)as_word(x))
@@ -259,13 +265,13 @@ bool    del_flag(void* ptr, flags fl);
 #define as_object(x)  ((object_t*)as_ptr(x))
 #define as_native(x)  ((native_t*)as_ptr(x))
 #define as_symbol(x)  ((symbol_t*)as_ptr(x))
+#define as_binary(x)  ((binary_t*)as_ptr(x))
 #define as_tuple(x)   ((tuple_t*)as_ptr(x))
 #define as_list(x)    ((list_t*)as_ptr(x))
+#define as_stencil(x) ((stencil_t*)as_ptr(x))
 #define as_vector(x)  ((vector_t*)as_ptr(x))
 #define as_dict(x)    ((dict_t*)as_ptr(x))
 #define as_set(x)     ((set_t*)as_ptr(x))
-#define as_binary(x)  ((binary_t*)as_ptr(x))
-#define as_stencil(x) ((stencil_t*)as_ptr(x))
 
 // constructors ---------------------------------------------------------------
 #define object(ptr)  tag_ptr((ptr), OBJTAG)
@@ -274,6 +280,7 @@ bool    del_flag(void* ptr, flags fl);
 
 value_t native(char* name, value_t (*func)(usize n, value_t* args));
 value_t symbol(char* name);
+value_t binary(usize n, value_t* args);
 value_t pair(value_t k, value_t v);
 value_t tuple(usize n, value_t* args);
 value_t cons(value_t head, list_t* tail);
@@ -281,8 +288,6 @@ value_t list(usize n, value_t* args);
 value_t vector(usize n, value_t* args);
 value_t dict(usize n, value_t* args);
 value_t set(usize n, value_t* args);
-value_t binary(usize n, value_t* args);
-value_t stencil(usize n, value_t* args);
 
 // accessors ------------------------------------------------------------------
 value_t first(tuple_t* kv);
