@@ -9,14 +9,22 @@
 (define-generic-mode
   'rascal-mode
   '(";" ("#|" . "|#"))
-  '("var" "val" "put" "mac" "lmb" "do" "quote" "if")
+  '("var" "put" "lmb" "do" "quote" "if"
+    "val" "mac" "fn" "type" "let" "labl"
+    "cond" "case" "and" "or" "do*"
+    "with" "resume"
+    "require" "provide")
   '((":[-a-zA-Z?*+0-9]+[[:space:][:cntrl:],\\s)]" . font-lock-reference-face)
     ("\\_<any[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<none[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<unit[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<real[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<fixnum[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
-    ("\\_<bool[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
+    ("\\_<small[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
+    ("\\_<big[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
+    ("\\_<ratio[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
+    ("\\_<complex[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
+    ("\\_<boolean[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<native[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<symbol[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<tuple[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
