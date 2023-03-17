@@ -14,6 +14,11 @@ typedef size_t     usize;
 typedef void     (*funcptr)(void);
 typedef uint32_t   flags;
 
+typedef uint8_t    uint8;
+typedef int8_t     sint8;
+typedef uint16_t   uint16;
+typedef int16_t    sint16;
+
 #define RASCAL_DEBUG
 
 // utilities ------------------------------------------------------------------

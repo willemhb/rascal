@@ -41,52 +41,9 @@ typedef enum {
   ANY
 } type_t;
 
-/*
-  full set of 0.1.0 types (object types ordered first to fit in 5 bits)
-
-  typedef enum {
-  STREAM=1,
-  FUNCTION,
-  SYMBOL,
-  TUPLE,
-  LIST,
-  VECTOR,
-  DICT,
-  SET,
-  STRING,
-  BINARY,
-  STENCIL,
-  BUFFER,
-  TABLE,
-  STACK,
-  ENVIRONMENT,
-  NAMESPACE,
-  MODULE,
-  VARIABLE,
-  CHUNK,
-  CLOSURE,
-  METHOD,
-  DISPATCH,
-  CONTROL,
-  RECORD,
-  STRUCT,
-  BIG,
-  RATIO,
-  COMPLEX,
-  SMALL,
-  FIXNUM,
-  REAL,
-  BOOL,
-  GLYPH,
-  SYSPTR,
-  UNIT,
-  ANY,
-  NONE
-  } type_t;
-*/
-
 typedef enum {
-  HASHED=0x100
+  HASHED=0x100,
+  FROZEN=0x080,
 } objfl_t;
 
 struct object_t {
@@ -135,9 +92,9 @@ struct list_t {
 
 struct stencil_t {
   HEADER;
-  uint    len, height;
-  usize   bitmap;
-  value_t array[];
+  uint8  len, height;
+  uint16 leaves, nodes, bitmap;
+  value_t* array;
 };
 
 struct vector_t {
