@@ -20,9 +20,8 @@ typedef struct vector_t  vector_t;
 typedef struct dict_t    dict_t;
 typedef struct set_t     set_t;
 
-typedef struct vector_node_t vector_node_t;
-typedef struct dict_node_t   dict_node_t;
-typedef struct set_node_t    set_node_t;
+typedef struct arr_node_t arr_node_t;
+typedef struct map_node_t map_node_t;
 
 typedef enum {
   NONE,
@@ -39,9 +38,8 @@ typedef enum {
   VECTOR,
   DICT,
   SET,
-  VECTOR_NODE,
-  DICT_NODE,
-  SET_NODE,
+  ARR_NODE,
+  MAP_NODE,
   ANY
 } type_t;
 
@@ -96,55 +94,41 @@ struct list_t {
 
 struct vector_t {
   HEADER;
-  usize          len;
-  vector_node_t* root;
+  usize       len;
+  arr_node_t* root;
 };
 
 struct dict_t {
   HEADER;
-  usize        len;
-  dict_node_t* node;
+  usize       len;
+  map_node_t* root;
 };
 
 struct set_t {
   HEADER;
   usize       len;
-  set_node_t* node;
+  map_node_t* root;
 };
 
-struct vector_node_t {
+struct arr_node_t {
   HEADER;
   uint16 len, cap;
   uint32 height;
 
   union {
     value_t* values;
-    vector_node_t** children;
+    arr_node_t** children;
   };
 };
 
-struct dict_node_t {
+struct map_node_t {
   HEADER;
   uint16 len, cap;
   uint32 height;
+
+  object_t** entries; // each entry is another map node (child), a 2-tuple (leaf), or a list (collision)
+
   usize  bitmap;
-
-  union {
-    tuple_t** entries;
-    dict_node_t** children;
-  };
-};
-
-struct set_node_t {
-  HEADER;
-  uint16 len, cap;
-  uint32 height;
-  usize  bitmap;
-
-  union {
-    value_t* values;
-    set_node_t** children;
-  };
 };
 
 // globals --------------------------------------------------------------------
