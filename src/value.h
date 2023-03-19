@@ -20,7 +20,9 @@ typedef struct vector_t  vector_t;
 typedef struct dict_t    dict_t;
 typedef struct set_t     set_t;
 
-typedef struct stencil_t stencil_t;
+typedef struct vector_node_t vector_node_t;
+typedef struct dict_node_t   dict_node_t;
+typedef struct set_node_t    set_node_t;
 
 typedef enum {
   NONE,
@@ -34,10 +36,12 @@ typedef enum {
   BINARY,
   TUPLE,
   LIST,
-  STENCIL,
   VECTOR,
   DICT,
   SET,
+  VECTOR_NODE,
+  DICT_NODE,
+  SET_NODE,
   ANY
 } type_t;
 
@@ -90,29 +94,57 @@ struct list_t {
   list_t* tail;
 };
 
-struct stencil_t {
-  HEADER;
-  uint8  len, height;
-  uint16 leaves, nodes, bitmap;
-  value_t* array;
-};
-
 struct vector_t {
   HEADER;
-  usize      len;
-  stencil_t* map;
+  usize          len;
+  vector_node_t* root;
 };
 
 struct dict_t {
   HEADER;
-  usize      len;
-  stencil_t* map;
+  usize        len;
+  dict_node_t* node;
 };
 
 struct set_t {
   HEADER;
-  usize      len;
-  stencil_t* map;
+  usize       len;
+  set_node_t* node;
+};
+
+struct vector_node_t {
+  HEADER;
+  uint16 len, cap;
+  uint32 height;
+
+  union {
+    value_t* values;
+    vector_node_t** children;
+  };
+};
+
+struct dict_node_t {
+  HEADER;
+  uint16 len, cap;
+  uint32 height;
+  usize  bitmap;
+
+  union {
+    tuple_t** entries;
+    dict_node_t** children;
+  };
+};
+
+struct set_node_t {
+  HEADER;
+  uint16 len, cap;
+  uint32 height;
+  usize  bitmap;
+
+  union {
+    value_t* values;
+    set_node_t** children;
+  };
 };
 
 // globals --------------------------------------------------------------------
@@ -145,7 +177,6 @@ struct set_t {
 
 extern tuple_t   EmptyTuple;
 extern list_t    EmptyList;
-extern stencil_t EmptyStencil;
 extern vector_t  EmptyVector;
 extern dict_t    EmptyDict;
 extern set_t     EmptySet;
@@ -171,7 +202,6 @@ bool    has_type(value_t val, type_t type);
           symbol_t*:size_of_obj,                \
           tuple_t*:size_of_obj,                 \
           list_t*:size_of_obj,                  \
-          stencil_t*:size_of_obj,               \
           vector_t*:size_of_obj,                \
           dict_t*:size_of_obj,                  \
           set_t*:size_of_obj,                   \
@@ -211,7 +241,6 @@ bool    del_flag(void* ptr, flags fl);
 #define is_binary(x)   has_type(x, BINARY)
 #define is_tuple(x)    has_type(x, TUPLE)
 #define is_list(x)     has_type(x, LIST)
-#define is_stencil(x)  has_type(x, STENCIL)
 #define is_vector(x)   has_type(x, VECTOR)
 #define is_dict(x)     has_type(x, DICT)
 #define is_set(x)      has_type(x, SET) 
@@ -225,7 +254,6 @@ bool    del_flag(void* ptr, flags fl);
 #define as_binary(x)  ((binary_t*)as_ptr(x))
 #define as_tuple(x)   ((tuple_t*)as_ptr(x))
 #define as_list(x)    ((list_t*)as_ptr(x))
-#define as_stencil(x) ((stencil_t*)as_ptr(x))
 #define as_vector(x)  ((vector_t*)as_ptr(x))
 #define as_dict(x)    ((dict_t*)as_ptr(x))
 #define as_set(x)     ((set_t*)as_ptr(x))
@@ -234,6 +262,7 @@ bool    del_flag(void* ptr, flags fl);
 #define object(ptr)  tag_ptr((ptr), OBJTAG)
 #define fixnum(fxn)  tag_word((fxn), FIXNUMTAG)
 #define sysptr(ptr)  tag_ptr((ptr), SYSPTRTAG)
+#define freeze(ptr)  set_flag(ptr, FROZEN)
 
 value_t native(char* name, value_t (*func)(usize n, value_t* args));
 value_t symbol(char* name);

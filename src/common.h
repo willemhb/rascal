@@ -18,6 +18,8 @@ typedef uint8_t    uint8;
 typedef int8_t     sint8;
 typedef uint16_t   uint16;
 typedef int16_t    sint16;
+typedef uint32_t   uint32;
+typedef int32_t    sint32;
 
 #define RASCAL_DEBUG
 
@@ -33,14 +35,15 @@ typedef int16_t    sint16;
 #define generic _Generic
 #define attrs   __attribute__
 
-#define popcnt(x)				\
-  generic((x),					\
-	  uint32_t: __builtin_popcount,		\
-	  uint64_t: __builtin_popcountl)(x)
+#define popcnt(x)                               \
+  generic((x),                                  \
+          uint16_t: __builtin_popcount,         \
+          uint32_t: __builtin_popcount,         \
+          uint64_t: __builtin_popcountl)(x)
 
-#define ctz(x)					\
-  generic((x),					\
-	  uint32_t: __builtin_ctz,		\
+#define ctz(x)                      \
+  generic((x),                      \
+          uint32_t: __builtin_ctz,  \
 	  uint64_t: __builtin_ctzl)(x)
 
 #endif

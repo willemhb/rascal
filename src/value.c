@@ -110,7 +110,6 @@ char* type_name_of_type(type_t t) {
     [BINARY]  = "binary",
     [TUPLE]   = "tuple",
     [LIST]    = "list",
-    [STENCIL] = "stencil",
     [VECTOR]  = "vector",
     [DICT]    = "dict",
     [SET]     = "set",
@@ -226,7 +225,7 @@ static native_t* allocate_native(void) {
 }
 
 static void init_native(native_t* self, char* name, value_t (*func)(usize n, value_t* args)) {
-  init_object((object_t*)self, NATIVE, 0);
+  init_object((object_t*)self, NATIVE, FROZEN);
 
   self->name = as_symbol(symbol(name));
   self->func = func;
@@ -283,7 +282,7 @@ value_t symbol(char* name) {
   if (*node == NULL)
     *node = new_symbol(name);
 
-  return tag_ptr(*node, OBJTAG);
+  return object(*node);
 }
 
 // binary ---------------------------------------------------------------------
@@ -304,7 +303,7 @@ static binary_t* allocate_binary(usize n) {
 }
 
 static void init_binary(binary_t* bin, usize n, value_t* args) {
-  init_object(&bin->obj, BINARY, 0);
+  init_object(&bin->obj, BINARY, FROZEN);
 
   bin->len = n;
 
@@ -349,7 +348,7 @@ static void init_tuple(tuple_t* self, usize n, value_t* args) {
   assert(n > 0);
   assert(self != &EmptyTuple);
 
-  init_object(&self->obj, TUPLE, 0);
+  init_object(&self->obj, TUPLE, FROZEN);
   self->len = n;
   memcpy(self->slots, args, n*sizeof(value_t));
 }
@@ -372,7 +371,7 @@ value_t tuple(usize n, value_t* args) {
     init_tuple(tup, n, args);
   }
 
-  return tag_ptr(tup, OBJTAG);
+  return object(tup);
 }
 
 // list -----------------------------------------------------------------------
@@ -381,7 +380,7 @@ list_t EmptyList = {
     .next =NULL,
     .type =LIST,
     .hash =0,
-    .flags=0,
+    .flags=FROZEN,
     .black=true,
     .gray =false
   },
@@ -392,7 +391,7 @@ list_t EmptyList = {
 
 static void init_list(list_t* self, value_t head, list_t* tail) {
   assert(tail->len < FIXNUM_MAX);
-  init_object(&self->obj, LIST, 0);
+  init_object(&self->obj, LIST, FROZEN);
 
   self->head = head;
   self->tail = tail;
@@ -402,7 +401,7 @@ static void init_list(list_t* self, value_t head, list_t* tail) {
 value_t cons(value_t head, list_t* tail) {
   list_t* out = allocate(sizeof(list_t));
   init_list(out, head, tail);
-  return tag_ptr(out, OBJTAG);
+  return object(out);
 }
 
 value_t list(usize n, value_t* args) {
@@ -420,7 +419,7 @@ value_t list(usize n, value_t* args) {
     last = curr--;
   }
 
-  return tag_ptr(out, OBJTAG);
+  return object(out);
 }
 
 value_t nth_hd(list_t* xs, usize n) {
@@ -441,144 +440,407 @@ list_t* nth_tl(list_t* xs, usize n) {
   return xs;
 }
 
-// stencil --------------------------------------------------------------------
-stencil_t EmptyStencil = {
-  .obj={
-    .next =NULL,
-    .hash =0,
-    .flags=0,
-    .black=true,
-    .gray =false,
-    .type =STENCIL
-  },
-  .len   =0,
-  .height=0,
-  .bitmap=0
-};
+// vector node ----------------------------------------------------------------
+#define VEC_MAXH 8
+#define VEC_MAXN 64
 
-static stencil_t* allocate_stencil(uint len) {
-  assert(len <= 64);
-  assert(len > 0);
+vector_node_t* unfreeze_vector_node(vector_node_t* node);
 
-  return allocate(sizeof(stencil_t) + len * sizeof(value_t));
+usize pad_vector_node_size(usize n, usize oldc) {
+  oldc = MAX(1u, oldc);
+
+  if (n > oldc || n < (oldc >> 1))
+    return ceil2(n);
+
+  return oldc;
 }
 
-static void init_stencil(stencil_t* self, uint len, uint height, usize bitmap, value_t* args) {
-  assert(height < 8);
-  assert(len <= 64);
-  assert(len > 6);
-  
-  init_object(self, STENCIL, 0);
+void resize_vector_node(vector_node_t* node, usize n) {
+  assert(n <= VEC_MAXN);
 
-  self->len    = len;
-  self->height = height;
-  self->bitmap = bitmap;
+  usize padded = pad_vector_node_size(n, node->cap);
 
-  if (args)
-    memcpy(self->array, args, len * sizeof(value_t));
-}
-
-value_t stencil(uint len, uint height, usize bitmap, value_t* args) {
-  stencil_t* out;
-  
-  if (len == 0) {
-    assert(popcnt(bitmap) == 0);
-    out = &EmptyStencil;
-  } else {
-    out = allocate_stencil(len);
-    init_stencil(out, len, height, bitmap, args);
+  if (padded != node->cap) {
+    node->values = reallocate(node->values, node->cap * sizeof(value_t), padded * sizeof(value_t));
+    node->cap    = padded;
   }
 
-  return object(out);
+  node->len = n;
 }
 
-// vector ---------------------------------------------------------------------
-vector_t EmptyVector = {
-  .obj={
-    .next =NULL,
-    .hash =0,
-    .flags=0,
-    .black=true,
-    .gray =false,
-    .type =VECTOR
-  },
-  .len   =0,
-  .map   =&EmptyStencil
-};
+void init_vector_node(vector_node_t* self, uint16 len, uint32 height, void* src) {
+  init_object(self, VECTOR_NODE, 0);
 
-static vector_t* allocate_vector(void) {
-  return allocate(sizeof(vector_t));
+  self->len    = len;
+  self->cap    = pad_vector_node_size(len, 0);
+  self->height = height;
+  self->values = allocate(self->cap * sizeof(value_t));
+
+  if (src)
+    memcpy(self->values, src, self->len * sizeof(value_t));
 }
 
-static void init_vector(vector_t* self, usize n, stencil_t* map) {
-  init_object(self, VECTOR, 0);
+vector_node_t* vector_node(uint16 len, uint32 height, void* src) {
+  vector_node_t* out = allocate(sizeof(vector_node_t));
 
-  self->len = n;
-  self->map = map;
-}
+  init_vector_node(out, len, height, src);
 
-static vector_t* mk_vector(usize n, stencil_t* map) {
-  vector_t* out = allocate_vector(); init_vector(out, n, map);
-  
   return out;
 }
 
-value_t vector(usize n, value_t* args) {
-  (void)n;
-  (void)args;
-  
-  return NUL;
+vector_node_t* unfreeze_vector_node(vector_node_t* node) {
+  if (has_flag(node, FROZEN))
+    node = vector_node(node->len, node->height, node->values);
+
+  return node;
 }
 
-value_t vector_get(vector_t* self, usize n) {
-  assert(n < self->len);
+void freeze_vector_node(vector_node_t* node) {
+  if (has_flag(node, FROZEN))
+    return;
 
-  stencil_t* map = self->map;
+  set_flag(node, FROZEN);
 
-  for (;;) {
-    usize i = n >> (map->height * 6) & 63;
-
-    if (map->height)
-      map = as_stencil(map->array[i]);
-
-    else
-      return map->array[i];
-  }
+  if (node->height)
+    for (int i=0; i<node->len; i++)
+      freeze_vector_node(node->children[i]);
 }
 
-vector_t* vector_set(vector_t* self, usize n, value_t val) {
-  assert(n < self->len);
+value_t vector_node_get(vector_node_t* node, usize n) {
+  while (node->height)
+      node = node->children[n >> (node->height * 6) & 0x3f];
 
-  stencil_t* map     = self->map;
-  stencil_t* maps[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-  usize      idxs[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-  usize      maxh    = map->height;
+  return node->values[n & 0x3f];
+}
 
-  for (;;) {
-    usize i = n >> (map->height * 6) & 63;
-    maps[map->height] = map;
-    idxs[map->height] = i;
+vector_node_t* vector_node_set(vector_node_t* node, usize n, value_t v) {
+  bool frozen = has_flag(node, FROZEN);
+  vector_node_t* buffer[VEC_MAXH] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+  int indices[VEC_MAXH] = { -1, -1, -1, -1, -1, -1, -1, -1 }, h = node->height, maxh = h;
 
-    if (map->height)
-      map = as_stencil(map->array[i]);
+  for (;;h=node->height) {
+    int i = n >> (node->height * 6) & 0x3f;
+    indices[h] = i;
+    buffer[h] = unfreeze_vector_node(node);
+    
+    if (h)
+      node = node->children[i];
 
     else
       break;
   }
 
-  for (usize i=0; i<=maxh; i++) {
-    map = maps[i] = duplicate(maps[i], size_of(maps[i]));
-
-    if (i)
-      map->array[idxs[i]] = object(maps[i-1]);
+  for (h=0; h <= maxh; h++) {
+    int i = indices[h];
+    
+    if (h)
+      buffer[h]->children[i] = buffer[h-1];
 
     else
-      map->array[idxs[i]] = val;
+      buffer[h]->values[i] = v;
   }
 
-  return mk_vector(self->len, map);
+  if (frozen)
+    for (h=0; h <= maxh; h++)
+      freeze(buffer[h]);
+
+  return buffer[maxh];
 }
 
-vector_t* vector_push(vector_t* self, value_t v) {
-  
+vector_node_t* vector_node_append(vector_node_t* node, value_t v) {
+  bool frozen = has_flag(node, FROZEN);
+  vector_node_t* buffer[VEC_MAXH] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+  int indices[VEC_MAXH] = { -1, -1, -1, -1, -1, -1, -1, -1 }, h = node->height, maxh = h;
+
+  for (;;h=node->height) {
+    int i = node->len-1;
+    indices[h] = i;
+    buffer[h]  = node;
+
+    if (h)
+      node = node->children[i];
+
+    else
+      break;
 }
+
+  for (h=0; h<=maxh; h++) {
+    if (indices[h] < 63) {
+      indices[h]++;
+      buffer[h] = unfreeze_vector_node(buffer[h]);
+      resize_vector_node(buffer[h], indices[h]+1);
+
+      for (h=h+1;h<=maxh; h++)
+        buffer[h] = unfreeze_vector_node(buffer[h]);
+    } else {
+      vector_node_t* tmp = buffer[h], * new = vector_node(1, h, NULL);
+
+      buffer[h]  = new;
+      indices[h] = 0;
+
+      if (h == maxh) {
+        buffer[h+1]  = vector_node(1, h+1, &tmp);
+        indices[h+1] = 0;
+        maxh++;
+      }
+    }
+  }
+
+  for (h=0; h<=maxh; h++) {
+    int i = indices[h];
+
+    if (h)
+      buffer[h]->children[i] = buffer[h-1];
+
+    else
+      buffer[h]->values[i] = v;
+  }
+
+  if (frozen)
+    for (h=0; h<=maxh; h++)
+      freeze(buffer[h]);
+
+  return buffer[maxh];
+}
+
+vector_node_t* vector_node_pop(vector_node_t* node) {
+  bool frozen = has_flag(node, FROZEN);
+  vector_node_t* buffer[VEC_MAXH] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+  int indices[VEC_MAXH] = { -1, -1, -1, -1, -1, -1, -1, -1 }, h = node->height, maxh = h, minh = 0;
+
+  for (;;h=node->height) {
+    int i = node->len-1;
+    indices[h] = i;
+    buffer[h]  = node;
+
+    if (h)
+      node = node->children[i];
+
+    else
+      break;
+  }
+
+  for (h=0; h<=maxh; h++) {
+    int i = indices[h];
+
+    if (i > 0) {
+      if (h == maxh && i == 1) // special case: the root only has one nonempty child, which becomes the new tree
+        return buffer[h]->children[0];
+
+      minh = h;
+      buffer[h] = unfreeze_vector_node(buffer[h]);
+      resize_vector_node(buffer[h], i);
+
+      for (h=h+1;h<=maxh; h++)
+        buffer[h] = unfreeze_vector_node(buffer[h]);
+    }
+  }
+
+  for (h=minh+1; h<=maxh; h++) {
+    int i = indices[h];
+
+    buffer[h]->children[i] = buffer[h-1];
+  }
+
+  if (frozen)
+    for (h=0; h<=maxh; h++)
+      freeze(buffer[h]);
+
+  return buffer[maxh];
+}
+
+// vector ---------------------------------------------------------------------
+void init_vector(vector_t* self, usize n, vector_node_t* root) {
+  init_object(self, VECTOR, FROZEN);
+  self->len  = n;
+  self->root = root;
+}
+vector_t* mk_vector(usize n, vector_node_t* root) {
+  if (n == 0)
+    return &EmptyVector;
+
+  vector_t* out = allocate(sizeof(vector_t));
+
+  init_vector(out, n, root);
+
+  return out;
+}
+
+value_t vector(usize n, value_t* vals) {
+  vector_t* out;
+  
+  if (n == 0)
+    out = &EmptyVector;
+
+  else {
+    vector_node_t* root = vector_node(0, 0, NULL);
+
+    for (usize i=0; i<n; i++)
+      root = vector_node_append(root, vals[i]);
+
+    out = mk_vector(n, root);
+  }
+
+  return object(out);
+}
+
+value_t vector_get(vector_t* self, usize n) {
+  assert(n < self->len);
+
+  return vector_node_get(self->root, n);
+}
+
+vector_t* vector_set(vector_t* self, usize n, value_t v) {
+  assert(n < self->len);
+
+  vector_node_t* root = vector_node_set(self->root, n, v);
+
+  return mk_vector(self->len, root);
+}
+
+vector_t* vector_add(vector_t* self, value_t v) {
+  assert(self->len < FIXNUM_MAX);
+
+  vector_node_t* root = vector_node_append(self->root, v);
+
+  return mk_vector(self->len, root);
+}
+
+vector_t* vector_pop(vector_t* self) {
+  assert(self->len);
+  
+  if (self->len == 1)
+    return &EmptyVector;
+
+  vector_node_t* root = vector_node_pop(self->root);
+
+  return mk_vector(self->len-1, root);
+}
+
+// dict node ------------------------------------------------------------------
+// dict -----------------------------------------------------------------------
+// set node -------------------------------------------------------------------
+#define SET_MAXH 8
+#define SET_MAXN 64
+
+set_node_t* unfreeze_set_node(set_node_t* node);
+
+usize pad_set_node_size(usize n, usize oldc) {
+  oldc = MAX(1u, oldc);
+
+  if (n > oldc || n < (oldc >> 1))
+    return ceil2(n);
+
+  return oldc;
+}
+
+void resize_set_node(set_node_t* node, usize n) {
+  assert(n <= SET_MAXN);
+
+  usize padded = pad_set_node_size(n, node->cap);
+
+  if (padded != node->cap) {
+    node->values = reallocate(node->values, node->cap * sizeof(value_t), padded * sizeof(value_t));
+    node->cap    = padded;
+  }
+
+  node->len = n;
+}
+
+void init_set_node(set_node_t* self, usize bitmap, uint16 len, uint32 height, void* src) {
+  init_object(self, SET_NODE, 0);
+
+  if (len == 0)
+    len = popcnt(bitmap);
+
+  self->len    = len;
+  self->cap    = pad_set_node_size(len, 0);
+  self->height = height;
+  self->values = allocate(self->cap * sizeof(value_t));
+
+  if (src)
+    memcpy(self->values, src, self->len * sizeof(value_t));
+}
+
+set_node_t* set_node(usize bitmap, uint16 len, uint32 height, void* src) {
+  set_node_t* out = allocate(sizeof(set_node_t));
+
+  init_set_node(out, bitmap, len, height, src);
+
+  return out;
+}
+
+set_node_t* unfreeze_set_node(set_node_t* node) {
+  if (has_flag(node, FROZEN))
+    node = set_node(node->bitmap, node->len, node->height, node->values);
+
+  return node;
+}
+
+void freeze_set_node(set_node_t* node) {
+  if (has_flag(node, FROZEN))
+    return;
+
+  set_flag(node, FROZEN);
+
+  if (node->height)
+    for (int i=0; i<node->len; i++)
+      freeze_set_node(node->children[i]);
+}
+
+static int find_set_node_value(set_node_t* node, value_t v, set_node_t* buf[SET_MAXH], int is[SET_MAXH]) {
+  memset(buf, 0, SET_MAXH * sizeof(void*));
+  memset(is, -1, SET_MAXH * sizeof(int));
+
+  uhash h = hash(v);
+
+  for (;;) {
+    usize l = h >> (node->height * 6) & 0x3f;
+    usize m = 1 << l;
+    usize i = popcnt(node->bitmap & (m - 1));
+
+    if (buf) {
+      buf[node->height] = node;
+      is[node->height]  = i;
+    }
+
+    if (node->bitmap & m) {
+      if (node->height)
+        node = node->children[i];
+
+      else if (equal(v, node->values[i]))
+        return i;
+
+      else
+        return -1;
+    } else {
+      return -1;
+    }
+  }
+}
+
+bool set_node_has(set_node_t* node, value_t v) {
+  int i = find_set_node_value(node, v, NULL, NULL);
+
+  return i > -1;
+}
+
+set_node_t* set_node_add(set_node_t* node, value_t v) {
+  set_node_t* buffer[SET_MAXH];
+  int         indices[SET_MAXH], maxh = node->height;
+  bool        frozen = has_flag(node, FROZEN);
+
+  if (find_set_node_value(node, v, buffer, indices) > -1) // nothing to do
+    return node;
+
+  int h = 0;
+  
+
+  if (frozen)
+    for (h=0; h<=maxh; h++)
+      freeze(buffer[h]);
+
+  return buffer[maxh];
+}
+
+// set ------------------------------------------------------------------------
