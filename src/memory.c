@@ -3,18 +3,15 @@
 #include <stdio.h>
 
 #include "memory.h"
-#include "htable.h"
-#include "value.h"
+#include "object.h"
 
 // heap -----------------------------------------------------------------------
-#define MIN_GRAYS 8
-
 object_t* LiveObjects = NULL;
 usize     NHeap = 0xfffff, NUsed = 0;
 double    HeapLoad = 0.75;
 bool      Collecting = false;
 
-objects_t Grays;
+alist_t Grays;
 
 // local helpers --------------------------------------------------------------
 static void update_heap(usize n) {

@@ -31,7 +31,7 @@ struct primitive_type_t {
 struct object_type_t {
   TYPE_HEADER;
   usize size;
-  int   (*init)(object_t* self, void* ini);
+  int   (*init)(void* self, void* ini);
   void  (*trace)(object_t* self);
   void  (*free)(object_t* self);
   dict_t* slots;

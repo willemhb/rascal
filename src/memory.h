@@ -1,7 +1,7 @@
 #ifndef memory_h
 #define memory_h
 
-#include "common.h"
+#include  "value.h"
 
 // API ------------------------------------------------------------------------
 #define ALLOC_S(func, args...)                  \
@@ -16,6 +16,7 @@ void* allocate(usize size);
 void* duplicate(void* ptr, usize size);
 void* reallocate(void* ptr, usize old, usize new);
 void  deallocate(void* ptr, usize size);
+void  push_gray(void* obj);
 void  manage(void);
 
 // initialization -------------------------------------------------------------

@@ -3,6 +3,65 @@
 
 #include "object.h"
 #include "metaobject.h"
+#include "text.h"
+#include "memory.h"
+
+// lifetime API ---------------------------------------------------------------
+int init_object(void* self, void* ini) {
+  extern object_t* LiveObjects;
+
+  assert(self);
+  assert(ini);
+
+  object_t* oself = self;
+  object_init_t* oini = ini;
+
+  oself->next   = LiveObjects;
+  LiveObjects   = oself;
+  oself->hash   = oini->hash;
+  oself->flags  = oini->flags;
+  oself->hashed = oini->hashed;
+  oself->frozen = oini->frozen;
+  oself->type   = oini->type->type.idno & 0x3f;
+  oself->gray   = true;
+  oself->black  = false;
+
+  int out = 0;
+
+  if (oini->type->init)
+    out = oini->type->init(self, ini);
+
+  return out;
+}
+
+void mark_object(object_t* self) {
+  if (!self)
+    return;
+
+  if (self->black)
+    return;
+
+  self->black = true;
+
+  object_type_t* type = (object_type_t*)type_of(self);
+
+  if (type->trace)
+    push_gray(self);
+
+  else
+    self->gray = true;
+}
+
+void free_object(object_t* self) {
+  usize dealloc = size_of(self);
+  object_type_t* type = (object_type_t*)type_of(self);
+
+  if (type->free)
+    type->free(self);
+
+  deallocate(self, dealloc);
+}
+
 
 // symbol ---------------------------------------------------------------------
 uint64 SymbolCounter = 1;
@@ -13,16 +72,38 @@ typedef struct {
   char* name;
 } symbol_init_t;
 
-void print_symbol(value_t val, port_t* ios);
-int  compare_symbols(value_t x, value_t y);
-
+void  print_symbol(value_t val, port_t* ios);
+uhash hash_symbol(object_t* obj);
+int   compare_symbols(value_t x, value_t y);
+int   init_symbol(void* self, void* ini);
+void  trace_symbol(object_t* self);
+void  free_symbol(object_t* self);
 
 vtable_t SymbolVtable = {
-  
+  .print  =print_symbol,
+  .hash   =hash_symbol,
+  .compare=compare_symbols
+};
+
+object_type_t SymbolType = {
+  .type={
+    .obj={
+      .type=OBJECT_TYPE,
+      .frozen=true,
+      .gray=true,
+      .black=false
+    },
+    .name="symbol",
+    .idno=SYMBOL,
+    .vtable=&SymbolVtable
+  },
+  .size=sizeof(symbol_t),
+  .init=init_symbol,
+  .trace=trace_symbol,
+  .free=free_symbol
 };
 
 // sacred methods -------------------------------------------------------------
-
 
 static symbol_t** find_symbol(char* name) {
   symbol_t** node = &SymbolTable;

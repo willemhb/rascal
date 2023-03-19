@@ -54,7 +54,7 @@ extern struct tuple_t EmptyTuple;
 
 // API ------------------------------------------------------------------------
 // lifetime API ---------------------------------------------------------------
-int  init_object(object_t* self, object_init_t* ini);
+int  init_object(void* self, void* ini);
 void mark_object(object_t* self);
 void free_object(object_t* self);
 
@@ -76,5 +76,8 @@ list_t*     nth_tail(list_t* xs, usize n);
 value_t     tuple(usize n, value_t* args);
 
 value_t     nth_slot(value_t xs, usize n);
+
+// table API ------------------------------------------------------------------
+table_t*    table(void);
 
 #endif
