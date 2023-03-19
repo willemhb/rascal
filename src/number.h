@@ -1,9 +1,30 @@
 #ifndef number_h
 #define number_h
 
-#include "common.h"
+#include "value.h"
+
+/* numeric utilities & builtin numeric types */
 
 // C types --------------------------------------------------------------------
+struct complex_t {
+  HEADER;
+  real_t real;
+  real_t imag;
+};
+
+struct ratio_t {
+  HEADER;
+  value_t numer; // might be a fixnum or a big int
+  value_t denom;
+};
+
+struct big_t {
+  HEADER;
+  sint32 sign;
+  uint32 length;     // digit count
+  ubyte  digits[];   // digit values
+};
+
 typedef union {
   double dbl;
   uword  word;
@@ -20,7 +41,6 @@ typedef union {
     __auto_type _y = y;                         \
     _x > _y ? _y : _x;                          \
   })
-
 
 #define MAX(x, y)                               \
   ({                                            \

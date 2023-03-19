@@ -1,1071 +1,303 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-
 #include "value.h"
-#include "memory.h"
+#include "metaobject.h"
+#include "product.h"
+#include "text.h"
+#include "hashing.h"
 #include "number.h"
-#include "compare.h"
 
 // globals --------------------------------------------------------------------
-// symbol table ---------------------------------------------------------------
-uword     SymbolCounter = 1;
-symbol_t* SymbolTable = NULL;
+rl_type_t* BuiltinTypes[NUM_TYPES];
 
-extern object_t *LiveObjects;
-
-// dispatch tables ------------------------------------------------------------
-usize size_of_tuple(void* ptr);
-usize size_of_binary(void* ptr);
-
-usize (*SizeOf[NUM_TYPES])(void* ptr) = {
-  [TUPLE]   = size_of_tuple,
-  [BINARY]  = size_of_binary
-};
-
-usize BaseSize[NUM_TYPES] = {
-  [UNIT]    = sizeof(NUL),
-  [BOOL]    = sizeof(bool_t),
-  [SYSPTR]  = sizeof(sysptr_t),
-  [NATIVE]  = sizeof(native_t),
-  [REAL]    = sizeof(real_t),
-  [FIXNUM]  = sizeof(fixnum_t),
-  [SYMBOL]  = sizeof(symbol_t),
-  [TUPLE]   = sizeof(tuple_t),
-  [LIST]    = sizeof(list_t),
-  [VECTOR]  = sizeof(vector_t),
-  [DICT]    = sizeof(dict_t),
-  [SET]     = sizeof(set_t),
-  [BINARY]  = sizeof(binary_t)
-};
-
-usize size_of_tuple(void* ptr) {
-  tuple_t* tup = ptr;
-
-  return sizeof(tuple_t) + tup->len * sizeof(value_t);
-}
-
-usize size_of_binary(void* ptr) {
-  binary_t* bin = ptr;
-
-  return sizeof(binary_t) + bin->len;
-}
-
-// values ---------------------------------------------------------------------
-// general --------------------------------------------------------------------
-type_t type_of(value_t val) {
-  switch (tag_of(val)) {
-    case FIXNUMTAG: return FIXNUM;
-    case NUL:       return UNIT;
-    case BOOLTAG:   return BOOL;
-    case SYSPTRTAG: return SYSPTR;
-    case NATIVETAG: return NATIVE;
-    case OBJTAG:    return as_object(val)->type;
-    default:        return REAL;
+// API ------------------------------------------------------------------------
+// tags, tagging, types, queries ----------------------------------------------
+val_type_t val_type(value_t val) {
+  switch (val & TAG_MASK) {
+    case SMALLTAG: return val >> 32 & 0x3f;
+    case FIXTAG:   return FIXNUM;
+    case NULTAG:   return UNIT;
+    case BOOLTAG:  return BOOLEAN;
+    case PTRTAG:   return POINTER;
+    case OBJTAG:   return OBJECT;
+    default:       return REAL;
   }
 }
 
-usize size_of_type(type_t type) {
-  return BaseSize[type];
+obj_type_t val_obj_type(value_t val) {
+  assert((val & TAG_MASK) == OBJTAG);
+
+  return obj_obj_type(as_obj(val));
 }
 
-usize size_of_val(value_t val) {
-  type_t t = type_of(val);
-
-  if (SizeOf[t])
-    return SizeOf[t](as_object(val));
-
-  return size_of_type(t);
+obj_type_t obj_obj_type(object_t* obj) {
+  assert(obj);
+  return obj->type;
 }
 
-usize size_of_obj(void* ptr) {
-  object_t* obj = ptr;
+rl_type_t* val_type_of(value_t val) {
+  val_type_t vt = val_type(val);
 
-  if (SizeOf[obj->type])
-    return SizeOf[obj->type](obj);
+  if (vt == OBJECT)
+    return obj_type_of(as_obj(val));
 
-  return size_of_type(obj->type);
+  return BuiltinTypes[vt];
 }
 
-char* type_name_of(value_t val) {
-  return type_name_of_type(type_of(val));
+rl_type_t* obj_type_of(object_t* obj) {
+  assert(obj);
+
+  if (obj->type == STRUCT || obj->type == RECORD)
+    return (rl_type_t*)((record_t*)obj)->type;
+
+  return BuiltinTypes[obj->type];
 }
 
-char* type_name_of_type(type_t t) {
-  static char* type_names[] = {
-    [NONE]    = "none",
-    [UNIT]    = "unit",
-    [BOOL]    = "bool",
-    [SYSPTR]  = "sysptr",
-    [NATIVE]  = "native",
-    [REAL]    = "real",
-    [FIXNUM]  = "fixnum",
-    [SYMBOL]  = "symbol",
-    [BINARY]  = "binary",
-    [TUPLE]   = "tuple",
-    [LIST]    = "list",
-    [VECTOR]  = "vector",
-    [DICT]    = "dict",
-    [SET]     = "set",
-    [ANY]     = "any"
-  };
+// core APIs ------------------------------------------------------------------
+kind_t val_has_type(value_t val, rl_type_t* type) {
+  if (type->isa)
+    return type->isa(val, type);
 
-  return type_names[t];
+  return type_of(val) == type && DATA_KIND;
 }
 
-bool has_type(value_t val, type_t type) {
-  switch (type) {
-    case NONE: return false;
-    case ANY:  return true;
-    case UNIT: return val == NUL;
-    default:   return type_of(val) == type;
+kind_t obj_has_type(object_t* obj, rl_type_t* type) {
+  assert(obj);
+  return val_has_type(object(obj), type);
+}
+
+void val_print(value_t val, port_t* ios) {
+  rl_type_t* type = type_of(val);
+
+  if (type->vtable->print)
+    type->vtable->print(val, ios);
+
+  else
+    rl_printf(ios, "#%s<%.48ul>", type->name, val & VAL_MASK);
+}
+
+void obj_print(object_t* obj, port_t* ios) {
+  val_print(object(obj), ios);
+}
+
+usize val_size_of(value_t val) {
+  if (is_obj(val))
+    return obj_size_of(as_obj(val));
+  
+  primitive_type_t* type = (primitive_type_t*)type_of(val);
+
+  return type->size;
+}
+
+usize obj_size_of(object_t* obj) {
+  assert(obj);
+
+  object_type_t* type = (object_type_t*)type_of(obj);
+
+  usize out = type->size;
+
+  if (type->type.vtable->size)
+    out += type->type.vtable->size(obj);
+
+  return out;
+}
+
+
+uhash val_hash(value_t x) {
+  if (is_obj(x))
+    return obj_hash(as_obj(x));
+
+  return hash_uword(x);
+}
+
+uhash obj_hash(object_t* obj) {
+  assert(obj);
+
+  if (obj->hashed)
+    return obj->hash;
+
+  rl_type_t* type = type_of(obj);
+
+  if (type->vtable->hash) {
+    obj->hash   = type->vtable->hash(obj);
+    obj->hashed = true;
+
+    return obj->hash;
   }
+
+  return hash_uword(object(obj));
 }
 
-bool is_object_type(type_t type) {
-  return type > FIXNUM && type < ANY;
+bool val_equal(value_t x, value_t y) {
+  if (x == y)
+    return true;
+
+  if (is_obj(x)) {
+    if (!is_obj(y))
+      return false;
+
+    return obj_equal(as_obj(x), as_obj(y));
+  }
+
+  return false;
 }
 
-bool is_object(value_t val) {
-  return tag_of(val) == OBJTAG;
+bool obj_equal(object_t* x, object_t* y) {
+  assert(x);
+  assert(y);
+
+  if (x == y)
+    return true;
+
+  rl_type_t* xtype = type_of(x), * ytype = type_of(y);
+
+  if (xtype != ytype)
+    return false;
+
+  if (xtype->vtable->equal)
+    return xtype->vtable->equal(x, y);
+
+  return false;
 }
 
-bool is_byte(value_t val) {
-  return is_fixnum(val) && as_fixnum(val) <= UINT8_MAX;
+int val_compare(value_t x, value_t y) {
+  if (x == y)
+    return 0;
+
+  rl_type_t* xtype = type_of(x), * ytype = type_of(y);
+
+  if (xtype != ytype)
+    return CMP(xtype->idno, ytype->idno);
+
+  if (xtype->vtable->compare)
+    return xtype->vtable->compare(x, y);
+
+  return CMP(x, y);
 }
 
-bool is_function(value_t val) {
-  return is_native(val);
+int obj_compare(object_t* x, object_t* y) {
+  assert(x);
+  assert(y);
+
+  if (x == y)
+    return 0;
+
+  rl_type_t* xtype = type_of(x), * ytype = type_of(y);
+
+  if (xtype != ytype)
+    return CMP(xtype->idno, ytype->idno);
+
+  if (xtype->vtable->compare)
+    return xtype->vtable->compare(object(x), object(y));
+
+  return CMP(object(x), object(y));
 }
 
-bool is_number(value_t val) {
-  type_t type = type_of(val);
-
-  return type == REAL || type == FIXNUM;
-}
-
-value_t tag_ptr(void* p, uword t) {
-  return tag_word((uword)p, t);
-}
-
-value_t tag_word(uword w, uword t) {
-  return (w&VAL_MASK) | t;
-}
-
-value_t tag_dbl(double dbl) {
-  return dtow(dbl);
-}
-
-real_t as_real(value_t val) {
-  return wtod(val);
-}
-
-uword as_word(value_t val) {
-  return val_of(val);
-}
-
-real_t as_number(value_t val) {
-  if (is_real(val))
-    return as_real(val);
-
-  return as_fixnum(val);
-}
-
-void* as_ptr(value_t val) {
-  return (void*)val_of(val);
-}
-
+// flag helpers ---------------------------------------------------------------
 bool has_flag(void* ptr, flags fl) {
-  assert(ptr && (((uword)ptr) & 7) == 0);
-
+  assert(ptr);
   object_t* obj = ptr;
-
-  return !!(obj->flags&fl);
+  return !!(obj->flags & fl);
 }
 
 bool set_flag(void* ptr, flags fl) {
-  assert(ptr && (((uword)ptr) & 7) == 0);
-
-  bool out = !has_flag(ptr, fl);
-
-  ((object_t*)ptr)->flags |= fl;
-  return out;
-}
-
-bool del_flag(void* ptr, flags fl) {
-  assert(ptr && (((uword)ptr) & 7) == 0);
-
-  bool out = has_flag(ptr, fl);
-
-  ((object_t*)ptr)->flags &= ~fl;
-  return out;
-}
-
-// object apis ----------------------------------------------------------------
-static void init_object(void* ptr, type_t type, flags fl) {
+  assert(ptr);
   object_t* obj = ptr;
-  obj->next   = LiveObjects;
-  LiveObjects = obj;
-  obj->type   = type;
-  obj->flags  = fl;
-  obj->black  = false;
-  obj->gray   = true;
-  obj->hash   = 0;
+  bool has = !!(obj->flags & fl);
+  obj->flags |= fl;
+  return !has;
 }
 
-// native ---------------------------------------------------------------------
-static native_t* allocate_native(void) {
-  return allocate(sizeof(native_t));
+bool clear_flag(void* ptr, flags fl) {
+  assert(ptr);
+  object_t* obj = ptr;
+  bool has = !!(obj->flags & fl);
+  obj->flags &= ~fl;
+  return has;
 }
 
-static void init_native(native_t* self, char* name, value_t (*func)(usize n, value_t* args)) {
-  init_object((object_t*)self, NATIVE, FROZEN);
+// initialization -------------------------------------------------------------
+void value_init(void) {
+  extern object_type_t PrimitiveTypeType, ObjectTypeType, UnionTypeType;
 
-  self->name = as_symbol(symbol(name));
-  self->func = func;
+  BuiltinTypes[PRIMITIVE_TYPE] = &PrimitiveTypeType.type;
+  BuiltinTypes[OBJECT_TYPE] = &ObjectTypeType.type;
+  BuiltinTypes[UNION_TYPE] = &UnionTypeType.type;
 
-  self->name->bind = object(self);
-}
+  extern object_type_t ArrNodeType, ArrLeafType,
+    MapNodeType, MapLeafType, MapLeavesType,
+    MethodTableType, MethodType,
+    ChunkType, ClosureType,
+    VariableType, NamespaceType, EnvironmentType,
+    ControlType;
 
-value_t native(char* name, value_t (*func)(usize n, value_t* args)) {
-  native_t* self = allocate_native();
-  init_native(self, name, func);
-  return object(self);
-}
+  BuiltinTypes[ARR_NODE] = &ArrNodeType.type;
+  BuiltinTypes[ARR_LEAF] = &ArrLeafType.type;
+  BuiltinTypes[MAP_NODE] = &MapNodeType.type;
+  BuiltinTypes[MAP_LEAF] = &MapLeafType.type;
+  BuiltinTypes[MAP_LEAVES] = &MapLeavesType.type;
+  BuiltinTypes[METHOD_TABLE] = &MethodTableType.type;
+  BuiltinTypes[METHOD] = &MethodType.type;
+  BuiltinTypes[CHUNK] = &ChunkType.type;
+  BuiltinTypes[CLOSURE] = &ClosureType.type;
+  BuiltinTypes[VARIABLE] = &VariableType.type;
+  BuiltinTypes[NAMESPACE] = &NamespaceType.type;
+  BuiltinTypes[ENVIRONMENT] = &EnvironmentType.type;
+  BuiltinTypes[CONTROL] = &ControlType.type;
 
-// symbol ---------------------------------------------------------------------
-static symbol_t** find_symbol(char* name) {
-  symbol_t** node = &SymbolTable;
+  extern object_type_t SymbolType, FunctionType, PortType,
+    BinaryType, StringType, TupleType, ListType, VectorType,
+    DictType, SetType, TableType, AlistType, BufferType,
+    ComplexType, RatioType, BigType;
 
-  while (*node) {
-    int o = strcmp(name, (*node)->name);
+  BuiltinTypes[SYMBOL] = &SymbolType.type;
+  BuiltinTypes[FUNCTION] = &FunctionType.type;
+  BuiltinTypes[PORT] = &PortType.type;
+  BuiltinTypes[BINARY] = &BinaryType.type;
+  BuiltinTypes[STRING] = &StringType.type;
+  BuiltinTypes[TUPLE] = &TupleType.type;
+  BuiltinTypes[LIST] = &ListType.type;
+  BuiltinTypes[VECTOR] = &VectorType.type;
+  BuiltinTypes[DICT] = &DictType.type;
+  BuiltinTypes[SET] = &SetType.type;
+  BuiltinTypes[TABLE] = &TableType.type;
+  BuiltinTypes[ALIST] = &AlistType.type;
+  BuiltinTypes[BUFFER] = &BufferType.type;
+  BuiltinTypes[COMPLEX] = &ComplexType.type;
+  BuiltinTypes[RATIO] = &RatioType.type;
+  BuiltinTypes[BIG] = &BigType.type;
 
-    if (o < 0)
-      node = &(*node)->left;
+  extern primitive_type_t Sint8Type, Uint8Type, Sint16Type, Uint16Type,
+    Sint32Type, Uint32Type, Real32Type, FixnumType, RealType,
+    AsciiType, Latin1Type, Utf8Type, Utf16Type, Utf32Type,
+    BooleanType, PointerType, UnitType;
 
-    else if (o > 0)
-      node = &(*node)->right;
+  BuiltinTypes[SINT8] = &Sint8Type.type;
+  BuiltinTypes[UINT8] = &Uint8Type.type;
+  BuiltinTypes[SINT16] = &Sint16Type.type;
+  BuiltinTypes[UINT16] = &Uint16Type.type;
+  BuiltinTypes[SINT32] = &Sint32Type.type;
+  BuiltinTypes[UINT32] = &Uint32Type.type;
+  BuiltinTypes[REAL32] = &Real32Type.type;
+  BuiltinTypes[FIXNUM] = &FixnumType.type;
+  BuiltinTypes[REAL] = &RealType.type;
+  BuiltinTypes[ASCII] = &AsciiType.type;
+  BuiltinTypes[LATIN1] = &Latin1Type.type;
+  BuiltinTypes[UTF8] = &Utf8Type.type;
+  BuiltinTypes[UTF16] = &Utf16Type.type;
+  BuiltinTypes[UTF32] = &Utf32Type.type;
+  BuiltinTypes[BOOLEAN] = &BooleanType.type;
+  BuiltinTypes[POINTER] = &PointerType.type;
+  BuiltinTypes[UNIT] = &UnitType.type;
 
-    else
-      break;
+  extern union_type_t NoneType, AnyType;
+
+  BuiltinTypes[NONE] = &NoneType.type;
+  BuiltinTypes[ANY] = &AnyType.type;
+
+  // initialize type hashes ---------------------------------------------------
+  for (int i=PRIMITIVE_TYPE; i<NUM_TYPES; i++) {
+    if (i == OBJECT || i == RECORD || i == STRUCT)
+      continue;
+
+    rl_hash(&BuiltinTypes[i]->obj);
   }
-
-  return node;
-}
-
-static void init_symbol(symbol_t *self, char* name) {
-  init_object(&self->obj, SYMBOL, 0);
-  self->left  = NULL;
-  self->right = NULL;
-  self->idno  = SymbolCounter++;
-  self->bind  = UNBOUND;
-  self->name  = strdup(name);
-}
-
-static symbol_t *new_symbol(char* name) {
-  symbol_t *sym = allocate(sizeof(symbol_t));
-
-  init_symbol(sym, name);
-
-  return sym;
-}
-
-value_t symbol(char* name) {
-  symbol_t **node = find_symbol(name);
-
-  if (*node == NULL)
-    *node = new_symbol(name);
-
-  return object(*node);
-}
-
-// binary ---------------------------------------------------------------------
-binary_t EmptyBinary = {
-  .obj={
-    .next =NULL,
-    .hash =0,
-    .flags=FROZEN,
-    .type =BINARY,
-    .gray =false,
-    .black=true
-  },
-  .len=0
-};
-
-static binary_t* allocate_binary(usize n) {
-  return allocate(sizeof(binary_t) + n * sizeof(ubyte));
-}
-
-static void init_binary(binary_t* bin, usize n, value_t* args) {
-  init_object(&bin->obj, BINARY, FROZEN);
-
-  bin->len = n;
-
-  for (usize i=0; i<n; i++)
-    bin->array[i] = as_fixnum(args[i]);
-}
-
-value_t binary(usize n, value_t* args) {
-  binary_t* bin;
-
-  if (n == 0)
-    bin = &EmptyBinary;
-
-  else {
-    bin = allocate_binary(n);
-    init_binary(bin, n, args);
-  }
-
-  return tag_ptr(bin, OBJTAG);
-}
-
-// tuple ----------------------------------------------------------------------
-tuple_t EmptyTuple = {
-  .obj={
-    .next=NULL,
-    .hash=0,
-    .flags=0,
-    .type=TUPLE,
-    .black=true,
-    .gray=false
-  },
-  .len=0
-};
-
-static tuple_t* allocate_tuple(usize n) {
-  assert(n > 0);
-
-  return allocate(sizeof(tuple_t) + n * sizeof(value_t));
-}
-
-static void init_tuple(tuple_t* self, usize n, value_t* args) {
-  assert(n > 0);
-  assert(self != &EmptyTuple);
-
-  init_object(&self->obj, TUPLE, FROZEN);
-  self->len = n;
-  memcpy(self->slots, args, n*sizeof(value_t));
-}
-
-value_t pair(value_t k, value_t v) {
-  value_t vals[2] = { k, v };
-
-  return tuple(2, vals);
-}
-
-value_t tuple(usize n, value_t* args) {
-  assert(n <= FIXNUM_MAX);
-  tuple_t* tup;
-
-  if (n == 0)
-    tup = &EmptyTuple;
-
-  else {
-    tup = allocate_tuple(n);
-    init_tuple(tup, n, args);
-  }
-
-  return object(tup);
-}
-
-// list -----------------------------------------------------------------------
-list_t EmptyList = {
-  .obj={
-    .next =NULL,
-    .type =LIST,
-    .hash =0,
-    .flags=FROZEN,
-    .black=true,
-    .gray =false
-  },
-  .len=0,
-  .head=NUL,
-  .tail=&EmptyList
-};
-
-static void init_list(list_t* self, value_t head, list_t* tail) {
-  assert(tail->len < FIXNUM_MAX);
-  init_object(&self->obj, LIST, FROZEN);
-
-  self->head = head;
-  self->tail = tail;
-  self->len  = 1 + tail->len;
-}
-
-value_t cons(value_t head, list_t* tail) {
-  list_t* out = allocate(sizeof(list_t));
-  init_list(out, head, tail);
-  return object(out);
-}
-
-value_t list(usize n, value_t* args) {
-  if (n == 0)
-    return object(&EmptyList);
-
-  if (n == 1)
-    return cons(args[0], &EmptyList);
-
-  list_t* out  = allocate(n * sizeof(list_t));
-  list_t* curr = &out[n-1], *last = &EmptyList;
-
-  for (usize i=n; i>0; i--) {
-    init_list(curr, args[i-1], last);
-    last = curr--;
-  }
-
-  return object(out);
-}
-
-value_t nth_hd(list_t* xs, usize n) {
-  assert(n < xs->len);
-
-  while (n--)
-    xs = xs->tail;
-
-  return xs->head;
-}
-
-list_t* nth_tl(list_t* xs, usize n) {
-  assert(n < xs->len);
-
-  while (n--)
-    xs = xs->tail;
-
-  return xs;
-}
-
-// arr node -------------------------------------------------------------------
-#define ARR_MAXH 8
-#define ARR_MAXN 64
-
-arr_node_t* unfreeze_arr_node(arr_node_t* node);
-
-usize pad_arr_node_size(usize n, usize oldc) {
-  oldc = MAX(1u, oldc);
-
-  if (n > oldc || n < (oldc >> 1))
-    return ceil2(n);
-
-  return oldc;
-}
-
-void resize_arr_node(arr_node_t* node, usize n) {
-  assert(n <= ARR_MAXN);
-
-  usize padded = pad_arr_node_size(n, node->cap);
-
-  if (padded != node->cap) {
-    node->values = reallocate(node->values, node->cap * sizeof(value_t), padded * sizeof(value_t));
-    node->cap    = padded;
-  }
-
-  node->len = n;
-}
-
-void init_arr_node(arr_node_t* self, uint16 len, uint32 height, void* src) {
-  init_object(self, ARR_NODE, 0);
-
-  self->len    = len;
-  self->cap    = pad_arr_node_size(len, 0);
-  self->height = height;
-  self->values = allocate(self->cap * sizeof(value_t));
-
-  if (src)
-    memcpy(self->values, src, self->len * sizeof(value_t));
-}
-
-arr_node_t* arr_node(uint16 len, uint32 height, void* src) {
-  arr_node_t* out = allocate(sizeof(arr_node_t));
-
-  init_arr_node(out, len, height, src);
-
-  return out;
-}
-
-arr_node_t* unfreeze_arr_node(arr_node_t* node) {
-  if (has_flag(node, FROZEN))
-    node = arr_node(node->len, node->height, node->values);
-
-  return node;
-}
-
-void freeze_arr_node(arr_node_t* node) {
-  if (has_flag(node, FROZEN))
-    return;
-
-  set_flag(node, FROZEN);
-
-  if (node->height)
-    for (int i=0; i<node->len; i++)
-      freeze_arr_node(node->children[i]);
-}
-
-value_t arr_node_get(arr_node_t* node, usize n) {
-  while (node->height)
-      node = node->children[n >> (node->height * 6) & 0x3f];
-
-  return node->values[n & 0x3f];
-}
-
-arr_node_t* arr_node_set(arr_node_t* node, usize n, value_t v) {
-  bool frozen = has_flag(node, FROZEN);
-  arr_node_t* buffer[ARR_MAXH] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-  int indices[ARR_MAXH] = { -1, -1, -1, -1, -1, -1, -1, -1 }, h = node->height, maxh = h;
-
-  for (;;h=node->height) {
-    int i = n >> (node->height * 6) & 0x3f;
-    indices[h] = i;
-    buffer[h] = unfreeze_arr_node(node);
-    
-    if (h)
-      node = node->children[i];
-
-    else
-      break;
-  }
-
-  for (h=0; h <= maxh; h++) {
-    int i = indices[h];
-    
-    if (h)
-      buffer[h]->children[i] = buffer[h-1];
-
-    else
-      buffer[h]->values[i] = v;
-  }
-
-  if (frozen)
-    for (h=0; h <= maxh; h++)
-      freeze(buffer[h]);
-
-  return buffer[maxh];
-}
-
-arr_node_t* arr_node_append(arr_node_t* node, value_t v) {
-  bool frozen = has_flag(node, FROZEN);
-  arr_node_t* buffer[ARR_MAXH] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-  int indices[ARR_MAXH] = { -1, -1, -1, -1, -1, -1, -1, -1 }, h = node->height, maxh = h;
-
-  for (;;h=node->height) {
-    int i = node->len-1;
-    indices[h] = i;
-    buffer[h]  = node;
-
-    if (h)
-      node = node->children[i];
-
-    else
-      break;
-}
-
-  for (h=0; h<=maxh; h++) {
-    if (indices[h] < 63) {
-      indices[h]++;
-      buffer[h] = unfreeze_arr_node(buffer[h]);
-      resize_arr_node(buffer[h], indices[h]+1);
-
-      for (h=h+1;h<=maxh; h++)
-        buffer[h] = unfreeze_arr_node(buffer[h]);
-    } else {
-      arr_node_t* tmp = buffer[h], * new = arr_node(1, h, NULL);
-
-      buffer[h]  = new;
-      indices[h] = 0;
-
-      if (h == maxh) {
-        buffer[h+1]  = arr_node(1, h+1, &tmp);
-        indices[h+1] = 0;
-        maxh++;
-      }
-    }
-  }
-
-  for (h=0; h<=maxh; h++) {
-    int i = indices[h];
-
-    if (h)
-      buffer[h]->children[i] = buffer[h-1];
-
-    else
-      buffer[h]->values[i] = v;
-  }
-
-  if (frozen)
-    for (h=0; h<=maxh; h++)
-      freeze(buffer[h]);
-
-  return buffer[maxh];
-}
-
-arr_node_t* arr_node_pop(arr_node_t* node) {
-  bool frozen = has_flag(node, FROZEN);
-  arr_node_t* buffer[ARR_MAXH] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-  int indices[ARR_MAXH] = { -1, -1, -1, -1, -1, -1, -1, -1 }, h = node->height, maxh = h, minh = 0;
-
-  for (;;h=node->height) {
-    int i = node->len-1;
-    indices[h] = i;
-    buffer[h]  = node;
-
-    if (h)
-      node = node->children[i];
-
-    else
-      break;
-  }
-
-  for (h=0; h<=maxh; h++) {
-    int i = indices[h];
-
-    if (i > 0) {
-      if (h == maxh && i == 1) // special case: the root only has one nonempty child, which becomes the new tree
-        return buffer[h]->children[0];
-
-      minh = h;
-      buffer[h] = unfreeze_arr_node(buffer[h]);
-      resize_arr_node(buffer[h], i);
-
-      for (h=h+1;h<=maxh; h++)
-        buffer[h] = unfreeze_arr_node(buffer[h]);
-    }
-  }
-
-  for (h=minh+1; h<=maxh; h++) {
-    int i = indices[h];
-
-    buffer[h]->children[i] = buffer[h-1];
-  }
-
-  if (frozen)
-    for (h=0; h<=maxh; h++)
-      freeze(buffer[h]);
-
-  return buffer[maxh];
-}
-
-// vector ---------------------------------------------------------------------
-struct vector_t EmptyVector = {
-  .obj ={
-    .next =NULL,
-    .hash =0,
-    .flags=FROZEN,
-    .type =VECTOR,
-    .gray =false,
-    .black=true
-  },
-  .len =0,
-  .root=NULL
-};
-
-void init_vector(vector_t* self, usize n, arr_node_t* root) {
-  init_object(self, VECTOR, FROZEN);
-  self->len  = n;
-  self->root = root;
-}
-vector_t* mk_vector(usize n, arr_node_t* root) {
-  if (n == 0)
-    return &EmptyVector;
-
-  vector_t* out = allocate(sizeof(vector_t));
-
-  init_vector(out, n, root);
-
-  return out;
-}
-
-value_t vector(usize n, value_t* vals) {
-  vector_t* out;
-  
-  if (n == 0)
-    out = &EmptyVector;
-
-  else {
-    arr_node_t* root = arr_node(0, 0, NULL);
-
-    for (usize i=0; i<n; i++)
-      root = arr_node_append(root, vals[i]);
-
-    out = mk_vector(n, root);
-  }
-
-  return object(out);
-}
-
-value_t vector_get(vector_t* self, usize n) {
-  assert(n < self->len);
-
-  return arr_node_get(self->root, n);
-}
-
-vector_t* vector_set(vector_t* self, usize n, value_t v) {
-  assert(n < self->len);
-
-  arr_node_t* root = arr_node_set(self->root, n, v);
-
-  return mk_vector(self->len, root);
-}
-
-vector_t* vector_add(vector_t* self, value_t v) {
-  assert(self->len < FIXNUM_MAX);
-
-  arr_node_t* root = arr_node_append(self->root, v);
-
-  return mk_vector(self->len, root);
-}
-
-vector_t* vector_pop(vector_t* self) {
-  assert(self->len);
-  
-  if (self->len == 1)
-    return &EmptyVector;
-
-  arr_node_t* root = arr_node_pop(self->root);
-
-  return mk_vector(self->len-1, root);
-}
-
-// map node -------------------------------------------------------------------
-#define MAP_MAXH 8
-#define MAP_MAXN 64
-
-map_node_t* unfreeze_map_node(map_node_t* self);
-void        resize_map_node(map_node_t* self, usize n);
-
-usize pad_map_node_size(usize n, usize oldc) {
-  oldc = MAX(1u, oldc);
-
-  if (n > oldc || n < (oldc >> 1))
-    return ceil2(n);
-
-  return oldc;
-}
-
-uhash map_node_key(map_node_t* node, uhash h) {
-  return h >> (node->height * 6) & 0x3f;
-}
-
-usize map_node_mask(map_node_t* node, uhash h) {
-  return 1 << map_node_key(node, h);
-}
-
-int map_node_index(map_node_t* node, uhash h) {
-  usize mask = map_node_mask(node, h);
-
-  if (node->bitmap & mask)
-    return popcnt(node->bitmap & (mask - 1));
-
-  return -1;
-}
-
-int add_key_to_map_node(map_node_t* node, uhash h) {
-  usize mask = map_node_mask(node, h);
-
-  if (node->bitmap & mask)
-    return popcnt(node->bitmap & (mask - 1));
-
-  node->bitmap |= mask;
-  int i         = popcnt(node->bitmap & (mask - 1));
-
-  resize_map_node(node, node->len+1);
-
-  if (i < node->len)
-    memmove(node->entries+i+1, node->entries+i, (node->len - i) * sizeof(void*));
-
-  node->entries[i] = NULL;
-
-  return i;
-}
-
-void resize_map_node(map_node_t* node, usize n) {
-  assert(n <= MAP_MAXN);
-
-  usize padded = pad_map_node_size(n, node->cap);
-
-  if (padded != node->cap) {
-    node->entries = reallocate(node->entries,
-                               node->cap * sizeof(value_t),
-                               padded * sizeof(value_t));
-    node->cap     = padded;
-  }
-
-  node->len = n;
-}
-
-
-void init_map_node(map_node_t* self, usize bitmap, uint16 len, uint32 height, void* src) {
-  init_object(self, MAP_NODE, 0);
-
-  if (len == 0)
-    len = popcnt(bitmap);
-
-  self->len     = len;
-  self->cap     = pad_map_node_size(len, 0);
-  self->height  = height;
-  self->entries = allocate(self->cap * sizeof(void*));
-  self->bitmap  = bitmap;
-
-  if (src)
-    memcpy(self->entries, src, self->len * sizeof(void*));
-}
-
-map_node_t* map_node(usize bitmap, uint16 len, uint32 height, void* src) {
-  map_node_t* out = allocate(sizeof(map_node_t));
-
-  init_map_node(out, bitmap, len, height, src);
-
-  return out;
-}
-
-map_node_t* unfreeze_map_node(map_node_t* node) {
-  if (has_flag(node, FROZEN))
-    node = map_node(node->bitmap, node->len, node->height, node->entries);
-
-  return node;
-}
-
-void freeze_map_node(map_node_t* node) {
-  if (has_flag(node, FROZEN))
-    return;
-
-  set_flag(node, FROZEN);
-
-  if (node->height)
-    for (int i=0; i<node->len; i++)
-      if (node->entries[i]->type == MAP_NODE)
-        freeze_map_node((map_node_t*)node->entries[i]);
-}
-
-tuple_t* map_node_get(map_node_t* node, value_t k) {
-  uhash h = hash(k); tuple_t* out = NULL;
-  
-  for (;;) {
-    int i = map_node_index(node, h);
-
-    if (i == -1)
-      break;
-
-    object_t* o = node->entries[i];
-    type_t t    = o->type;
-
-    if (t == MAP_NODE)
-      node = (map_node_t*)o;
-
-    else if (t == TUPLE) {
-      tuple_t* e = (tuple_t*)o;
-      
-      if (equal(k, first(e)))
-        out = e;
-
-      break;
-    }
-
-    else {
-      assert(t == LIST);
-      list_t* l = (list_t*)o;
-
-      while (!out && l->len) {
-        tuple_t* e = as_ptr(l->head);
-
-        if (equal(k, first(e)))
-          out = e;
-
-        else
-          l = l->tail;
-      }
-
-      break;
-    }
-  }
-
-  return out;
-}
-
-bool map_node_set(map_node_t** root, value_t k, value_t v) {
-  map_node_t* node              = *root;
-  map_node_t* buffer[MAP_MAXH]  = {  0,  0,  0,  0,  0,  0,  0,  0 };
-  int         indices[MAP_MAXH] = { -1, -1, -1, -1, -1, -1, -1, -1 };
-  bool        frozen            = has_flag(node, FROZEN), out = false;
-  uhash       h                 = hash(k);
-  int         height            = node->height, maxh = height, minh = height, i;
-  object_t*   entry             = NULL;
-
-  // find path to entry node
-  for (;;height=node->height, minh=height) {
-    buffer[height]  = node;
-    indices[height] = i = map_node_index(node, h);
-
-    if (i == -1) {
-      buffer[height]  = unfreeze_map_node(buffer[height]);
-      indices[height] = i = add_key_to_map_node(node, h);
-      break;
-    }
-
-    object_t* o = node->entries[i];
-
-    if (o->type == MAP_NODE)
-      node = (map_node_t*)o;
-
-    // 
-    else if (o->type == TUPLE) {
-      
-    }
-
-    else {
-      
-    }
-  }
-}
-
-bool map_node_del(map_node_t** node, value_t k);
-
-// dict -----------------------------------------------------------------------
-struct dict_t EmptyDict = {
-  .obj ={
-    .next =NULL,
-    .hash =0,
-    .flags=FROZEN,
-    .type =DICT,
-    .gray =false,
-    .black=true
-  },
-  .len =0,
-  .root=NULL
-};
-
-void init_dict(dict_t* self, usize n, map_node_t* root) {
-  init_object(self, DICT, FROZEN);
-
-  self->len = n;
-  self->root= root;
-}
-
-dict_t* mk_dict(usize n, map_node_t* root) {
-  dict_t* out = allocate(sizeof(dict_t));
-
-  init_dict(out, n, root);
-
-  return out;
-}
-
-value_t dict(usize n, value_t* values) {
-  assert((n&1) == 0);
-  
-  dict_t* out;
-  
-  if (n == 0)
-    out = &EmptyDict;
-
-  else {
-    map_node_t* root = map_node(0, 0, 0, NULL);
-    usize len = 0;
-
-    for (usize i=0; i<n; i+= 2)
-      len += map_node_set(&root, values[i], values[i+1]);
-
-    freeze_map_node(root);
-
-    out = mk_dict(len, root);
-  }
-
-  return object(out);
-}
-
-value_t dict_get(dict_t* ks, value_t k) {
-  tuple_t* kv = map_node_get(ks->root, k);
-
-  if (kv == NULL)
-    return NOTFOUND;
-
-  return second(kv);
-}
-
-dict_t* dict_set(dict_t* ks, value_t k, value_t v) {
-  map_node_t* root = ks->root;
-  usize len = ks->len;
-
-  len += map_node_set(&root, k, v);
-
-  return mk_dict(len, root);
-}
-
-dict_t* dict_del(dict_t* ks, value_t k) {
-  map_node_t* root = ks->root;
-  usize len = ks->len;
-  len -= map_node_del(&root, k);
-
-  return mk_dict(len, root);
-}
-
-// set ------------------------------------------------------------------------
-struct set_t EmptySet = {
-  .obj ={
-    .next =NULL,
-    .hash =0,
-    .flags=FROZEN,
-    .type =SET,
-    .gray =false,
-    .black=true
-  },
-  .len =0,
-  .root=NULL
-};
-
-
-void init_set(set_t* self, usize n, map_node_t* root) {
-  init_object(self, SET, FROZEN);
-
-  self->len = n;
-  self->root= root;
-}
-
-set_t* mk_set(usize n, map_node_t* root) {
-  set_t* out = allocate(sizeof(set_t));
-
-  init_set(out, n, root);
-
-  return out;
-}
-
-value_t set(usize n, value_t* values) {
-  assert((n&1) == 0);
-  
-  set_t* out;
-  
-  if (n == 0)
-    out = &EmptySet;
-
-  else {
-    map_node_t* root = map_node(0, 0, 0, NULL);
-    usize len = 0;
-
-    for (usize i=0; i<n; i+= 2)
-      len += map_node_set(&root, values[i], values[i+1]);
-
-    freeze_map_node(root);
-
-    out = mk_set(len, root);
-  }
-
-  return object(out);
-}
-
-bool set_has(set_t* ks, value_t k) {
-  return !!map_node_get(ks->root, k);
-}
-
-set_t* set_add(set_t* ks, value_t k) {
-  map_node_t* root = ks->root;
-  usize len = ks->len;
-
-  len += map_node_set(&root, k, k);
-
-  return mk_set(len, root);
-}
-
-set_t* set_del(set_t* ks, value_t k) {
-  map_node_t* root = ks->root;
-  usize len = ks->len;
-  len -= map_node_del(&root, k);
-
-  return mk_set(len, root);
 }

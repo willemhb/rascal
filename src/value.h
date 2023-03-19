@@ -4,143 +4,178 @@
 #include "common.h"
 
 // C types --------------------------------------------------------------------
-typedef uintptr_t  value_t;
-typedef double     real_t;
-typedef uintptr_t  fixnum_t;
-typedef bool       bool_t;
-typedef void      *sysptr_t;
+// value types ----------------------------------------------------------------
+typedef uintptr_t value_t; // tagged lisp data
+typedef uintptr_t fixnum_t;
+typedef uint32 small_t;
+typedef uint32 glyph_t;
+typedef double real_t;
+typedef bool boolean_t;
+typedef void *pointer_t;
+typedef struct object_t object_t;
+typedef struct rl_type_t rl_type_t;
 
-typedef struct object_t  object_t;
-typedef struct native_t  native_t;
-typedef struct symbol_t  symbol_t;
-typedef struct binary_t  binary_t;
-typedef struct tuple_t   tuple_t;
-typedef struct list_t    list_t;
-typedef struct vector_t  vector_t;
-typedef struct dict_t    dict_t;
-typedef struct set_t     set_t;
+// small types ----------------------------------------------------------------
+typedef uint8 uint8_t;
+typedef sint8 sint8_t;
+typedef uint16 uint16_t;
+typedef sint16 sint16_t;
+typedef uint32 uint32_t;
+typedef sint32 sint32_t;
+typedef float  real32_t;
 
+// glyph types ----------------------------------------------------------------
+typedef char ascii_t;
+typedef uint8 latin1_t;
+typedef uint8 utf8_t;
+typedef uint16 utf16_t;
+typedef uint32 utf32_t;
+
+// object types ---------------------------------------------------------------
+// metaobject types -----------------------------------------------------------
+typedef struct primitive_type_t primitive_type_t;
+typedef struct object_type_t object_type_t;
+typedef struct union_type_t union_type_t;
+
+// internal types -------------------------------------------------------------
 typedef struct arr_node_t arr_node_t;
+typedef struct arr_leaf_t arr_leaf_t;
 typedef struct map_node_t map_node_t;
+typedef struct map_leaf_t map_leaf_t;
+typedef struct map_leaves_t map_leaves_t;
+typedef struct method_table_t method_table_t;
+typedef struct method_t method_t;
+typedef struct chunk_t chunk_t;
+typedef struct closure_t closure_t;
+typedef struct variable_t variable_t;
+typedef struct namespace_t namespace_t;
+typedef struct environment_t environment_t;
+typedef struct control_t control_t;
 
+// user types -----------------------------------------------------------------
+typedef struct symbol_t symbol_t;
+typedef struct function_t function_t;
+typedef struct port_t port_t;
+typedef struct binary_t binary_t;
+typedef struct string_t string_t;
+typedef struct tuple_t tuple_t;
+typedef struct list_t list_t;
+typedef struct vector_t vector_t;
+typedef struct dict_t dict_t;
+typedef struct set_t set_t;
+typedef struct table_t table_t;
+typedef struct alist_t alist_t;
+typedef struct buffer_t buffer_t;
+typedef struct struct_t struct_t;
+typedef struct record_t record_t;
+typedef struct complex_t complex_t;
+typedef struct ratio_t ratio_t;
+typedef struct big_t big_t;
+
+// other internal types -------------------------------------------------------
+typedef struct vtable_t vtable_t;
+
+// builtin type codes ---------------------------------------------------------
 typedef enum {
-  NONE,
-  UNIT,
-  BOOL,
-  SYSPTR,
-  REAL,
-  FIXNUM,
-  NATIVE,
+  // metaobject types ---------------------------------------------------------
+  PRIMITIVE_TYPE,
+  OBJECT_TYPE,
+  UNION_TYPE,
+
+  // internal types -----------------------------------------------------------
+  ARR_NODE,
+  ARR_LEAF,
+  MAP_NODE,
+  MAP_LEAF,
+  MAP_LEAVES,
+  METHOD_TABLE,
+  METHOD,
+  CHUNK,
+  CLOSURE,
+  VARIABLE,
+  NAMESPACE,
+  ENVIRONMENT,
+  CONTROL,
+
+  // user types ---------------------------------------------------------------
   SYMBOL,
+  FUNCTION,
+  PORT,
   BINARY,
+  STRING,
   TUPLE,
   LIST,
   VECTOR,
   DICT,
   SET,
-  ARR_NODE,
-  MAP_NODE,
-  ANY
-} type_t;
+  TABLE,
+  ALIST,
+  BUFFER,
+  STRUCT,
+  RECORD,
+  COMPLEX,
+  RATIO,
+  BIG
+} obj_type_t;
 
 typedef enum {
-  HASHED=0x100,
-  FROZEN=0x080,
-} objfl_t;
+  // numeric ------------------------------------------------------------------
+  OBJECT=BIG,
+  SINT8,
+  UINT8,
+  SINT16,
+  UINT16,
+  SINT32,
+  UINT32,
+  REAL32,
+  FIXNUM,
+  REAL,
+
+  // glyph --------------------------------------------------------------------
+  ASCII,
+  LATIN1,
+  UTF8,
+  UTF16,
+  UTF32,
+
+  // misc ---------------------------------------------------------------------
+  BOOLEAN,
+  POINTER,
+
+  // fucked up types ----------------------------------------------------------
+  NONE,
+  UNIT,
+  ANY
+} val_type_t;
+
+typedef enum {
+  BOTTOM_KIND,
+  DATA_KIND,
+  UNION_KIND,
+  TOP_KIND
+} kind_t;
 
 struct object_t {
   object_t *next;
-  uword     hash  : 48;
-  uword     flags :  9;
-  uword     gray  :  1;
-  uword     black :  1;
-  uword     type  :  5;
+  uword hash   : 48;
+  uword flags  :  6;
+  uword hashed :  1;
+  uword frozen :  1;
+  uword type   :  6;
+  uword gray   :  1;
+  uword black  :  1;
 };
 
 #define HEADER object_t obj
 
-struct native_t {
-  HEADER;
-  symbol_t*  name;
-  value_t  (*func)(usize n, value_t* args);
-};
-
-struct symbol_t {
-  HEADER;
-  symbol_t *left, *right;
-  char*     name;
-  value_t   bind;
-  uword     idno;
-};
-
-struct binary_t {
-  HEADER;
-  usize  len;
-  ubyte  array[];
-};
-
-struct tuple_t {
-  HEADER;
-  usize   len;
-  value_t slots[];
-};
-
-struct list_t {
-  HEADER;
-  usize   len;
-  value_t head;
-  list_t* tail;
-};
-
-struct vector_t {
-  HEADER;
-  usize       len;
-  arr_node_t* root;
-};
-
-struct dict_t {
-  HEADER;
-  usize       len;
-  map_node_t* root;
-};
-
-struct set_t {
-  HEADER;
-  usize       len;
-  map_node_t* root;
-};
-
-struct arr_node_t {
-  HEADER;
-  uint16 len, cap;
-  uint32 height;
-
-  union {
-    value_t* values;
-    arr_node_t** children;
-  };
-};
-
-struct map_node_t {
-  HEADER;
-  uint16 len, cap;
-  uint32 height;
-
-  object_t** entries; // each entry is another map node (child), a 2-tuple (leaf), or a list (collision)
-
-  usize  bitmap;
-};
-
 // globals --------------------------------------------------------------------
 #define QNAN        0x7ff8000000000000ul
-#define FIXNUMTAG   0x7ffc000000000000ul
-#define INTTAG      0x7ffd000000000000ul
-#define NUL         0x7ffe000000000000ul
+#define SMALLTAG    0x7ffc000000000000ul
+#define FIXTAG      0x7ffd000000000000ul
+#define NULTAG      0x7ffe000000000000ul
 #define BOOLTAG     0x7fff000000000000ul
-#define GLYPHTAG    0xfffc000000000000ul
-#define SYSPTRTAG   0xfffd000000000000ul
-#define NATIVETAG   0xfffe000000000000ul
-#define OBJTAG      0xffff000000000000ul
+#define PTRTAG      0xfffc000000000000ul
+#define OBJTAG      0xfffd000000000000ul
 
 #define TAG_MASK    0xffff000000000000ul
 #define VAL_MASK    0x0000fffffffffffful
@@ -148,135 +183,68 @@ struct map_node_t {
 #define TRUE_VAL    (BOOLTAG|1ul)
 #define FALSE_VAL   (BOOLTAG|0ul)
 
-#define UNBOUND     (NUL|1ul)
-#define NOTFOUND    (NUL|3ul)
-
-#define tag_of(x)   ((x)&TAG_MASK)
-#define val_of(x)   ((x)&VAL_MASK)
+#define NUL         (NULTAG|0ul)
+#define UNBOUND     (NULTAG|1ul)
+#define NOTFOUND    (NULTAG|3ul)
 
 #define FIXNUM_MAX  VAL_MASK
-#define FULL_SMASK  (TAG_MASK|VAL_MASK)
+#define FULL_MASK  (TAG_MASK|VAL_MASK)
 
 #define NUM_TYPES (ANY+1)
 
-extern tuple_t   EmptyTuple;
-extern list_t    EmptyList;
-extern vector_t  EmptyVector;
-extern dict_t    EmptyDict;
-extern set_t     EmptySet;
-extern binary_t  EmptyBinary;
-
+extern rl_type_t* BuiltinTypes[NUM_TYPES];
 
 // API ------------------------------------------------------------------------
-// tags, tagging, types -------------------------------------------------------
-type_t  type_of(value_t val);
-usize   size_of_val(value_t val);
-usize   size_of_obj(void* ptr);
-usize   size_of_type(type_t type);
-char*   type_name_of(value_t val);
-char*   type_name_of_type(type_t type);
-bool    is_object_type(type_t type);
-bool    has_type(value_t val, type_t type);
+// tags, tagging, types, queries ----------------------------------------------
+#define as_ptr(x)  ((void*)((x)&VAL_MASK))
+#define as_obj(x)  ((object_t*)as_ptr(x))
+#define is_obj(x)  (((x) & TAG_MASK) == OBJTAG)
+#define object(o)  ((((uword)(o))&VAL_MASK)|OBJTAG)
+#define pointer(p) ((((uword)(o))&VAL_MASK)|PTRTAG)
 
-#define size_of(x)                              \
-  generic((x),                                  \
-          type_t:size_of_type,                  \
-          value_t:size_of_val,                  \
-          object_t*:size_of_obj,                \
-          symbol_t*:size_of_obj,                \
-          tuple_t*:size_of_obj,                 \
-          list_t*:size_of_obj,                  \
-          vector_t*:size_of_obj,                \
-          dict_t*:size_of_obj,                  \
-          set_t*:size_of_obj,                   \
-          binary_t*:size_of_obj)(x)
+val_type_t val_type(value_t val);
 
-#define type_name(x)                            \
-  generic((x),                                  \
-          int: type_name_of_type,               \
-          type_t:type_name_of_type,             \
-          value_t:type_name_of)(x)
+obj_type_t val_obj_type(value_t val);
+obj_type_t obj_obj_type(object_t* obj);
+#define obj_type(x) generic2(obj_type, x)
 
-bool    is_object(value_t val);
-bool    is_byte(value_t val);
-bool    is_function(value_t val);
-bool    is_number(value_t val);
+rl_type_t* val_type_of(value_t val);
+rl_type_t* obj_type_of(object_t* obj);
+#define type_of(x) generic2(type_of, x)
 
-value_t tag_ptr(void* p, uword t);
-value_t tag_word(uword w, uword t);
-value_t tag_dbl(double dbl);
+// core APIs ------------------------------------------------------------------
+kind_t val_has_type(value_t val, rl_type_t* type);
+kind_t obj_has_type(object_t* obj, rl_type_t* type);
 
-uword   as_word(value_t val);
-real_t  as_number(value_t val);
-real_t  as_real(value_t val);
-void*   as_ptr(value_t val);
+#define has_type(x, t) generic2(has_type, x, t)
 
-bool    has_flag(void* ptr, flags fl);
-bool    set_flag(void* ptr, flags fl);
-bool    del_flag(void* ptr, flags fl);
+void val_print(value_t val, port_t* ios);
+void obj_print(object_t* obj, port_t* ios);
 
-#define is_unit(x)     has_type(x, UNIT)
-#define is_bool(x)     has_type(x, BOOL)
-#define is_sysptr(x)   has_type(x, SYSPTR)
-#define is_native(x)   has_type(x, NATIVE)
-#define is_real(x)     has_type(x, REAL)
-#define is_fixnum(x)   has_type(x, FIXNUM)
-#define is_symbol(x)   has_type(x, SYMBOL)
-#define is_binary(x)   has_type(x, BINARY)
-#define is_tuple(x)    has_type(x, TUPLE)
-#define is_list(x)     has_type(x, LIST)
-#define is_vector(x)   has_type(x, VECTOR)
-#define is_dict(x)     has_type(x, DICT)
-#define is_set(x)      has_type(x, SET) 
+#define rl_print(x, p) generic2(print, x, p)
 
-#define as_bool(x)    ((x)==TRUE_VAL)
-#define as_fixnum(x)  ((fixnum_t)as_word(x))
-#define as_sysptr(x)  ((sysptr_t)as_ptr(x))
-#define as_object(x)  ((object_t*)as_ptr(x))
-#define as_native(x)  ((native_t*)as_ptr(x))
-#define as_symbol(x)  ((symbol_t*)as_ptr(x))
-#define as_binary(x)  ((binary_t*)as_ptr(x))
-#define as_tuple(x)   ((tuple_t*)as_ptr(x))
-#define as_list(x)    ((list_t*)as_ptr(x))
-#define as_vector(x)  ((vector_t*)as_ptr(x))
-#define as_dict(x)    ((dict_t*)as_ptr(x))
-#define as_set(x)     ((set_t*)as_ptr(x))
+usize val_size_of(value_t val);
+usize obj_size_of(object_t* obj);
 
-// constructors ---------------------------------------------------------------
-#define object(ptr)  tag_ptr((ptr), OBJTAG)
-#define fixnum(fxn)  tag_word((fxn), FIXNUMTAG)
-#define sysptr(ptr)  tag_ptr((ptr), SYSPTRTAG)
-#define freeze(ptr)  set_flag(ptr, FROZEN)
+#define size_of(x) generic2(size_of, x)
 
-value_t native(char* name, value_t (*func)(usize n, value_t* args));
-value_t symbol(char* name);
-value_t binary(usize n, value_t* args);
-value_t pair(value_t k, value_t v);
-value_t tuple(usize n, value_t* args);
-value_t cons(value_t head, list_t* tail);
-value_t list(usize n, value_t* args);
-value_t vector(usize n, value_t* args);
-value_t dict(usize n, value_t* args);
-value_t set(usize n, value_t* args);
+uhash val_hash(value_t x);
+uhash obj_hash(object_t* obj);
 
-// accessors ------------------------------------------------------------------
-value_t first(tuple_t* kv);
-value_t second(tuple_t* kv);
+#define rl_hash(x) generic2(hash, x)
 
-value_t nth_hd(list_t* xs, usize n);
-list_t* nth_tl(list_t* xs, usize n);
+bool val_equal(value_t x, value_t y);
+bool obj_equal(object_t* x, object_t* y);
 
-value_t   vector_get(vector_t* xs, usize n);
-vector_t* vector_set(vector_t* xs, usize n, value_t val);
-vector_t* vector_add(vector_t* xs, value_t val);
-vector_t* vector_pop(vector_t* xs);
+#define rl_equal(x, y) generic2(equal, x, y)
 
-value_t dict_get(dict_t* ks, value_t k);
-dict_t* dict_set(dict_t* ks, value_t k, value_t v);
-dict_t* dict_del(dict_t* ks, value_t k);
+int val_compare(value_t x, value_t y);
+int obj_compare(object_t* x, object_t* y);
 
-bool    set_has(set_t* ks, value_t k);
-set_t*  set_add(set_t* ks, value_t k);
-set_t*  set_del(set_t* ks, value_t k);
+#define rl_compare(x, y) generic2(compare, x, y)
+
+bool has_flag(void* ptr, flags fl);
+bool set_flag(void* ptr, flags fl);
+bool clear_flag(void* ptr, flags fl);
 
 #endif

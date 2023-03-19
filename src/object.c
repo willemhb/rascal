@@ -1,10 +1,190 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
-#include "memory.h"
-#include "htable.h"
-#include "number.h"
+#include "object.h"
+#include "metaobject.h"
+
+// symbol ---------------------------------------------------------------------
+uint64 SymbolCounter = 1;
+symbol_t* SymbolTable = NULL;
+
+typedef struct {
+  object_init_t base;
+  char* name;
+} symbol_init_t;
+
+void print_symbol(value_t val, port_t* ios);
+int  compare_symbols(value_t x, value_t y);
+
+
+vtable_t SymbolVtable = {
+  
+};
+
+// sacred methods -------------------------------------------------------------
+
+
+static symbol_t** find_symbol(char* name) {
+  symbol_t** node = &SymbolTable;
+
+  while (*node) {
+    int o = strcmp(name, (*node)->name);
+
+    if (o < 0)
+      node = &(*node)->left;
+
+    else if (o > 0)
+      node = &(*node)->right;
+
+    else
+      break;
+  }
+
+  return node;
+}
+
+void init_symbol(symbol_t *self, char* name) {
+  init_object(&self->obj, SYMBOL, 0);
+  self->left  = NULL;
+  self->right = NULL;
+  self->idno  = SymbolCounter++;
+  self->bind  = UNBOUND;
+  self->name  = strdup(name);
+}
+
+static symbol_t *new_symbol(char* name) {
+  symbol_t *sym = allocate(sizeof(symbol_t));
+
+  init_symbol(sym, name);
+
+  return sym;
+}
+
+value_t symbol(char* name) {
+  symbol_t **node = find_symbol(name);
+
+  if (*node == NULL)
+    *node = new_symbol(name);
+
+  return object(*node);
+}
+
+// binary ---------------------------------------------------------------------
+// tuple ----------------------------------------------------------------------
+tuple_t EmptyTuple = {
+  .obj={
+    .next=NULL,
+    .hash=0,
+    .flags=0,
+    .type=TUPLE,
+    .black=true,
+    .gray=false
+  },
+  .len=0
+};
+
+static tuple_t* allocate_tuple(usize n) {
+  assert(n > 0);
+
+  return allocate(sizeof(tuple_t) + n * sizeof(value_t));
+}
+
+static void init_tuple(tuple_t* self, usize n, value_t* args) {
+  assert(n > 0);
+  assert(self != &EmptyTuple);
+
+  init_object(&self->obj, TUPLE, FROZEN);
+  self->len = n;
+  memcpy(self->slots, args, n*sizeof(value_t));
+}
+
+value_t pair(value_t k, value_t v) {
+  value_t vals[2] = { k, v };
+
+  return tuple(2, vals);
+}
+
+value_t tuple(usize n, value_t* args) {
+  assert(n <= FIXNUM_MAX);
+  tuple_t* tup;
+
+  if (n == 0)
+    tup = &EmptyTuple;
+
+  else {
+    tup = allocate_tuple(n);
+    init_tuple(tup, n, args);
+  }
+
+  return object(tup);
+}
+
+// list -----------------------------------------------------------------------
+list_t EmptyList = {
+  .obj={
+    .next =NULL,
+    .type =LIST,
+    .hash =0,
+    .flags=FROZEN,
+    .black=true,
+    .gray =false
+  },
+  .len=0,
+  .head=NUL,
+  .tail=&EmptyList
+};
+
+static void init_list(list_t* self, value_t head, list_t* tail) {
+  assert(tail->len < FIXNUM_MAX);
+  init_object(&self->obj, LIST, FROZEN);
+
+  self->head = head;
+  self->tail = tail;
+  self->len  = 1 + tail->len;
+}
+
+value_t cons(value_t head, list_t* tail) {
+  list_t* out = allocate(sizeof(list_t));
+  init_list(out, head, tail);
+  return object(out);
+}
+
+value_t list(usize n, value_t* args) {
+  if (n == 0)
+    return object(&EmptyList);
+
+  if (n == 1)
+    return cons(args[0], &EmptyList);
+
+  list_t* out  = allocate(n * sizeof(list_t));
+  list_t* curr = &out[n-1], *last = &EmptyList;
+
+  for (usize i=n; i>0; i--) {
+    init_list(curr, args[i-1], last);
+    last = curr--;
+  }
+
+  return object(out);
+}
+
+value_t nth_hd(list_t* xs, usize n) {
+  assert(n < xs->len);
+
+  while (n--)
+    xs = xs->tail;
+
+  return xs->head;
+}
+
+list_t* nth_tl(list_t* xs, usize n) {
+  assert(n < xs->len);
+
+  while (n--)
+    xs = xs->tail;
+
+  return xs;
+}
+
 
 // globals --------------------------------------------------------------------
 #define MIN_CAP    8ul
