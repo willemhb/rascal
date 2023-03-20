@@ -1,9 +1,11 @@
 #include "value.h"
+#include "object.h"
 #include "metaobject.h"
 #include "product.h"
 #include "text.h"
-#include "hashing.h"
 #include "number.h"
+
+#include "hashing.h"
 
 // globals --------------------------------------------------------------------
 rl_type_t* BuiltinTypes[NUM_TYPES];
@@ -25,7 +27,7 @@ val_type_t val_type(value_t val) {
 obj_type_t val_obj_type(value_t val) {
   assert((val & TAG_MASK) == OBJTAG);
 
-  return obj_obj_type(as_obj(val));
+  return obj_obj_type(as_object(val));
 }
 
 obj_type_t obj_obj_type(object_t* obj) {
@@ -37,7 +39,7 @@ rl_type_t* val_type_of(value_t val) {
   val_type_t vt = val_type(val);
 
   if (vt == OBJECT)
-    return obj_type_of(as_obj(val));
+    return obj_type_of(as_object(val));
 
   return BuiltinTypes[vt];
 }
@@ -79,8 +81,8 @@ void obj_print(object_t* obj, port_t* ios) {
 }
 
 usize val_size_of(value_t val) {
-  if (is_obj(val))
-    return obj_size_of(as_obj(val));
+  if (is_object(val))
+    return obj_size_of(as_object(val));
   
   primitive_type_t* type = (primitive_type_t*)type_of(val);
 
@@ -102,8 +104,8 @@ usize obj_size_of(object_t* obj) {
 
 
 uhash val_hash(value_t x) {
-  if (is_obj(x))
-    return obj_hash(as_obj(x));
+  if (is_object(x))
+    return obj_hash(as_object(x));
 
   return hash_uword(x);
 }
@@ -130,11 +132,11 @@ bool val_equal(value_t x, value_t y) {
   if (x == y)
     return true;
 
-  if (is_obj(x)) {
-    if (!is_obj(y))
+  if (is_object(x)) {
+    if (!is_object(y))
       return false;
 
-    return obj_equal(as_obj(x), as_obj(y));
+    return obj_equal(as_object(x), as_object(y));
   }
 
   return false;

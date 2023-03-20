@@ -32,8 +32,9 @@ struct object_type_t {
   TYPE_HEADER;
   usize size;
   int   (*init)(void* self, void* ini);
-  void  (*trace)(object_t* self);
-  void  (*free)(object_t* self);
+  void  (*trace)(void* self);
+  void  (*free)(void* self);
+  void  (*traverse)(void* self, void (*callback)(void* state), bool (*update)(void* state));
   dict_t* slots;
   object_t* singleton; // for unique empty instance of immutable type ---------
 };

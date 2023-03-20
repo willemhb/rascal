@@ -109,40 +109,6 @@ uhash hash(value_t x) {
 }
 
 // helpers --------------------------------------------------------------------
-bool equal_value_arrays(usize nx, value_t* xs, usize ny, value_t* ys) {
-  if (nx != ny)
-    return false;
-
-  for (usize i=0; i<nx; i++) {
-    if (!equal(xs[i], ys[i]))
-      return false;
-  }
-
-  return true;
-}
-
-int compare_value_arrays(usize nx, value_t* xs, usize ny, value_t* ys) {
-  usize maxc = MAX(nx, ny);
-
-  int o;
-
-  for (usize i=0; i<maxc; i++) {
-    if ((o=compare(xs[i], ys[i])))
-      return o;
-  }
-
-  return 0 - (nx < ny) + (nx > ny);
-}
-
-uhash hash_value_array(usize nx, value_t* xs) {
-  uhash accum = 0;
-
-  for (usize i=0; i<nx; i++)
-    accum = mix_2_hashes(accum, hash(xs[i]));
-
-  return accum;
-}
-
 uhash hash_object(void* ptr) {
   object_t* obj = ptr;
 

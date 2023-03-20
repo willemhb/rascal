@@ -74,11 +74,6 @@ void trace_stencil(void* ptr);
 
 void free_symbol(void* ptr);
 
-void trace_values(usize n, value_t* vals) {
-  for (usize i=0; i<n; i++)
-    mark_value(vals[i]);
-}
-
 void (*Trace[NUM_TYPES])(void* ptr) = {
   [SYMBOL]  = trace_symbol,
   [LIST]    = trace_list,

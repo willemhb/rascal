@@ -4,7 +4,12 @@
 #include "object.h"
 #include "metaobject.h"
 #include "text.h"
+#include "atom.h"
+#include "interpreter.h"
+
 #include "memory.h"
+#include "number.h"
+#include "hashing.h"
 
 // lifetime API ---------------------------------------------------------------
 int init_object(void* self, void* ini) {
@@ -34,32 +39,117 @@ int init_object(void* self, void* ini) {
   return out;
 }
 
-void mark_object(object_t* self) {
+void mark_object(void* self) {
   if (!self)
     return;
 
-  if (self->black)
+  object_t* obj = self;
+
+  if (obj->black)
     return;
 
-  self->black = true;
+  obj->black = true;
 
-  object_type_t* type = (object_type_t*)type_of(self);
+  object_type_t* type = (object_type_t*)type_of(obj);
 
   if (type->trace)
-    push_gray(self);
+    push_gray(obj);
 
   else
-    self->gray = true;
+    obj->gray = true;
 }
 
-void free_object(object_t* self) {
-  usize dealloc = size_of(self);
-  object_type_t* type = (object_type_t*)type_of(self);
+void free_object(void* self) {
+  if (!self)
+    return;
+  
+  object_t* obj = self;
+  usize dealloc = size_of(obj);
+  object_type_t* type = (object_type_t*)type_of(obj);
 
   if (type->free)
-    type->free(self);
+    type->free(obj);
 
-  deallocate(self, dealloc);
+  deallocate(obj, dealloc);
+}
+
+// traversal utilities --------------------------------------------------------
+void mark_objects(usize n, object_t** objs) {
+  for (usize i=0; i<n; i++)
+    mark_object(objs[i]);
+}
+
+void mark_values(usize n, value_t* vals) {
+  for (usize i=0; i<n; i++)
+    mark_value(vals[i]);
+}
+
+int compare_objects(usize xn, object_t** xobjs, usize yn, object_t** yobjs) {
+  usize maxc = MAX(xn, yn);
+
+  int o;
+
+  for (usize i=0; i<maxc; i++) {
+    if ((o=rl_compare(xobjs[i], yobjs[i])))
+      return o;
+  }
+
+  return 0 - (xn < yn) + (xn > yn);
+}
+
+int compare_values(usize xn, value_t* xvals, usize yn, value_t* yvals) {
+  usize maxc = MAX(xn, yn);
+
+  int o;
+
+  for (usize i=0; i<maxc; i++) {
+    if ((o=rl_compare(xvals[i], yvals[i])))
+      return o;
+  }
+
+  return 0 - (xn < yn) + (xn > yn);
+}
+
+bool equal_objects(usize xn, object_t** xobjs, usize yn, object_t** yobjs) {
+  if (xn != yn)
+    return false;
+
+  for (usize i=0; i<xn; i++) {
+    if (!rl_equal(xobjs[i], yobjs[i]))
+      return false;
+  }
+
+  return true;
+}
+
+bool equal_values(usize xn, value_t* xvals, usize yn, value_t* yvals) {
+  if (xn != yn)
+    return false;
+
+  for (usize i=0; i<xn; i++) {
+    if (!rl_equal(xvals[i], yvals[i]))
+      return false;
+  }
+
+  return true;
+}
+
+uhash hash_objects(usize nx, object_t** objs) {
+  uhash accum = 0;
+
+  for (usize i=0; i<nx; i++)
+    accum = mix_2_hashes(accum, rl_hash(objs[i]));
+
+  return accum;
+}
+
+uhash hash_values(usize nx, value_t* vals) {
+  uhash accum = 0;
+
+  for (usize i=0; i<nx; i++)
+    accum = mix_2_hashes(accum, rl_hash(vals[i]));
+
+  return accum;
 }
 
 
@@ -70,14 +160,15 @@ symbol_t* SymbolTable = NULL;
 typedef struct {
   object_init_t base;
   char* name;
+  symbol_t** parent;
 } symbol_init_t;
 
 void  print_symbol(value_t val, port_t* ios);
 uhash hash_symbol(object_t* obj);
 int   compare_symbols(value_t x, value_t y);
 int   init_symbol(void* self, void* ini);
-void  trace_symbol(object_t* self);
-void  free_symbol(object_t* self);
+void  trace_symbol(void* self);
+void  free_symbol(void* self);
 
 vtable_t SymbolVtable = {
   .print  =print_symbol,
@@ -104,7 +195,72 @@ object_type_t SymbolType = {
 };
 
 // sacred methods -------------------------------------------------------------
+void print_symbol(value_t val, port_t* ios) {
+  symbol_t* s = as_pointer(val);
 
+  if (has_flag(s, INTERNED))
+    rl_printf(ios, "%s", s->name);
+
+  else
+    rl_printf(ios, "%s#%lu", s->name, s->idno);
+}
+
+uhash hash_symbol(object_t* obj) {
+  symbol_t* s = (symbol_t*)obj;
+
+  uhash baseh = SymbolType.type.obj.hash;
+  uhash idnoh = hash_uword(s->idno);
+  uhash nameh = hash_str(s->name);
+
+  return mix_3_hashes(baseh, idnoh, nameh);
+}
+
+int compare_symbols(value_t x, value_t y) {
+  int o;
+
+  symbol_t* sx = as_pointer(x), * sy = as_pointer(y);
+
+  if ((o=strcmp(sx->name, sy->name)))
+    return o;
+
+  if ((o=CMP(sx->idno, sy->idno)))
+    return o;
+
+  return 0;
+}
+
+// lifetime methods -----------------------------------------------------------
+int init_symbol(void* self, void* ini) {
+  symbol_t* sym = self;
+  symbol_init_t* sini = ini;
+
+  sym->idno     = SymbolCounter++;
+  sym->name     = duplicate(sini->name, strlen(sini->name)+1);
+  sym->left     = NULL;
+  sym->right    = NULL;
+  sym->toplevel = NULL;
+
+  if (sini->parent)
+    *(sini->parent) = sym;
+
+  return 0;
+}
+
+void mark_symbol(void* self) {
+  symbol_t* sym = self;
+
+  mark_object(sym->left);
+  mark_object(sym->right);
+  mark_object(sym->toplevel);
+}
+
+void free_symbol(void* self) {
+  symbol_t* sym = self;
+
+  deallocate(sym->name, strlen(sym->name)+1);
+}
+
+// ctor methods ---------------------------------------------------------------
 static symbol_t** find_symbol(char* name) {
   symbol_t** node = &SymbolTable;
 
@@ -124,33 +280,181 @@ static symbol_t** find_symbol(char* name) {
   return node;
 }
 
-void init_symbol(symbol_t *self, char* name) {
-  init_object(&self->obj, SYMBOL, 0);
-  self->left  = NULL;
-  self->right = NULL;
-  self->idno  = SymbolCounter++;
-  self->bind  = UNBOUND;
-  self->name  = strdup(name);
-}
-
-static symbol_t *new_symbol(char* name) {
+static symbol_t *new_symbol(char* name, symbol_t** parent) {
   symbol_t *sym = allocate(sizeof(symbol_t));
 
-  init_symbol(sym, name);
+  symbol_init_t ini = {
+    .base={
+      .type=&SymbolType,
+      .flags=!!parent * INTERNED,
+      .frozen=true
+    },
+    .name=name,
+    .parent=parent
+  };
+
+  init_object(sym, &ini);
 
   return sym;
 }
 
-value_t symbol(char* name) {
-  symbol_t **node = find_symbol(name);
+value_t symbol(char* name, bool interned) {
+  if (name == NULL) {
+    assert(!interned);
+    name = "symbol";
+  }
 
-  if (*node == NULL)
-    *node = new_symbol(name);
+  if (interned) {
+    symbol_t **node = find_symbol(name);
 
-  return object(*node);
+    if (*node == NULL)
+      return object(new_symbol(name, node));
+
+    return object(*node);
+  }
+
+  else
+    return object(new_symbol(name, NULL));
 }
 
-// binary ---------------------------------------------------------------------
+bool is_defined(symbol_t* sym, namespace_t* ns) {
+  return lookup(sym, ns) != NULL;
+}
+
+bool is_bound(symbol_t* sym, namespace_t* ns) {
+  variable_t* v = lookup(sym, ns);
+
+  return v && v->bind != UNBOUND;
+}
+
+value_t toplevel(symbol_t* sym) {
+  variable_t* v = lookup(sym, NULL);
+
+  if (v)
+    return v->bind;
+
+  return UNDEFINED;
+}
+
+variable_t* defvar(value_t name, namespace_t* ns, string_t* doc, rl_type_t* type, value_t bind) {
+  if (is_pointer(name))
+    name = symbol(as_pointer(name), true);
+
+  variable_t* out = variable(ns, as_symbol(name), doc, type);
+  out->bind       = bind;
+
+  return out;
+}
+
+variable_t* defconst(value_t name, namespace_t* ns, string_t* doc, rl_type_t* type, value_t bind) {
+  variable_t* out = defvar(name, ns, doc, type, bind);
+  freeze(out);
+  return out;
+}
+
+// list -----------------------------------------------------------------------
+// globals --------------------------------------------------------------------
+list_t EmptyList = {
+  .obj={
+    .type  =LIST,
+    .frozen=true
+  },
+  .len=0,
+  .head=NUL,
+  .tail=&EmptyList
+};
+
+typedef struct {
+  object_init_t base;
+  usize n;
+  value_t* args;
+} list_init_t;
+
+void  print_list(value_t x, port_t* ios);
+uhash hash_list(object_t* o);
+bool  equal_lists(object_t* x, object_t* y);
+int   compare_lists(value_t x, value_t y);
+int   init_list(void* self, void* ini);
+void  trace_list(void* self);
+
+vtable_t ListVtable = {
+  .print  =print_list,
+  .hash   =hash_list,
+  .equal  =equal_lists,
+  .compare=compare_lists
+};
+
+object_type_t ListType = {
+  .type={
+    .obj={
+      .type  =OBJECT_TYPE,
+      .frozen=true
+    },
+    .name  ="list",
+    .idno  =LIST,
+    .vtable=&ListVtable
+  },
+  .init     =init_list,
+  .trace    =trace_list,
+  .singleton=&EmptyList.obj
+};
+
+// sacred methods -------------------------------------------------------------
+
+
+// lifetime methods -----------------------------------------------------------
+void init_list(list_t* self, value_t head, list_t* tail) {
+  assert(tail->len < FIXNUM_MAX);
+  init_object(&self->obj, LIST, FROZEN);
+
+  self->head = head;
+  self->tail = tail;
+  self->len  = 1 + tail->len;
+}
+
+// ctors ----------------------------------------------------------------------
+value_t cons(value_t head, list_t* tail) {
+  list_t* out = allocate(sizeof(list_t));
+  init_list(out, head, tail);
+  return object(out);
+}
+
+value_t list(usize n, value_t* args) {
+  if (n == 0)
+    return object(&EmptyList);
+
+  if (n == 1)
+    return cons(args[0], &EmptyList);
+
+  list_t* out  = allocate(n * sizeof(list_t));
+  list_t* curr = &out[n-1], *last = &EmptyList;
+
+  for (usize i=n; i>0; i--) {
+    init_list(curr, args[i-1], last);
+    last = curr--;
+  }
+
+  return object(out);
+}
+
+value_t nth_hd(list_t* xs, usize n) {
+  assert(n < xs->len);
+
+  while (n--)
+    xs = xs->tail;
+
+  return xs->head;
+}
+
+list_t* nth_tl(list_t* xs, usize n) {
+  assert(n < xs->len);
+
+  while (n--)
+    xs = xs->tail;
+
+  return xs;
+}
+
 // tuple ----------------------------------------------------------------------
 tuple_t EmptyTuple = {
   .obj={
@@ -199,73 +503,6 @@ value_t tuple(usize n, value_t* args) {
 
   return object(tup);
 }
-
-// list -----------------------------------------------------------------------
-list_t EmptyList = {
-  .obj={
-    .next =NULL,
-    .type =LIST,
-    .hash =0,
-    .flags=FROZEN,
-    .black=true,
-    .gray =false
-  },
-  .len=0,
-  .head=NUL,
-  .tail=&EmptyList
-};
-
-static void init_list(list_t* self, value_t head, list_t* tail) {
-  assert(tail->len < FIXNUM_MAX);
-  init_object(&self->obj, LIST, FROZEN);
-
-  self->head = head;
-  self->tail = tail;
-  self->len  = 1 + tail->len;
-}
-
-value_t cons(value_t head, list_t* tail) {
-  list_t* out = allocate(sizeof(list_t));
-  init_list(out, head, tail);
-  return object(out);
-}
-
-value_t list(usize n, value_t* args) {
-  if (n == 0)
-    return object(&EmptyList);
-
-  if (n == 1)
-    return cons(args[0], &EmptyList);
-
-  list_t* out  = allocate(n * sizeof(list_t));
-  list_t* curr = &out[n-1], *last = &EmptyList;
-
-  for (usize i=n; i>0; i--) {
-    init_list(curr, args[i-1], last);
-    last = curr--;
-  }
-
-  return object(out);
-}
-
-value_t nth_hd(list_t* xs, usize n) {
-  assert(n < xs->len);
-
-  while (n--)
-    xs = xs->tail;
-
-  return xs->head;
-}
-
-list_t* nth_tl(list_t* xs, usize n) {
-  assert(n < xs->len);
-
-  while (n--)
-    xs = xs->tail;
-
-  return xs;
-}
-
 
 // globals --------------------------------------------------------------------
 #define MIN_CAP    8ul

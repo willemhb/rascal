@@ -185,7 +185,8 @@ struct object_t {
 
 #define NUL         (NULTAG|0ul)
 #define UNBOUND     (NULTAG|1ul)
-#define NOTFOUND    (NULTAG|3ul)
+#define UNDEFINED   (NULTAG|3ul)
+#define NOTFOUND    (NULTAG|5ul)
 
 #define FIXNUM_MAX  VAL_MASK
 #define FULL_MASK  (TAG_MASK|VAL_MASK)
@@ -196,12 +197,6 @@ extern rl_type_t* BuiltinTypes[NUM_TYPES];
 
 // API ------------------------------------------------------------------------
 // tags, tagging, types, queries ----------------------------------------------
-#define as_ptr(x)  ((void*)((x)&VAL_MASK))
-#define as_obj(x)  ((object_t*)as_ptr(x))
-#define is_obj(x)  (((x) & TAG_MASK) == OBJTAG)
-#define object(o)  ((((uword)(o))&VAL_MASK)|OBJTAG)
-#define pointer(p) ((((uword)(o))&VAL_MASK)|PTRTAG)
-
 val_type_t val_type(value_t val);
 
 obj_type_t val_obj_type(value_t val);
@@ -211,6 +206,9 @@ obj_type_t obj_obj_type(object_t* obj);
 rl_type_t* val_type_of(value_t val);
 rl_type_t* obj_type_of(object_t* obj);
 #define type_of(x) generic2(type_of, x)
+
+// lifetimes ------------------------------------------------------------------
+void mark_value(value_t val);
 
 // core APIs ------------------------------------------------------------------
 kind_t val_has_type(value_t val, rl_type_t* type);

@@ -21,11 +21,12 @@ struct closure_t {
 
 struct variable_t {
   HEADER;
-  value_t     name;
-  value_t     doc;
-  value_t     type;
-  value_t     bind;
-  variable_t* next; // for upvalues
+  namespace_t* ns;
+  symbol_t*    name;
+  string_t*    doc;
+  rl_type_t*   type;
+  value_t      bind;
+  variable_t*  next; // for upvalues
 };
 
 struct namespace_t {
@@ -50,6 +51,13 @@ struct control_t {
 };
 
 // API ------------------------------------------------------------------------
+// variable -------------------------------------------------------------------
+variable_t* variable(namespace_t* ns, symbol_t* name, string_t* doc, rl_type_t* type);
+variable_t* constant(namespace_t* ns, symbol_t* name, string_t* doc, rl_type_t* type);
+variable_t* upvalue(variable_t* lexv, variable_t* upv);
 
+// namespace ------------------------------------------------------------------
+namespace_t* namespace(dict_t* locals, namespace_t* parent);
+variable_t*  lookup(symbol_t* name, namespace_t* ns);
 
 #endif
