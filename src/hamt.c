@@ -1,6 +1,7 @@
-#include "string.h"
+#include <string.h>
 
 #include "hamt.h"
+#include "metaobject.h"
 #include "object.h"
 #include "number.h"
 
@@ -35,14 +36,8 @@ usize pad_map_node_size(usize bitmap) {
   return pad_arr_node_size(popcnt(bitmap));
 }
 
-void test(void) {
-  switch (2) {
-    case 2:
-      [[fallthrough]];
-
-    default:
-      return;
-  }
+usize pad_set_node_size(usize bitmap) {
+  return pad_map_node_size(popcnt(bitmap));
 }
 
 // generic hamt utilities -----------------------------------------------------
@@ -52,7 +47,15 @@ set_node_t* clone_set_node(set_node_t* node);
 map_leaf_t* clone_map_leaf(map_leaf_t* leaf);
 set_leaf_t* clone_set_leaf(set_leaf_t* leaf);
 
-#define clone_hamt(n)                            \
+usize       arr_node_size(arr_node_t* node);
+usize       map_node_size(map_node_t* node);
+usize       set_node_size(set_node_t* node);
+
+int         arr_node_index(arr_node_t* node, usize index);
+int         map_node_index(map_node_t* node, uhash hash);
+int         set_node_index(set_node_t* node, uhash hash);
+
+#define clone_node(n)                            \
   generic((n),                                   \
           arr_node_t*:clone_arr_node,            \
           map_node_t*:clone_map_node,            \
@@ -60,11 +63,11 @@ set_leaf_t* clone_set_leaf(set_leaf_t* leaf);
           map_leaf_t*:clone_map_leaf,            \
           set_leaf_t*:clone_set_leaf)(n)
 
-#define node_has(n, k)                          \
+#define node_size(n)                            \
   generic((n),                                  \
-          arr_node_t*:arr_node_has,             \
-          map_node_t*:map_node_has,             \
-          set_node_t*:set_node_has)(n, k)
+          arr_node_t*:arr_node_size,            \
+          map_node_t*:map_node_size,            \
+          set_node_t*:set_node_size)(n)
 
 #define node_index(n, k)                        \
   generic((n),                                  \
@@ -72,71 +75,83 @@ set_leaf_t* clone_set_leaf(set_leaf_t* leaf);
           map_node_t*:map_node_index,           \
           set_node_t*:set_node_index)(n, k)
 
-bool arr_node_has(arr_node_t* an, usize index) {
-  return node_mask(an, index) < an->len;
+int map_node_index(map_node_t* mn, uhash hash) {
+  usize m   = node_mask(mn, hash);
+  usize pos = 1 << m;
+
+  if (!!(mn->bitmap & (1 << m)))
+    return popcnt(mn->bitmap & (pos - 1));
+
+  return -1;
 }
 
-bool map_node_has(map_node_t* mn, uhash h) {
-  return !!((1 << node_mask(mn, h)) & mn->bitmap);
-}
+int set_node_index(set_node_t* sn, uhash hash) {
+  usize m   = node_mask(sn, hash);
+  usize pos = 1 << m;
 
-bool set_node_has(set_node_t* sn, uhash h) {
-  return !!((1 << node_mask(sn, h)) & sn->bitmap);
-}
+  if (!!(sn->bitmap & (1 << m)))
+    return popcnt(sn->bitmap & (pos - 1));
 
-usize arr_node_index(arr_node_t* an, usize index) {
-  return node_mask(an, index);
-}
-
-usize map_node_index(map_node_t* mn, uhash hash) {
-  return popcnt(mn->bitmap & ((1 << node_mask(mn, hash)) - 1));
-}
-
-usize set_node_index(set_node_t* sn, uhash hash) {
-  return popcnt(sn->bitmap & ((1 << node_mask(sn, hash)) - 1));
+  return -1;
 }
 
 // object APIs ----------------------------------------------------------------
 // arr node -------------------------------------------------------------------
+// globals --------------------------------------------------------------------
+bool        equal_arr_nodes(void* xp, void* yp);
+int         compare_arr_nodes(value_t x, value_t y);
+int         init_arr_node(void* ptr, void* dat);
+void        trace_arr_node(void* ptr);
+void        free_arr_node(void* ptr);
 
-void resize_arr_node(arr_node_t* node, usize n) {
-  assert(n <= ARR_MAXN);
+typedef struct {
+  object_init_t base;
+  usize len;
+  union {
+    value_t*     values;
+    arr_node_t** children;
+  };
+} arr_node_init_t;
 
-  usize padded = pad_arr_node_size(n, node->cap);
+data_type_t ArrNodeType = {
+  .type={
+    .obj={
+      .type  =DATA_TYPE,
+      .frozen=true,
+      .gray  =true
+    },
+    .name="arr-node",
+    .idno=ARR_NODE
+  },
 
-  if (padded != node->cap) {
-    node->values = reallocate(node->values, node->cap * sizeof(value_t), padded * sizeof(value_t));
-    node->cap    = padded;
-  }
+  .size   =sizeof(arr_node_t),
 
-  node->len = n;
+  .compare=compare_arr_nodes,
+  .equal  =equal_arr_nodes,
+  .init   =init_arr_node,
+  .trace  =trace_arr_node,
+  .free   =free_arr_node
+};
+
+// utilities ------------------------------------------------------------------
+arr_node_t* arr_node(usize len, usize height, void* data);
+
+int arr_node_index(arr_node_t* an, usize index) {
+  usize i = node_mask(an, index);
+
+  if (i >= an->len)
+    return -1;
+
+  return i;
 }
 
-void init_arr_node(arr_node_t* self, uint16 len, uint32 height, void* src) {
-  init_object(self, ARR_NODE, 0);
-
-  self->len    = len;
-  self->cap    = pad_arr_node_size(len, 0);
-  self->height = height;
-  self->values = allocate(self->cap * sizeof(value_t));
-
-  if (src)
-    memcpy(self->values, src, self->len * sizeof(value_t));
+arr_node_t* clone_arr_node(arr_node_t* node) {
+  return arr_node(node->len, node_offset(node), node->data);
 }
 
-arr_node_t* arr_node(uint16 len, uint32 height, void* src) {
-  arr_node_t* out = allocate(sizeof(arr_node_t));
-
-  init_arr_node(out, len, height, src);
-
-  return out;
-}
-
-arr_node_t* unfreeze_arr_node(arr_node_t* node) {
-  if (has_flag(node, FROZEN))
-    node = arr_node(node->len, node->height, node->values);
-
-  return node;
+// sacred methods -------------------------------------------------------------
+bool equal_arr_nodes(void* xp, void* yp) {
+  arr_node_t* 
 }
 
 void freeze_arr_node(arr_node_t* node) {

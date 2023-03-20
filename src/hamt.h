@@ -12,6 +12,7 @@ struct arr_node_t {
   union {
     arr_node_t** children;
     value_t*     values;
+    void*        data;
   };
 };
 
