@@ -1,20 +1,103 @@
+#include "string.h"
+
 #include "hamt.h"
+#include "object.h"
+#include "number.h"
 
+#include "memory.h"
 
-// arr node -------------------------------------------------------------------
-#define ARR_MAXH 8
-#define ARR_MAXN 64
+// general HAMT API -----------------------------------------------------------
+// globals --------------------------------------------------------------------
+#define NODE_MAXN 64u
+#define NODE_MINN 1u
 
-arr_node_t* unfreeze_arr_node(arr_node_t* node);
-
-usize pad_arr_node_size(usize n, usize oldc) {
-  oldc = MAX(1u, oldc);
-
-  if (n > oldc || n < (oldc >> 1))
-    return ceil2(n);
-
-  return oldc;
+uint64 hamt_mask(usize shift, uint64 k) {
+  return k >> shift & 0x3f;
 }
+
+usize node_offset(void* node) {
+  return as_object(node)->flags;
+}
+
+usize node_shift(void* node) {
+  return node_offset(node) * 6;
+}
+
+uint64 node_mask(void* node, uint64 k) {
+  return hamt_mask(node_shift(node), k);
+}
+
+usize pad_arr_node_size(usize n) {
+  return MAX(NODE_MINN, ceil2(n));
+}
+
+usize pad_map_node_size(usize bitmap) {
+  return pad_arr_node_size(popcnt(bitmap));
+}
+
+void test(void) {
+  switch (2) {
+    case 2:
+      [[fallthrough]];
+
+    default:
+      return;
+  }
+}
+
+// generic hamt utilities -----------------------------------------------------
+arr_node_t* clone_arr_node(arr_node_t* node);
+map_node_t* clone_map_node(map_node_t* node);
+set_node_t* clone_set_node(set_node_t* node);
+map_leaf_t* clone_map_leaf(map_leaf_t* leaf);
+set_leaf_t* clone_set_leaf(set_leaf_t* leaf);
+
+#define clone_hamt(n)                            \
+  generic((n),                                   \
+          arr_node_t*:clone_arr_node,            \
+          map_node_t*:clone_map_node,            \
+          set_node_t*:clone_set_node,            \
+          map_leaf_t*:clone_map_leaf,            \
+          set_leaf_t*:clone_set_leaf)(n)
+
+#define node_has(n, k)                          \
+  generic((n),                                  \
+          arr_node_t*:arr_node_has,             \
+          map_node_t*:map_node_has,             \
+          set_node_t*:set_node_has)(n, k)
+
+#define node_index(n, k)                        \
+  generic((n),                                  \
+          arr_node_t*:arr_node_index,           \
+          map_node_t*:map_node_index,           \
+          set_node_t*:set_node_index)(n, k)
+
+bool arr_node_has(arr_node_t* an, usize index) {
+  return node_mask(an, index) < an->len;
+}
+
+bool map_node_has(map_node_t* mn, uhash h) {
+  return !!((1 << node_mask(mn, h)) & mn->bitmap);
+}
+
+bool set_node_has(set_node_t* sn, uhash h) {
+  return !!((1 << node_mask(sn, h)) & sn->bitmap);
+}
+
+usize arr_node_index(arr_node_t* an, usize index) {
+  return node_mask(an, index);
+}
+
+usize map_node_index(map_node_t* mn, uhash hash) {
+  return popcnt(mn->bitmap & ((1 << node_mask(mn, hash)) - 1));
+}
+
+usize set_node_index(set_node_t* sn, uhash hash) {
+  return popcnt(sn->bitmap & ((1 << node_mask(sn, hash)) - 1));
+}
+
+// object APIs ----------------------------------------------------------------
+// arr node -------------------------------------------------------------------
 
 void resize_arr_node(arr_node_t* node, usize n) {
   assert(n <= ARR_MAXN);
@@ -296,14 +379,7 @@ vector_t* vector_pop(vector_t* self) {
 map_node_t* unfreeze_map_node(map_node_t* self);
 void        resize_map_node(map_node_t* self, usize n);
 
-usize pad_map_node_size(usize n, usize oldc) {
-  oldc = MAX(1u, oldc);
 
-  if (n > oldc || n < (oldc >> 1))
-    return ceil2(n);
-
-  return oldc;
-}
 
 uhash get_hash_key(int h, uhash c) {
   return c >> (h * 6) & 0x3f;

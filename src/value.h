@@ -38,7 +38,6 @@ typedef struct union_type_t union_type_t;
 
 // internal types -------------------------------------------------------------
 typedef struct arr_node_t   arr_node_t;
-typedef struct arr_leaf_t   arr_leaf_t;
 typedef struct map_node_t   map_node_t;
 typedef struct map_leaf_t   map_leaf_t;
 typedef struct map_leaves_t map_leaves_t;
@@ -82,7 +81,6 @@ typedef enum {
 
   // internal types -----------------------------------------------------------
   ARR_NODE,
-  ARR_LEAF,
   MAP_NODE,
   MAP_LEAF,
   MAP_LEAVES,

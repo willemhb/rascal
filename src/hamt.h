@@ -7,20 +7,17 @@
 // C types --------------------------------------------------------------------
 struct arr_node_t {
   HEADER;
-  uint32 len, cap;
-  object_t** children;
-};
+  usize len;
 
-struct arr_leaf_t {
-  HEADER;
-  uint32 len, cap;
-  value_t* values;
+  union {
+    arr_node_t** children;
+    value_t*     values;
+  };
 };
 
 struct map_node_t {
   HEADER;
   usize bitmap;
-  uhash prefix;
   object_t **children;
 };
 
@@ -39,7 +36,6 @@ struct map_leaves_t {
 struct set_node_t {
   HEADER;
   usize      bitmap;
-  uhash      prefix;
   object_t** children;
 };
 
@@ -57,7 +53,7 @@ struct set_leaves_t {
 struct vector_t {
   HEADER;
   usize       len;
-  arr_node_t* root;
+  arr_node_t *root;
 };
 
 struct dict_t {
@@ -73,7 +69,14 @@ struct set_t {
 };
 
 // globals --------------------------------------------------------------------
+extern data_type_t VectorType, SetType, DictType,
+  ArrNodeType, ArrLeafType,
+  MapNodeType, MapLeafType, MapLeavesType,
+  SetNodeType, SetLeafType, SetLeavesType;
 
+extern vector_t EmptyVector;
+extern dict_t   EmptyDict;
+extern set_t    EmptySet;
 
 // API ------------------------------------------------------------------------
 // vector ---------------------------------------------------------------------
