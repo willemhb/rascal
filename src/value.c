@@ -1,3 +1,5 @@
+#include <string.h>
+
 #include "value.h"
 #include "object.h"
 #include "metaobject.h"
@@ -8,18 +10,16 @@
 #include "hashing.h"
 
 // globals --------------------------------------------------------------------
-rl_type_t* BuiltinTypes[NUM_TYPES];
+type_t* BuiltinTypes[NUM_TYPES];
 
 // API ------------------------------------------------------------------------
 // tags, tagging, types, queries ----------------------------------------------
 val_type_t val_type(value_t val) {
   switch (val & TAG_MASK) {
     case SMALLTAG: return val >> 32 & 0x3f;
-    case FIXTAG:   return FIXNUM;
-    case NULTAG:   return UNIT;
-    case BOOLTAG:  return BOOLEAN;
-    case PTRTAG:   return POINTER;
     case OBJTAG:   return OBJECT;
+    case FIXTAG:   return FIXNUM;
+    case PTRTAG:   return POINTER;
     default:       return REAL;
   }
 }
@@ -30,74 +30,78 @@ obj_type_t val_obj_type(value_t val) {
   return obj_obj_type(as_object(val));
 }
 
-obj_type_t obj_obj_type(object_t* obj) {
-  assert(obj);
-  return obj->type;
+obj_type_t obj_obj_type(void* ptr) {
+  assert(ptr);
+  return as_object(ptr)->type;
 }
 
-rl_type_t* val_type_of(value_t val) {
+data_type_t* val_type_of(value_t val) {
   val_type_t vt = val_type(val);
 
   if (vt == OBJECT)
     return obj_type_of(as_object(val));
 
-  return BuiltinTypes[vt];
+  return (data_type_t*)BuiltinTypes[vt];
 }
 
-rl_type_t* obj_type_of(object_t* obj) {
+data_type_t* obj_type_of(void* ptr) {
+  object_t* obj = ptr;
   assert(obj);
 
   if (obj->type == STRUCT || obj->type == RECORD)
-    return (rl_type_t*)((record_t*)obj)->type;
+    return ((record_t*)obj)->type;
 
-  return BuiltinTypes[obj->type];
+  return (data_type_t*)BuiltinTypes[obj->type];
 }
 
 // core APIs ------------------------------------------------------------------
-kind_t val_has_type(value_t val, rl_type_t* type) {
+kind_t val_has_type(value_t val, type_t* type) {
   if (type->isa)
     return type->isa(val, type);
 
-  return type_of(val) == type && DATA_KIND;
+  return type_of(val) == (data_type_t*)type ? DATA_KIND : BOTTOM_KIND;
 }
 
-kind_t obj_has_type(object_t* obj, rl_type_t* type) {
+kind_t obj_has_type(void* ptr, type_t* type) {
+  object_t* obj = ptr;
   assert(obj);
   return val_has_type(object(obj), type);
 }
 
 void val_print(value_t val, port_t* ios) {
-  rl_type_t* type = type_of(val);
+  data_type_t* type = type_of(val);
 
-  if (type->vtable->print)
-    type->vtable->print(val, ios);
+  if (type->print)
+    type->print(val, ios);
 
   else
-    rl_printf(ios, "#%s<%.48ul>", type->name, val & VAL_MASK);
+    rl_printf(ios, "#%s<%.48ul>", type->type.name, val & VAL_MASK);
 }
 
-void obj_print(object_t* obj, port_t* ios) {
-  val_print(object(obj), ios);
+void obj_print(void* ptr, port_t* ios) {
+  assert(ptr);
+  val_print(object(ptr), ios);
 }
 
 usize val_size_of(value_t val) {
   if (is_object(val))
     return obj_size_of(as_object(val));
   
-  primitive_type_t* type = (primitive_type_t*)type_of(val);
+  data_type_t* type = (data_type_t*)type_of(val);
 
   return type->size;
 }
 
-usize obj_size_of(object_t* obj) {
+usize obj_size_of(void* ptr) {
+  object_t* obj = ptr;
   assert(obj);
 
-  object_type_t* type = (object_type_t*)type_of(obj);
+  data_type_t* type = type_of(obj);
 
   usize out = type->size;
 
-  if (type->type.vtable->size)
-    out += type->type.vtable->size(obj);
+  if (type->size_of)
+    out += type->size_of(obj);
 
   return out;
 }
@@ -110,16 +114,17 @@ uhash val_hash(value_t x) {
   return hash_uword(x);
 }
 
-uhash obj_hash(object_t* obj) {
+uhash obj_hash(void* ptr) {
+  object_t* obj = ptr;
   assert(obj);
 
   if (obj->hashed)
     return obj->hash;
 
-  rl_type_t* type = type_of(obj);
+  data_type_t* type = type_of(obj);
 
-  if (type->vtable->hash) {
-    obj->hash   = type->vtable->hash(obj);
+  if (type->hash) {
+    obj->hash   = type->hash(obj);
     obj->hashed = true;
 
     return obj->hash;
@@ -142,20 +147,21 @@ bool val_equal(value_t x, value_t y) {
   return false;
 }
 
-bool obj_equal(object_t* x, object_t* y) {
+bool obj_equal(void* px, void* py) {
+  object_t* x = px, * y = py;
   assert(x);
   assert(y);
 
   if (x == y)
     return true;
 
-  rl_type_t* xtype = type_of(x), * ytype = type_of(y);
+  data_type_t* xtype = type_of(x), * ytype = type_of(y);
 
   if (xtype != ytype)
     return false;
 
-  if (xtype->vtable->equal)
-    return xtype->vtable->equal(x, y);
+  if (xtype->equal)
+    return xtype->equal(x, y);
 
   return false;
 }
@@ -164,33 +170,40 @@ int val_compare(value_t x, value_t y) {
   if (x == y)
     return 0;
 
-  rl_type_t* xtype = type_of(x), * ytype = type_of(y);
+  data_type_t* xtype = type_of(x), * ytype = type_of(y);
 
   if (xtype != ytype)
-    return CMP(xtype->idno, ytype->idno);
+    return CMP(xtype->type.idno, ytype->type.idno);
 
-  if (xtype->vtable->compare)
-    return xtype->vtable->compare(x, y);
+  if (xtype->compare)
+    return xtype->compare(x, y);
 
   return CMP(x, y);
 }
 
-int obj_compare(object_t* x, object_t* y) {
+int obj_compare(void* px, void* py) {
+  object_t* x = px, * y = py;
   assert(x);
   assert(y);
 
   if (x == y)
     return 0;
 
-  rl_type_t* xtype = type_of(x), * ytype = type_of(y);
+  data_type_t* xtype = type_of(x), * ytype = type_of(y);
 
   if (xtype != ytype)
-    return CMP(xtype->idno, ytype->idno);
+    return CMP(xtype->type.idno, ytype->type.idno);
 
-  if (xtype->vtable->compare)
-    return xtype->vtable->compare(object(x), object(y));
+  if (xtype->compare)
+    return xtype->compare(object(x), object(y));
 
-  return CMP(object(x), object(y));
+  usize xsize = rl_size_of(x), ysize = rl_size_of(y), maxc = MIN(xsize, ysize);
+  int o;
+
+  if ((o=memcmp(x, y, maxc)))
+    return o;
+
+  return 0 - (xsize < ysize) + (ysize > xsize);
 }
 
 // flag helpers ---------------------------------------------------------------
@@ -218,13 +231,12 @@ bool clear_flag(void* ptr, flags fl) {
 
 // initialization -------------------------------------------------------------
 void value_init(void) {
-  extern object_type_t PrimitiveTypeType, ObjectTypeType, UnionTypeType;
+  extern data_type_t DataTypeType, UnionTypeType;
 
-  BuiltinTypes[PRIMITIVE_TYPE] = &PrimitiveTypeType.type;
-  BuiltinTypes[OBJECT_TYPE] = &ObjectTypeType.type;
+  BuiltinTypes[DATA_TYPE]  = &DataTypeType.type;
   BuiltinTypes[UNION_TYPE] = &UnionTypeType.type;
 
-  extern object_type_t ArrNodeType, ArrLeafType,
+  extern data_type_t ArrNodeType, ArrLeafType,
     MapNodeType, MapLeafType, MapLeavesType,
     MethodTableType, MethodType,
     ChunkType, ClosureType,
@@ -245,7 +257,7 @@ void value_init(void) {
   BuiltinTypes[ENVIRONMENT] = &EnvironmentType.type;
   BuiltinTypes[CONTROL] = &ControlType.type;
 
-  extern object_type_t SymbolType, FunctionType, PortType,
+  extern data_type_t SymbolType, FunctionType, PortType,
     BinaryType, StringType, TupleType, ListType, VectorType,
     DictType, SetType, TableType, AlistType, BufferType,
     ComplexType, RatioType, BigType;
@@ -267,7 +279,7 @@ void value_init(void) {
   BuiltinTypes[RATIO] = &RatioType.type;
   BuiltinTypes[BIG] = &BigType.type;
 
-  extern primitive_type_t Sint8Type, Uint8Type, Sint16Type, Uint16Type,
+  extern data_type_t Sint8Type, Uint8Type, Sint16Type, Uint16Type,
     Sint32Type, Uint32Type, Real32Type, FixnumType, RealType,
     AsciiType, Latin1Type, Utf8Type, Utf16Type, Utf32Type,
     BooleanType, PointerType, UnitType;
@@ -296,7 +308,7 @@ void value_init(void) {
   BuiltinTypes[ANY] = &AnyType.type;
 
   // initialize type hashes ---------------------------------------------------
-  for (int i=PRIMITIVE_TYPE; i<NUM_TYPES; i++) {
+  for (int i=DATA_TYPE; i<NUM_TYPES; i++) {
     if (i == OBJECT || i == RECORD || i == STRUCT)
       continue;
 

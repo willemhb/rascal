@@ -50,7 +50,7 @@ void mark_object(void* self) {
 
   obj->black = true;
 
-  object_type_t* type = (object_type_t*)type_of(obj);
+  data_type_t* type = (data_type_t*)type_of(obj);
 
   if (type->trace)
     push_gray(obj);
@@ -63,9 +63,9 @@ void free_object(void* self) {
   if (!self)
     return;
   
-  object_t* obj = self;
-  usize dealloc = size_of(obj);
-  object_type_t* type = (object_type_t*)type_of(obj);
+  object_t* obj     = self;
+  usize dealloc     = rl_size_of(obj);
+  data_type_t* type = (data_type_t*)type_of(obj);
 
   if (type->free)
     type->free(obj);
@@ -82,6 +82,38 @@ void mark_objects(usize n, object_t** objs) {
 void mark_values(usize n, value_t* vals) {
   for (usize i=0; i<n; i++)
     mark_value(vals[i]);
+}
+
+void print_values(usize n, value_t* vals, port_t* ios, bool paired) {
+  for (usize i=0; i<n; i++) {
+    if (paired && vals[i] == NOTFOUND)
+      continue;
+      
+    rl_print(vals[i], ios);
+    
+    if (i + 1 < n) {
+      if (paired && i > 0 && i % 2 == 0)
+        rl_putc(',', ios);
+      
+      rl_putc(' ', ios);
+    }
+  }
+}
+
+void print_objects(usize n, object_t** objs, port_t* ios, bool paired) {
+  for (usize i=0; i<n; i++) {
+    if (paired && objs[i] == NULL)
+      continue;
+
+    rl_print(objs[i], ios);
+
+    if (i + 1 < n) {
+      if (paired && i > 0 && i % 2 == 0)
+        rl_putc(',', ios);
+    
+      rl_putc(' ', ios);
+    }
+  }
 }
 
 int compare_objects(usize xn, object_t** xobjs, usize yn, object_t** yobjs) {
@@ -164,34 +196,29 @@ typedef struct {
 } symbol_init_t;
 
 void  print_symbol(value_t val, port_t* ios);
-uhash hash_symbol(object_t* obj);
+uhash hash_symbol(void* ptr);
 int   compare_symbols(value_t x, value_t y);
 int   init_symbol(void* self, void* ini);
 void  trace_symbol(void* self);
 void  free_symbol(void* self);
 
-vtable_t SymbolVtable = {
-  .print  =print_symbol,
-  .hash   =hash_symbol,
-  .compare=compare_symbols
-};
-
-object_type_t SymbolType = {
+data_type_t SymbolType = {
   .type={
     .obj={
-      .type=OBJECT_TYPE,
+      .type  =DATA_TYPE,
       .frozen=true,
-      .gray=true,
-      .black=false
+      .gray  =true
     },
     .name="symbol",
     .idno=SYMBOL,
-    .vtable=&SymbolVtable
   },
-  .size=sizeof(symbol_t),
-  .init=init_symbol,
-  .trace=trace_symbol,
-  .free=free_symbol
+  .size   =sizeof(symbol_t),
+  .print  =print_symbol,
+  .hash   =hash_symbol,
+  .compare=compare_symbols,
+  .init   =init_symbol,
+  .trace  =trace_symbol,
+  .free   =free_symbol
 };
 
 // sacred methods -------------------------------------------------------------
@@ -199,14 +226,14 @@ void print_symbol(value_t val, port_t* ios) {
   symbol_t* s = as_pointer(val);
 
   if (has_flag(s, INTERNED))
-    rl_printf(ios, "%s", s->name);
+    rl_puts(s->name, ios);
 
   else
     rl_printf(ios, "%s#%lu", s->name, s->idno);
 }
 
-uhash hash_symbol(object_t* obj) {
-  symbol_t* s = (symbol_t*)obj;
+uhash hash_symbol(void* ptr) {
+  symbol_t* s = ptr;
 
   uhash baseh = SymbolType.type.obj.hash;
   uhash idnoh = hash_uword(s->idno);
@@ -285,11 +312,11 @@ static symbol_t *new_symbol(char* name, symbol_t** parent) {
 
   symbol_init_t ini = {
     .base={
-      .type=&SymbolType,
-      .flags=!!parent * INTERNED,
+      .type  =&SymbolType,
+      .flags =!!parent * INTERNED,
       .frozen=true
     },
-    .name=name,
+    .name  =name,
     .parent=parent
   };
 
@@ -298,7 +325,7 @@ static symbol_t *new_symbol(char* name, symbol_t** parent) {
   return sym;
 }
 
-value_t symbol(char* name, bool interned) {
+symbol_t* symbol(char* name, bool interned) {
   if (name == NULL) {
     assert(!interned);
     name = "symbol";
@@ -308,13 +335,13 @@ value_t symbol(char* name, bool interned) {
     symbol_t **node = find_symbol(name);
 
     if (*node == NULL)
-      return object(new_symbol(name, node));
+      return new_symbol(name, node);
 
-    return object(*node);
+    return *node;
   }
 
   else
-    return object(new_symbol(name, NULL));
+    return new_symbol(name, NULL);
 }
 
 bool is_defined(symbol_t* sym, namespace_t* ns) {
@@ -336,9 +363,9 @@ value_t toplevel(symbol_t* sym) {
   return UNDEFINED;
 }
 
-variable_t* defvar(value_t name, namespace_t* ns, string_t* doc, rl_type_t* type, value_t bind) {
+variable_t* defvar(value_t name, namespace_t* ns, string_t* doc, type_t* type, value_t bind) {
   if (is_pointer(name))
-    name = symbol(as_pointer(name), true);
+    name = object(symbol(as_pointer(name), true));
 
   variable_t* out = variable(ns, as_symbol(name), doc, type);
   out->bind       = bind;
@@ -346,7 +373,7 @@ variable_t* defvar(value_t name, namespace_t* ns, string_t* doc, rl_type_t* type
   return out;
 }
 
-variable_t* defconst(value_t name, namespace_t* ns, string_t* doc, rl_type_t* type, value_t bind) {
+variable_t* defconst(value_t name, namespace_t* ns, string_t* doc, type_t* type, value_t bind) {
   variable_t* out = defvar(name, ns, doc, type, bind);
   freeze(out);
   return out;
@@ -357,7 +384,8 @@ variable_t* defconst(value_t name, namespace_t* ns, string_t* doc, rl_type_t* ty
 list_t EmptyList = {
   .obj={
     .type  =LIST,
-    .frozen=true
+    .frozen=true,
+    .gray  =true
   },
   .len=0,
   .head=NUL,
@@ -371,37 +399,36 @@ typedef struct {
 } list_init_t;
 
 void  print_list(value_t x, port_t* ios);
-uhash hash_list(object_t* o);
-bool  equal_lists(object_t* x, object_t* y);
+uhash hash_list(void* ptr);
+bool  equal_lists(void* xp, void* yp);
 int   compare_lists(value_t x, value_t y);
 int   init_list(void* self, void* ini);
 void  trace_list(void* self);
 
-vtable_t ListVtable = {
-  .print  =print_list,
-  .hash   =hash_list,
-  .equal  =equal_lists,
-  .compare=compare_lists
-};
-
-object_type_t ListType = {
+data_type_t ListType = {
   .type={
     .obj={
-      .type  =OBJECT_TYPE,
-      .frozen=true
+      .type  =DATA_TYPE,
+      .frozen=true,
+      .gray  =true
     },
     .name  ="list",
     .idno  =LIST,
-    .vtable=&ListVtable
   },
-  .init     =init_list,
-  .trace    =trace_list,
-  .singleton=&EmptyList.obj
+  .size =sizeof(list_t),
+  .member=&EmptyList.obj,
+
+  .print  =print_list,
+  .hash   =hash_list,
+  .equal  =equal_lists,
+  .compare=compare_lists,
+  .init   =init_list,
+  .trace  =trace_list
 };
 
 // sacred methods -------------------------------------------------------------
 void print_list(value_t val, port_t* ios) {
-  rl_putc(ios, '(');
+  rl_putc('(', ios);
 
   list_t* xs = as_list(val);
 
@@ -411,16 +438,19 @@ void print_list(value_t val, port_t* ios) {
     xs = xs->tail;
 
     if (xs->len)
-      rl_putc(ios, ' ');
+      rl_putc(' ', ios);
   }
 
-  rl_putc(ios, ')');
+  rl_putc(')', ios);
 }
 
-uhash hash_list(object_t* obj) {
-  list_t* lx = (list_t*)obj, * node = lx, * tmp, * prev = NULL;
+uhash hash_list(void* ptr) {
+  list_t* lx = ptr, * node = lx, * tmp, * prev = NULL;
 
   uhash lthash = ListType.type.obj.hash;
+
+  if (lx->len == 0)
+    return mix_2_hashes(lthash, lthash);
 
   while (!node->obj.hashed) {
     // temporarily reset tail to point backward (to traverse back up) -------
@@ -431,14 +461,19 @@ uhash hash_list(object_t* obj) {
   }
 
   while (node != NULL) {
-    uhash headh = rl_hash(node->head);
+    prev->obj.hash   = mix_3_hashes(lthash, rl_hash(prev->head), node->obj.hash);
+    prev->obj.hashed = true;
+    tmp              = prev->tail;
+    prev->tail       = node;
+    node             = prev;
+    prev             = tmp;
   }
 
   return lx->obj.hash;
 }
 
-bool equal_lists(object_t* x, object_t* y) {
-  list_t* lx = (list_t*)x,* ly = (list_t*)y;
+bool equal_lists(void* px, void* py) {
+  list_t* lx = px,* ly = py;
 
   if (lx->len != ly->len)
     return false;
@@ -459,7 +494,7 @@ int compare_lists(value_t x, value_t y) {
   int o;
 
   for (usize i=0; i<maxcmp; i++)
-    if (o=rl_compare(lx->head, ly->head))
+    if ((o=rl_compare(lx->head, ly->head)))
       return o;
 
   return 0 - !!lx->len - !!ly->len;
@@ -485,14 +520,14 @@ void trace_list(void* ptr) {
 }
 
 // ctors ----------------------------------------------------------------------
-value_t cons(value_t head, list_t* tail) {
+list_t* cons(value_t head, list_t* tail) {
   list_t* out = allocate(sizeof(list_t));
   list_init_t ini = {
     .base={
-      .type=&ListType,
+      .type  =&ListType,
       .frozen=true,
-      .data=true,
-      .safe=true
+      .data  =true,
+      .safe  =true
     },
     .head=head,
     .tail=tail
@@ -500,12 +535,12 @@ value_t cons(value_t head, list_t* tail) {
 
   init_object(out, &ini);
   
-  return object(out);
+  return out;
 }
 
-value_t list(usize n, value_t* args) {
+list_t* list(usize n, value_t* args) {
   if (n == 0)
-    return object(&EmptyList);
+    return &EmptyList;
 
   if (n == 1)
     return cons(args[0], &EmptyList);
@@ -529,63 +564,196 @@ value_t list(usize n, value_t* args) {
     last = curr--;
   }
 
-  return object(out);
+  return out;
 }
 
 // tuple ----------------------------------------------------------------------
+// globals --------------------------------------------------------------------
 tuple_t EmptyTuple = {
   .obj={
-    .next=NULL,
-    .hash=0,
-    .flags=0,
-    .type=TUPLE,
-    .black=true,
-    .gray=false
+    .type  =TUPLE,
+    .frozen=true,
+    .gray  =true
   },
   .len=0
 };
 
+typedef struct {
+  object_init_t base;
+  usize len;
+  value_t* slots;
+} tuple_init_t;
+
+void  print_tuple(value_t x, port_t* ios);
+usize tuple_size(void* ptr);
+uhash hash_tuple(void* ptr);
+bool  equal_tuples(void* px, void* py);
+int   compare_tuples(value_t x, value_t y);
+int   init_tuple(void* ptr, void* dat);
+void  trace_tuple(void* ptr);
+
+data_type_t TupleType = {
+  .type={
+    .obj={
+      
+    },
+    .name="tuple",
+    .idno=TUPLE
+  },
+  .size   =sizeof(tuple_t),
+  .member =&EmptyTuple.obj,
+
+  .print  =print_tuple,
+  .size_of=tuple_size,
+  .hash   =hash_tuple,
+  .equal  =equal_tuples,
+  .compare=compare_tuples,
+  .init   =init_tuple,
+  .trace  =trace_tuple
+};
+
+// sacred methods -------------------------------------------------------------
+void print_tuple(value_t val, port_t* ios) {
+  rl_putc('[', ios);
+
+  tuple_t* xs = as_tuple(val); print_values(xs->len, xs->slots, ios, false);
+
+  rl_putc(']', ios);
+}
+
+usize tuple_size(void* ptr) {
+  tuple_t* self = ptr;
+
+  return self->len * sizeof(value_t);
+}
+
+uhash hash_tuple(void* ptr) {
+  tuple_t* self = ptr;
+  uhash tth = TupleType.type.obj.hash;
+
+  if (self->len)
+    return mix_2_hashes(tth, tth);
+
+  else
+    return mix_2_hashes(tth, hash_values(self->len, self->slots));
+}
+
+bool equal_tuples(void* px, void* py) {
+  tuple_t* xt = px,* yt = py;
+
+  return equal_values(xt->len, xt->slots, yt->len, yt->slots);
+}
+
+int compare_tuples(value_t x, value_t y) {
+  tuple_t* tx  = as_tuple(x),* ty = as_tuple(y);
+
+  return compare_values(tx->len, tx->slots, ty->len, ty->slots);
+}
+
+// lifetime methods -----------------------------------------------------------
+int init_tuple(void* spc, void* ini) {
+  tuple_t* self = spc;
+  tuple_init_t* tini = ini;
+  
+  assert(tini->len > 0);
+  assert(self != &EmptyTuple);
+
+  self->len = tini->len;
+
+  if (tini->slots)
+    memcpy(self->slots, tini->slots, self->len * sizeof(value_t));
+
+  return 0;
+}
+
+void trace_tuple(void* ptr) {
+  tuple_t* tuple = ptr;
+
+  mark_values(tuple->len, tuple->slots);
+}
+
+// ctors ----------------------------------------------------------------------
 static tuple_t* allocate_tuple(usize n) {
   assert(n > 0);
 
   return allocate(sizeof(tuple_t) + n * sizeof(value_t));
 }
 
-static void init_tuple(tuple_t* self, usize n, value_t* args) {
-  assert(n > 0);
-  assert(self != &EmptyTuple);
 
-  init_object(&self->obj, TUPLE, FROZEN);
-  self->len = n;
-  memcpy(self->slots, args, n*sizeof(value_t));
-}
-
-value_t pair(value_t k, value_t v) {
-  value_t vals[2] = { k, v };
-
-  return tuple(2, vals);
-}
-
-value_t tuple(usize n, value_t* args) {
+tuple_t* tuple(usize n, value_t* args) {
   assert(n <= FIXNUM_MAX);
   tuple_t* tup;
 
   if (n == 0)
-    tup = &EmptyTuple;
+    return &EmptyTuple;
 
-  else {
-    tup = allocate_tuple(n);
-    init_tuple(tup, n, args);
-  }
+  
+  tuple_init_t ini = {
+    .base={
+      .type  =&TupleType,
+      .frozen=true,
+      .data  =true,
+      .safe  =true,
+    },
+    .len   =n,
+    .slots=args
+  };
+  
+  tup = allocate_tuple(n);
+  
+  init_object(tup, &ini);
 
-  return object(tup);
+  return tup;
 }
 
+// table ----------------------------------------------------------------------
 // globals --------------------------------------------------------------------
 #define MIN_CAP    8ul
+#define MAX_CAP    0x0000800000000000ul
 #define TABLE_LOAD 0.625
 
+void print_table(value_t x, port_t* ios);
+bool equal_tables(void* px, void* py);
+int  compare_tables(value_t x, value_t y);
+int  init_table(void* ptr, void* ini);
+void trace_table(void* ptr);
+void free_table(void* ptr);
+
+data_type_t TableType = {
+  .type={
+    .obj={
+      .type  =DATA_TYPE,
+      .frozen=true,
+      .gray  =true
+    },
+    .name="table",
+    .idno=TABLE
+  },
+  .size   =sizeof(table_t),
+  .print  =print_table,
+  .equal  =equal_tables,
+  .compare=compare_tables,
+  .init   =init_table,
+  .trace  =trace_table,
+  .free   =free_table
+};
+
 // utilities ------------------------------------------------------------------
+usize pad_alist_size(usize newct, usize oldct, usize oldcap, usize mincap) {
+  /* CPython resize algorithm */
+  usize newcap = MAX(oldcap, mincap);
+
+  if (newcap >= newct && (newct >= (newcap >> 1) || newcap == mincap))
+    return newcap;
+
+  newcap = (newct + (newct >> 3) + 6) & ~3ul;
+
+  if (newct - oldct > newcap - newct)
+    newcap = (newct + 3) & ~3ul;
+
+  return newcap;
+}
+
 usize pad_array_size(usize newct, usize oldcap, usize mincap, double loadf) {
   usize newcap = MAX(oldcap, mincap);
     if (newct > newcap * loadf) {
@@ -604,154 +772,420 @@ usize pad_table_size(usize newct, usize oldcap) {
   return pad_array_size(newct, oldcap, MIN_CAP, TABLE_LOAD);
 }
 
-// API template macros --------------------------------------------------------
-#undef ALIST_API
+static usize ord_size(usize cap) {
+  assert(cap <= MAX_CAP);
+  assert(cap >= MIN_CAP);
 
-#define ALIST_API(A, X, mincap)                                         \
-  void init_##A(TYPE(A)* A) {                                           \
-    A->len   = 0;                                                       \
-    A->cap   = pad_array_size(0, 0, mincap, 1.0);                       \
-    A->array = allocate(A->cap * sizeof(X));                            \
-  }                                                                     \
-  void free_##A(TYPE(A)* A) {                                           \
-    deallocate(A->array, A->cap * sizeof(X));                           \
-    init_##A(A);                                                        \
-  }                                                                     \
-  void resize_##A(TYPE(A)* A, usize len) {                              \
-    usize newc = pad_array_size(len, A->cap, mincap, 1.0);              \
-    if (newc != A->cap) {                                               \
-      A->array = reallocate(A->array,newc*sizeof(X),A->cap*sizeof(X));	\
-      A->cap   = newc;                                                  \
-    }                                                                   \
-  }                                                                     \
-  usize A##_push(TYPE(A)* A, X x) {                                     \
-    resize_##A(A, A->len+1);                                            \
-    A->array[A->len] = x;                                               \
-    return A->len++;                                                    \
-  }                                                                     \
-  X A##_pop(TYPE(A)* A) {                                               \
-    assert(A->len > 0);                                                 \
-    X out = A->array[--A->len];                                         \
-    resize_##A(A, A->len);                                              \
-    return out;                                                         \
-  }                                                                     \
-  X A##_popn(TYPE(A)* A, usize n) {                                     \
-    assert(A->len >= n);                                                \
-    X out = A->array[A->len-1];                                         \
-    resize_##A(A, (A->len -= n));                                       \
-    return out;                                                         \
-  }                                                                     \
-  usize A##_write(TYPE(A)* A, usize n, X* buf) {                        \
-    usize off = A->len;                                                 \
-    resize_##A(A, (A->len += n));                                       \
-    memcpy(A->array+off, buf, n * sizeof(X));                           \
-    return off;                                                         \
-  }
+  if (cap <= INT8_MAX)
+    return cap;
 
-ALIST_API(bytes, ubyte, 32);
-ALIST_API(values, value_t, 8);
-ALIST_API(objects, object_t*, 8);
-ALIST_API(buffer, char, 512);
+  if (cap <= INT16_MAX)
+    return cap * sizeof(sint16);
 
-// hash table apis ------------------------------------------------------------
-static void init_reader_table(void** table, usize cap) {            
-  memset(table, 0, cap*2*sizeof(void*));
-  
-  for (usize i=0; i < cap; i++) {
-    *(int*)&table[i*2]       = EOF;
-    *(funcptr*)&table[i*2+1] = NULL;
-  }
+  if (cap <= INT32_MAX)
+    return cap * sizeof(sint32);
+
+  return cap * sizeof(sint64);
 }
 
-static void** reader_locate(htable_t* htable, int key) {		
-  uhash h = hash_uword(key);                                               
-  uword m = htable->cap-1;                                            
-  usize i = h & m;                                                    
-  int ikey;                                                         
-  while ((ikey=*(int*)&htable->table[i*2]) != EOF) {
-    if (key == ikey)
-      break;                                                          
-    i = (i+1) & m;                                                    
-  }                                                                   
-  return &htable->table[i*2];
-}
+void* allocate_ord(usize cap) {
+  usize total = ord_size(cap);
+  void* out   = allocate(total);
 
-static void rehash_reader_table(void** oldt, usize oldc, usize oldl, void** newt, usize newc) {
-  init_reader_table(newt, newc);
-  usize m = newc-1;
-  
-  for (usize i=0, n=0; i<oldc && n<oldl; i++) {
-    int k = *(int*)&oldt[i*2];
+  memset(out, -1, total);
 
-    if (k == EOF)
-      continue;
-
-    funcptr v = *(funcptr*)&oldt[i*2+1];
-    uhash h = hash_uword(k);
-    usize j = h & m;
-
-    while (*(int*)&newt[j*2] != EOF)
-      j = (j+1) & m;
-
-    *(int*)&newt[j*2]       = k;
-    *(funcptr*)&newt[j*2+1] = v;
-
-    n++;
-  }
-}
-
-void init_reader(htable_t* htable) {
-  htable->count = 0;
-  htable->cap   = pad_table_size(0, 0);
-  htable->table = allocate(htable->cap * 2 * sizeof(void*));
-  init_reader_table(htable->table, htable->cap);
-}
-
-void free_reader(htable_t* htable) {
-  deallocate(htable->table, htable->cap * 2 * sizeof(void*));
-  init_reader(htable);
-}
-
-void resize_reader(htable_t* htable, usize n) {
-  usize newc = pad_table_size(n, htable->cap);
-
-  if (newc != htable->cap) {
-    void** newt = allocate(newc * 2 * sizeof(void*));
-    rehash_reader_table(htable->table, htable->cap, htable->count, newt, newc);
-    deallocate(htable->table, htable->cap * 2 * sizeof(void*));
-    htable->table = newt;
-    htable->cap = newc;
-  }
-}
-
-funcptr reader_get(htable_t* htable, int key) {
-  return reader_locate(htable, key)[1];
-}
-
-funcptr reader_set(htable_t* htable, int key, funcptr val) {
-  resize_reader(htable, htable->count+1);
-  
-  void** spc = reader_locate(htable, key);
-
-  if (*(int*)spc == EOF) {
-    *(int*)spc = key;
-    htable->count++;
-  }
-
-  funcptr out = spc[1];
-  spc[1] = val;
   return out;
 }
 
-funcptr reader_del(htable_t* htable, int key) {
-  void** spc = reader_locate(htable, key);
-  funcptr out = spc[1];
+void* reallocate_ord(void* ptr, usize newc, usize oldc) {
+  usize oldt = ord_size(oldc), newt = ord_size(newc);
 
-  if (*(int*)spc != EOF) {
-    *(int*)spc = EOF;
-    spc[1] = NULL;
-    resize_reader(htable, --htable->count);
+  ptr = reallocate(ptr, newt, oldt);
+
+  memset(ptr, -1, newt);
+
+  return ptr;
+}
+
+void deallocate_ord(void* ptr, usize cap) {
+  deallocate(ptr, ord_size(cap));
+}
+
+value_t* allocate_table(usize cap) {
+  value_t* out = allocate(cap * 2 * sizeof(value_t));
+
+  for (usize i=0; i<cap*2; i++)
+    out[i] = NOTFOUND;
+
+  return out;
+}
+
+value_t* reallocate_table(value_t* ptr, usize newc, usize oldc) {
+  value_t* out = reallocate(ptr, newc*2*sizeof(value_t), oldc*2*sizeof(value_t));
+
+  for (usize i=oldc*2; i<newc*2; i++)
+    out[i] = NOTFOUND;
+
+  return out;
+}
+
+void deallocate_table(value_t* ptr, usize cap) {
+  deallocate(ptr, cap * 2 * sizeof(value_t));
+}
+
+void rehash_table(table_t* table) {
+  value_t* entries = table->table;
+  usize count      = table->count;
+  usize ocap       = table->ocap;
+
+  if (ocap <= INT8_MAX) {
+    sint8* ord = table->ord8;
+
+    for (usize i=0; i<count; i++) {
+      uhash h = rl_hash(entries[i << 1]);
+      usize j = h & (ocap - 1);
+
+      while (ord[j] > -1)
+        j = j & (ocap - 1);
+
+      ord[j] = i;
+    }
+  } else if (ocap <= INT16_MAX) {
+    sint16* ord = table->ord16;
+
+    for (usize i=0; i<count; i++) {
+      uhash h = rl_hash(entries[i << 1]);
+      usize j = h & (ocap - 1);
+
+      while (ord[j] > -1)
+        j = j & (ocap - 1);
+
+      ord[j] = i;
+    }
+  } else if (ocap <= INT32_MAX) {
+    sint32* ord = table->ord32;
+
+    for (usize i=0; i<count; i++) {
+      uhash h = rl_hash(entries[i << 1]);
+      usize j = h & (ocap - 1);
+
+      while (ord[j] > -1)
+        j = j & (ocap - 1);
+
+      ord[j] = i;
+    }
+  } else {
+    sint64* ord = table->ord64;
+
+    for (usize i=0; i<count; i++) {
+      uhash h = rl_hash(entries[i << 1]);
+      usize j = h & (ocap - 1);
+
+      while (ord[j] > -1)
+        j = j & (ocap - 1);
+
+      ord[j] = i;
+    }
   }
+}
+
+void resize_table(table_t* self, usize cnt) {
+  usize tcap = pad_alist_size(cnt, self->count, self->tcap, MIN_CAP);
+
+  if (tcap != self->tcap) {
+    self->table = reallocate_table(self->table, tcap, self->tcap);
+    self->tcap  = tcap;
+  }
+
+  usize ocap = pad_table_size(cnt, self->ocap);
+
+  if (ocap != self->ocap) {
+    self->ord  = reallocate_ord(self->ord, ocap, self->ocap);
+    self->ocap = ocap;
+    rehash_table(self);
+  }
+}
+
+long table_locate(table_t* self, value_t key, usize* buffer) {
+  value_t* table = self->table;
+  usize    ocap  = self->ocap;
+  usize    omask = ocap - 1;
+  uhash    khash = rl_hash(key);
+  usize    order = khash & omask;
+  long     index = -1;
+
+  if (ocap <= INT8_MAX) {
+    sint8* ord = self->ord8;
+
+    while ((index=ord[order]) > -1) {
+      if (rl_equal(key, table[index*2]))
+        break;
+
+      order =  (order + 1) & omask;
+    }
+  } else if (ocap <= INT16_MAX) {
+    sint16* ord = self->ord16;
+
+    while ((index=ord[order]) > -1) {
+      if (rl_equal(key, table[index*2]))
+        break;
+
+      order = (order + 1) & omask;
+    }
+  } else if (ocap <= INT32_MAX) {
+    sint32* ord = self->ord32;
+
+    while ((index=ord[order]) > -1) {
+      if (rl_equal(key, table[index*2]))
+        break;
+
+      order = (order + 1) & omask;
+    }
+  } else {
+    sint64* ord = self->ord64;
+
+    while ((index=ord[order]) > -1) {
+      if (rl_equal(key, table[index*2]))
+        break;
+
+      order = (order + 1) & omask;
+    }
+  }
+
+  if (buffer)
+    *buffer = order;
+
+  return index;
+}
+
+// sacred methods -------------------------------------------------------------
+void print_table(value_t x, port_t* ios) {
+  rl_puts("#table(", ios);
+
+  table_t* tab = as_table(x); print_values(tab->count*2, tab->table, ios, true);
+
+  rl_putc(')', ios);
+}
+
+bool equal_tables(void* xp, void* yp) {
+  table_t* xt = xp, * yt = yp;
+
+  return equal_values(xt->count*2, xt->table, yt->count*2, yt->table);
+}
+
+int compare_tables(value_t x, value_t y) {
+  table_t* xt = as_table(x), * yt = as_table(y);
+
+  return compare_values(xt->count*2, xt->table, yt->count*2, yt->table);
+}
+
+// lifetime methods -----------------------------------------------------------
+int init_table(void* ptr, void* dat) {
+  (void)dat;
+
+  table_t* self = ptr;
+  self->count   =   0;
+  self->tcap    = pad_alist_size(0, 0, 0, 8);
+  self->ocap    = pad_table_size(0, 0);
+  self->table   = allocate_table(self->tcap);
+  self->ord     = allocate_ord(self->ocap);
+
+  return 0;
+}
+
+void trace_table(void* ptr) {
+  table_t* self = ptr;
+
+  mark_values(self->count*2, self->table);
+}
+
+void free_table(void* ptr) {
+  table_t* self = ptr;
+
+  deallocate_ord(self->ord, self->ocap);
+  deallocate_table(self->table, self->tcap);
+}
+
+// misc -----------------------------------------------------------------------
+void reset_table(table_t* self) {
+  free_table(self);
+  init_table(self, NULL);
+}
+
+// ctors ----------------------------------------------------------------------
+table_t* table(void) {
+  object_init_t ini = {
+    .type  =&TableType
+  };
+
+  table_t* out = allocate(sizeof(table_t));
+
+  init_object(out, &ini);
+
+  return out;
+}
+
+// getters & setters ----------------------------------------------------------
+value_t table_get(table_t* self, value_t key) {
+  long index = table_locate(self, key, NULL);
+
+  if (index == -1)
+    return NOTFOUND;
+
+  return self->table[(index << 1) + 1];
+}
+
+value_t table_set(table_t* self, value_t key, value_t val) {
+  value_t out; usize order;
+
+  resize_table(self, self->count+1); // preemptively, so that hashed index is valid
+  
+  long index = table_locate(self, key, &order);
+
+  if (index == -1) {
+    out = NOTFOUND;
+
+    if (self->ocap <= INT8_MAX)       self->ord8[order]  = self->count;
+    else if (self->ocap <= INT16_MAX) self->ord16[order] = self->count;
+    else if (self->ocap <= INT32_MAX) self->ord32[order] = self->count;
+    else                              self->ord64[order] = self->count;
+
+    self->table[self->count*2]   = key;
+    self->table[self->count*2+1] = val;
+    self->count++;
+  } else {
+    out                    = self->table[index*2+1];
+    self->table[index*2+1] = val;
+  }
+
+  return out;
+}
+
+value_t table_del(table_t* self, value_t key) {
+  value_t out; usize order;
+
+  long index = table_locate(self, key, &order);
+
+  if (index == -1)
+    out = NOTFOUND;
+
+  else {
+    if (self->ocap <= INT8_MAX)       self->ord8[order] =  -1;
+    else if (self->ocap <= INT16_MAX) self->ord16[order] = -1;
+    else if (self->ocap <= INT32_MAX) self->ord32[order] = -1;
+    else                              self->ord64[order] = -1;
+
+    self->table[order*2]   = NOTFOUND;
+    self->table[order*2+1] = NOTFOUND;
+
+    resize_table(self, self->count-1);
+  }
+
+  return out;
+}
+
+// alist ----------------------------------------------------------------------
+// globals --------------------------------------------------------------------
+
+void print_alist(value_t self, port_t* ios);
+bool equal_alists(void* px, void* py);
+int  compare_alists(value_t x, value_t y);
+int  init_alist(void* ptr, void* dat);
+void trace_alist(void* ptr);
+void free_alist(void* ptr);
+
+data_type_t AlistType = {
+  .type={
+    .obj={
+      .type  =DATA_TYPE,
+      .frozen=true,
+      .gray  =true,
+    },
+    .name="alist",
+    .idno=ALIST
+  },
+  .size   =sizeof(alist_t),
+  .print  =print_alist,
+  .equal  =equal_alists,
+  .compare=compare_alists,
+  .init   =init_alist,
+  .trace  =trace_alist,
+  .free   =free_alist
+};
+
+// utilities ------------------------------------------------------------------
+void resize_alist(alist_t* self, usize cnt) {
+  usize newc = pad_alist_size(cnt, self->count, self->cap, MIN_CAP);
+
+  if (newc != self->cap) {
+    self->array = reallocate(self->array, newc * sizeof(value_t), self->cap * sizeof(value_t));
+    self->cap   = newc;
+  }
+}
+
+// sacred methods -------------------------------------------------------------
+void print_alist(value_t x, port_t* ios) {
+  alist_t* alist = as_alist(x);
+
+  rl_puts("#alist(", ios);
+  print_values(alist->count, alist->array, ios, false);
+  rl_putc(')', ios);
+}
+
+bool equal_alists(void* px, void* py) {
+  alist_t* ax = px, * ay = py;
+
+  return equal_values(ax->count, ax->array, ay->count, ay->array);
+}
+
+int compare_alists(value_t x, value_t y) {
+  alist_t* ax = as_alist(x), * ay = as_alist(y);
+
+  return equal_values(ax->count, ax->array, ay->count, ay->array);
+}
+
+// lifetime -------------------------------------------------------------------
+int init_alist(void* ptr, void* dat) {
+  (void)dat;
+
+  alist_t* ax = ptr;
+  ax->count   = 0;
+  ax->cap     = pad_alist_size(0, 0, 0, 8);
+  ax->array   = allocate(ax->cap * sizeof(value_t));
+
+  return 0;
+}
+
+void trace_alist(void* ptr) {
+  alist_t* alist = ptr;
+
+  mark_values(alist->count, alist->array);
+}
+
+void free_alist(void* ptr) {
+  alist_t* self = ptr;
+
+  deallocate(self->array, self->cap * sizeof(value_t));
+}
+
+// misc ----------------------------------------------------------------------------
+void reset_alist(alist_t* self) {
+  free_alist(self);
+  init_alist(self, NULL);
+}
+
+usize alist_push(alist_t* self, value_t val) {
+  usize out = self->count++;
+  resize_alist(self, self->count);
+  self->array[out] = val;
+  return out;
+}
+
+value_t alist_pop(alist_t* self) {
+  assert(self->count);
+
+  value_t out = self->array[--self->count];
+  resize_alist(self, self->count);
 
   return out;
 }

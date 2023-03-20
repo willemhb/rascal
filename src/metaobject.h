@@ -3,40 +3,37 @@
 
 #include "value.h"
 
-#define TYPE_HEADER rl_type_t type
+#define TYPE_HEADER type_t type
 
 // C types --------------------------------------------------------------------
-struct rl_type_t {
+struct type_t {
   HEADER;
-  char*  name;
-  uint64 idno;
-  kind_t (*isa)(value_t v, rl_type_t* self);
-  vtable_t* vtable;
+  char*        name;
+  uint64       idno;
+  kind_t     (*isa)(value_t v, type_t* self);
 };
 
-struct vtable_t {
-  void    (*print)(value_t x, port_t* ios);
-  usize   (*size)(object_t* o);
-  uhash   (*hash)(object_t* o);
-  bool    (*equal)(object_t* x, object_t* y);
-  int     (*compare)(value_t x, value_t y);
-};
-
-struct primitive_type_t {
+struct data_type_t {
   TYPE_HEADER;
-  usize size;
-  int (*init)(void* spc, value_t val);
-};
+  usize     size;
+  dict_t*   slots;
+  object_t* member; // for unique empty instance of immutable type ------------
 
-struct object_type_t {
-  TYPE_HEADER;
-  usize size;
+  // vtable 
+  // sacred methods -----------------------------------------------------------
+  void  (*print)(value_t val, port_t* ios);
+  usize (*size_of)(void* ptr);
+  uhash (*hash)(void* ptr);
+  bool  (*equal)(void* x, void* y);
+  int   (*compare)(value_t x, value_t y);
+
+  // lifetime methods ---------------------------------------------------------
   int   (*init)(void* self, void* ini);
   void  (*trace)(void* self);
   void  (*free)(void* self);
-  void  (*traverse)(void* self, void (*callback)(void* state), bool (*update)(void* state));
-  dict_t* slots;
-  object_t* singleton; // for unique empty instance of immutable type ---------
+
+  // misc ---------------------------------------------------------------------
+  int   (*write)(type_t* type, value_t val, void* spc);
 };
 
 struct union_type_t {

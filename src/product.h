@@ -6,13 +6,13 @@
 
 struct struct_t {
   HEADER;
-  object_type_t* type;
-  tuple_t* slots;
+  data_type_t* type;
+  tuple_t*     slots;
 };
 
 struct record_t {
   HEADER;
-  object_type_t* type;
+  data_type_t* type;
   tuple_t* slots;
 };
 

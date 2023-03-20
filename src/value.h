@@ -13,7 +13,7 @@ typedef double real_t;
 typedef bool boolean_t;
 typedef void *pointer_t;
 typedef struct object_t object_t;
-typedef struct rl_type_t rl_type_t;
+typedef struct type_t type_t;
 
 // small types ----------------------------------------------------------------
 typedef uint8 uint8_t;
@@ -33,16 +33,18 @@ typedef uint32 utf32_t;
 
 // object types ---------------------------------------------------------------
 // metaobject types -----------------------------------------------------------
-typedef struct primitive_type_t primitive_type_t;
-typedef struct object_type_t object_type_t;
+typedef struct data_type_t  data_type_t;
 typedef struct union_type_t union_type_t;
 
 // internal types -------------------------------------------------------------
-typedef struct arr_node_t arr_node_t;
-typedef struct arr_leaf_t arr_leaf_t;
-typedef struct map_node_t map_node_t;
-typedef struct map_leaf_t map_leaf_t;
+typedef struct arr_node_t   arr_node_t;
+typedef struct arr_leaf_t   arr_leaf_t;
+typedef struct map_node_t   map_node_t;
+typedef struct map_leaf_t   map_leaf_t;
 typedef struct map_leaves_t map_leaves_t;
+typedef struct set_node_t   set_node_t;
+typedef struct set_leaf_t   set_leaf_t;
+typedef struct set_leaves_t set_leaves_t;
 typedef struct method_table_t method_table_t;
 typedef struct method_t method_t;
 typedef struct chunk_t chunk_t;
@@ -72,14 +74,10 @@ typedef struct complex_t complex_t;
 typedef struct ratio_t ratio_t;
 typedef struct big_t big_t;
 
-// other internal types -------------------------------------------------------
-typedef struct vtable_t vtable_t;
-
 // builtin type codes ---------------------------------------------------------
 typedef enum {
   // metaobject types ---------------------------------------------------------
-  PRIMITIVE_TYPE,
-  OBJECT_TYPE,
+  DATA_TYPE,
   UNION_TYPE,
 
   // internal types -----------------------------------------------------------
@@ -88,6 +86,9 @@ typedef enum {
   MAP_NODE,
   MAP_LEAF,
   MAP_LEAVES,
+  SET_NODE,
+  SET_LEAF,
+  SET_LEAVES,
   METHOD_TABLE,
   METHOD,
   CHUNK,
@@ -140,11 +141,13 @@ typedef enum {
 
   // misc ---------------------------------------------------------------------
   BOOLEAN,
+  UNIT,
+
+  // internal -----------------------------------------------------------------
   POINTER,
 
   // fucked up types ----------------------------------------------------------
   NONE,
-  UNIT,
   ANY
 } val_type_t;
 
@@ -169,13 +172,18 @@ struct object_t {
 #define HEADER object_t obj
 
 // globals --------------------------------------------------------------------
+// tags -----------------------------------------------------------------------
 #define QNAN        0x7ff8000000000000ul
+
+// user values ----------------------------------------------------------------
 #define SMALLTAG    0x7ffc000000000000ul
-#define FIXTAG      0x7ffd000000000000ul
-#define NULTAG      0x7ffe000000000000ul
-#define BOOLTAG     0x7fff000000000000ul
-#define PTRTAG      0xfffc000000000000ul
-#define OBJTAG      0xfffd000000000000ul
+#define OBJTAG      0x7ffd000000000000ul
+#define FIXTAG      0x7ffe000000000000ul
+#define PTRTAG      0x7fff000000000000ul
+
+// common small tags ----------------------------------------------------------
+#define BOOLTAG     (SMALLTAG | (((uword)BOOLEAN) << 32))
+#define NULTAG      (SMALLTAG | (((uword)UNIT) << 32))
 
 #define TAG_MASK    0xffff000000000000ul
 #define VAL_MASK    0x0000fffffffffffful
@@ -193,51 +201,53 @@ struct object_t {
 
 #define NUM_TYPES (ANY+1)
 
-extern rl_type_t* BuiltinTypes[NUM_TYPES];
+extern type_t* BuiltinTypes[NUM_TYPES];
 
 // API ------------------------------------------------------------------------
 // tags, tagging, types, queries ----------------------------------------------
+#define ASA(x, t) ((t*)(((uword)(x)) & VAL_MASK))
+
 val_type_t val_type(value_t val);
 
 obj_type_t val_obj_type(value_t val);
-obj_type_t obj_obj_type(object_t* obj);
+obj_type_t obj_obj_type(void* ptr);
 #define obj_type(x) generic2(obj_type, x)
 
-rl_type_t* val_type_of(value_t val);
-rl_type_t* obj_type_of(object_t* obj);
+data_type_t* val_type_of(value_t val);
+data_type_t* obj_type_of(void* ptr);
 #define type_of(x) generic2(type_of, x)
 
 // lifetimes ------------------------------------------------------------------
 void mark_value(value_t val);
 
 // core APIs ------------------------------------------------------------------
-kind_t val_has_type(value_t val, rl_type_t* type);
-kind_t obj_has_type(object_t* obj, rl_type_t* type);
+kind_t val_has_type(value_t val, type_t* type);
+kind_t obj_has_type(void* ptr, type_t* type);
 
 #define has_type(x, t) generic2(has_type, x, t)
 
-void val_print(value_t val, port_t* ios);
-void obj_print(object_t* obj, port_t* ios);
+void val_print(value_t, port_t* ios);
+void obj_print(void* ptr, port_t* ios);
 
 #define rl_print(x, p) generic2(print, x, p)
 
 usize val_size_of(value_t val);
-usize obj_size_of(object_t* obj);
+usize obj_size_of(void* ptr);
 
-#define size_of(x) generic2(size_of, x)
+#define rl_size_of(x) generic2(size_of, x)
 
 uhash val_hash(value_t x);
-uhash obj_hash(object_t* obj);
+uhash obj_hash(void* ptr);
 
 #define rl_hash(x) generic2(hash, x)
 
 bool val_equal(value_t x, value_t y);
-bool obj_equal(object_t* x, object_t* y);
+bool obj_equal(void* px, void* py);
 
 #define rl_equal(x, y) generic2(equal, x, y)
 
 int val_compare(value_t x, value_t y);
-int obj_compare(object_t* x, object_t* y);
+int obj_compare(void* x, void* y);
 
 #define rl_compare(x, y) generic2(compare, x, y)
 

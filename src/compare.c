@@ -123,11 +123,7 @@ uhash hash_object(void* ptr) {
 }
 
 // equal methods --------------------------------------------------------------
-bool  equal_tuples(value_t x, value_t y) {
-  tuple_t* xt = as_tuple(x),* yt = as_tuple(y);
 
-  return equal_value_arrays(xt->len, xt->slots, yt->len, yt->slots);
-}
 
 bool equal_vectors(value_t x, value_t y) {
   vector_t* vx = as_vector(x),* vy = as_vector(y);
@@ -169,11 +165,7 @@ int compare_fixnums(value_t x, value_t y) {
   return CMP(as_fixnum(x), as_fixnum(y));
 }
 
-int compare_tuples(value_t x, value_t y) {
-  tuple_t* tx  = as_tuple(x),* ty = as_tuple(y);
 
-  return compare_value_arrays(tx->len, tx->slots, ty->len, ty->slots);
-}
 
 int compare_vectors(value_t x, value_t y) {
   vector_t* vx = as_vector(x),* vy = as_vector(y);

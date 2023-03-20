@@ -40,7 +40,7 @@ typedef int64_t sint64;
 #define generic2(method, x, ...)                                        \
   generic((x),                                                          \
           value_t:val_##method,                                         \
-          object_t*:obj_##method)(x __VA_OPT__(,) __VA_ARGS__)
+          default:obj_##method)(x __VA_OPT__(,) __VA_ARGS__)
 
 #define popcnt(x)                               \
   generic((x),                                  \

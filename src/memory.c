@@ -91,12 +91,6 @@ void trace_set(void* ptr) {
   mark_object(set->vals);
 }
 
-void trace_tuple(void* ptr) {
-  tuple_t* tuple = ptr;
-
-  trace_values(tuple->len, tuple->slots);
-}
-
 void trace_stencil(void* ptr) {
   stencil_t* st = ptr;
 

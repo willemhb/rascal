@@ -24,7 +24,7 @@ struct variable_t {
   namespace_t* ns;
   symbol_t*    name;
   string_t*    doc;
-  rl_type_t*   type;
+  type_t*      type;
   value_t      bind;
   variable_t*  next; // for upvalues
 };
@@ -52,8 +52,8 @@ struct control_t {
 
 // API ------------------------------------------------------------------------
 // variable -------------------------------------------------------------------
-variable_t* variable(namespace_t* ns, symbol_t* name, string_t* doc, rl_type_t* type);
-variable_t* constant(namespace_t* ns, symbol_t* name, string_t* doc, rl_type_t* type);
+variable_t* variable(namespace_t* ns, symbol_t* name, string_t* doc, type_t* type);
+variable_t* constant(namespace_t* ns, symbol_t* name, string_t* doc, type_t* type);
 variable_t* upvalue(variable_t* lexv, variable_t* upv);
 
 // namespace ------------------------------------------------------------------

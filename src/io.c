@@ -179,27 +179,6 @@ int fpeekc(FILE* ios) {
 
 // interpreter ----------------------------------------------------------------
 // print helpers --------------------------------------------------------------
-void print_value_array(usize n, value_t* vals) {
-  for (usize i=0; i<n; i++) {
-    print(vals[i]);
-
-    if (i + 1 < n)
-      printf(" ");
-  }
-}
-
-void print_pairs_array(usize n, value_t* vals) {
-  for (usize i=0; i<n; i++) {
-    tuple_t* tx = as_tuple(vals[i]);
-    print(tx->slots[0]);
-    printf(" ");
-    print(tx->slots[1]);
-
-    if (i+1 < n)
-      printf(", ");
-  }
-}
-
 void print_table_members(stencil_t* st) {
   usize n    = stencil_len(st);
   value_t* v = st->array;
@@ -279,14 +258,6 @@ void print_binary(value_t val) {
   }
 
   printf("\"");
-}
-
-void print_tuple(value_t val) {
-  printf("[");
-
-  tuple_t* xs = as_tuple(val); print_value_array(xs->len, xs->slots);
-
-  printf("]");
 }
 
 void print_stencil(value_t val) {
