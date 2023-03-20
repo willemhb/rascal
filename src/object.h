@@ -96,19 +96,11 @@ variable_t* defconst(value_t name, namespace_t* ns, string_t* doc, rl_type_t* ty
 value_t     list(usize n, value_t* args);
 value_t     cons(value_t head, list_t* tail);
 
-value_t     head(value_t xs);
-list_t*     tail(value_t xs);
-
-value_t     nth_head(list_t* xs, usize n);
-list_t*     nth_tail(list_t* xs, usize n);
-
 // tuple API ------------------------------------------------------------------
 #define     is_tuple(x) has_type(x, &TupleType)
 #define     as_tuple(x) ((tuple_t*)((x) & VAL_MASK))
 
 value_t     tuple(usize n, value_t* args);
-
-value_t     nth_slot(value_t xs, usize n);
 
 // table API ------------------------------------------------------------------
 #define     is_table(x) has_type(x, &TableType.type)

@@ -248,23 +248,6 @@ void print_native(value_t val) {
   printf("#'native/%s", as_native(val)->name->name);
 }
 
-void print_list(value_t val) {
-  printf("(");
-
-  list_t* xs = as_list(val);
-
-  while (xs->len) {
-    print(xs->head);
-
-    xs = xs->tail;
-
-    if (xs->len)
-      printf(" ");
-  }
-
-  printf(")");
-}
-
 void print_vector(value_t val) {
   printf("#[");
   print_array_members(as_vector(val)->vals);

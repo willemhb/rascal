@@ -61,11 +61,7 @@ void deallocate(void* ptr, usize size) {
 }
 
 // GC internals ---------------------------------------------------------------
-void mark_value(value_t val);
-void mark_object(void* ptr);
-
 void trace_symbol(void* ptr);
-void trace_list(void* ptr);
 void trace_vector(void* ptr);
 void trace_dict(void* ptr);
 void trace_set(void* ptr);
@@ -74,57 +70,6 @@ void trace_stencil(void* ptr);
 
 void free_symbol(void* ptr);
 
-void (*Trace[NUM_TYPES])(void* ptr) = {
-  [SYMBOL]  = trace_symbol,
-  [LIST]    = trace_list,
-  [VECTOR]  = trace_vector,
-  [DICT]    = trace_dict,
-  [SET]     = trace_set,
-  [TUPLE]   = trace_tuple,
-  [STENCIL] = trace_stencil
-};
-
-void (*Free[NUM_TYPES])(void* ptr) = {
-  [SYMBOL] = free_symbol
-};
-
-void mark_object(void* ptr) {
-  object_t* obj = ptr;
-
-  if (obj == NULL)
-    return;
-
-  if (obj->black)
-    return;
-
-  obj->black = true;
-
-  if (Trace[obj->type])
-    objects_push(&Grays, obj);
-
-  else
-    obj->gray = false;
-}
-
-void mark_value(value_t val) {
-  if (is_object(val))
-    mark_object(as_object(val));
-}
-
-void trace_symbol(void* ptr) {
-  symbol_t* sym = ptr;
-
-  mark_value(sym->bind);
-  mark_object(sym->left);
-  mark_object(sym->right);
-}
-
-void trace_list(void* ptr) {
-  list_t* list = ptr;
-
-  mark_value(list->head);
-  mark_object(list->tail);
-}
 
 void trace_vector(void* ptr) {
   vector_t* vec = ptr;

@@ -366,8 +366,8 @@ list_t EmptyList = {
 
 typedef struct {
   object_init_t base;
-  usize n;
-  value_t* args;
+  value_t head;
+  list_t* tail;
 } list_init_t;
 
 void  print_list(value_t x, port_t* ios);
@@ -400,22 +400,106 @@ object_type_t ListType = {
 };
 
 // sacred methods -------------------------------------------------------------
+void print_list(value_t val, port_t* ios) {
+  rl_putc(ios, '(');
 
+  list_t* xs = as_list(val);
+
+  while (xs->len) {
+    rl_print(xs->head, ios);
+
+    xs = xs->tail;
+
+    if (xs->len)
+      rl_putc(ios, ' ');
+  }
+
+  rl_putc(ios, ')');
+}
+
+uhash hash_list(object_t* obj) {
+  list_t* lx = (list_t*)obj, * node = lx, * tmp, * prev = NULL;
+
+  uhash lthash = ListType.type.obj.hash;
+
+  while (!node->obj.hashed) {
+    // temporarily reset tail to point backward (to traverse back up) -------
+    tmp        = node->tail;
+    node->tail = prev;
+    prev       = node;
+    node       = tmp;
+  }
+
+  while (node != NULL) {
+    uhash headh = rl_hash(node->head);
+  }
+
+  return lx->obj.hash;
+}
+
+bool equal_lists(object_t* x, object_t* y) {
+  list_t* lx = (list_t*)x,* ly = (list_t*)y;
+
+  if (lx->len != ly->len)
+    return false;
+
+  while (lx->len) {
+    if (!rl_equal(lx->head, ly->head))
+      return false;
+
+    lx = lx->tail, ly = ly->tail;
+  }
+
+  return true;
+}
+
+int compare_lists(value_t x, value_t y) {
+  list_t* lx   = as_list(x),* ly = as_list(y);
+  usize maxcmp = MIN(lx->len, ly->len);
+  int o;
+
+  for (usize i=0; i<maxcmp; i++)
+    if (o=rl_compare(lx->head, ly->head))
+      return o;
+
+  return 0 - !!lx->len - !!ly->len;
+}
 
 // lifetime methods -----------------------------------------------------------
-void init_list(list_t* self, value_t head, list_t* tail) {
-  assert(tail->len < FIXNUM_MAX);
-  init_object(&self->obj, LIST, FROZEN);
+int init_list(void* self, void* ini) {
+  list_t* xs = self;
+  list_init_t* lini = ini;
 
-  self->head = head;
-  self->tail = tail;
-  self->len  = 1 + tail->len;
+  xs->head = lini->head;
+  xs->len  = lini->tail->len+1;
+  xs->tail = lini->tail;
+
+  return 0;
+}
+
+void trace_list(void* ptr) {
+  list_t* list = ptr;
+
+  mark_value(list->head);
+  mark_object(list->tail);
 }
 
 // ctors ----------------------------------------------------------------------
 value_t cons(value_t head, list_t* tail) {
   list_t* out = allocate(sizeof(list_t));
-  init_list(out, head, tail);
+  list_init_t ini = {
+    .base={
+      .type=&ListType,
+      .frozen=true,
+      .data=true,
+      .safe=true
+    },
+    .head=head,
+    .tail=tail
+  };
+
+  init_object(out, &ini);
+  
   return object(out);
 }
 
@@ -429,30 +513,23 @@ value_t list(usize n, value_t* args) {
   list_t* out  = allocate(n * sizeof(list_t));
   list_t* curr = &out[n-1], *last = &EmptyList;
 
+  list_init_t ini = {
+    .base={
+      .type=&ListType,
+      .frozen=true,
+      .data=true,
+      .safe=true
+    }
+  };
+
   for (usize i=n; i>0; i--) {
-    init_list(curr, args[i-1], last);
+    ini.head = args[i];
+    ini.tail = last;
+    init_object(curr, &ini);
     last = curr--;
   }
 
   return object(out);
-}
-
-value_t nth_hd(list_t* xs, usize n) {
-  assert(n < xs->len);
-
-  while (n--)
-    xs = xs->tail;
-
-  return xs->head;
-}
-
-list_t* nth_tl(list_t* xs, usize n) {
-  assert(n < xs->len);
-
-  while (n--)
-    xs = xs->tail;
-
-  return xs;
 }
 
 // tuple ----------------------------------------------------------------------
@@ -669,7 +746,7 @@ funcptr reader_set(htable_t* htable, int key, funcptr val) {
 funcptr reader_del(htable_t* htable, int key) {
   void** spc = reader_locate(htable, key);
   funcptr out = spc[1];
-  
+
   if (*(int*)spc != EOF) {
     *(int*)spc = EOF;
     spc[1] = NULL;
@@ -677,4 +754,9 @@ funcptr reader_del(htable_t* htable, int key) {
   }
 
   return out;
+}
+
+// initialization -------------------------------------------------------------
+void object_init(void) {
+  rl_hash(&EmptyList.obj);
 }

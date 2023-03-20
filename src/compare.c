@@ -129,22 +129,6 @@ bool  equal_tuples(value_t x, value_t y) {
   return equal_value_arrays(xt->len, xt->slots, yt->len, yt->slots);
 }
 
-bool equal_lists(value_t x, value_t y) {
-  list_t* lx = as_list(x),* ly = as_list(y);
-
-  if (lx->len != ly->len)
-    return false;
-
-  while (lx->len) {
-    if (!equal(lx->head, ly->head))
-      return false;
-
-    lx = lx->tail, ly = ly->tail;
-  }
-
-  return true;
-}
-
 bool equal_vectors(value_t x, value_t y) {
   vector_t* vx = as_vector(x),* vy = as_vector(y);
 
@@ -185,29 +169,10 @@ int compare_fixnums(value_t x, value_t y) {
   return CMP(as_fixnum(x), as_fixnum(y));
 }
 
-int compare_symbols(value_t x, value_t y) {
-  symbol_t* sx = as_symbol(x),* sy = as_symbol(y);
-
-  return strcmp(sx->name, sy->name) ? : CMP(sx->idno, sy->idno);
-}
-
 int compare_tuples(value_t x, value_t y) {
   tuple_t* tx  = as_tuple(x),* ty = as_tuple(y);
 
   return compare_value_arrays(tx->len, tx->slots, ty->len, ty->slots);
-}
-
-int compare_lists(value_t x, value_t y) {
-  list_t* lx   = as_list(x),* ly = as_list(y);
-  usize maxcmp = MIN(lx->len, ly->len);
-  int o;
-
-  for (usize i=0; i<maxcmp; i++) {
-    if ((o=compare(lx->head, ly->head)))
-      return o;
-  }
-
-  return 0 - !!lx->len - !!ly->len;
 }
 
 int compare_vectors(value_t x, value_t y) {
@@ -261,19 +226,6 @@ uhash hash_tuple(void* ptr) {
   tuple_t* tx = ptr;
 
   return hash_value_array(tx->len, tx->slots);
-}
-
-uhash hash_list(void* ptr) {
-  list_t* lx = ptr;
-
-  uhash out = hash(lx->head);
-
-  if (lx->len) {
-    uhash th = hash_object(lx->tail);
-    out      = mix_2_hashes(out, th);
-  }
-
-  return out;
 }
 
 uhash hash_vector(void* ptr) {

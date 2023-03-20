@@ -1,28 +1,10 @@
-(require prelude)
+(require (prelude))
 
-;; type predicates & other queries
-;; numeric types
-(fn small?   [x] (isa? x small))
-(fn fixnum?  [x] (isa? x fixnum))
-(fn real?    [x] (isa? x real))
-(fn big?     [x] (isa? x big))
-(fn ratio?   [x] (isa? x ratio))
-(fn complex? [x] (isa? x complex))
+;; builtin union types
+(type data-type (primitive-type object-type))
+(type type (primitive-type object-type union-type))
+(type glyph (ascii latin-1 utf-8 utf-16 utf-32))
+(type int (uint-8 sint-8 uint-16 sint-16 uint-32 sint-32 fixnum big))
+(type number (uint-8 sint-8 uint-16 sint-16 uint-32 sint-32 real-32 fixnum real big ratio complex))
 
-;; other atomic types
-(fn unit?    [x] (isa? x unit))
-(fn boolean? [x] (isa? x boolean))
-(fn glyph?   [x] (isa? x glyph))
-(fn pointer? [x] (isa? x pointer))
-(fn symbol?  [x] (isa? x symbol))
-(fn stream?  [x] (isa? x stream))
-
-;; function types
-
-;; mutable collections
-
-;; user collection types
-
-;; fucked up types
-
-(provide base)
+(provide 'base)
