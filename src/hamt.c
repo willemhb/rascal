@@ -150,8 +150,21 @@ arr_node_t* clone_arr_node(arr_node_t* node) {
 }
 
 // sacred methods -------------------------------------------------------------
-bool equal_arr_nodes(void* xp, void* yp) {
-  arr_node_t* 
+bool equal_arr_nodes(void* px, void* py) {
+  arr_node_t* ax = px, * ay = py;
+  usize ox = node_offset(ax), oy = node_offset(ay);
+
+  if (ox != oy)
+    return false;
+
+  if (ox)
+    return equal_objects(ax->len, (object_t**)ax->children, ay->len, (object_t**)ay->children);
+
+  return equal_values(ax->len, ax->values, ay->len, ay->values);
+}
+
+int compare_arr_nodes(value_t x, value_t y) {
+  arr_node_t* ax = as_arr_node(x), * ay = as_arr_node(y);
 }
 
 void freeze_arr_node(arr_node_t* node) {

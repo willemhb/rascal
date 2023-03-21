@@ -182,28 +182,35 @@ struct object_t {
 // common small tags ----------------------------------------------------------
 #define BOOLTAG     (SMALLTAG | (((uword)BOOLEAN) << 32))
 #define NULTAG      (SMALLTAG | (((uword)UNIT) << 32))
+#define ASCIITAG    (SMALLTAG | (((uword)ASCII) << 32))
 
+#define WTAG_MASK   0xffffffff00000000ul
 #define TAG_MASK    0xffff000000000000ul
 #define VAL_MASK    0x0000fffffffffffful
 
-#define TRUE_VAL    (BOOLTAG|1ul)
-#define FALSE_VAL   (BOOLTAG|0ul)
+#define TRUE_VAL    (BOOLTAG | 1ul)
+#define FALSE_VAL   (BOOLTAG | 0ul)
 
-#define NUL         (NULTAG|0ul)
-#define UNBOUND     (NULTAG|1ul)
-#define UNDEFINED   (NULTAG|3ul)
-#define NOTFOUND    (NULTAG|5ul)
+#define EOF_VAL     (ACIITAG | EOF)
+
+#define NUL         (NULTAG | 0ul)
+#define UNBOUND     (NULTAG | 1ul)
+#define UNDEFINED   (NULTAG | 3ul)
+#define NOTFOUND    (NULTAG | 5ul)
 
 #define FIXNUM_MAX  VAL_MASK
-#define FULL_MASK  (TAG_MASK|VAL_MASK)
+#define FULL_MASK  (TAG_MASK | VAL_MASK)
 
-#define NUM_TYPES (ANY+1)
+#define NUM_TYPES (ANY + 1)
 
 extern type_t* BuiltinTypes[NUM_TYPES];
 
 // API ------------------------------------------------------------------------
 // tags, tagging, types, queries ----------------------------------------------
-#define ASA(x, t) ((t*)(((uword)(x)) & VAL_MASK))
+#define ASP(x, t)     ((t*)(((uword)(x)) & VAL_MASK))
+#define ASV(x, t)     ((t)(((uword)(x)) & VAL_MASK))
+#define ISA(x, t)     has_type(x, &t.type)
+#define IST(x, t, m)  (((x) & (m)) == (t))
 
 val_type_t val_type(value_t val);
 

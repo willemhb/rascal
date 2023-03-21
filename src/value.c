@@ -236,7 +236,7 @@ void value_init(void) {
   BuiltinTypes[DATA_TYPE]  = &DataTypeType.type;
   BuiltinTypes[UNION_TYPE] = &UnionTypeType.type;
 
-  extern data_type_t ArrNodeType, ArrLeafType,
+  extern data_type_t ArrNodeType,
     MapNodeType, MapLeafType, MapLeavesType,
     MethodTableType, MethodType,
     ChunkType, ClosureType,
@@ -244,7 +244,6 @@ void value_init(void) {
     ControlType;
 
   BuiltinTypes[ARR_NODE] = &ArrNodeType.type;
-  BuiltinTypes[ARR_LEAF] = &ArrLeafType.type;
   BuiltinTypes[MAP_NODE] = &MapNodeType.type;
   BuiltinTypes[MAP_LEAF] = &MapLeafType.type;
   BuiltinTypes[MAP_LEAVES] = &MapLeavesType.type;

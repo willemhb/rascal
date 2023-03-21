@@ -43,6 +43,10 @@ struct buffer_t {
   ubyte *array;
 };
 
+// globals --------------------------------------------------------------------
+extern data_type_t PortType, BinaryType, StringType, BufferType,
+  AsciiType, Latin1Type, Utf8Type, Utf16Type, Utf32Type;
+
 // API ------------------------------------------------------------------------
 // port -----------------------------------------------------------------------
 port_t* port(FILE* ios, flags fl);
@@ -66,5 +70,9 @@ binary_t* binary(usize n, ubyte* bytes);
 
 // buffer ---------------------------------------------------------------------
 buffer_t* buffer(int elsize, int encoded);
+
+// character types ------------------------------------------------------------
+// ascii ----------------------------------------------------------------------
+#define is_ascii()
 
 #endif

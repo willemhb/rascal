@@ -68,8 +68,8 @@ extern struct data_type_t SymbolType, ListType, TupleType, TableType, AlistType;
 
 // API ------------------------------------------------------------------------
 // lifetime API ---------------------------------------------------------------
-#define is_object(x) (((x) & TAG_MASK) == OBJTAG)
-#define as_object(x) ASA(x, object_t)
+#define is_object(x) IST(x, OBJTAG, TAG_MASK)
+#define as_object(x) ASP(x, object_t)
 #define object(o)    ((((uword)(o)) & VAL_MASK) | OBJTAG)
 #define freeze(o)    (((object_t*)(o))->frozen = true)
 
@@ -90,8 +90,8 @@ uhash hash_objects(usize n, object_t** objs);
 uhash hash_values(usize n, value_t* vals);
 
 // symbol API -----------------------------------------------------------------
-#define     is_symbol(x) has_type(x, &SymbolType.type)
-#define     as_symbol(x) ASA(x, symbol_t)
+#define     is_symbol(x) ISA(x, SymbolType)
+#define     as_symbol(x) ASP(x, symbol_t)
 
 symbol_t*   symbol(char* name, bool intern);
 bool        is_defind(symbol_t* sym, namespace_t* ns);
@@ -101,21 +101,21 @@ variable_t* defvar(value_t name, namespace_t* ns, string_t* doc, type_t* type, v
 variable_t* defconst(value_t name, namespace_t* ns, string_t* doc, type_t* type, value_t bind);
 
 // list API -------------------------------------------------------------------
-#define     is_list(x) has_type(x, &ListType.type)
-#define     as_list(x) ASA(x, list_t)
+#define     is_list(x) ISA(x, ListType)
+#define     as_list(x) ASP(x, list_t)
 
 list_t*     list(usize n, value_t* args);
 list_t*     cons(value_t head, list_t* tail);
 
 // tuple API ------------------------------------------------------------------
-#define     is_tuple(x) has_type(x, &TupleType)
-#define     as_tuple(x) ASA(x, tuple_t)
+#define     is_tuple(x) ISA(x, TupleType)
+#define     as_tuple(x) ASP(x, tuple_t)
 
 tuple_t*    tuple(usize n, value_t* args);
 
 // table API ------------------------------------------------------------------
-#define     is_table(x) has_type(x, &TableType.type)
-#define     as_table(x) ASA(x, table_t)
+#define     is_table(x) ISA(x, TableType)
+#define     as_table(x) ASP(x, table_t)
 
 table_t*    table(void);
 void        reset_table(table_t* self);
@@ -124,8 +124,8 @@ value_t     table_set(table_t* self, value_t key, value_t val);
 value_t     table_del(table_t* self, value_t key);
 
 // alist API ------------------------------------------------------------------
-#define     is_alist(x) has_type(x, &AlistType.type)
-#define     as_alist(x) ASA(x, alist_t)
+#define     is_alist(x) ISA(x, AlistType)
+#define     as_alist(x) ASP(x, alist_t)
 
 alist_t*    alist(void);
 void        reset_alist(alist_t* self);
