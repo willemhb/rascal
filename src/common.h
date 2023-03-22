@@ -1,11 +1,13 @@
 #ifndef common_h
 #define common_h
 
+// standard includes ----------------------------------------------------------
 #include <stddef.h>
 #include <stdint.h>
 #include <assert.h>
 #include <stdbool.h>
 
+// C types 
 typedef uint8_t ubyte;
 typedef uint32_t uint;
 typedef uintptr_t uword;
@@ -23,6 +25,18 @@ typedef int32_t  sint32;
 typedef uint64_t uint64;
 typedef int64_t sint64;
 
+typedef union {
+  double dbl;
+  uword  word;
+  struct {
+    uword frac : 52;
+    uword expt : 11;
+    uword sign :  1;
+  } parts;
+} ieee64_t;
+
+// globals --------------------------------------------------------------------
+// misc -----------------------------------------------------------------------
 #define RASCAL_DEBUG
 
 // utilities ------------------------------------------------------------------

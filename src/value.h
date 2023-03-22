@@ -174,6 +174,7 @@ struct object_t {
 #define QNAN        0x7ff8000000000000ul
 
 // user values ----------------------------------------------------------------
+#define REALTAG     0x0000000000000000ul // dummy tag
 #define SMALLTAG    0x7ffc000000000000ul
 #define OBJTAG      0x7ffd000000000000ul
 #define FIXTAG      0x7ffe000000000000ul
@@ -181,8 +182,12 @@ struct object_t {
 
 // common small tags ----------------------------------------------------------
 #define BOOLTAG     (SMALLTAG | (((uword)BOOLEAN) << 32))
-#define NULTAG      (SMALLTAG | (((uword)UNIT) << 32))
-#define ASCIITAG    (SMALLTAG | (((uword)ASCII) << 32))
+#define NULTAG      (SMALLTAG | (((uword)UNIT)    << 32))
+#define ASCIITAG    (SMALLTAG | (((uword)ASCII)   << 32))
+#define LATIN1TAG   (SMALLTAG | (((uword)LATIN1)  << 32))
+#define UTF8TAG     (SMALLTAG | (((uword)UTF8)    << 32))
+#define UTF16TAG    (SMALLTAG | (((uword)UTF16)   << 32))
+#define UTF32TAG    (SMALLTAG | (((uword)UTF32)   << 32))
 
 #define WTAG_MASK   0xffffffff00000000ul
 #define TAG_MASK    0xffff000000000000ul
@@ -191,7 +196,7 @@ struct object_t {
 #define TRUE_VAL    (BOOLTAG | 1ul)
 #define FALSE_VAL   (BOOLTAG | 0ul)
 
-#define EOF_VAL     (ACIITAG | EOF)
+#define EOF_VAL     (ASCIITAG | EOF)
 
 #define NUL         (NULTAG | 0ul)
 #define UNBOUND     (NULTAG | 1ul)
@@ -211,6 +216,8 @@ extern type_t* BuiltinTypes[NUM_TYPES];
 #define ASV(x, t)     ((t)(((uword)(x)) & VAL_MASK))
 #define ISA(x, t)     has_type(x, &t.type)
 #define IST(x, t, m)  (((x) & (m)) == (t))
+#define TAGV(x, t)    ((((uword)(x)) & VAL_MASK) |(t))
+#define TAGF(x, t)    (((ieee64_t)(x)).word)
 
 val_type_t val_type(value_t val);
 

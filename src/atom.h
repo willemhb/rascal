@@ -10,15 +10,13 @@ extern data_type_t PonterType, BooleanType;
 
 // API ------------------------------------------------------------------------
 // pointer --------------------------------------------------------------------
-#define is_pointer(x)   (((x) & TAG_MASK) == PTRTAG)
-#define as_pointer(x)   ((pointer_t)(((uword)(o)) & VAL_MASK))
-#define pointer(p)      ((((uword)(o)) & VAL_MASK) | PTRTAG)
+#define is_pointer(x)   IST(x, PTRTAG, TAG_MASK)
+#define as_pointer(x)   ASV(x, pointer_t)
+#define pointer(p)      TAGV(p, PTRTAG)
 
 // boolean --------------------------------------------------------------------
-#define is_boolean(x) (((x) & TAG_MASK) == BOOLTAG)
+#define is_boolean(x) IST(x, BOOLTAG, WTAG_MASK)
 #define as_boolean(x) ((x) == TRUE_VAL)
 #define boolean(x)    ((x) ? TRUE_VAL : FALSE_VAL)
-
-
 
 #endif

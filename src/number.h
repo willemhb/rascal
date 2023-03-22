@@ -25,16 +25,6 @@ struct big_t {
   ubyte  digits[];   // digit values
 };
 
-typedef union {
-  double dbl;
-  uword  word;
-  struct {
-    uword frac : 52;
-    uword expt : 11;
-    uword sign :  1;
-  } parts;
-} ieee64_t;
-
 #define MIN(x, y)                               \
   ({                                            \
     __auto_type _x = x;                         \
