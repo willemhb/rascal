@@ -54,4 +54,7 @@ uword  dtow(double dbl);
 double wtod(uword word);
 uword  ceil2(uword word);
 
+#define is_fixnum(x) IST(x, FIXTAG, TAG_MASK)
+#define as_fixnum(x) ((x) & VAL_MASK)
+
 #endif

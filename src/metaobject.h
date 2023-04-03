@@ -38,7 +38,7 @@ struct data_type_t {
 
 struct union_type_t {
   TYPE_HEADER;
-  set_t* members;
+  dict_t* members;
 };
 
 // API ------------------------------------------------------------------------

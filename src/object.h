@@ -19,9 +19,16 @@ struct symbol_t {
 
 struct list_t {
   HEADER;
-  usize   len;
+  uint64  arity;
   value_t head;
   list_t* tail;
+};
+
+struct tuple_t {
+  HEADER;
+  uint32  length;
+  uint32  capacity;
+  value_t slots[];
 };
 
 struct table_t {
@@ -46,7 +53,7 @@ struct alist_t {
 
 // globals --------------------------------------------------------------------
 extern list_t EmptyList;
-extern data_type_t SymbolType, ListType, TableType, AlistType;
+extern data_type_t SymbolType, ListType, TupleType, TableType, AlistType;
 
 // API ------------------------------------------------------------------------
 // lifetime API ---------------------------------------------------------------
@@ -58,9 +65,10 @@ extern data_type_t SymbolType, ListType, TableType, AlistType;
 #define freeze(o)    (((object_t*)(o))->frozen = true)
 #define unfreeze(o)  (((object_t*)(o))->frozen = false)
 
-int  init_object(void* self, data_type_t* type);
-void mark_object(void* self);
-void free_object(void* self);
+void* new_object(data_type_t* type, usize padding);
+void* editable(void* self);
+void  mark_object(void* self);
+void  free_object(void* self);
 
 // traversal utilities --------------------------------------------------------
 void mark_objects(usize n, object_t** objs);
@@ -92,9 +100,15 @@ variable_t* defconst(value_t name, namespace_t* ns, string_t* doc, type_t* type,
 list_t*     list(usize n, value_t* args);
 list_t*     cons(value_t head, list_t* tail);
 
+// tuple API ------------------------------------------------------------------
+#define     is_tuple(x) ISA(x, TupleType)
+#define     as_tuple(x) ASP(x, tuple_t)
+
 // table API ------------------------------------------------------------------
 #define     is_table(x) ISA(x, TableType)
 #define     as_table(x) ASP(x, table_t)
+
+tuple_t*    tuple(uint32 length, uint32 capacity, value_t* slots);
 
 table_t*    table(void);
 void        reset_table(table_t* self);

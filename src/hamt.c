@@ -9,126 +9,120 @@
 
 // misc -----------------------------------------------------------------------
 // globals --------------------------------------------------------------------
-#define NODE_SHIFT 6
-#define NODE_MAXN 64u
-#define NODE_MINN 1u
-#define NODE_MASK 0x3ful
-#define NODE_MAXH 7ul
-#define NODE_MAXL 8ul
+#define SHIFT      0x06ul
+#define MAXN       0x40ul
+#define MAXS       0x2aul
+#define MINN       0x01ul
+#define MASK       0x3ful
+#define MAXH       0x07ul
+#define MAXL       0x08ul
+#define KEY(a, o)  ((a)[((o) & MASK) << 1])
+#define VAL(a, o)  ((a)[(((o) & MASK) << 1) | 1])
 
-// APIs -----------------------------------------------------------------------
-// vector ---------------------------------------------------------------------
-// globals --------------------------------------------------------------------
-vector_t EmptyVector = {
-  .obj={
-    .frozen=true,
-    .gray  =true,
-    .type  =VECTOR
-  }
-};
+// utilities ------------------------------------------------------------------
+static uint32 tailoff(void* ptr, uint64 n) {
+  hamt_t* hamt = ptr;
 
-// local helpers --------------------------------------------------------------
-static vecnode_t* vecnode(usize length, object_t** children) {
-  vecnode_t* out = allocate(sizeof(vecnode_t));
-  init_object(out, &VecNodeType);
-
-  out->length = length;
-
-  if (children)
-    memcpy(out->children, children, length * sizeof(object_t*));
-
-  return out;
-}
-
-static vecleaf_t* vecleaf(value_t values[64]) {
-  vecleaf_t* out = allocate(sizeof(vecleaf_t));
-  init_object(out, &VecLeafType);
-  memcpy(out->values, values, 64 * sizeof(value_t));
-  return out;
-}
-
-static usize tailoff(vector_t* self) {
-  if (self->arity <= NODE_MAXN)
+  if (hamt->arity < MAXN)
     return 0;
 
-  return self->arity & ~NODE_MASK;
+  return n & ~MASK;
 }
 
-static value_t* array_for(vector_t* self, usize n) {
-  if (n >= tailoff(self))
-    return self->tail;
-
-  object_t* node = (object_t*)self->root;
-
-  for (usize off=self->offset; off > 0; off -= NODE_SHIFT)
-    node = (object_t*)((vecnode_t*)node)->children[n >> off & NODE_MASK];
-
-  return ((vecleaf_t*)node)->values;
+static inline uint64 get_shift(uint32 shift, uint64 i) {
+  return i >> shift & MASK;
 }
 
-static void* editable(void* node) {
-  assert(node);
-
-  object_t* obj = node;
-
-  if (is_frozen(obj)) {
-    obj = duplicate(obj, rl_size_of(obj));
-    unfreeze(obj);
-  }
-
-  return obj;
+static inline uint64 get_mask(uint32 shift, uint64 i) {
+  return 1ul << get_shift(shift, i);
 }
 
-static int append_tail(object_t** buffer, uint offset, value_t tail[64]) {
+static inline uint64 get_index(uint32 shift, uint64 i, uint64 bitmap) {
+  return popcnt(bitmap & (get_mask(shift, i) - 1));
+}
+
+static inline bool has_entry(uint32 shift, uint64 i, uint64 bitmap) {
+  return !!(get_mask(shift, i) & bitmap);
+}
+
+static value_t* array_for(void* ptr, uint64 n) {
+  hamt_root_t* hamt = ptr;
+
+  if (n >= tailoff(hamt, n))
+    return hamt->hamt.tail;
+
+  tuple_t* root = hamt->root;
+
+  for (uint32 shift=hamt->hamt.shift; shift > 0; shift -= SHIFT)
+    root = as_tuple(root->slots[get_shift(shift, n)]);
+
+  return root->slots;
+}
+
+static value_t* entry_for(void* ptr, uint64 n) {
   
 }
 
-value_t vector_get(vector_t* self, usize n) {
-  assert(n < self->arity);
+// APIs -----------------------------------------------------------------------
+// vector ---------------------------------------------------------------------
+value_t vector_get(vector_t* self, uint64 n) {
+  assert(n < self->root.hamt.arity);
 
-  value_t* arr = array_for(self, n);
+  value_t* array = array_for(self, n);
 
-  return arr[n & NODE_MASK];
+  return array[n & MASK];
 }
 
-vector_t* vector_set(vector_t* self, usize n, value_t x) {
-  vector_t* out = editable(self);
-  bool do_freeze = out != self;
+vector_t* vector_set(vector_t* self, uint64 n, value_t x) {
+  
+}
 
-  if (n >= tailoff(out)) {
-    out->tail[n & NODE_MASK] = x;
+// dict -----------------------------------------------------------------------
+value_t dict_get(dict_t* self, value_t key) {
+  if (self == &EmptyDict)
+    return NOTFOUND;
 
-  } else {
-    object_t* node = (object_t*)self->root, ** buf = (object_t**)&self->root, * pnode = (object_t*)out;
+  if (key == NUL)
+    return self->root.hamt.hasNul ? self->nulval : NOTFOUND;
 
-    for (usize off = self->offset; off > 0; off -= NODE_SHIFT) {
-      node = *buf = editable(node);
-      pnode->frozen = do_freeze;
-      buf = &((vecnode_t*)node)->children[n >> off & NODE_MASK];
-      node = *buf;
+  uint64 h = rl_hash(key);
+
+  stencil_t* map = self->map;
+
+  for (;;) {
+    uint32 shift  = map->hamt.shift;
+    uint64 bitmap = map->hamt.bitmap;
+    value_t* tail = map->hamt.tail;
+    
+    if (has_entry(shift, h, bitmap)) {
+      uint64 i  = get_index(shift, h, bitmap);
+      value_t x = tail[i];
+
+      if (is_object(x))
+        map = (stencil_t*)as_object(x);
+
+      else {
+        uint64 n = as_fixnum(x);
+        value_t* array = array_for(self, n);
+
+        else
+          return NOTFOUND;
+      }
     }
 
-    node = *buf = editable(node);
-    pnode->frozen = do_freeze;
-    ((vecleaf_t*)node)->values[n & NODE_MASK] = x;
-    node->frozen = do_freeze;
+    else
+      return NOTFOUND;
   }
-
-  return out;
 }
 
-vector_t* vector_add(vector_t* self, value_t x) {
-  vector_t* out = editable(self);
-  bool do_freeze = out != self;
-
-  if (out->length == NODE_MAXN) {
-    out->offset  = append_tail((object_t**)&out->root, out->offset, out->tail);
-    out->length = 0;
-  }
-
-  out->tail[out->length++] = x;
-  out->arity++;
-  header(out)->frozen = do_freeze;
-
-  return out;
+dict_t* dict_set(dict_t* self, value_t key, value_t val) {
+  
 }
+
+#undef SHIFT
+#undef MAXN
+#undef MAXS
+#undef MINN
+#undef MASK
+#undef MAXH
+#undef MAXL

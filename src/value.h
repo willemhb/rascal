@@ -37,11 +37,7 @@ typedef struct data_type_t  data_type_t;
 typedef struct union_type_t union_type_t;
 
 // internal types -------------------------------------------------------------
-typedef struct vecnode_t     vecnode_t;
-typedef struct vecleaf_t     vecleaf_t;
-typedef struct mapnode_t     mapnode_t;
-typedef struct mapleaf_t     mapleaf_t;
-typedef struct method_t      method_t;
+typedef struct stencil_t     stencil_t;
 typedef struct chunk_t       chunk_t;
 typedef struct closure_t     closure_t;
 typedef struct variable_t    variable_t;
@@ -56,13 +52,12 @@ typedef struct port_t     port_t;
 typedef struct binary_t   binary_t;
 typedef struct string_t   string_t;
 typedef struct list_t     list_t;
+typedef struct tuple_t    tuple_t;
 typedef struct vector_t   vector_t;
 typedef struct dict_t     dict_t;
-typedef struct set_t      set_t;
 typedef struct table_t    table_t;
 typedef struct alist_t    alist_t;
 typedef struct buffer_t   buffer_t;
-typedef struct struct_t   struct_t;
 typedef struct record_t   record_t;
 typedef struct complex_t  complex_t;
 typedef struct ratio_t    ratio_t;
@@ -75,11 +70,7 @@ typedef enum {
   UNION_TYPE,
 
   // internal types -----------------------------------------------------------
-  VECNODE,
-  VECLEAF,
-  MAPNODE,
-  MAPLEAF,
-  METHOD,
+  STENCIL,
   CHUNK,
   CLOSURE,
   VARIABLE,
@@ -100,7 +91,6 @@ typedef enum {
   TABLE,
   ALIST,
   BUFFER,
-  STRUCT,
   RECORD,
   COMPLEX,
   RATIO,
