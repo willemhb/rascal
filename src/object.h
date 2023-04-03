@@ -24,12 +24,6 @@ struct list_t {
   list_t* tail;
 };
 
-struct tuple_t {
-  HEADER;
-  usize   len;
-  value_t slots[];
-};
-
 struct table_t {
   HEADER;
   usize count, tcap, ocap;
@@ -47,33 +41,24 @@ struct table_t {
 struct alist_t {
   HEADER;
   usize count, cap;
-
   value_t *array;
 };
 
-typedef struct {
-  data_type_t* type;
-  uword        hash   : 48;
-  uword        flags  : 12;
-  uword        hashed :  1;
-  uword        frozen :  1;
-  uword        data   :  1;
-  uword        safe   :  1;
-} object_init_t;
-
 // globals --------------------------------------------------------------------
-extern struct list_t  EmptyList;
-extern struct tuple_t EmptyTuple;
-extern struct data_type_t SymbolType, ListType, TupleType, TableType, AlistType;
+extern list_t EmptyList;
+extern data_type_t SymbolType, ListType, TableType, AlistType;
 
 // API ------------------------------------------------------------------------
 // lifetime API ---------------------------------------------------------------
 #define is_object(x) IST(x, OBJTAG, TAG_MASK)
 #define as_object(x) ASP(x, object_t)
+
+#define header(o)    ((object_t*)(o))
 #define object(o)    ((((uword)(o)) & VAL_MASK) | OBJTAG)
 #define freeze(o)    (((object_t*)(o))->frozen = true)
+#define unfreeze(o)  (((object_t*)(o))->frozen = false)
 
-int  init_object(void* self, void* ini);
+int  init_object(void* self, data_type_t* type);
 void mark_object(void* self);
 void free_object(void* self);
 
@@ -94,7 +79,7 @@ uhash hash_values(usize n, value_t* vals);
 #define     as_symbol(x) ASP(x, symbol_t)
 
 symbol_t*   symbol(char* name, bool intern);
-bool        is_defind(symbol_t* sym, namespace_t* ns);
+bool        is_defined(symbol_t* sym, namespace_t* ns);
 bool        is_bound(symbol_t* sym, namespace_t* ns);
 value_t     toplevel(symbol_t* sym);
 variable_t* defvar(value_t name, namespace_t* ns, string_t* doc, type_t* type, value_t bind);
@@ -106,12 +91,6 @@ variable_t* defconst(value_t name, namespace_t* ns, string_t* doc, type_t* type,
 
 list_t*     list(usize n, value_t* args);
 list_t*     cons(value_t head, list_t* tail);
-
-// tuple API ------------------------------------------------------------------
-#define     is_tuple(x) ISA(x, TupleType)
-#define     as_tuple(x) ASP(x, tuple_t)
-
-tuple_t*    tuple(usize n, value_t* args);
 
 // table API ------------------------------------------------------------------
 #define     is_table(x) ISA(x, TableType)

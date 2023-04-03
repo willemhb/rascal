@@ -37,41 +37,36 @@ typedef struct data_type_t  data_type_t;
 typedef struct union_type_t union_type_t;
 
 // internal types -------------------------------------------------------------
-typedef struct arr_node_t   arr_node_t;
-typedef struct map_node_t   map_node_t;
-typedef struct map_leaf_t   map_leaf_t;
-typedef struct map_leaves_t map_leaves_t;
-typedef struct set_node_t   set_node_t;
-typedef struct set_leaf_t   set_leaf_t;
-typedef struct set_leaves_t set_leaves_t;
-typedef struct method_table_t method_table_t;
-typedef struct method_t method_t;
-typedef struct chunk_t chunk_t;
-typedef struct closure_t closure_t;
-typedef struct variable_t variable_t;
-typedef struct namespace_t namespace_t;
+typedef struct vecnode_t     vecnode_t;
+typedef struct vecleaf_t     vecleaf_t;
+typedef struct mapnode_t     mapnode_t;
+typedef struct mapleaf_t     mapleaf_t;
+typedef struct method_t      method_t;
+typedef struct chunk_t       chunk_t;
+typedef struct closure_t     closure_t;
+typedef struct variable_t    variable_t;
+typedef struct namespace_t   namespace_t;
 typedef struct environment_t environment_t;
-typedef struct control_t control_t;
+typedef struct control_t     control_t;
 
 // user types -----------------------------------------------------------------
-typedef struct symbol_t symbol_t;
+typedef struct symbol_t   symbol_t;
 typedef struct function_t function_t;
-typedef struct port_t port_t;
-typedef struct binary_t binary_t;
-typedef struct string_t string_t;
-typedef struct tuple_t tuple_t;
-typedef struct list_t list_t;
-typedef struct vector_t vector_t;
-typedef struct dict_t dict_t;
-typedef struct set_t set_t;
-typedef struct table_t table_t;
-typedef struct alist_t alist_t;
-typedef struct buffer_t buffer_t;
-typedef struct struct_t struct_t;
-typedef struct record_t record_t;
-typedef struct complex_t complex_t;
-typedef struct ratio_t ratio_t;
-typedef struct big_t big_t;
+typedef struct port_t     port_t;
+typedef struct binary_t   binary_t;
+typedef struct string_t   string_t;
+typedef struct list_t     list_t;
+typedef struct vector_t   vector_t;
+typedef struct dict_t     dict_t;
+typedef struct set_t      set_t;
+typedef struct table_t    table_t;
+typedef struct alist_t    alist_t;
+typedef struct buffer_t   buffer_t;
+typedef struct struct_t   struct_t;
+typedef struct record_t   record_t;
+typedef struct complex_t  complex_t;
+typedef struct ratio_t    ratio_t;
+typedef struct big_t      big_t;
 
 // builtin type codes ---------------------------------------------------------
 typedef enum {
@@ -80,14 +75,10 @@ typedef enum {
   UNION_TYPE,
 
   // internal types -----------------------------------------------------------
-  ARR_NODE,
-  MAP_NODE,
-  MAP_LEAF,
-  MAP_LEAVES,
-  SET_NODE,
-  SET_LEAF,
-  SET_LEAVES,
-  METHOD_TABLE,
+  VECNODE,
+  VECLEAF,
+  MAPNODE,
+  MAPLEAF,
   METHOD,
   CHUNK,
   CLOSURE,
@@ -102,7 +93,6 @@ typedef enum {
   PORT,
   BINARY,
   STRING,
-  TUPLE,
   LIST,
   VECTOR,
   DICT,
@@ -237,6 +227,11 @@ kind_t val_has_type(value_t val, type_t* type);
 kind_t obj_has_type(void* ptr, type_t* type);
 
 #define has_type(x, t) generic2(has_type, x, t)
+
+bool val_is_frozen(value_t val);
+bool obj_is_frozen(void* ptr);
+
+#define is_frozen(x) generic2(is_frozen, x)
 
 void val_print(value_t, port_t* ios);
 void obj_print(void* ptr, port_t* ios);

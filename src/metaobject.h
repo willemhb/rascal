@@ -8,9 +8,9 @@
 // C types --------------------------------------------------------------------
 struct type_t {
   HEADER;
-  char*        name;
-  uint64       idno;
-  kind_t     (*isa)(value_t v, type_t* self);
+  char*    name;
+  uint64   idno;
+  kind_t (*isa)(value_t v, type_t* self);
 };
 
 struct data_type_t {
@@ -19,7 +19,7 @@ struct data_type_t {
   dict_t*   slots;
   object_t* member; // for unique empty instance of immutable type ------------
 
-  // vtable 
+  // vtable -------------------------------------------------------------------
   // sacred methods -----------------------------------------------------------
   void  (*print)(value_t val, port_t* ios);
   usize (*size_of)(void* ptr);
@@ -28,7 +28,7 @@ struct data_type_t {
   int   (*compare)(value_t x, value_t y);
 
   // lifetime methods ---------------------------------------------------------
-  int   (*init)(void* self, void* ini);
+  void  (*init)(void* self);
   void  (*trace)(void* self);
   void  (*free)(void* self);
 
