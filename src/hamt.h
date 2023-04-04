@@ -1,7 +1,7 @@
 #ifndef hamt_h
 #define hamt_h
 
-#include "value.h"
+#include "object.h"
 
 /* core user collection types and their internal dependencies */
 // C types --------------------------------------------------------------------
@@ -20,17 +20,12 @@ struct dict_t {
   stencil_t* root;
 };
 
-struct set_t {
-  HEADER;
-  uint64     arity;
-  stencil_t* root;
-};
-
 struct stencil_t {
   HEADER;
   uint64    bitmap;
   uint32    shift;
-  uint32    capacity;
+  uint16    length;
+  uint16    capacity;
 
   object_t* children[];
 };
@@ -48,13 +43,21 @@ struct node_t {
 };
 
 // globals --------------------------------------------------------------------
-extern data_type_t VectorType, DictType, SetType, StencilType, NodeType;
+extern data_type_t VectorType, DictType, StencilType, NodeType;
 
 extern vector_t EmptyVector;
 extern dict_t   EmptyDict;
-extern set_t    EmptySet;
 
 // API ------------------------------------------------------------------------
+// internals ------------------------------------------------------------------
+#define   is_node(x) ISA(x, NodeType)
+#define   as_node(x) ASP(x, node_t)
+
+node_t*   node(usize n, uint shift, void* data);
+
+#define   is_stencil(x) ISA(x, StencilType)
+#define   as_stencil(x) ASP(x, stencil_t)
+
 // vector ---------------------------------------------------------------------
 #define   is_vector(x) ISA(x, VectorType)
 #define   as_vector(x) ASP(x, vector_t)
@@ -73,14 +76,5 @@ dict_t* dict(usize n, value_t* kvs);
 value_t dict_get(dict_t* self, value_t k);
 dict_t* dict_set(dict_t* self, value_t k, value_t v);
 dict_t* dict_del(dict_t* self, value_t k, value_t v);
-
-// set ------------------------------------------------------------------------
-#define is_set(x) ISA(x, SetType)
-#define as_set(x) ASP(x, set_t)
-
-set_t*  set(usize n, value_t* vs);
-bool    set_has(set_t* self, value_t v);
-set_t*  set_add(set_t* self, value_t v);
-set_t*  set_del(set_t* self, value_t v);
 
 #endif

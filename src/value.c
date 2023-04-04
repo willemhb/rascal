@@ -2,7 +2,6 @@
 
 #include "value.h"
 #include "object.h"
-#include "metaobject.h"
 #include "product.h"
 #include "text.h"
 #include "number.h"
@@ -48,7 +47,7 @@ data_type_t* obj_type_of(void* ptr) {
   object_t* obj = ptr;
   assert(obj);
 
-  if (obj->type == STRUCT || obj->type == RECORD)
+  if (obj->type == RECORD)
     return ((record_t*)obj)->type;
 
   return (data_type_t*)BuiltinTypes[obj->type];
@@ -106,7 +105,6 @@ usize obj_size_of(void* ptr) {
   return out;
 }
 
-
 uhash val_hash(value_t x) {
   if (is_object(x))
     return obj_hash(as_object(x));
@@ -125,6 +123,24 @@ uhash obj_hash(void* ptr) {
 
   if (type->hash) {
     obj->hash   = type->hash(obj);
+    obj->hashed = true;
+
+    return obj->hash;
+  }
+
+  if (type->iter) {
+    void* it = iter(obj);
+    uhash base = header(type)->hash;
+
+    for (value_t x=next(&it); x != STOPITER; x=next(&it)) {
+      uhash xhash = rl_hash(x);
+      base = mix_2_hashes(base, xhash);
+    }
+
+    if (base == header(type)->hash)
+      base = mix_2_hashes(base, base-1);
+
+    obj->hash   = base;
     obj->hashed = true;
 
     return obj->hash;
@@ -160,8 +176,23 @@ bool obj_equal(void* px, void* py) {
   if (xtype != ytype)
     return false;
 
-  if (xtype->equal)
-    return xtype->equal(x, y);
+  if (xtype->equal) {
+    int o = xtype->equal(x, y);
+
+    if (o > -1)
+      return o;
+  }
+
+  if (xtype->iter) {
+    void* ix = xtype->iter(ix), * iy = xtype->iter(y);
+    value_t xx, xy;
+
+    for (xx=next(&ix), xy=next(&iy); xx != STOPITER && xy != STOPITER; xx=next(&ix), xy=next(&iy))
+      if (!rl_equal(xx, xy))
+        return false;
+
+    return xx == STOPITER && xy == STOPITER;
+  }
 
   return false;
 }
@@ -197,7 +228,19 @@ int obj_compare(void* px, void* py) {
   if (xtype->compare)
     return xtype->compare(object(x), object(y));
 
-  usize xsize = rl_size_of(x), ysize = rl_size_of(y), maxc = MIN(xsize, ysize);
+  if (xtype->iter) {
+    void* ix = xtype->iter(ix), * iy = xtype->iter(y);
+    value_t xx, xy;
+    int o;
+
+    for (xx=next(&ix), xy=next(&iy); xx != STOPITER && xy != STOPITER; xx=next(&ix), xy=next(&iy))
+      if ((o=rl_compare(xx, xy)))
+        return o;
+
+    return 0 - (xx == STOPITER) + (xy == STOPITER);
+  }
+
+  usize xsize = rl_size_of(x) - sizeof(object_t), ysize = rl_size_of(y) - sizeof(object_t), maxc = MIN(xsize, ysize);
   int o;
 
   if ((o=memcmp(x, y, maxc)))

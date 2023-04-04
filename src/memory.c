@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 #include "memory.h"
-#include "object.h"
+#include "internal.h"
 
 // heap -----------------------------------------------------------------------
 object_t* LiveObjects = NULL;

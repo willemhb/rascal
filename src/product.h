@@ -2,18 +2,12 @@
 #define product_h
 
 // user types
-#include "value.h"
-
-struct struct_t {
-  HEADER;
-  data_type_t* type;
-  tuple_t*     slots;
-};
+#include "object.h"
 
 struct record_t {
   HEADER;
   data_type_t* type;
-  tuple_t* slots;
+  dict_t* slots;
 };
 
 #endif

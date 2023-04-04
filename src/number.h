@@ -1,23 +1,11 @@
 #ifndef number_h
 #define number_h
 
-#include "value.h"
+#include "object.h"
 
 /* numeric utilities & builtin numeric types */
 
 // C types --------------------------------------------------------------------
-struct complex_t {
-  HEADER;
-  real_t real;
-  real_t imag;
-};
-
-struct ratio_t {
-  HEADER;
-  value_t numer; // might be a fixnum or a big int
-  value_t denom;
-};
-
 struct big_t {
   HEADER;
   sint32 sign;

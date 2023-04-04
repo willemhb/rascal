@@ -13,7 +13,7 @@
   })
 
 void* allocate(usize size);
-void* duplicate(void* ptr, usize size);
+void* duplicate(void* ptr, usize size, usize pad);
 void* reallocate(void* ptr, usize old, usize new);
 void  deallocate(void* ptr, usize size);
 void  push_gray(void* obj);

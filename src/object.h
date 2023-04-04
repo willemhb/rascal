@@ -23,8 +23,8 @@ struct object_t {
 };
 
 typedef enum {
-  ITERABLE = 0x01, // first and rest can be called on this object
-} obj_fl_t;
+  IMMUTABLE = 0x01, // new instances are frozen by default
+} type_fl_t;
 
 struct type_t {
   HEADER;
@@ -51,9 +51,9 @@ struct data_type_t {
   bool    (*hasnext)(void* iterable);
 
   // lifetime methods ---------------------------------------------------------
-  void*   (*alloc)(type_t* type, usize count, flags fl);
+  void*   (*alloc)(data_type_t* type, usize count, flags fl);
   void*   (*copy)(void* self, usize padding);
-  void    (*init)(void* self, usize count, flags fl);
+  void    (*init)(void* self, data_type_t* type, usize count, flags fl);
   void    (*trace)(void* self);
   void    (*free)(void* self);
 
@@ -70,8 +70,20 @@ struct union_type_t {
   union_type_t* right;
 };
 
+struct iterator_t {
+  HEADER;
+  data_type_t* type;
+  object_t*    self;
+  usize        statesize;
+  void*        state;     // always inlined
+};
+
+// globals --------------------------------------------------------------------
+extern data_type_t DataTypeType, UnionTypeType, IteratorType;
+
 // API ------------------------------------------------------------------------
 // object ---------------------------------------------------------------------
+// utilities ------------------------------------------------------------------
 #define is_object(x) IST(x, OBJTAG, TAG_MASK)
 #define as_object(x) ASP(x, object_t)
 
@@ -80,13 +92,23 @@ struct union_type_t {
 #define freeze(o)    (((object_t*)(o))->frozen = true)
 #define unfreeze(o)  (((object_t*)(o))->frozen = false)
 
+void trace_objects(usize n, object_t** objs);
+void trace_values(usize n, value_t* vals);
+
+// lifetime -------------------------------------------------------------------
 void*   new_object(data_type_t* type, usize count, flags fl);
+void*   alloc_object(data_type_t* type, usize count, flags fl);
 void*   copy_object(void* self, usize padding, bool editable);
+void    init_object(void* self, data_type_t* type, usize count, flags fl);
 void    mark_object(void* self);
 void    free_object(void* self);
 
+// iteration ------------------------------------------------------------------
 void*   iter(void* ptr);
 value_t next(void** buf);
 bool    hasnext(void* ptr);
+
+// type -----------------------------------------------------------------------
+
 
 #endif

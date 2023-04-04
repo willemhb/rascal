@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 
-#include "value.h"
+#include "object.h"
 
 /* text and IO types */
 // C types --------------------------------------------------------------------
@@ -65,12 +65,6 @@ bool rl_feof(port_t* ios);
 
 string_t* string(char* chars);
 
-// binary ---------------------------------------------------------------------
-#define   is_binary(x) ISA(x, BinaryType)
-#define   as_binary(x) ASP(x, binary_t)
-
-binary_t* binary(usize n, ubyte* bytes);
-
 // buffer ---------------------------------------------------------------------
 #define   is_buffer(x) ISA(x, BufferType)
 #define   as_buffer(x) ASP(x, buffer_t)
@@ -83,21 +77,6 @@ void      buffer_clear(buffer_t* self);
 // ascii ----------------------------------------------------------------------
 #define is_ascii(x) IST(x, ASCIITAG, WTAG_MASK)
 #define as_ascii(x) ASV(x, ascii_t)
-
-// latin1 ---------------------------------------------------------------------
-#define is_latin1(x) IST(x, LATIN1TAG, WTAG_MASK)
-#define as_latin1(x) ASV(x, latin1_t)
-
-// utf8 ---------------------------------------------------------------------
-#define is_utf8(x)   IST(x, UTF8TAG, WTAG_MASK)
-#define as_utf8(x)   ASV(x, utf8_t)
-
-// utf16 ---------------------------------------------------------------------
-#define is_utf16(x)  IST(x, UTF16TAG, WTAG_MASK)
-#define as_utf16(x)  ASV(x, utf16_t)
-
-// UTF32 ---------------------------------------------------------------------
-#define is_utf32(x)  IST(x, UTF32TAG, WTAG_MASK)
-#define as_utf32(x)  ASV(x, utf32_t)
+#define ascii(x)    TAGV(x, ASCIITAG)
 
 #endif

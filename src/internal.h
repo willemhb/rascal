@@ -26,16 +26,8 @@ struct alist_t {
   value_t *array;
 };
 
-struct iterator_t {
-  HEADER;
-  data_type_t* type;
-  object_t*    self;
-  usize        statesize;
-  void*        state;     // always inlined
-};
-
 // globals --------------------------------------------------------------------
-extern data_type_t TableType, AlistType, IteratorType;
+extern data_type_t TableType, AlistType;
 
 // table API ------------------------------------------------------------------
 #define     is_table(x) ISA(x, TableType)
