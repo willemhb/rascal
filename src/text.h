@@ -24,12 +24,6 @@ struct port_t {
   FILE*      stream;
 };
 
-struct binary_t {
-  HEADER;
-  usize  len;
-  ubyte  bytes[];
-};
-
 struct string_t {
   HEADER;
   usize   len;

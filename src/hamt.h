@@ -5,46 +5,54 @@
 
 /* core user collection types and their internal dependencies */
 // C types --------------------------------------------------------------------
-typedef struct {
-  HEADER;
-
-  union {
-    uint64 arity;
-    uint64 bitmap;
-  };
-
-  uint32   shift;
-  uint8    length;
-  uint8    capacity;
-  uint8    depth;
-  uint8    hasNul;
-  value_t* tail;       // always allocated inline
-} hamt_t;
-
-typedef struct {
-  hamt_t hamt;
-  tuple_t* root;
-} hamt_root_t;
-
 struct vector_t {
-  hamt_root_t root;
+  HEADER;
+  uint64  arity;
+  uint32  length;
+  uint32  capacity;
+  node_t* root;
+  value_t tail[];
 };
 
 struct dict_t {
-  hamt_root_t root;
-  stencil_t*  map;
-  value_t     nulval;
+  HEADER;
+  uint64     arity;
+  stencil_t* root;
+};
+
+struct set_t {
+  HEADER;
+  uint64     arity;
+  stencil_t* root;
 };
 
 struct stencil_t {
-  hamt_t  hamt;
+  HEADER;
+  uint64    bitmap;
+  uint32    shift;
+  uint32    capacity;
+
+  object_t* children[];
+};
+
+struct node_t {
+  HEADER;
+  uint32 shift;
+  uint16 length;
+  uint16 capacity;
+
+  union {
+    value_t leaf[0];
+    node_t* node[0];
+  };
 };
 
 // globals --------------------------------------------------------------------
-extern data_type_t VectorType, DictType, StencilType;
+extern data_type_t VectorType, DictType, SetType, StencilType, NodeType;
 
 extern vector_t EmptyVector;
 extern dict_t   EmptyDict;
+extern set_t    EmptySet;
 
 // API ------------------------------------------------------------------------
 // vector ---------------------------------------------------------------------
@@ -65,5 +73,14 @@ dict_t* dict(usize n, value_t* kvs);
 value_t dict_get(dict_t* self, value_t k);
 dict_t* dict_set(dict_t* self, value_t k, value_t v);
 dict_t* dict_del(dict_t* self, value_t k, value_t v);
+
+// set ------------------------------------------------------------------------
+#define is_set(x) ISA(x, SetType)
+#define as_set(x) ASP(x, set_t)
+
+set_t*  set(usize n, value_t* vs);
+bool    set_has(set_t* self, value_t v);
+set_t*  set_add(set_t* self, value_t v);
+set_t*  set_del(set_t* self, value_t v);
 
 #endif

@@ -16,20 +16,12 @@ typedef struct object_t object_t;
 typedef struct type_t type_t;
 
 // small types ----------------------------------------------------------------
-typedef uint8 uint8_t;
-typedef sint8 sint8_t;
+typedef uint8  uint8_t;
 typedef uint16 uint16_t;
-typedef sint16 sint16_t;
-typedef uint32 uint32_t;
 typedef sint32 sint32_t;
-typedef float  real32_t;
 
 // glyph types ----------------------------------------------------------------
 typedef char ascii_t;
-typedef uint8 latin1_t;
-typedef uint8 utf8_t;
-typedef uint16 utf16_t;
-typedef uint32 utf32_t;
 
 // object types ---------------------------------------------------------------
 // metaobject types -----------------------------------------------------------
@@ -37,30 +29,27 @@ typedef struct data_type_t  data_type_t;
 typedef struct union_type_t union_type_t;
 
 // internal types -------------------------------------------------------------
-typedef struct stencil_t     stencil_t;
-typedef struct chunk_t       chunk_t;
-typedef struct closure_t     closure_t;
-typedef struct variable_t    variable_t;
-typedef struct namespace_t   namespace_t;
-typedef struct environment_t environment_t;
-typedef struct control_t     control_t;
+typedef struct stencil_t   stencil_t;
+typedef struct node_t      node_t;
+typedef struct chunk_t     chunk_t;
+typedef struct closure_t   closure_t;
+typedef struct variable_t  variable_t;
+typedef struct control_t   control_t;
+typedef struct table_t     table_t;
+typedef struct alist_t     alist_t;
+typedef struct buffer_t    buffer_t;
+typedef struct iterator_t  iterator_t;
 
 // user types -----------------------------------------------------------------
 typedef struct symbol_t   symbol_t;
 typedef struct function_t function_t;
 typedef struct port_t     port_t;
-typedef struct binary_t   binary_t;
 typedef struct string_t   string_t;
 typedef struct list_t     list_t;
-typedef struct tuple_t    tuple_t;
+typedef struct pair_t     pair_t;
 typedef struct vector_t   vector_t;
 typedef struct dict_t     dict_t;
-typedef struct table_t    table_t;
-typedef struct alist_t    alist_t;
-typedef struct buffer_t   buffer_t;
 typedef struct record_t   record_t;
-typedef struct complex_t  complex_t;
-typedef struct ratio_t    ratio_t;
 typedef struct big_t      big_t;
 
 // builtin type codes ---------------------------------------------------------
@@ -71,51 +60,40 @@ typedef enum {
 
   // internal types -----------------------------------------------------------
   STENCIL,
+  NODE,
   CHUNK,
   CLOSURE,
   VARIABLE,
-  NAMESPACE,
-  ENVIRONMENT,
   CONTROL,
+  TABLE,
+  ALIST,
+  BUFFER,
+  ITERATOR,
 
   // user types ---------------------------------------------------------------
   SYMBOL,
   FUNCTION,
   PORT,
-  BINARY,
+  PAIR,
   STRING,
   LIST,
   VECTOR,
   DICT,
-  SET,
-  TABLE,
-  ALIST,
-  BUFFER,
   RECORD,
-  COMPLEX,
-  RATIO,
   BIG
 } obj_type_t;
 
 typedef enum {
   // numeric ------------------------------------------------------------------
   OBJECT=BIG,
-  SINT8,
   UINT8,
-  SINT16,
   UINT16,
   SINT32,
-  UINT32,
-  REAL32,
   FIXNUM,
   REAL,
 
   // glyph --------------------------------------------------------------------
   ASCII,
-  LATIN1,
-  UTF8,
-  UTF16,
-  UTF32,
 
   // misc ---------------------------------------------------------------------
   BOOLEAN,
@@ -136,19 +114,6 @@ typedef enum {
   TOP_KIND
 } kind_t;
 
-struct object_t {
-  object_t *next;
-  uword hash   : 48;
-  uword flags  :  6;
-  uword hashed :  1;
-  uword frozen :  1;
-  uword type   :  6;
-  uword gray   :  1;
-  uword black  :  1;
-};
-
-#define HEADER object_t obj
-
 // globals --------------------------------------------------------------------
 // tags -----------------------------------------------------------------------
 #define QNAN        0x7ff8000000000000ul
@@ -164,10 +129,6 @@ struct object_t {
 #define BOOLTAG     (SMALLTAG | (((uword)BOOLEAN) << 32))
 #define NULTAG      (SMALLTAG | (((uword)UNIT)    << 32))
 #define ASCIITAG    (SMALLTAG | (((uword)ASCII)   << 32))
-#define LATIN1TAG   (SMALLTAG | (((uword)LATIN1)  << 32))
-#define UTF8TAG     (SMALLTAG | (((uword)UTF8)    << 32))
-#define UTF16TAG    (SMALLTAG | (((uword)UTF16)   << 32))
-#define UTF32TAG    (SMALLTAG | (((uword)UTF32)   << 32))
 
 #define WTAG_MASK   0xffffffff00000000ul
 #define TAG_MASK    0xffff000000000000ul
@@ -182,6 +143,7 @@ struct object_t {
 #define UNBOUND     (NULTAG | 1ul)
 #define UNDEFINED   (NULTAG | 3ul)
 #define NOTFOUND    (NULTAG | 5ul)
+#define STOPITER    (NULTAG | 7ul)
 
 #define FIXNUM_MAX  VAL_MASK
 #define FULL_MASK  (TAG_MASK | VAL_MASK)

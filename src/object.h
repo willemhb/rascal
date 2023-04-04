@@ -4,59 +4,74 @@
 #include "value.h"
 
 /* Object lifetime methods, eval types (types with syntactic relevance), and alist/table. */
+
+
+#define HEADER object_t obj
+#define TYPE_HEADER type_t type
+
 // C types --------------------------------------------------------------------
+struct object_t {
+  object_t *next;
+  uword hash   : 48;
+  uword flags  :  6;
+  uword hashed :  1;
+  uword frozen :  1;
+  uword type   :  6;
+  uword gray   :  1;
+  uword black  :  1;
+  ubyte data[0];
+};
+
 typedef enum {
-  INTERNED = 0x01
-} symbol_fl_t;
+  ITERABLE = 0x01, // first and rest can be called on this object
+} obj_fl_t;
 
-struct symbol_t {
+struct type_t {
   HEADER;
-  symbol_t *left, *right;
-  char*       name;
-  uword       idno;
-  variable_t* toplevel; // toplevel binding
+  char*    name;
+  uint64   idno;
+  kind_t (*isa)(value_t v, type_t* self);
 };
 
-struct list_t {
-  HEADER;
-  uint64  arity;
-  value_t head;
-  list_t* tail;
+struct data_type_t {
+  TYPE_HEADER;
+  usize     size;
+  dict_t*   slots;
+
+  // vtable -------------------------------------------------------------------
+  // sacred methods -----------------------------------------------------------
+  void    (*print)(value_t val, port_t* ios);
+  uhash   (*hash)(void* x);
+  int     (*equal)(void* x, void* y);
+  int     (*compare)(value_t x, value_t y);
+
+  // traversal methods --------------------------------------------------------
+  void*   (*iter)(void* iterable);
+  value_t (*next)(void** iterbuf);
+  bool    (*hasnext)(void* iterable);
+
+  // lifetime methods ---------------------------------------------------------
+  void*   (*alloc)(type_t* type, usize count, flags fl);
+  void*   (*copy)(void* self, usize padding);
+  void    (*init)(void* self, usize count, flags fl);
+  void    (*trace)(void* self);
+  void    (*free)(void* self);
+
+  // misc ---------------------------------------------------------------------
+  int     (*write)(type_t* type, value_t val, void* spc);
+  usize   (*size_of)(void* ptr);
 };
 
-struct tuple_t {
-  HEADER;
-  uint32  length;
-  uint32  capacity;
-  value_t slots[];
+struct union_type_t {
+  TYPE_HEADER;
+
+  data_type_t*  leaf;
+  union_type_t* left;
+  union_type_t* right;
 };
-
-struct table_t {
-  HEADER;
-  usize count, tcap, ocap;
-  value_t *table;
-
-  union {
-    void*   ord;
-    sint8*  ord8;
-    sint16* ord16;
-    sint32* ord32;
-    sint64* ord64;
-  };
-};
-
-struct alist_t {
-  HEADER;
-  usize count, cap;
-  value_t *array;
-};
-
-// globals --------------------------------------------------------------------
-extern list_t EmptyList;
-extern data_type_t SymbolType, ListType, TupleType, TableType, AlistType;
 
 // API ------------------------------------------------------------------------
-// lifetime API ---------------------------------------------------------------
+// object ---------------------------------------------------------------------
 #define is_object(x) IST(x, OBJTAG, TAG_MASK)
 #define as_object(x) ASP(x, object_t)
 
@@ -65,64 +80,13 @@ extern data_type_t SymbolType, ListType, TupleType, TableType, AlistType;
 #define freeze(o)    (((object_t*)(o))->frozen = true)
 #define unfreeze(o)  (((object_t*)(o))->frozen = false)
 
-void* new_object(data_type_t* type, usize padding);
-void* editable(void* self);
-void  mark_object(void* self);
-void  free_object(void* self);
+void*   new_object(data_type_t* type, usize count, flags fl);
+void*   copy_object(void* self, usize padding, bool editable);
+void    mark_object(void* self);
+void    free_object(void* self);
 
-// traversal utilities --------------------------------------------------------
-void mark_objects(usize n, object_t** objs);
-void mark_values(usize n, value_t* vals);
-void print_objects(usize n, object_t** objs, port_t* ios, bool paired);
-void print_values(usize n, value_t* vals, port_t* ios, bool paired);
-int  compare_objects(usize xn, object_t** xobjs, usize yn, object_t** yobjs);
-int  compare_values(usize xn, value_t* xvals, usize yn, value_t* yvals);
-bool equal_objects(usize xn, object_t** xobjs, usize yn, object_t** yobjs);
-bool equal_values(usize xn, value_t* xvals, usize yn, value_t* yvals);
-uhash hash_objects(usize n, object_t** objs);
-uhash hash_values(usize n, value_t* vals);
-
-// symbol API -----------------------------------------------------------------
-#define     is_symbol(x) ISA(x, SymbolType)
-#define     as_symbol(x) ASP(x, symbol_t)
-
-symbol_t*   symbol(char* name, bool intern);
-bool        is_defined(symbol_t* sym, namespace_t* ns);
-bool        is_bound(symbol_t* sym, namespace_t* ns);
-value_t     toplevel(symbol_t* sym);
-variable_t* defvar(value_t name, namespace_t* ns, string_t* doc, type_t* type, value_t bind);
-variable_t* defconst(value_t name, namespace_t* ns, string_t* doc, type_t* type, value_t bind);
-
-// list API -------------------------------------------------------------------
-#define     is_list(x) ISA(x, ListType)
-#define     as_list(x) ASP(x, list_t)
-
-list_t*     list(usize n, value_t* args);
-list_t*     cons(value_t head, list_t* tail);
-
-// tuple API ------------------------------------------------------------------
-#define     is_tuple(x) ISA(x, TupleType)
-#define     as_tuple(x) ASP(x, tuple_t)
-
-// table API ------------------------------------------------------------------
-#define     is_table(x) ISA(x, TableType)
-#define     as_table(x) ASP(x, table_t)
-
-tuple_t*    tuple(uint32 length, uint32 capacity, value_t* slots);
-
-table_t*    table(void);
-void        reset_table(table_t* self);
-value_t     table_get(table_t* self, value_t key);
-value_t     table_set(table_t* self, value_t key, value_t val);
-value_t     table_del(table_t* self, value_t key);
-
-// alist API ------------------------------------------------------------------
-#define     is_alist(x) ISA(x, AlistType)
-#define     as_alist(x) ASP(x, alist_t)
-
-alist_t*    alist(void);
-void        reset_alist(alist_t* self);
-usize       alist_push(alist_t* self, value_t val);
-value_t     alist_pop(alist_t* self);
+void*   iter(void* ptr);
+value_t next(void** buf);
+bool    hasnext(void* ptr);
 
 #endif

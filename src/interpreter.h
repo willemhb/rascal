@@ -6,40 +6,13 @@
 /* builtin types used predominantly by the compiler and virtual machine */
 
 // C types --------------------------------------------------------------------
-struct chunk_t {
-  HEADER;
-  namespace_t* ns;
-  tuple_t* vals;
-  binary_t* code;
-};
-
-struct closure_t {
-  HEADER;
-  chunk_t* chunk;
-  environment_t* envt;
-};
-
 struct variable_t {
   HEADER;
-  namespace_t* ns;
+  object_t*    ns;
   symbol_t*    name;
   string_t*    doc;
   type_t*      type;
   value_t      bind;
-  variable_t*  next; // for upvalues
-};
-
-struct namespace_t {
-  HEADER;
-  dict_t*      locals;
-  dict_t*      upvalues;
-  namespace_t* next;
-};
-
-struct environment_t {
-  HEADER;
-  usize len, cap;
-  variable_t** upvals;
 };
 
 struct control_t {
@@ -47,17 +20,21 @@ struct control_t {
   control_t* caller;
   closure_t* func;
   uint16*    ip;
-  tuple_t*   rxs;
+  alist_t*   rxs;
 };
+
+// globals --------------------------------------------------------------------
+extern data_type_t VariableType, ControlType;
 
 // API ------------------------------------------------------------------------
 // variable -------------------------------------------------------------------
-variable_t* variable(namespace_t* ns, symbol_t* name, string_t* doc, type_t* type);
-variable_t* constant(namespace_t* ns, symbol_t* name, string_t* doc, type_t* type);
-variable_t* upvalue(variable_t* lexv, variable_t* upv);
+#define     is_variable(x) ISA(x, VariableType)
+#define     as_variable(x) ASP(x, variable_t)
 
-// namespace ------------------------------------------------------------------
-namespace_t* namespace(dict_t* locals, namespace_t* parent);
-variable_t*  lookup(symbol_t* name, namespace_t* ns);
+variable_t* variable(object_t* ns, symbol_t* name, string_t* doc, type_t* type);
+
+// control --------------------------------------------------------------------
+#define     is_control(x) ISA(x, ControlType)
+#define     as_control(x) ASP(x, control_t)
 
 #endif

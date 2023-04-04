@@ -7,23 +7,24 @@
 // C types --------------------------------------------------------------------
 struct function_t {
   HEADER;
-  rl_type_t* type;  // the type this function constructs (if it constructs a type)
-  value_t template; // either a method table or a single method (if a single method, this method can't be overridden)
+  function_t* next;       // next method to try
+  table_t*    cache;      // method signatures cached by exact signature
+  vector_t*   signature;  // argument signature
+  type_t*     type;       // type constructed by the function (if any)
+  value_t     template;   // native (pointer), compiled (closure), or primitive (fixnum)
 };
 
-struct method_table_t {
+struct chunk_t {
   HEADER;
-  dict_t* cache; // fast lookup (match exact argument signature)
-  vector_t* farg;  // fixed arity methods
-  list_t* varg;  // variable arity methods
+  alist_t*  constants;
+  list_t*   namespace;
+  buffer_t* bytecode;
 };
 
-struct method_t {
+struct closure_t {
   HEADER;
-  tuple_t* signature; // types to dispatch on
-  value_t  handler; // value to apply when signature matches
+  chunk_t* code;
+  alist_t* upvalues;
 };
-
-// API ------------------------------------------------------------------------
 
 #endif
