@@ -29,26 +29,33 @@ typedef struct data_type_t  data_type_t;
 typedef struct union_type_t union_type_t;
 
 // internal types -------------------------------------------------------------
-typedef struct stencil_t   stencil_t;
-typedef struct node_t      node_t;
-typedef struct chunk_t     chunk_t;
-typedef struct closure_t   closure_t;
-typedef struct variable_t  variable_t;
-typedef struct control_t   control_t;
-typedef struct table_t     table_t;
-typedef struct alist_t     alist_t;
-typedef struct buffer_t    buffer_t;
-typedef struct iterator_t  iterator_t;
+typedef struct stencil_t     stencil_t;
+typedef struct node_t        node_t;
+typedef struct chunk_t       chunk_t;
+typedef struct closure_t     closure_t;
+typedef struct variable_t    variable_t;
+typedef struct namespace_t   namespace_t;
+typedef struct environment_t environment_t;
+typedef struct control_t     control_t;
+typedef struct methodtable_t methodtable_t;
+typedef struct method_t      method_t;
+
+// mutable collections (mostly internal but exposed to users) -----------------
+typedef struct table_t       table_t;
+typedef struct alist_t       alist_t;
+typedef struct buffer_t      buffer_t;
 
 // user types -----------------------------------------------------------------
 typedef struct symbol_t   symbol_t;
 typedef struct function_t function_t;
 typedef struct port_t     port_t;
-typedef struct string_t   string_t;
-typedef struct list_t     list_t;
 typedef struct pair_t     pair_t;
+typedef struct string_t   string_t;
+typedef struct binary_t   binary_t;
+typedef struct list_t     list_t;
 typedef struct vector_t   vector_t;
 typedef struct dict_t     dict_t;
+typedef struct set_t      set_t;
 typedef struct record_t   record_t;
 typedef struct big_t      big_t;
 
@@ -64,11 +71,14 @@ typedef enum {
   CHUNK,
   CLOSURE,
   VARIABLE,
+  NAMESPACE,
+  ENVIRONMENT,
   CONTROL,
+  METHODTABLE,
+  METHOD,
   TABLE,
   ALIST,
   BUFFER,
-  ITERATOR,
 
   // user types ---------------------------------------------------------------
   SYMBOL,
@@ -76,9 +86,11 @@ typedef enum {
   PORT,
   PAIR,
   STRING,
+  BINARY,
   LIST,
   VECTOR,
   DICT,
+  SET,
   RECORD,
   BIG
 } obj_type_t;
@@ -129,6 +141,9 @@ typedef enum {
 #define BOOLTAG     (SMALLTAG | (((uword)BOOLEAN) << 32))
 #define NULTAG      (SMALLTAG | (((uword)UNIT)    << 32))
 #define ASCIITAG    (SMALLTAG | (((uword)ASCII)   << 32))
+#define UINT8TAG    (SMALLTAG | (((uword)UINT8)   << 32))
+#define UINT16TAG   (SMALLTAG | (((uword)UINT16)  << 32))
+#define SINT32TAG   (SMALLTAG | (((uword)SINT32)  << 32))
 
 #define WTAG_MASK   0xffffffff00000000ul
 #define TAG_MASK    0xffff000000000000ul
@@ -143,7 +158,8 @@ typedef enum {
 #define UNBOUND     (NULTAG | 1ul)
 #define UNDEFINED   (NULTAG | 3ul)
 #define NOTFOUND    (NULTAG | 5ul)
-#define STOPITER    (NULTAG | 7ul)
+#define STARTITER   (NULTAG | 7ul)
+#define STOPITER    (NULTAG | 9ul)
 
 #define FIXNUM_MAX  VAL_MASK
 #define FULL_MASK  (TAG_MASK | VAL_MASK)
@@ -172,42 +188,37 @@ data_type_t* obj_type_of(void* ptr);
 #define type_of(x) generic2(type_of, x)
 
 // lifetimes ------------------------------------------------------------------
-void mark_value(value_t val);
+void val_mark(value_t val);
+void obj_mark(void* ptrx);
+#define rl_mark(x) generic2(mark, x)
 
 // core APIs ------------------------------------------------------------------
 kind_t val_has_type(value_t val, type_t* type);
 kind_t obj_has_type(void* ptr, type_t* type);
-
 #define has_type(x, t) generic2(has_type, x, t)
 
 bool val_is_frozen(value_t val);
 bool obj_is_frozen(void* ptr);
-
 #define is_frozen(x) generic2(is_frozen, x)
 
 void val_print(value_t, port_t* ios);
 void obj_print(void* ptr, port_t* ios);
-
 #define rl_print(x, p) generic2(print, x, p)
 
 usize val_size_of(value_t val);
 usize obj_size_of(void* ptr);
-
 #define rl_size_of(x) generic2(size_of, x)
 
 uhash val_hash(value_t x);
 uhash obj_hash(void* ptr);
-
 #define rl_hash(x) generic2(hash, x)
 
 bool val_equal(value_t x, value_t y);
 bool obj_equal(void* px, void* py);
-
 #define rl_equal(x, y) generic2(equal, x, y)
 
 int val_compare(value_t x, value_t y);
 int obj_compare(void* x, void* y);
-
 #define rl_compare(x, y) generic2(compare, x, y)
 
 bool has_flag(void* ptr, flags fl);

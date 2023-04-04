@@ -10,12 +10,15 @@
 #define TYPE_HEADER type_t type
 
 // C types --------------------------------------------------------------------
+typedef enum {
+  HASHED = 0x40,
+  FROZEN = 0x80
+} obj_fl_t;
+
 struct object_t {
   object_t *next;
   uword hash   : 48;
-  uword flags  :  6;
-  uword hashed :  1;
-  uword frozen :  1;
+  uword flags  :  8;
   uword type   :  6;
   uword gray   :  1;
   uword black  :  1;
@@ -42,13 +45,8 @@ struct data_type_t {
   // sacred methods -----------------------------------------------------------
   void    (*print)(value_t val, port_t* ios);
   uhash   (*hash)(void* x);
-  int     (*equal)(void* x, void* y);
+  bool    (*equal)(void* x, void* y);
   int     (*compare)(value_t x, value_t y);
-
-  // traversal methods --------------------------------------------------------
-  void*   (*iter)(void* iterable);
-  value_t (*next)(void** iterbuf);
-  bool    (*hasnext)(void* iterable);
 
   // lifetime methods ---------------------------------------------------------
   void*   (*alloc)(data_type_t* type, usize count, flags fl);
@@ -98,17 +96,11 @@ void trace_values(usize n, value_t* vals);
 // lifetime -------------------------------------------------------------------
 void*   new_object(data_type_t* type, usize count, flags fl);
 void*   alloc_object(data_type_t* type, usize count, flags fl);
-void*   copy_object(void* self, usize padding, bool editable);
+void*   clone_object(void* self, usize padding);
 void    init_object(void* self, data_type_t* type, usize count, flags fl);
 void    mark_object(void* self);
 void    free_object(void* self);
 
-// iteration ------------------------------------------------------------------
-void*   iter(void* ptr);
-value_t next(void** buf);
-bool    hasnext(void* ptr);
-
 // type -----------------------------------------------------------------------
-
 
 #endif

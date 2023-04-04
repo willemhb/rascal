@@ -22,23 +22,23 @@ struct dict_t {
 
 struct stencil_t {
   HEADER;
-  uint64    bitmap;
   uint32    shift;
-  uint16    length;
-  uint16    capacity;
-
+  uint16    height;
+  uint8     length;
+  uint8     capacity;
+  uint64    bitmap;
   object_t* children[];
 };
 
 struct node_t {
   HEADER;
   uint32 shift;
+  uint16 height;
   uint16 length;
-  uint16 capacity;
 
   union {
-    value_t leaf[0];
-    node_t* node[0];
+    value_t leaf[64];
+    node_t* node[64];
   };
 };
 

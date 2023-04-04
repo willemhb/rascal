@@ -26,20 +26,35 @@ struct port_t {
 
 struct string_t {
   HEADER;
-  usize   len;
-  ubyte   chars[];
+  usize      length;
+  val_type_t eltype;
+  uint16     elsize;
+  uint16     multibyte;
+  ubyte      chars[];
+};
+
+struct binary_t {
+  HEADER;
+  usize      length;
+  val_type_t eltype;
+  uint16     elsize;
+  uint16     encoded;
+  ubyte      bytes[];
 };
 
 struct buffer_t {
   HEADER;
-  usize len, cap;
-  int elsize, encoded;
-  ubyte *array;
+  usize      length;
+  usize      capacity;
+  val_type_t eltype;
+  uint16     elsize;
+  uint8      encoded;
+  uint8      multibyte;
+  ubyte*     array;
 };
 
 // globals --------------------------------------------------------------------
-extern data_type_t PortType, BinaryType, StringType, BufferType,
-  AsciiType, Latin1Type, Utf8Type, Utf16Type, Utf32Type;
+extern data_type_t PortType, BinaryType, StringType, BufferType, AsciiType;
 
 // API ------------------------------------------------------------------------
 // port -----------------------------------------------------------------------
