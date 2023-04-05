@@ -2,15 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "eval.h"
-#include "common.h"
-#include "value.h"
-#include "memory.h"
-#include "number.h"
-#include "io.h"
-#include "native.h"
-#include "error.h"
-#include "compare.h"
 
 // startup --------------------------------------------------------------------
 #define MAJOR       0

@@ -3,226 +3,104 @@
 
 #include "common.h"
 
-// C types --------------------------------------------------------------------
-// value types ----------------------------------------------------------------
-typedef uintptr_t value_t; // tagged lisp data
-typedef uintptr_t fixnum_t;
-typedef uint32 small_t;
-typedef uint32 glyph_t;
-typedef double real_t;
-typedef bool boolean_t;
-typedef void *pointer_t;
-typedef struct object_t object_t;
-typedef struct type_t type_t;
+// C types
+// value types
+typedef uword   value_t; // tagged lisp data
+typedef double  real_t;
+typedef uint64  fixnum_t;
+typedef sint32  sint32_t;
+typedef bool    boolean_t;
+typedef char    ascii_t;
+typedef void   *pointer_t;
+typedef struct object object_t;
 
-// small types ----------------------------------------------------------------
-typedef uint8  uint8_t;
-typedef uint16 uint16_t;
-typedef sint32 sint32_t;
+// user object types
+typedef struct symbol   symbol_t;
+typedef struct type     type_t;
+typedef struct function function_t;
+typedef struct port     port_t;
+typedef struct list     list_t;
+typedef struct string   string_t;
 
-// glyph types ----------------------------------------------------------------
-typedef char ascii_t;
+// internal object types
+typedef struct variable variable_t;
+typedef struct upvalue  upvalue_t;
 
-// object types ---------------------------------------------------------------
-// metaobject types -----------------------------------------------------------
-typedef struct data_type_t  data_type_t;
-typedef struct union_type_t union_type_t;
+typedef struct chunk    chunk_t;
+typedef struct closure  closure_t;
+typedef struct control  control_t;
 
-// internal types -------------------------------------------------------------
-typedef struct stencil_t     stencil_t;
-typedef struct node_t        node_t;
-typedef struct chunk_t       chunk_t;
-typedef struct closure_t     closure_t;
-typedef struct variable_t    variable_t;
-typedef struct namespace_t   namespace_t;
-typedef struct environment_t environment_t;
-typedef struct control_t     control_t;
-typedef struct methodtable_t methodtable_t;
-typedef struct method_t      method_t;
+// building block collection types
+typedef struct table    table_t;
+typedef struct alist    alist_t;
+typedef struct buffer   buffer_t;
 
-// mutable collections (mostly internal but exposed to users) -----------------
-typedef struct table_t       table_t;
-typedef struct alist_t       alist_t;
-typedef struct buffer_t      buffer_t;
-
-// user types -----------------------------------------------------------------
-typedef struct symbol_t   symbol_t;
-typedef struct function_t function_t;
-typedef struct port_t     port_t;
-typedef struct pair_t     pair_t;
-typedef struct string_t   string_t;
-typedef struct binary_t   binary_t;
-typedef struct list_t     list_t;
-typedef struct vector_t   vector_t;
-typedef struct dict_t     dict_t;
-typedef struct set_t      set_t;
-typedef struct record_t   record_t;
-typedef struct big_t      big_t;
-
-// builtin type codes ---------------------------------------------------------
+// type codes
 typedef enum {
-  // metaobject types ---------------------------------------------------------
-  DATA_TYPE,
-  UNION_TYPE,
-
-  // internal types -----------------------------------------------------------
-  STENCIL,
-  NODE,
-  CHUNK,
-  CLOSURE,
-  VARIABLE,
-  NAMESPACE,
-  ENVIRONMENT,
-  CONTROL,
-  METHODTABLE,
-  METHOD,
-  TABLE,
-  ALIST,
-  BUFFER,
-
-  // user types ---------------------------------------------------------------
   SYMBOL,
+  TYPE,
   FUNCTION,
   PORT,
-  PAIR,
-  STRING,
-  BINARY,
   LIST,
-  VECTOR,
-  DICT,
-  SET,
-  RECORD,
-  BIG
-} obj_type_t;
+  STRING,
+  VARIABLE,
+  UPVALUE,
+  CHUNK,
+  CLOSURE,
+  CONTROL,
+  TABLE,
+  ALIST,
+  BUFFER
+} objtype_t;
 
 typedef enum {
-  // numeric ------------------------------------------------------------------
-  OBJECT=BIG,
-  UINT8,
-  UINT16,
-  SINT32,
-  FIXNUM,
+  OBJECT=BUFFER,
   REAL,
-
-  // glyph --------------------------------------------------------------------
-  ASCII,
-
-  // misc ---------------------------------------------------------------------
+  FIXNUM,
+  SINT32,
   BOOLEAN,
-  UNIT,
-
-  // internal -----------------------------------------------------------------
   POINTER,
-
-  // fucked up types ----------------------------------------------------------
+  UNIT,
   NONE,
   ANY
-} val_type_t;
+} valtype_t;
 
-typedef enum {
-  BOTTOM_KIND,
-  DATA_KIND,
-  UNION_KIND,
-  TOP_KIND
-} kind_t;
+#define NTYPES (ANY+1)
 
-// globals --------------------------------------------------------------------
-// tags -----------------------------------------------------------------------
+// tags
 #define QNAN        0x7ff8000000000000ul
+#define SIGN        0x8000000000000000ul
+#define IMMTAG      0x7ffc000000000000ul
+#define FIXTAG      0x7ffd000000000000ul
+#define PTRTAG      0x7ffe000000000000ul
+#define OBJTAG      0x7fff000000000000ul
 
-// user values ----------------------------------------------------------------
-#define REALTAG     0x0000000000000000ul // dummy tag
-#define SMALLTAG    0x7ffc000000000000ul
-#define OBJTAG      0x7ffd000000000000ul
-#define FIXTAG      0x7ffe000000000000ul
-#define PTRTAG      0x7fff000000000000ul
+#define SINT32TAG  (IMMTAG | (((uword)SINT32)  << 32))
+#define BOOLEANTAG (IMMTAG | (((uword)BOOLEAN) << 32))
+#define UNITTAG    (IMMTAG | (((uword)UNIT)    << 32))
 
-// common small tags ----------------------------------------------------------
-#define BOOLTAG     (SMALLTAG | (((uword)BOOLEAN) << 32))
-#define NULTAG      (SMALLTAG | (((uword)UNIT)    << 32))
-#define ASCIITAG    (SMALLTAG | (((uword)ASCII)   << 32))
-#define UINT8TAG    (SMALLTAG | (((uword)UINT8)   << 32))
-#define UINT16TAG   (SMALLTAG | (((uword)UINT16)  << 32))
-#define SINT32TAG   (SMALLTAG | (((uword)SINT32)  << 32))
+#define WTMASK      0xffff000000000000ul
+#define WVMASK      0x0000fffffffffffful
+#define ITMASK      0xffffffff00000000ul
+#define IVMASK      0x00000000fffffffful
 
-#define WTAG_MASK   0xffffffff00000000ul
-#define TAG_MASK    0xffff000000000000ul
-#define VAL_MASK    0x0000fffffffffffful
+#define NUL        (UNITTAG    | 0)
+#define TRUE       (BOOLEANTAG | 1)
+#define FALSE      (BOOLEANTAG | 0)
 
-#define TRUE_VAL    (BOOLTAG | 1ul)
-#define FALSE_VAL   (BOOLTAG | 0ul)
+// utilities
+valtype_t valtype(value_t vx);
+objtype_t objtype(object_t* ox);
+value_t   object(void* px);
+value_t   fixnum(fixnum_t fx);
+value_t   sint(sint32_t ix);
+value_t   real(real_t rx);
+value_t   pointer(pointer_t px);
+value_t   boolean(boolean_t bx);
 
-#define EOF_VAL     (ASCIITAG | EOF)
+type_t*   val_type_of(value_t vx);
+type_t*   obj_type_of(object_t* ox);
 
-#define NUL         (NULTAG | 0ul)
-#define UNBOUND     (NULTAG | 1ul)
-#define UNDEFINED   (NULTAG | 3ul)
-#define NOTFOUND    (NULTAG | 5ul)
-#define STARTITER   (NULTAG | 7ul)
-#define STOPITER    (NULTAG | 9ul)
-
-#define FIXNUM_MAX  VAL_MASK
-#define FULL_MASK  (TAG_MASK | VAL_MASK)
-
-#define NUM_TYPES (ANY + 1)
-
-extern type_t* BuiltinTypes[NUM_TYPES];
-
-// API ------------------------------------------------------------------------
-// tags, tagging, types, queries ----------------------------------------------
-#define ASP(x, t)     ((t*)(((uword)(x)) & VAL_MASK))
-#define ASV(x, t)     ((t)(((uword)(x)) & VAL_MASK))
-#define ISA(x, t)     has_type(x, &t.type)
-#define IST(x, t, m)  (((x) & (m)) == (t))
-#define TAGV(x, t)    ((((uword)(x)) & VAL_MASK) |(t))
-#define TAGF(x, t)    (((ieee64_t)(x)).word)
-
-val_type_t val_type(value_t val);
-
-obj_type_t val_obj_type(value_t val);
-obj_type_t obj_obj_type(void* ptr);
-#define obj_type(x) generic2(obj_type, x)
-
-data_type_t* val_type_of(value_t val);
-data_type_t* obj_type_of(void* ptr);
-#define type_of(x) generic2(type_of, x)
-
-// lifetimes ------------------------------------------------------------------
-void val_mark(value_t val);
-void obj_mark(void* ptrx);
-#define rl_mark(x) generic2(mark, x)
-
-// core APIs ------------------------------------------------------------------
-kind_t val_has_type(value_t val, type_t* type);
-kind_t obj_has_type(void* ptr, type_t* type);
-#define has_type(x, t) generic2(has_type, x, t)
-
-bool val_is_frozen(value_t val);
-bool obj_is_frozen(void* ptr);
-#define is_frozen(x) generic2(is_frozen, x)
-
-void val_print(value_t, port_t* ios);
-void obj_print(void* ptr, port_t* ios);
-#define rl_print(x, p) generic2(print, x, p)
-
-usize val_size_of(value_t val);
-usize obj_size_of(void* ptr);
-#define rl_size_of(x) generic2(size_of, x)
-
-uhash val_hash(value_t x);
-uhash obj_hash(void* ptr);
-#define rl_hash(x) generic2(hash, x)
-
-bool val_equal(value_t x, value_t y);
-bool obj_equal(void* px, void* py);
-#define rl_equal(x, y) generic2(equal, x, y)
-
-int val_compare(value_t x, value_t y);
-int obj_compare(void* x, void* y);
-#define rl_compare(x, y) generic2(compare, x, y)
-
-bool has_flag(void* ptr, flags fl);
-bool set_flag(void* ptr, flags fl);
-bool clear_flag(void* ptr, flags fl);
+#define   type_of(x) generic2(type_of, x)
 
 #endif
