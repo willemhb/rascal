@@ -76,7 +76,7 @@ struct list {
 struct variable {
   HEADER;
   variable_t* next;
-  
+  long        index;
 };
 
 struct chunk {
