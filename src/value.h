@@ -92,6 +92,8 @@ extern type_t* Types[NTYPES];
 #define TRUE       (BOOLEANTAG | 1)
 #define FALSE      (BOOLEANTAG | 0)
 
+#define NOTFOUND   (UNITTAG    | 1)
+
 // APIs & utilities
 valtype_t valtype(value_t vx);
 objtype_t objtype(object_t* ox);

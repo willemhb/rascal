@@ -58,6 +58,7 @@ struct type {
 };
 
 struct function {
+
   HEADER;
   symbol_t* name;    // function's common name
   type_t*   type;    // type constructed by the function (if any)
@@ -171,6 +172,9 @@ extern type_t SymbolType, TypeType, FunctionType, PortType, ListType,
   } while (false)
 
 // symbol
+#define     as_symbol(x) ((symbol_t*)((x) & WVMASK))
+#define     is_symbol(x) rlisa(x, &SymbolType)
+
 symbol_t*   symbol(char* name, bool intern);
 variable_t* resolve(symbol_t* name, namespace_t* ns);
 variable_t* define(symbol_t* name, namespace_t* ns);
@@ -180,6 +184,9 @@ function_t* function(symbol_t* name, type_t* type, value_t handler);
 
 // port
 // rascal constructor
+#define     as_port(x) ((port_t*)((x) & WVMASK))
+#define     is_port(x) rlisa(x, &PortType)
+
 port_t*     port(FILE* ios);
 
 // interface to C io libraries
@@ -202,8 +209,12 @@ list_t*     cons(value_t hd, list_t* tl);
 string_t*   string(char* chars);
 
 // table
+#define     as_table(x) ((table_t*)((x) & WVMASK))
+#define     is_table(x) rlisa(x, &TableType)
+
 table_t*    table(void);
 void        reset_table(table_t* slf);
+void        init_table(table_t* slf);
 long        table_find(table_t* slf, value_t key);
 value_t     table_get(table_t* slf, value_t key);
 value_t     table_set(table_t* slf, value_t key, value_t val);
@@ -218,7 +229,8 @@ value_t     alist_pop(alist_t* slf);
 
 // buffer
 buffer_t*   buffer(int elsize, bool encoded);
-void        buffer_reset(buffer_t* slf);
+void        init_buffer(buffer_t* slf, int elsize, int encoded);
+void        reset_buffer(buffer_t* slf);
 usize       buffer_write(buffer_t* slf, usize cnt, void* dat);
 
 #endif
