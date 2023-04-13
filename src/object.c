@@ -58,6 +58,7 @@ symbol_t* symbol(char* name, bool intern) {
     assert(name);
     out = intern_symbol(name);
   } else {
+
     if (name == NULL)
       name = "symbol";
 
@@ -117,6 +118,7 @@ static void* allocate_ords(usize cap) {
   usize total = get_ords_size(cap);
   void* out   = allocate(total);
   init_ords(out, total);
+
   return out;
 }
 
@@ -144,20 +146,151 @@ static void* reallocate_ords(void* o, usize oldc, usize newc) {
 static value_t* reallocate_entries(value_t* entries, usize oldc, usize newc) {
   usize oldt = get_entries_size(oldc);
   usize newt = get_entries_size(newc);
-  entries    = reallocate(entries, oldt, newt);
+  entries    = allocate(newt);
 
   if (newt > oldt)
     init_entries(entries, oldc, newc);
+
+  return entries;
 }
 
-void        reset_table(table_t* slf) {
-  deallocate_ords(slf->, slf->cap);
-  deallocate_entries(slf->table);
+static void rehash_table(table_t* slf) {
+  
+#define REHASH_TABLE(o)                                     \
+  do {                                                      \
+    __auto_type __o = o;                                    \
+    usize mask      = slf->cap-1;                           \
+                                                            \
+    for (usize i=0; i < slf->cnt;) {                        \
+      value_t key = slf->entries[i*2];                      \
+      uhash hash  = rl_hash(key);                           \
+      usize idx   = hash & mask;                            \
+                                                            \
+      while (__o[idx] > -1) {                               \
+        idx = (idx+1) & mask;                               \
+      }                                                     \
+      __o[idx] = i;                                         \
+    }                                                       \
+ } while (0)
+
+  if (slf->cap <= INT8_MAX)
+    REHASH_TABLE(slf->o8);
+
+  else if (slf->cap <= INT16_MAX)
+    REHASH_TABLE(slf->o16);
+
+  else if (slf->cap <= INT32_MAX)
+    REHASH_TABLE(slf->o32);
+
+  else
+    REHASH_TABLE(slf->o64);
+  
+#undef REHASH_TABLE
+}
+
+void reset_table(table_t* slf) {
+  deallocate_ords(slf->ords, slf->cap);
+  deallocate_entries(slf->entries, slf->cap);
   init_table(slf);
 }
 
-long        table_find(table_t* slf, value_t key);
-value_t     table_get(table_t* slf, value_t key);
-value_t     table_set(table_t* slf, value_t key, value_t val);
-bool        table_add(table_t* slf, value_t key, value_t val);
-bool        table_del(table_t* slf, value_t key);
+void init_table(table_t* slf) {
+  slf->cnt     = 0;
+  slf->cap     = MINC;
+  slf->ords    = allocate_ords(slf->cap);
+  slf->entries = allocate_entries(slf->cap);
+}
+
+bool resize_table(table_t* slf, usize n) {
+  usize lim = ceil(n * NLOADF);
+
+  slf->cnt = n;
+
+  if (slf->cap == MINC)
+    return false;
+
+  if (lim <= slf->cap && lim >= (slf->cap >> 1))
+    return false;
+
+  usize newc   = ceil2(lim+1);
+  usize oldc   = slf->cap;
+  slf->ords    = reallocate_ords(slf->ords, oldc, newc);
+  slf->entries = reallocate_entries(slf->entries, oldc, newc);
+  slf->cap     = newc;
+
+  return true;
+}
+
+long table_find(table_t* slf, value_t key) {
+  uhash h   = rl_hash(key);
+  usize m   = slf->cap - 1;
+  usize idx = h & m;
+  long  i   = -1;
+
+#define TABLE_FIND(o)                           \
+  do {                                          \
+    __auto_type __o = o;                        \
+    while ((i=__o[idx]) != -1) {                \
+      if (rl_equal(key, slf->entries[i*2]))     \
+        break;                                  \
+      idx = (idx+1) & m;                        \
+    }                                           \
+  } while (0)
+
+  if (slf->cap < INT8_MAX)
+    TABLE_FIND(slf->o8);
+
+  else if (slf->cap < INT16_MAX)
+    TABLE_FIND(slf->o16);
+  
+  else if (slf->cap < INT32_MAX)
+    TABLE_FIND(slf->o32);
+
+  else
+    TABLE_FIND(slf->o64);
+  
+  return i;
+#undef TABLE_FIND
+}
+
+value_t table_get(table_t* slf, value_t key) {
+  long i = table_find(slf, key);
+
+  if (i == -1)
+    return NOTFOUND;
+
+  return slf->entries[i*2+1];
+}
+
+value_t table_set(table_t* slf, value_t key, value_t val) {
+  long i = table_find(slf, key);
+
+  if (i == -1) {
+    i = slf->cnt;
+    slf->entries[i*2] = key;
+
+    if (resize_table(slf, i+1))
+      rehash_table(slf);
+  }
+
+  value_t out = slf->entries[i*2+1];
+  slf->entries[i*2+1] = val;
+
+  return out;
+}
+
+bool table_add(table_t* slf, value_t key, value_t val) {
+  long i = table_find(slf, key);
+  bool out = i == -1;
+
+  if (out) {
+    i = slf->cnt;
+    slf->entries[i*2] = key;
+    slf->entries[i*2+1] = val;
+
+    if (resize_table(slf, i+1))
+      rehash_table(slf);
+  }
+
+  return out;
+}

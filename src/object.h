@@ -34,42 +34,6 @@ typedef enum {
   INTERNED = 0x01
 } symfl_t;
 
-struct type {
-  HEADER;
-  type_t* left, * right; // for union types
-  uint64 idno;
-  char*  name;
-
-  // layout info
-  usize   size;
-
-  // sacred methods
-  void   (*print)(value_t x, port_t* ios);
-  uint64 (*hash)(value_t x);
-  bool   (*equal)(value_t x, value_t y);
-  int    (*compare)(value_t x, value_t y);
-
-  // lifetime methods
-  void   (*trace)(void* slf);
-  void   (*free)(void* slf);
-
-  // misc methods
-  usize  (*size_of)(void* slf);
-};
-
-struct function {
-
-  HEADER;
-  symbol_t* name;    // function's common name
-  type_t*   type;    // type constructed by the function (if any)
-  value_t   handler; // chunk (user function), pointer (native C function), or fixnum (opcode)
-};
-
-struct port {
-  HEADER;
-  FILE*     ios;
-};
-
 struct list {
   HEADER;
   value_t head;
@@ -77,60 +41,90 @@ struct list {
   usize   arity;
 };
 
-struct string {
+struct chunk {
   HEADER;
-  usize length;
-  char  chars[];
+  namespace_t* ns;    // local namespace
+  alist_t*     vals;  // compiled constants
+  buffer_t*    code;  // instructions
+};
+
+typedef enum {
+  ABSTRACTION = 0x01,
+  SCRIPT      = 0x02
+} chunkfl_t;
+
+struct lambda {
+  HEADER;
+  symbol_t* name;
+  uint64    arity;
+  chunk_t*  chunk;
+};
+
+struct native {
+  HEADER;
+  symbol_t* name;
+  uint64    arity;
+  value_t (*callback)(usize n, value_t* args);
+};
+
+struct primitive {
+  HEADER;
+  symbol_t* name;
+  uint64    arity;
+  uint16    label; // corresponding opcode
+};
+
+struct closure {
+  HEADER;
+  lambda_t*      lambda;
+  environment_t* envt;
 };
 
 struct namespace {
   HEADER;
   namespace_t* parent;
-  table_t* locals;
-  table_t* upvalues;
+  table_t*     locals;
+  table_t*     upvalues;
 };
+
+typedef enum {
+  LOCALNS    = 0x01,
+  SCRIPTNS   = 0x02,
+  TOPLEVELNS = 0x03
+} nmspcfl_t;
+
+struct environment {
+  HEADER;
+  namespace_t* ns;
+  alist_t*     binds;
+};
+
+typedef enum {
+  LOCALENV    = 0x01,
+  SCRIPTENV   = 0x02,
+  TOPLEVELENV = 0x03
+} envfl_t;
 
 struct variable {
   HEADER;
   symbol_t*    name;  // the unqualified name of the variable
-  namespace_t* nmspc; // namespace where the variable is defined
-  type_t*      type;  // type constraint on the variable
+  namespace_t* ns;    // namespace where the variable is defined
   table_t*     meta;  // other variable metadata
   value_t      bind;  // could be the binding itself, or the index of the binding (for lexical variables)
 };
 
 struct upvalue {
   HEADER;
-  value_t*   location;
-  value_t    value;
-  upvalue_t* next;
-};
-
-struct chunk {
-  HEADER;
-  namespace_t* nmspc; // local namespace
-  alist_t*     vals;  // compiled constants
-  buffer_t*    code;  // instructions
-};
-
-struct closure {
-  HEADER;
-  usize      cnt, cap;
-  upvalue_t* upvalues;
-  chunk_t*   chunk;
+  variable_t* var;
+  value_t*    location;
+  value_t     value;
+  upvalue_t*  next;
 };
 
 struct table {
   HEADER;
   usize     cnt, cap;
-  value_t*  table;
-
-  union {
-    sint8*  o8;
-    sint16* o16;
-    sint32* o32;
-    sint64* o64;
-  };
+  value_t*  entries;
 };
 
 struct alist {
@@ -148,9 +142,6 @@ struct buffer {
 };
 
 // globals
-extern type_t SymbolType, TypeType, FunctionType, PortType, ListType,
-  StringType, NameSpaceType, VariableType, UpValueType, ChunkType,
-  ClosureType, TableType, AlistType, BufferType;
 
 // APIs
 // general object api
@@ -173,53 +164,28 @@ extern type_t SymbolType, TypeType, FunctionType, PortType, ListType,
 
 // symbol
 #define     as_symbol(x) ((symbol_t*)((x) & WVMASK))
-#define     is_symbol(x) rlisa(x, &SymbolType)
+#define     is_symbol(x) rl_isa(x, &SymbolType)
 
 symbol_t*   symbol(char* name, bool intern);
 variable_t* resolve(symbol_t* name, namespace_t* ns);
 variable_t* define(symbol_t* name, namespace_t* ns);
 
-// function
-function_t* function(symbol_t* name, type_t* type, value_t handler);
-
-// port
-// rascal constructor
-#define     as_port(x) ((port_t*)((x) & WVMASK))
-#define     is_port(x) rlisa(x, &PortType)
-
-port_t*     port(FILE* ios);
-
-// interface to C io libraries
-port_t*     rlopen(const char* fname, const char* mode);
-int         rlclose(port_t* px);
-int         rlgetc(port_t* px);
-int         rlputc(port_t* px, int ch);
-int         rlungetc(port_t* px, int ch);
-int         rlpeekc(port_t* px);
-int         rlputs(port_t* px, char* s);
-string_t*   rlgets(port_t* px, int n);
-int         rlprintf(port_t* px, const char* fmt, ...);
-int         rlvprintf(port_t* px, const char* fmt, va_list va);
-
 // list
 list_t*     list(usize n, value_t* args);
 list_t*     cons(value_t hd, list_t* tl);
 
-// string
-string_t*   string(char* chars);
-
 // table
 #define     as_table(x) ((table_t*)((x) & WVMASK))
-#define     is_table(x) rlisa(x, &TableType)
+#define     is_table(x) rl_isa(x, &TableType)
 
 table_t*    table(void);
 void        reset_table(table_t* slf);
 void        init_table(table_t* slf);
+bool        resize_table(table_t* slf, usize n);
 long        table_find(table_t* slf, value_t key);
 value_t     table_get(table_t* slf, value_t key);
 value_t     table_set(table_t* slf, value_t key, value_t val);
 bool        table_add(table_t* slf, value_t key, value_t val);
-bool        table_del(table_t* slf, value_t key);
 
 // alist
 alist_t*    alist(void);
