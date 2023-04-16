@@ -9,11 +9,15 @@
 (define-generic-mode
   'rascal-mode
   '(";" ("#|" . "|#"))
-  '(
-    "def" "put" "if" "do" "quote" "lmb" "prompt" "cntl" ;; special forms
-    "var" "val" "let" "labl" "fn" "mac" "type"          ;; binding macros
-    "case" "cond" "and" "or"                            ;; branching macros
-    "with" "do*")                                       ;; control macros
+  '("def" "put" "var" "val" "fn" "mac" "type"   ;; binding/assignment forms & macros
+    "lmb" "let" "labl"                          ;; closure forms & macros
+    "for" "while" "loop"                        ;; looping macros
+    "require" "provide" "lib"                   ;; import/export/library macros
+    "if" "case" "cond" "and" "or"               ;; branching forms & macros
+    "prompt" "cntl" "with"                      ;; continuation handling forms & macros
+    "try" "catch" "throw"                       ;; exception handling macros
+    "async" "sync" "await" "yield"              ;; coroutine macros
+    "quote" "do" "do*")                         ;; misc control macros
   '((":[-a-zA-Z?*+0-9]+[[:space:][:cntrl:],\\s)]" . font-lock-reference-face)
     ("\\_<symbol[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<function[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
