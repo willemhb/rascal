@@ -1,5 +1,5 @@
-#ifndef hashing_h
-#define hashing_h
+#ifndef util_hashing_h
+#define util_hashing_h
 
 #include "common.h"
 

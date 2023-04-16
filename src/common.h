@@ -69,8 +69,12 @@ typedef union {
 	  uint64_t: __builtin_ctzl)(x)
 
 
-static inline bool flagp(flags fl, uint32 f) {
-  return !!(fl & f);
+static inline bool flagp(flags fls, flags fl) {
+  return !!(fls & fl);
+}
+
+static inline bool wflagp(flags fls, flags fl, flags m) {
+  return (fls & m) == fl;
 }
 
 #endif

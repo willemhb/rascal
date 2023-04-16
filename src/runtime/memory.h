@@ -1,7 +1,7 @@
-#ifndef memory_h
-#define memory_h
+#ifndef runtime_memory_h
+#define runtime_memory_h
 
-#include  "value.h"
+#include  "common.h"
 
 // API ------------------------------------------------------------------------
 #define ALLOC_S(func, args...)                  \
