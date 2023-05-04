@@ -60,12 +60,12 @@ bool del_flag(void* ox, flags fl);
 bool has_wflag(void* ox, flags fl, flags m);
 bool set_wflag(void* ox, flags fl, flags m);
 bool del_wflag(void* ox, flags fl, flags m);
+void set_hash(void* ox, uhash h);
 void mark_objects(usize n, void* oxs);
 
 // globals
 extern void  (*Mark[NTYPES])(void* ox);
 extern void  (*Free[NTYPES])(void* ox);
 extern usize (*SizeOf[NTYPES])(void* ox);
-
 
 #endif

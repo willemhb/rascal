@@ -106,6 +106,13 @@ bool del_wflag(void* ox, flags fl, flags m) {
   return out;
 }
 
+void set_hash(void* ox, uhash h) {
+  assert(ox);
+
+  head(ox)->hash   = h;
+  head(ox)->flags |= HASHED;
+}
+
 void mark_objects(usize n, void* oxs) {
   void **objects = oxs;
 

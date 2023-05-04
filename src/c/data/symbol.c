@@ -2,6 +2,10 @@
 
 #include "runtime/memory.h"
 
+#include "lang/hash.h"
+#include "lang/print.h"
+
+#include "util/io.h"
 #include "util/string.h"
 #include "util/hashing.h"
 
@@ -86,12 +90,32 @@ usize sizeof_symbol(void* ox) {
   return sizeof(symbol_t);
 }
 
-uhash hash_symbol(void* ox) {
-  
-    symbol_t* symx = ox;
+uhash hash_symbol(void* ox, int bound, bool* oob) {
+  (void)bound;
+  (void)oob;
 
+  symbol_t* symx = ox;
+
+  if (!has_flag(symx, HASHED)) {
+    uhash base     = TYPEHASH(ox);
     uhash namehash = hash_str(symx->name);
     uhash idnohash = hash_uword(symx->idno);
+    uhash symhash  = mix_3_hashes(base, namehash, idnohash) & WVMASK;
 
-    return mix_2_hashes(namehash, idnohash) & WVMASK;
+    set_hash(symx, symhash);
+  }
+
+  return head(ox)->hash;
+}
+
+void print_symbol(value_t x, table_t* backrefs) {
+  (void)backrefs;
+
+  symbol_t* symx = as_symbol(x);
+
+  if (has_flag(symx, INTERNED))
+    printf("%s", symx->name);
+
+  else
+    printf("%s#%lu", symx->name, symx->idno);
 }
