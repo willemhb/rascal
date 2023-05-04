@@ -19,7 +19,6 @@ typedef struct table       table_t;
 typedef struct vector      vector_t;
 typedef struct function    function_t;
 typedef struct native      native_t;
-typedef struct namespace   namespace_t;
 typedef struct environment environment_t;
 typedef struct chunk       chunk_t;
 typedef struct closure     closure_t;
@@ -36,7 +35,6 @@ typedef enum {
   VECTOR,
   FUNCTION,
   NATIVE,
-  NAMESPACE,
   ENVIRONMENT,
   CHUNK,
   CLOSURE,
@@ -54,6 +52,10 @@ typedef enum {
 } type_t;
 
 #define NTYPES (TOP+1)
+
+typedef struct {
+  ARRAY(value_t);
+} values_t;
 
 // tags
 #define QNAN        0x7ff8000000000000ul
@@ -80,6 +82,12 @@ usize val_sizeof(value_t vx);
 bool val_isa(value_t vx, type_t tx);
 void val_mark(value_t vx);
 void mark_values(usize n, value_t* vals);
+
+void    init_values(values_t* values);
+void    free_values(values_t* values);
+usize   resize_values(values_t* values, usize n);
+usize   values_push(values_t* values, value_t value);
+value_t values_pop(values_t* values);
 
 // defined in object.c|h
 extern type_t objtype(void* ox);

@@ -17,12 +17,16 @@ struct object {
 };
 
 typedef enum {
-  FROZEN = 0x80,
-  HASHED = 0x40,
-  STATIC = 0x20
+  FROZEN   = 0x80,
+  HASHED   = 0x40,
+  STATIC   = 0x20
 } objfl_t;
 
 #define HEADER object_t obj
+
+typedef struct {
+  ARRAY(object_t*);
+} objects_t;
 
 // APIs & utilities
 #define head(obj)    ((object_t*)(obj))
@@ -62,6 +66,12 @@ bool set_wflag(void* ox, flags fl, flags m);
 bool del_wflag(void* ox, flags fl, flags m);
 void set_hash(void* ox, uhash h);
 void mark_objects(usize n, void* oxs);
+
+void      init_objects(objects_t* objects);
+void      free_objects(objects_t* objects);
+usize     resize_objects(objects_t* objects, usize n);
+usize     objects_push(objects_t* objects, object_t* obj);
+object_t* objects_pop(objects_t* objects);
 
 // globals
 extern void  (*Mark[NTYPES])(void* ox);

@@ -5,4 +5,8 @@
 
 #include "common.h"
 
+// missing stdio utilities
+int peekc(void);
+int fpeekc(FILE* ios);
+
 #endif

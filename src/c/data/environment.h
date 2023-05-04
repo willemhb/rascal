@@ -1,22 +1,22 @@
-#ifndef data_environment_h
-#define data_environment_h
+#ifndef data_namespace_h
+#define data_namespace_h
 
 #include "data/object.h"
 
-// C types
-struct environment {
+struct namespace {
   HEADER;
-  namespace_t* ns;
-  vector_t*    binds;
+  namespace_t* parent;
+  table_t*     locals;
+  table_t*     upvalues;
 };
 
 typedef enum {
-  LOCALENV    = 0x01,
-  SCRIPTENV   = 0x02,
-  TOPLEVELENV = 0x03
-} envfl_t;
+  LOCALNS    = 0x01,
+  SCRIPTNS   = 0x02,
+  TOPLEVELNS = 0x03
+} nmspcfl_t;
 
-// API & 
-
+// APIs & utilities
+variable_t* resolve(symbol_t* name, namespace_t* ns);
 
 #endif

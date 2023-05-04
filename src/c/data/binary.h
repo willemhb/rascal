@@ -6,8 +6,7 @@
 // C types
 struct binary {
   HEADER;
-  usize cnt, cap;
-  void* bits;
+  ARRAY(void);
   int   elsize;
   bool  encoded;
 };

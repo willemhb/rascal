@@ -3,12 +3,10 @@
 
 #include "data/object.h"
 
-
 // C types
 struct table {
   HEADER;
-  usize     cnt, cap;
-  value_t*  entries;
+  ARRAY(value_t);
 };
 
 // APIs & utilities

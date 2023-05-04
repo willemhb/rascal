@@ -41,6 +41,10 @@ typedef union {
 #define RASCAL_DEBUG
 
 // utilities ------------------------------------------------------------------
+#define ARRAY(eltype)                           \
+  usize cnt, cap;                               \
+  eltype* data
+
 #define FAIL(status, msg, ...)                              \
   do {                                                      \
     fprintf(stderr, msg".\n" __VA_OPT__(,) __VA_ARGS__);    \
