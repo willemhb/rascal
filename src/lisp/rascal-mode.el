@@ -18,7 +18,8 @@
     "try" "catch" "throw"                       ;; exception handling macros
     "async" "sync" "await" "yield"              ;; coroutine macros
     "quote" "do" "do*")                         ;; misc control macros
-  '((":[-a-zA-Z?*+0-9]+[[:space:][:cntrl:],\\s)]" . font-lock-reference-face)
+  '(("::" . font-lock-comment-face)
+    (":[-a-zA-Z?*+0-9]+[[:space:][:cntrl:],\\s)]" . font-lock-reference-face)
     ("\\_<symbol[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<function[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<port[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
@@ -33,9 +34,11 @@
     ("\\_<fixnum[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<real[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<boolean[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
-    ("\\_<pointer[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<unit[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
-    ("&" . font-lock-function-name-face)
+    ("\\_<any[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
+    ("\\_<none[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
+    ("\\_<data[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
+    ("\\_<union[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<nul[[:space:][:cntrl:],\\s)]" . font-lock-constant-face)
     ("\\_<true[[:space:][:cntrl:],\\s)]" . font-lock-constant-face)
     ("\\_<false[[:space:][:cntrl:],\\s)]" . font-lock-constant-face)

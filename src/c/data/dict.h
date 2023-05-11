@@ -9,6 +9,11 @@ struct table {
   ARRAY(value_t);
 };
 
+typedef enum {
+  EQTABLE = 0x01, // compare with '=?'
+  IDTABLE = 0x02, // compare with 'id?'
+} table_fl_t;
+
 // APIs & utilities
 #define     as_table(x) ((table_t*)((x) & WVMASK))
 

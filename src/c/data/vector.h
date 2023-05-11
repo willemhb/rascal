@@ -1,21 +1,20 @@
-#ifndef data_vector_h
-#define data_vector_h
+#ifndef data_alist_h
+#define data_alist_h
 
 #include "data/object.h"
 
 // C types
-struct vector {
+struct alist {
   HEADER;
-  usize    cnt, cap;
-  value_t* array;
+  ARRAY(value_t);
 };
 
 // APIs & utilities
-#define   as_vector(x) ((vector_t*)((x) & WVMASK))
+#define   as_alist(x) ((alist_t*)((x) & WVMASK))
 
-vector_t* vector(usize n);
-void      reset_vector(vector_t* slf);
-usize     vector_push(vector_t* slf, value_t val);
-value_t   vector_pop(vector_t* slf);
+alist_t*  alist(usize n);
+void      reset_alist(alist_t* slf, usize n);
+usize     alist_push(alist_t* slf, value_t val);
+value_t   alist_pop(alist_t* slf);
 
 #endif

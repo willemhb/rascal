@@ -6,8 +6,8 @@
 // C types
 struct closure {
   HEADER;
-  function_t*    function;
-  environment_t* envt;
+  function_t* function;
+  list_t*     envt;
 };
 
 // APIs & utilities

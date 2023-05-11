@@ -24,13 +24,9 @@ typedef enum {
 
 #define HEADER object_t obj
 
-typedef struct {
-  ARRAY(object_t*);
-} objects_t;
-
 // APIs & utilities
 #define head(obj)    ((object_t*)(obj))
-#define is_object(x) (valtype(x) == OBJECT)
+#define is_object(x) (value_type(x) == OBJECT)
 #define as_object(x) rl_asa(x, WVMASK, object_t*)
 
 #define INIT_HEADER(obj, datatype, fl)            \
@@ -47,35 +43,13 @@ typedef struct {
     __obj->black = false;                         \
   } while (false)
 
-#define MARK(obj)   Mark[head(obj)->type]
-#define FREE(obj)   Free[head(obj)->type]
-#define SIZEOF(obj) SizeOf[head(obj)->type]
 
-value_t object(void* ox);
-type_t objtype(void* ox);
-type_t obj_typeof(void* ox);
-usize obj_sizeof(void* ox);
-bool obj_isa(void* ox, type_t tx);
-void obj_mark(void* ox);
-void obj_free(void* ox);
-bool has_flag(void* ox, flags fl);
-bool set_flag(void* ox, flags fl);
-bool del_flag(void* ox, flags fl);
-bool has_wflag(void* ox, flags fl, flags m);
-bool set_wflag(void* ox, flags fl, flags m);
-bool del_wflag(void* ox, flags fl, flags m);
-void set_hash(void* ox, uhash h);
-void mark_objects(usize n, void* oxs);
+// API & utilities
+type_t object_type(void* obj);
+usize  object_size(void* obj);
 
-void      init_objects(objects_t* objects);
-void      free_objects(objects_t* objects);
-usize     resize_objects(objects_t* objects, usize n);
-usize     objects_push(objects_t* objects, object_t* obj);
-object_t* objects_pop(objects_t* objects);
-
-// globals
-extern void  (*Mark[NTYPES])(void* ox);
-extern void  (*Free[NTYPES])(void* ox);
-extern usize (*SizeOf[NTYPES])(void* ox);
+bool   object_getfl(void* obj, flags fl);
+bool   object_setfl(void* obj, flags fl);
+bool   object_delfl(void* obj, flags fl);
 
 #endif
