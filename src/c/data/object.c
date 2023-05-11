@@ -7,186 +7,134 @@ value_t object(void* ox) {
   return ((uword)ox) | OBJTAG;
 }
 
-type_t objtype(void* ox) {
-  assert(ox);
+type_t object_type(void* obj) {
+  assert(obj);
 
-  return head(ox)->type;
+  return head(obj)->type;
 }
 
-type_t obj_typeof(void* ox) {
-  return objtype(ox);
+usize object_size(void* obj) {
+  assert(obj);
+
+  return ObjectSize[object_type(obj)](obj);
 }
 
-usize obj_sizeof(void* ox) {
-  assert(ox);
-
-  return SIZEOF(ox)(ox);
-}
-
-bool obj_isa(void* ox, type_t tx) {
-  if (tx == TOP)
-    return true;
-
-  if (tx == BOTTOM)
-    return false;
-
-  return objtype(ox) == tx;
-}
-
-void obj_mark(void* ox) {
-  if (ox && !head(ox)->black) {
-    head(ox)->black = true;
-
-    if (MARK(ox))
-      push_gray(ox);
-
-    else
-      head(ox)->gray = false;
-  }
-}
-
-void obj_free(void* ox) {
-  if (!ox)
+void mark_object(void* obj) {
+  if (obj == NULL)
     return;
 
-  usize to_free = rl_sizeof(ox);
+  if (head(obj)->black)
+    return;
 
-  if (FREE(ox))
-    FREE(ox)(ox);
+  head(obj)->black = true;
 
-  if (!has_flag(ox, STATIC))
-    deallocate(ox, to_free);
+  if (TraceObject[head(obj)->type])
+    push_gray(obj);
+
+  else
+    head(obj)->gray = false;
 }
 
-bool has_flag(void* ox, flags fl) {
-  assert(ox);
+void free_object(void* obj) {
+  assert(obj);
 
-  return flagp(head(ox)->flags, fl);
+  if (FreeObject[object_type(obj)])
+    FreeObject[object_type(obj)](obj);
+
+  deallocate(obj, object_size(obj));
 }
 
-bool set_flag(void* ox, flags fl) {
-  assert(ox);
+bool object_hasfl(void* obj, flags fl) {
+  assert(obj);
 
-  bool out = !flagp(head(ox)->flags, fl);
-  head(ox)->flags |= fl;
+  return flagp(head(obj)->flags, fl);
+}
+
+bool object_setfl(void* obj, flags fl) {
+  assert(obj);
+
+  bool out = !flagp(head(obj)->flags, fl);
+  head(obj)->flags |= fl;
 
   return out;
 }
 
-bool del_flag(void* ox, flags fl) {
-  assert(ox);
+bool object_delfl(void* obj, flags fl) {
+  assert(obj);
 
-  bool out = flagp(head(ox)->flags, fl);
-  head(ox)->flags &= ~fl;
-
-  return out;
-}
-
-bool has_wflag(void* ox, flags fl, flags m) {
-  assert(ox);
-
-  return wflagp(head(ox)->flags, fl, m);
-}
-
-bool set_wflag(void* ox, flags fl, flags m) {
-  assert(ox);
-
-  bool out = !wflagp(head(ox)->flags, fl, m);
-  head(ox)->flags &= ~m;
-  head(ox)->flags |= fl;
+  bool out = flagp(head(obj)->flags, fl);
+  head(obj)->flags &= ~fl;
 
   return out;
 }
 
-bool del_wflag(void* ox, flags fl, flags m) {
-  assert(ox);
+// toplevel initialization & globals
+usize (*ObjectSize[NTYPES])(void* obj);
+void  (*TraceObject[NTYPES])(void* obj);
+void  (*FreeObject[NTYPES])(void* obj);
 
-  bool out = wflagp(head(ox)->flags, fl, m);
-  head(ox)->flags &= ~m;
-  return out;
+void object_init(void) {
+  extern usize symbol_size(void* obj);
+  extern usize list_size(void* obj);
+  extern usize binary_size(void* obj);
+  extern usize table_size(void* obj);
+  extern usize vector_size(void* obj);
+  extern usize function_size(void* obj);
+  extern usize chunk_size(void* obj);
+  extern usize closure_size(void* obj);
+  extern usize upvalue_size(void* obj);
+  extern usize variable_size(void* obj);
+  extern usize environment_size(void* obj);
+  
+  ObjectSize[SYMBOL]      = symbol_size;
+  ObjectSize[LIST]        = list_size;
+  ObjectSize[BINARY]      = binary_size;
+  ObjectSize[TABLE]       = table_size;
+  ObjectSize[VECTOR]      = vector_size;
+  ObjectSize[FUNCTION]    = function_size;
+  ObjectSize[CHUNK]       = chunk_size;
+  ObjectSize[CLOSURE]     = closure_size;
+  ObjectSize[UPVALUE]     = upvalue_size;
+  ObjectSize[VARIABLE]    = variable_size;
+  ObjectSize[ENVIRONMENT] = environment_size;
+
+  extern void trace_symbol(void* obj);
+  extern void trace_list(void* obj);
+  extern void trace_table(void* obj);
+  extern void trace_vector(void* obj);
+  extern void trace_function(void* obj);
+  extern void trace_chunk(void* obj);
+  extern void trace_closure(void* obj);
+  extern void trace_upvalue(void* obj);
+  extern void trace_variable(void* obj);
+  extern void trace_environment(void* obj);
+  
+  TraceObject[SYMBOL]      = trace_symbol;
+  TraceObject[LIST]        = trace_list;
+  TraceObject[BINARY]      = NULL;
+  TraceObject[TABLE]       = trace_table;
+  TraceObject[VECTOR]      = trace_vector;
+  TraceObject[FUNCTION]    = trace_function;
+  TraceObject[CHUNK]       = trace_chunk;
+  TraceObject[CLOSURE]     = trace_closure;
+  TraceObject[UPVALUE]     = trace_upvalue;
+  TraceObject[VARIABLE]    = trace_variable;
+  TraceObject[ENVIRONMENT] = trace_environment;
+
+  extern void free_symbol(void* obj);
+  extern void free_binary(void* obj);
+  extern void free_table(void* obj);
+  extern void free_vector(void* obj);
+  
+  FreeObject[SYMBOL]      = free_symbol;
+  FreeObject[LIST]        = NULL;
+  FreeObject[BINARY]      = free_binary;
+  FreeObject[TABLE]       = free_table;
+  FreeObject[VECTOR]      = free_vector;
+  FreeObject[FUNCTION]    = NULL;
+  FreeObject[CHUNK]       = NULL;
+  FreeObject[CLOSURE]     = NULL;
+  FreeObject[UPVALUE]     = NULL;
+  FreeObject[VARIABLE]    = NULL;
+  FreeObject[ENVIRONMENT] = NULL;
 }
-
-void set_hash(void* ox, uhash h) {
-  assert(ox);
-
-  head(ox)->hash   = h;
-  head(ox)->flags |= HASHED;
-}
-
-void mark_objects(usize n, void* oxs) {
-  void **objects = oxs;
-
-  for (usize i=0; i<n; i++)
-    obj_mark(objects[i]);
-}
-
-// globals
-extern void mark_symbol(void* ox);
-extern void mark_list(void* ox);
-extern void mark_table(void* ox);
-extern void mark_vector(void* ox);
-extern void mark_function(void* ox);
-extern void mark_native(void* ox);
-extern void mark_namespace(void* ox);
-extern void mark_environment(void* ox);
-extern void mark_chunk(void* ox);
-extern void mark_closure(void* ox);
-extern void mark_variable(void* ox);
-extern void mark_upvalue(void* ox);
-
-void (*Mark[NTYPES])(void* ox) = {
-  [SYMBOL]      = mark_symbol,
-  [LIST]        = mark_list,
-  [TABLE]       = mark_table,
-  [VECTOR]      = mark_vector,
-  [FUNCTION]    = mark_function,
-  [NATIVE]      = mark_native,
-  [NAMESPACE]   = mark_namespace,
-  [ENVIRONMENT] = mark_environment,
-  [CHUNK]       = mark_chunk,
-  [CLOSURE]     = mark_closure,
-  [VARIABLE]    = mark_variable,
-  [UPVALUE]     = mark_upvalue
-};
-
-extern void free_symbol(void* ox);
-extern void free_binary(void* ox);
-extern void free_table(void* ox);
-extern void free_vector(void* ox);
-
-void (*Free[NTYPES])(void* ox) = {
-  [SYMBOL] = free_symbol,
-  [BINARY] = free_binary,
-  [TABLE]  = free_table,
-  [VECTOR] = free_vector
-};
-
-extern usize sizeof_symbol(void* ox);
-extern usize sizeof_binary(void* ox);
-extern usize sizeof_list(void* ox);
-extern usize sizeof_table(void* ox);
-extern usize sizeof_vector(void* ox);
-extern usize sizeof_function(void* ox);
-extern usize sizeof_native(void* ox);
-extern usize sizeof_namespace(void* ox);
-extern usize sizeof_environment(void* ox);
-extern usize sizeof_chunk(void* ox);
-extern usize sizeof_closure(void* ox);
-extern usize sizeof_variable(void* ox);
-extern usize sizeof_upvalue(void* ox);
-
-usize (*SizeOf[NTYPES])(void* ox) = {
-  [SYMBOL]      = sizeof_symbol,
-  [BINARY]      = sizeof_binary,
-  [LIST]        = sizeof_list,
-  [TABLE]       = sizeof_table,
-  [VECTOR]      = sizeof_vector,
-  [FUNCTION]    = sizeof_function,
-  [NATIVE]      = sizeof_native,
-  [NAMESPACE]   = sizeof_namespace,
-  [ENVIRONMENT] = sizeof_environment,
-  [CHUNK]       = sizeof_chunk,
-  [CLOSURE]     = sizeof_closure,
-  [VARIABLE]    = sizeof_variable,
-  [UPVALUE]     = sizeof_upvalue
-};

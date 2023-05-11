@@ -8,6 +8,7 @@
 typedef uword              value_t; // tagged lisp data
 typedef double             real_t;
 typedef uword              fixnum_t;
+typedef char               glyph_t;
 typedef bool               boolean_t;
 typedef struct object      object_t;
 
@@ -15,11 +16,14 @@ typedef struct object      object_t;
 typedef struct symbol      symbol_t;
 typedef struct list        list_t;
 typedef struct binary      binary_t;
-typedef struct dict        dict_t;
+typedef struct table       table_t;
 typedef struct vector      vector_t;
 typedef struct function    function_t;
 typedef struct chunk       chunk_t;
 typedef struct closure     closure_t;
+typedef struct upvalue     upvalue_t;
+typedef struct namespace   namespace_t;
+typedef struct environment environment_t;
 
 // type codes
 typedef enum {
@@ -28,16 +32,20 @@ typedef enum {
   SYMBOL=1,
   LIST,
   BINARY,
-  DICT,
+  TABLE,
   VECTOR,
   FUNCTION,
   CHUNK,
   CLOSURE,
+  UPVALUE,
+  NAMESPACE,
+  ENVIRONMENT,
 
   // value types
   OBJECT=CLOSURE,
   REAL,
   FIXNUM,
+  GLYPH,
   BOOLEAN,
   UNIT,
   BOTTOM,
@@ -61,5 +69,7 @@ typedef enum {
 // API & utilities
 type_t value_type(value_t x);
 type_t rascal_type(value_t x);
+
+void   mark_value(value_t x);
 
 #endif

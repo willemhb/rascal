@@ -14,6 +14,6 @@ uhash bounded_hash(void* ox, int bound, bool* oob);
 
 // globals
 extern uhash TypeHashes[NTYPES];
-extern uhash (*Hash[NTYPES])(void* ox, int bound, bool* oob);
+extern uhash (*Hash[NTYPES])(void* ox, int bound, bool* oob, uhash* acc);
 
 #endif

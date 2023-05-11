@@ -10,7 +10,7 @@ struct table {
 };
 
 typedef enum {
-  EQTABLE = 0x01, // compare with '=?'
+  EQTABLE = 0x01, // compare with '==?'
   IDTABLE = 0x02, // compare with 'id?'
 } table_fl_t;
 

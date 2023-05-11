@@ -44,8 +44,6 @@ extern uhash hash_binary(void* ox, int bound, bool* oob);
 extern uhash hash_table(void* ox, int bound, bool* oob);
 extern uhash hash_vector(void* ox, int bound, bool* oob);
 extern uhash hash_function(void* ox, int bound, bool* oob);
-extern uhash hash_native(void* ox, int bound, bool* oob);
-extern uhash hash_namespace(void* ox, int bound, bool* oob);
 extern uhash hash_environment(void* ox, int bound, bool* oob);
 extern uhash hash_chunk(void* ox, int bound, bool* oob);
 extern uhash hash_closure(void* ox, int bound, bool* oob);
@@ -61,8 +59,6 @@ uhash (*Hash[NTYPES])(void* ox, int bound, bool* oob) = {
   [TABLE]       = hash_table,
   [VECTOR]      = hash_vector,
   [FUNCTION]    = hash_function,
-  [NATIVE]      = hash_native,
-  [NAMESPACE]   = hash_namespace,
   [ENVIRONMENT] = hash_environment,
   [CHUNK]       = hash_chunk,
   [CLOSURE]     = hash_closure,

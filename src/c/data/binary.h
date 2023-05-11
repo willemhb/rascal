@@ -17,5 +17,6 @@ binary_t* binary(usize n, int elsize, bool encoded);
 void      init_binary(binary_t* slf, usize n, int elsize, int encoded);
 void      reset_binary(binary_t* slf);
 usize     binary_write(binary_t* slf, usize cnt, void* dat);
+usize     binary_read(binary_t* slf, usize cnt, void* buf);
 
 #endif

@@ -3,11 +3,15 @@
 
 #include "data/object.h"
 
+// C types
 struct chunk {
   HEADER;
-  list_t*   envt;  // linked list mapping names to offsets
-  vector_t* vals;  // compiled constants
-  binary_t* code;  // instructions
+  environment_t* envt;  // namespace
+  vector_t*      vals;  // compiled constants
+  binary_t*      code;  // instructions
 };
+
+// API & utilities
+chunk_t* make_chunk(environment_t* envt);
 
 #endif

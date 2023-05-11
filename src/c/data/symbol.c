@@ -13,10 +13,10 @@
 symbol_t* SymbolTable = NULL;
 uint64 SymbolCounter = 1;
 
-static symbol_t* new_symbol(char* name, bool interned) {
+static symbol_t* new_symbol(char* name, flags fl) {
   symbol_t* out = allocate(sizeof(symbol_t));
 
-  INIT_HEADER(out, SYMBOL, interned|FROZEN);
+  INIT_HEADER(out, SYMBOL, fl|FROZEN|(*name == ':')*LITERAL);
   out->name  = duplicate(name, strlen(name)+1, 0);
   out->left  = NULL;
   out->right = NULL;
@@ -44,7 +44,7 @@ static symbol_t** locate_symbol(char* name) {
   return st;
 }
 
-static symbol_t* intern_symbol(char* name) {
+symbol_t* intern_symbol(char* name) {
   symbol_t** location = locate_symbol(name);
 
   if (*location == NULL)
@@ -53,10 +53,10 @@ static symbol_t* intern_symbol(char* name) {
   return *location;
 }
 
-symbol_t* symbol(char* name, bool intern) {
+symbol_t* make_symbol(char* name, flags fl) {
   symbol_t* out;
   
-  if (intern) {
+  if (flagp(fl, INTERNED)) {
     assert(name);
     out = intern_symbol(name);
   } else {
@@ -64,18 +64,18 @@ symbol_t* symbol(char* name, bool intern) {
     if (name == NULL)
       name = "symbol";
 
-    out = new_symbol(name, false);
+    out = new_symbol(name, 0);
   }
 
   return out;
 }
 
 // object methods
-void mark_symbol(void* ox) {
+void trace_symbol(void* ox) {
   symbol_t* symx = ox;
 
-  obj_mark(symx->left);
-  obj_mark(symx->right);
+  mark_object(symx->left);
+  mark_object(symx->right);
 }
 
 void free_symbol(void* ox) {
@@ -90,30 +90,12 @@ usize sizeof_symbol(void* ox) {
   return sizeof(symbol_t);
 }
 
-uhash hash_symbol(void* ox, int bound, bool* oob) {
-  (void)bound;
-  (void)oob;
-
-  symbol_t* symx = ox;
-
-  if (!has_flag(symx, HASHED)) {
-    uhash base     = TYPEHASH(ox);
-    uhash namehash = hash_str(symx->name);
-    uhash idnohash = hash_uword(symx->idno);
-    uhash symhash  = mix_3_hashes(base, namehash, idnohash) & WVMASK;
-
-    set_hash(symx, symhash);
-  }
-
-  return head(ox)->hash;
-}
-
 void print_symbol(value_t x, table_t* backrefs) {
   (void)backrefs;
 
   symbol_t* symx = as_symbol(x);
 
-  if (has_flag(symx, INTERNED))
+  if (object_hasfl(symx, INTERNED))
     printf("%s", symx->name);
 
   else

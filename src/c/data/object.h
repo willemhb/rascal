@@ -25,9 +25,9 @@ typedef enum {
 #define HEADER object_t obj
 
 // APIs & utilities
-#define head(obj)    ((object_t*)(obj))
+#define head(x)      ((object_t*)(x))
 #define is_object(x) (value_type(x) == OBJECT)
-#define as_object(x) rl_asa(x, WVMASK, object_t*)
+#define as_object(x) ((object_t*)(((value_t)(x))&WVMASK))
 
 #define INIT_HEADER(obj, datatype, fl)            \
   do {                                            \
@@ -43,13 +43,24 @@ typedef enum {
     __obj->black = false;                         \
   } while (false)
 
+// globals
+extern usize ValueSize[NTYPES];
+extern usize (*SizeOf[NTYPES])(void* obj);
+extern void  (*Trace[NTYPES])(void* obj);
+extern void  (*Free[NTYPES])(void* obj);
 
 // API & utilities
-type_t object_type(void* obj);
-usize  object_size(void* obj);
+value_t object(void* obj);
 
-bool   object_getfl(void* obj, flags fl);
-bool   object_setfl(void* obj, flags fl);
-bool   object_delfl(void* obj, flags fl);
+type_t object_type(void* obj);
+void mark_object(void* obj);
+void free_object(void* obj);
+
+bool object_hasfl(void* obj, flags fl);
+bool object_setfl(void* obj, flags fl);
+bool object_delfl(void* obj, flags fl);
+
+// toplevel initialization
+void object_init(void);
 
 #endif
