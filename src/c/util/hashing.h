@@ -1,7 +1,7 @@
 #ifndef util_hashing_h
 #define util_hashing_h
 
-#include "common.h"
+#include "util/number.h"
 
 // API ------------------------------------------------------------------------
 uhash hash_uword(uword word);
