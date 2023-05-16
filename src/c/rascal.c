@@ -47,8 +47,10 @@ typedef enum {
   FROZEN  =0x1000,
 
   // symbol flags
-  LITERAL =0x0001,
-  CONSTANT=0x0002,
+  INTERNED=0x0001,
+  LITERAL =0x0002,
+  CONSTANT=0x0004,
+  SPCLFORM=0x0008,
 
   // binary flags
   ENCODED =0x0010,
@@ -110,7 +112,7 @@ struct function {
   usize     arity;
   type_t*   type;
   union {
-    value_t (*native)(value_t* args); // native
+    value_t (*native)(usize n, value_t* args); // native
     cons_t* closure;
   };
 };
@@ -290,6 +292,24 @@ void error(value_t cause, const char* fmt, ...) {
       error(cause, (fmt) __VA_OPT__(,) __VA_ARGS__);    \
   } while (false)
 
+#define argco( fn, xpr, nargs )                                         \
+  do {                                                                  \
+    if ( has_flag(fn, VARIADIC) )                                       \
+      require((fn)->arity >= nargs,                                     \
+              xpr,                                                      \
+              "%s wanted at least %zu arguments, but got %zu",          \
+              (fn)->name->name,                                         \
+              (fn)->arity,                                              \
+              nargs);                                                   \
+    else                                                                \
+      require((fn)->arity == nargs,                                     \
+              xpr,                                                      \
+              "%s wanted %zu arguments, but got %zu",                   \
+              (fn)->name->name,                                         \
+              (fn)->arity,                                              \
+              nargs);                                                   \
+  } while (false)
+
 // memory ---------------------------------------------------------------------
 static bool overflows_heap( usize nbytes ) {
   return HeapUsed + nbytes > HeapCap;
@@ -398,13 +418,78 @@ value_t object( void* obj ) {
   return ((value_t)obj) | OBJTAG;
 }
 
+void init_object( void* slf, type_t* type, flags fl ) {
+  object_t* obj = slf;
+
+  obj->next =NULL;
+  obj->type =type;
+  obj->flags=fl|GRAY;
+}
+
+void* make_object( type_t* type, flags fl ) {
+  object_t* out = allocate(type->size);
+  init_object(out, type, fl);
+  return out;
+}
+
 // symbol ---------------------------------------------------------------------
 symbol_t* as_symbol( value_t x ) {
   return as_pointer(x);
 }
 
 bool is_symbol( value_t x ) {
-  return has_type(x, &SymbolType );
+  return has_type(x, &SymbolType);
+}
+
+bool is_keyword( value_t x ) {
+  return is_symbol(x) && has_flag(as_symbol(x), LITERAL);
+}
+
+
+
+static symbol_t** locate_symbol( char* name, symbol_t** root) {
+  while ( *root ) {
+    int o = strcmp(name, (*root)->name);
+
+    if ( o < 0 )
+      root = &(*root)->left;
+
+    else if ( o > 0 )
+      root = &(*root)->right;
+
+    else
+      break;
+  }
+
+  return root;
+}
+
+static symbol_t* make_symbol( char* name, bool interned ) {
+  symbol_t* out = make_object(&SymbolType, INTERNED*interned|LITERAL*(*name == ':'));
+  out->left = out->right = NULL;
+  out->idno = ++SymbolCounter;
+  out->bind = UNDEFINED;
+
+  return out;
+}
+
+static symbol_t* intern_symbol( char* name ) {
+  symbol_t** location = locate_symbol(name, &SymbolTable);
+
+  if ( *location == NULL )
+    *location = make_symbol(name, true);
+
+  return *location;
+}
+
+symbol_t* symbol( char* name, bool intern ) {
+  if ( intern )
+    return intern_symbol(name);
+
+  if ( name == NULL )
+    name = "symbol";
+
+  return make_symbol(name, false);
 }
 
 // cons -----------------------------------------------------------------------
@@ -428,6 +513,14 @@ function_t* as_function( value_t x ) {
 
 bool is_function( value_t x ) {
   return has_type(x, &FunctionType);
+}
+
+bool is_native( value_t x ) {
+  return is_function(x) && has_flag(as_function(x), NATIVE);
+}
+
+bool is_closure( value_t x ) {
+  return is_function(x) && has_flag(as_function(x), LAMBDA);
 }
 
 function_t* function( symbol_t* name, type_t* type, usize arity, bool vargs, value_t (*native)(usize n, value_t* args), cons_t* closure );
@@ -456,7 +549,8 @@ value_t eval( value_t x, list_t* env ) {
   value_t v, h, b;
   symbol_t* n;
   cons_t* p;
-  list_t* a, *s, *f;
+  list_t* a, *s, *f, *e;
+  function_t* fn;
   bool isva;
   usize nargs;
 
@@ -474,7 +568,7 @@ value_t eval( value_t x, list_t* env ) {
     value_t head = form->head;
     list_t* args = form->tail;
 
-    if ( is_symbol(head) ) {
+    if ( is_symbol(head) && has_flag(as_symbol(head), SPCLFORM) ) {
       if ( head == Quote ) {
         require(args->arity == 1, x, "wrong number of expressions in quote");
         v = args->head;
@@ -548,13 +642,26 @@ value_t eval( value_t x, list_t* env ) {
         p = cons(object(p), object(env));
         v = object(function(as_symbol(Lmb), NULL, f->arity, isva, NULL, p));
       } else {
-        goto eval_combination;
+        error(x, "unkown special form '%s'", as_symbol(head)->name);
       }
     } else {
-    eval_combination:
       head = eval(head, env);
       require(is_function(head), x, "operator is not a function");
+      fn = as_function(head);
       nargs = args->arity;
+      argco(fn, x, nargs);
+      isva = has_flag(fn, VARIADIC);
+
+      if ( has_flag(fn, NATIVE) ) {
+        value_t argarr[nargs];
+
+        for (usize i=0; i<nargs; i++, args=args->tail)
+          argarr[i] = eval(args->head, env);
+
+        v = fn->native(nargs, argarr);
+      } else {
+        
+      }
     }
   }
 
