@@ -1,28 +1,9 @@
 #ifndef number_h
 #define number_h
 
-#include <stdint.h>
-#include <stddef.h>
+#include "common.h"
 
 // C types --------------------------------------------------------------------
-typedef uint8_t     ubyte;
-typedef uint32_t    uint;
-typedef uint16_t    ushort;
-typedef uintptr_t   uword;
-typedef uintptr_t   uhash;
-typedef size_t      usize;
-typedef void      (*funcptr)(void);
-typedef uint32_t    flags;
-
-typedef uint8_t  uint8;
-typedef int8_t   sint8;
-typedef uint16_t uint16;
-typedef int16_t  sint16;
-typedef uint32_t uint32;
-typedef int32_t  sint32;
-typedef uint64_t uint64;
-typedef int64_t  sint64;
-
 typedef union {
   double dbl;
   uword  word;
