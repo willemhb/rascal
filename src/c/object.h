@@ -137,8 +137,76 @@ extern list_t EmptyList;
 
 // external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // queries --------------------------------------------------------------------
+type_t type_of( value_t x );
 
+usize  size_of_type( type_t t );
+usize  size_of_value( value_t x );
+
+#define size_of(x) _Generic((x), value_t: size_of_value, type_t: size_of_type)(x)
+
+bool has_flag( void* ptr, flags fl );
 
 // type predicates ------------------------------------------------------------
+bool is_symbol( value_t x );
+bool is_list( value_t x );
+bool is_binary( value_t x );
+bool is_vector( value_t x );
+bool is_table( value_t x );
+bool is_native( value_t x );
+bool is_closure( value_t x );
+bool is_chunk( value_t x );
+bool is_object( value_t x );
+bool is_number( value_t x );
+bool is_glyph( value_t x );
+bool is_pointer( value_t x );
+bool is_unit( value_t x );
+
+// casts ----------------------------------------------------------------------
+symbol_t*  as_symbol( value_t x );
+list_t*    as_list( value_t x );
+binary_t*  as_binary( value_t x );
+vector_t*  as_vector( value_t x );
+table_t*   as_table( value_t x );
+native_t*  as_native( value_t x );
+closure_t* as_closure( value_t x );
+chunk_t*   as_chunk( value_t x );
+object_t*  as_object( value_t x );
+number_t   as_number( value_t x );
+glyph_t    as_glyph( value_t x );
+pointer_t  as_pointer( value_t x );
+
+// constructors ---------------------------------------------------------------
+symbol_t*  symbol( char* name, bool intern );
+list_t*    cons( value_t hd, list_t* tl );
+list_t*    list( usize n, value_t* args );
+binary_t*  binary( int elSize, bool encoded, usize n, void* data );
+vector_t*  vector( usize n, value_t* args );
+table_t*   table( bool id, usize n, value_t* args );
+native_t*  native( symbol_t* name, value_t (*funcptr)( usize n, value_t* args ) );
+closure_t* closure( chunk_t* code, vector_t* envt );
+chunk_t*   chunk( symbol_t* name, list_t* envt );
+value_t    object( void* ptr );
+value_t    number( number_t x );
+value_t    glyph( int x );
+value_t    pointer( pointer_t x );
+
+// getters, setters, queries, &c ----------------------------------------------
+usize binary_size( binary_t* slf, bool cap );
+void  reset_binary( binary_t* slf );
+void* binary_offset( binary_t* slf, usize n );
+usize binary_write( binary_t* slf, usize n, void* data );
+
+usize   vector_size( vector_t* slf, bool cap );
+usize   reset_vector( vector_t* slf );
+usize   vector_write( vector_t* slf, usize n, value_t* data );
+usize   vector_push( vector_t* slf, value_t x );
+value_t vector_pop( vector_t* slf );
+
+usize   table_size( table_t* slf, bool cap );
+usize   reset_table( table_t* slf );
+bool    table_has( table_t* slf, value_t k );
+value_t table_get( table_t* slf, value_t k );
+value_t table_set( table_t* slf, value_t k, value_t v );
+value_t table_del( table_t* slf, value_t k );
 
 #endif

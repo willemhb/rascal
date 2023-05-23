@@ -7,26 +7,30 @@
 #include "object.h"
 
 // C types ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-// globals ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 typedef enum {
   READY_TOKEN,
   EXPRESSION_TOKEN,
   EOF_TOKEN,
-  ERROR_TOKEN
+  ERROR_TOKEN,
+  INIT_TOKEN
 } token_t;
 
-extern struct {
+struct Reader {
   table_t dispatch;
   vector_t expressions;
   binary_t buffer;
   value_t expression;
   FILE* infile;
   token_t state;
-} Reader;
+};
+
+// globals ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+extern struct Reader Reader;
 
 // external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 value_t read( FILE* ios );
-void init_reader( void );
+void reset_reader( struct Reader* reader );
+void init_reader( struct Reader* reader, FILE* infile );
+void reader_init( void );
 
 #endif

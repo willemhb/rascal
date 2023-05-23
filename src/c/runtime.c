@@ -43,7 +43,8 @@ static void print_error( const char* fname, value_t cause, const char* fmt, va_l
   fprintf(stderr, "\n");
 }
 
-void panic( void ) {
+void panic( value_t cause ) {
+  Error.cause = cause;
   longjmp(Error.safety, 1);
 }
 
@@ -52,7 +53,7 @@ void error( const char* fname, value_t cause, const char* fmt, ... ) {
   va_start(va, fmt);
   print_error(fname, cause, fmt, va);
   va_end(va);
-  panic();
+  panic(cause);
 }
 
 void require( const char* fname, bool test, value_t cause, const char* fmt, ... ) {
@@ -61,7 +62,7 @@ void require( const char* fname, bool test, value_t cause, const char* fmt, ... 
     va_start(va, fmt);
     print_error(fname, cause, fmt, va);
     va_end(va);
-    panic();    
+    panic(cause);
   }
 }
 
@@ -71,7 +72,7 @@ void forbid( const char* fname, bool test, value_t cause, const char* fmt, ... )
     va_start(va, fmt);
     print_error(fname, cause, fmt, va);
     va_end(va);
-    panic();
+    panic(cause);
   }
 }
 
@@ -133,8 +134,12 @@ void* reallocate( void* ptr, usize oldSize, usize newSize ) {
 
 void deallocate( void* ptr, usize nbytes ) {
   assert(nbytes <= Heap.used);
-  free(ptr);
-  Heap.used -= nbytes;
+  if ( ptr == NULL ) {
+    assert(nbytes == 0);
+  } else {
+    free(ptr);
+    Heap.used -= nbytes;
+  }
 }
 
 void* duplicate( void* ptr, usize nbytes ) {

@@ -26,7 +26,7 @@ extern struct Error Error;
 
 // external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // error ----------------------------------------------------------------------
-void panic( void );
+void panic( value_t cause );
 void error( const char* fname, value_t cause, const char* fmt, ...);
 void require( const char* fname, bool test, value_t cause, const char* fmt, ...);
 void forbid( const char* fname, bool test, value_t cause, const char* fmt, ...);
@@ -34,6 +34,8 @@ void forbid( const char* fname, bool test, value_t cause, const char* fmt, ...);
 // memory ---------------------------------------------------------------------
 void* allocate( usize nBytes );
 void* reallocate( void* ptr, usize oldSize, usize newSize );
+void* duplicate( void* ptr, usize nBytes );
+char* duplicate_str( char* str );
 void  deallocate( void* ptr, usize nBytes );
 
 // misc -----------------------------------------------------------------------
