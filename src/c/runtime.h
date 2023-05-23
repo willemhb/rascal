@@ -39,6 +39,6 @@ char* duplicate_str( char* str );
 void  deallocate( void* ptr, usize nBytes );
 
 // misc -----------------------------------------------------------------------
-void init_runtime( void );
+void runtime_init( void );
 
 #endif

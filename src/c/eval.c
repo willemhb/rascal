@@ -109,23 +109,83 @@ value_t exec( chunk_t* chunk ) {
     [OP_RETURN]     =&&op_return
   };
 
-  value_t v;
+  value_t x, v=NIL, *a;
+  opcode_t op;
+  int argx, argy, argc, nargs=0;
 
+ dispatch:
+  op = *Vm.ip++;
+  argc = opcode_argc(op);
 
+  if ( argc > 0 )
+    argx = *Vm.ip++;
+
+  if ( argc > 1 )
+    argy = *Vm.ip++;
+
+  goto *labels[op];
+  
  op_noop:
+  goto dispatch;
+
  op_argco:
+  require( Vm.code->name->name,
+           nargs == argx,
+           NIL,
+           "incorrect arity: expected %d, got %d",
+           argx,
+           nargs );
+  goto dispatch;
+  
  op_vargco:
+    require( Vm.code->name->name,
+           nargs >= argx,
+           NIL,
+           "incorrect arity: expected at least %d, got %d",
+           argx,
+           nargs );
+  goto dispatch;
+  
  op_load_value:
+  push( Vm.code->vals->data[argx] );
+  goto dispatch;
+  
  op_load_local:
+  a = Vm.bp;
+  while ( argy-- )
+    a = as_vector(a[0])->data;
+  push( a[argx] );
+  goto dispatch;
+
  op_put_local:
+  a = Vm.bp;
+  while ( argy-- )
+    a = as_vector(a[0])->data;
+  a[argx] = Vm.sp[-1];
+  goto dispatch;
+  
  op_load_global:
+  push( Vm.toplevel.data[argx*2+1] );
+  goto dispatch;
+
  op_put_global:
+  Vm.toplevel.data[argx*2+1] = Vm.sp[-1];
+  goto dispatch;
+
  op_jump:
+  Vm.ip += argx;
+  goto dispatch;
+  
  op_jump_nil:
+  x = pop();
+  if ( x == NIL )
+    Vm.ip += argx;
+  goto dispatch;
+  
  op_closure:
  op_call:
  op_return:
-  
+  return v;
 }
 
 void repl( void );

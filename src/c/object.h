@@ -31,7 +31,6 @@ typedef enum {
   // symbol flags
   INTERNED=0x0001,
   LITERAL =0x0002,
-  CONSTANT=0x0004,
 
   // table flags
   IDTABLE =0x0001,
@@ -110,12 +109,13 @@ struct chunk {
 
 // globals ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // symbol table ---------------------------------------------------------------
-extern struct {
+struct SymbolTable {
   usize counter;
   symbol_t* root;
-} SymbolTable;
+};
 
 // empty singletons -----------------------------------------------------------
+extern struct SymbolTable SymbolTable;
 extern list_t EmptyList;
 
 // tags
@@ -207,6 +207,7 @@ usize   reset_table( table_t* slf );
 bool    table_has( table_t* slf, value_t k );
 value_t table_get( table_t* slf, value_t k );
 value_t table_set( table_t* slf, value_t k, value_t v );
+value_t table_put( table_t* slf, value_t k, value_t v );
 value_t table_del( table_t* slf, value_t k );
 
 #endif
