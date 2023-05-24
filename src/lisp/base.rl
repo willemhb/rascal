@@ -1,3 +1,11 @@
-#| basic syntax |#
+(fun safe-divide
+  (x y)
+  (if (==? y 0)
+      (raise :division-by-zero)
+      (/ x y)))
 
-(require "prelude.rl")
+(catch ((cause)
+        (case cause
+          :division-by-0 nil
+          otherwise      0)))
+          
