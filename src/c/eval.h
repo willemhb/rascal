@@ -5,18 +5,18 @@
 #include "object.h"
 
 // C types ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-struct Vm {
-  // frame variables (saved on non-tail call) ---------------------------------
-  chunk_t*  code;
-  vector_t* envt;
-  uint16*   ip;
-  value_t*  bp;
-  value_t*  cp;
-  value_t*  sp;
+typedef struct frame_t frame_t;
 
-  // global variables ---------------------------------------------------------
-  // toplevel environment -----------------------------------------------------
-  table_t   toplevel;
+struct frame_t {
+  frame_t* cp,* fp;
+  chunk_t* code;
+  value_t* bp,* sp;
+  uint16*  ip;
+};
+
+struct Vm {
+  frame_t  frame;
+  table_t  global;
 };
 
 // globals ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

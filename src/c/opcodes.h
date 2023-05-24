@@ -7,9 +7,6 @@
 typedef enum {
   OP_NOOP,
 
-  OP_ARGCO,
-  OP_VARGCO,
-
   OP_LOAD_VALUE,
   OP_LOAD_LOCAL,
   OP_PUT_LOCAL,
@@ -26,7 +23,6 @@ typedef enum {
 
 static inline usize opcode_argc( opcode_t opcode ) {
   switch ( opcode ) {
-    case OP_ARGCO: case OP_VARGCO:
     case OP_LOAD_VALUE: case OP_LOAD_GLOBAL: case OP_PUT_GLOBAL:
     case OP_JUMP: case OP_JUMP_NIL: case OP_CALL:
       return 1;

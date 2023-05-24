@@ -8,19 +8,23 @@
 
 // globals ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #define NSTACK 32768
-#define STACKEND (Stack+NSTACK)
+#define NFRAME 2048
+#define StackEnd (Stack+NSTACK)
+#define FrameEnd (Frame+NFRAME)
 
 value_t Stack[NSTACK];
+frame_t Frame[NFRAME];
 
 struct Vm Vm = {
-  .code     =NULL,
-  .envt     =NULL,
-  .ip       =NULL,
-  .bp       =Stack,
-  .cp       =Stack,
-  .sp       =Stack,
-
-  .toplevel ={
+  .frame  ={
+    .cp  =NULL,
+    .fp  =Frame,
+    .code=NULL,
+    .bp  =Stack,
+    .sp  =Stack,
+    .ip  =NULL
+  },
+  .global ={
     .obj ={
       .next =NULL,
       .type =TABLE,
@@ -34,32 +38,31 @@ struct Vm Vm = {
 };
 
 // internal API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+void reset_vm( struct Vm* vm ) {
+  vm->frame.cp   = NULL;
+  vm->frame.fp   = Frame;
+  vm->frame.code = NULL;
+  vm->frame.sp   = Stack;
+  vm->frame.bp   = Stack;
+  vm->frame.ip   = NULL;
+}
+
 value_t* push( value_t x ) {
-  value_t* out = Vm.sp;
-  *(Vm.sp++) = x;
+  value_t* out = Vm.frame.sp;
+  *(Vm.frame.sp++) = x;
   return out;
 }
 
 value_t pop( void ) {
-  return *(--Vm.sp);
+  return *(--Vm.frame.sp);
 }
 
 void push_frame( void ) {
-  push(object(Vm.code));
-  push(object(Vm.envt));
-  push(pointer(Vm.ip));
-  push(pointer(Vm.bp));
-  push(pointer(Vm.cp));
-  Vm.cp = Vm.sp;
+  *(Vm.frame.fp++) = Vm.frame;
 }
 
 void pop_frame( void ) {
-  Vm.sp   = Vm.cp;
-  Vm.cp   = as_pointer(pop());
-  Vm.bp   = as_pointer(pop());
-  Vm.ip   = as_pointer(pop());
-  Vm.envt = as_vector(pop());
-  Vm.code = as_chunk(pop());
+  Vm.frame = *Vm.frame.cp;
 }
 
 bool is_literal( value_t x ) {
@@ -73,6 +76,10 @@ bool is_literal( value_t x ) {
     return true;
 }
 
+bool is_captured( frame_t* frame ) {
+  return frame->bp < Stack || frame->bp >= StackEnd;
+}
+
 // external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 value_t eval( value_t x ) {
   value_t v;
@@ -81,7 +88,7 @@ value_t eval( value_t x ) {
     v = x;
 
   else if ( is_symbol(x) ) {
-    v = table_get(&Vm.toplevel, x);
+    v = table_get(&Vm.global, x);
     forbid("eval", v==NOTFOUND, x, "symbol undefined at toplevel");
   } else {
     list_t* form = as_list(x);
@@ -97,7 +104,6 @@ value_t apply( void* head, usize n, value_t* args );
 value_t exec( chunk_t* chunk ) {
   static void* labels[] = {
     [OP_NOOP]       =&&op_noop,
-    [OP_ARGCO]      =&&op_argco,       [OP_VARGCO]    =&&op_vargco,
 
     [OP_LOAD_VALUE] =&&op_load_value,
     [OP_LOAD_LOCAL] =&&op_load_local,  [OP_PUT_LOCAL] =&&op_put_local,
@@ -110,82 +116,88 @@ value_t exec( chunk_t* chunk ) {
   };
 
   value_t x, v=NIL, *a;
+  frame_t* f;
+  vector_t* e;
   opcode_t op;
-  int argx, argy, argc, nargs=0;
+  int argx=0, argy=0, argc=0;
+
+  Vm.frame.code = chunk;
+  Vm.frame.ip = chunk->code->data;
 
  dispatch:
-  op = *Vm.ip++;
+  op = *Vm.frame.ip++;
   argc = opcode_argc(op);
 
   if ( argc > 0 )
-    argx = *Vm.ip++;
+    argx = *Vm.frame.ip++;
 
   if ( argc > 1 )
-    argy = *Vm.ip++;
+    argy = *Vm.frame.ip++;
 
   goto *labels[op];
   
  op_noop:
   goto dispatch;
-
- op_argco:
-  require( Vm.code->name->name,
-           nargs == argx,
-           NIL,
-           "incorrect arity: expected %d, got %d",
-           argx,
-           nargs );
-  goto dispatch;
-  
- op_vargco:
-    require( Vm.code->name->name,
-           nargs >= argx,
-           NIL,
-           "incorrect arity: expected at least %d, got %d",
-           argx,
-           nargs );
-  goto dispatch;
   
  op_load_value:
-  push( Vm.code->vals->data[argx] );
+  push( Vm.frame.code->vals->data[argx] );
   goto dispatch;
   
  op_load_local:
-  a = Vm.bp;
+  a = Vm.frame.bp;
   while ( argy-- )
     a = as_vector(a[0])->data;
   push( a[argx] );
   goto dispatch;
 
  op_put_local:
-  a = Vm.bp;
+  a = Vm.frame.bp;
   while ( argy-- )
     a = as_vector(a[0])->data;
-  a[argx] = Vm.sp[-1];
+  a[argx] = Vm.frame.sp[-1];
   goto dispatch;
   
  op_load_global:
-  push( Vm.toplevel.data[argx*2+1] );
+  push( Vm.global.data[argx*2+1] );
   goto dispatch;
 
  op_put_global:
-  Vm.toplevel.data[argx*2+1] = Vm.sp[-1];
+  Vm.global.data[argx*2+1] = Vm.frame.sp[-1];
   goto dispatch;
 
  op_jump:
-  Vm.ip += argx;
+  Vm.frame.ip += argx;
   goto dispatch;
-  
+
  op_jump_nil:
   x = pop();
   if ( x == NIL )
-    Vm.ip += argx;
+    Vm.frame.ip += argx;
   goto dispatch;
-  
+
  op_closure:
+  f = &Vm.frame;
+
+  while ( f ) {
+    f = f->cp;
+  }
+  
  op_call:
+  x = Vm.frame.sp[-argx-1];
+
+ call_native:
+  
+
  op_return:
-  return v;
+  v = pop();
+  if ( Vm.frame.cp == NULL ) {
+    reset_vm(&Vm);
+    return v;
+  }
+
+  pop_frame();
+  push(v);
+  goto dispatch;
 }
 
 void repl( void );
