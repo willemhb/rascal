@@ -16,7 +16,7 @@ value_t Stack[NSTACK];
 frame_t Frame[NFRAME];
 
 struct Vm Vm = {
-  .frame  ={
+  .frame ={
     .cp  =NULL,
     .fp  =Frame,
     .code=NULL,
@@ -24,7 +24,7 @@ struct Vm Vm = {
     .sp  =Stack,
     .ip  =NULL
   },
-  .global ={
+  .global={
     .obj ={
       .next =NULL,
       .type =TABLE,
@@ -78,6 +78,10 @@ bool is_literal( value_t x ) {
 
 bool is_captured( frame_t* frame ) {
   return frame->bp < Stack || frame->bp >= StackEnd;
+}
+
+value_t* frame_locals( frame_t* frame ) {
+  return is_captured( frame ) ? frame->envt->data : frame->bp;
 }
 
 // external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -135,23 +139,23 @@ value_t exec( chunk_t* chunk ) {
     argy = *Vm.frame.ip++;
 
   goto *labels[op];
-  
+
  op_noop:
   goto dispatch;
-  
+
  op_load_value:
   push( Vm.frame.code->vals->data[argx] );
   goto dispatch;
-  
+
  op_load_local:
-  a = Vm.frame.bp;
+  a = frame_locals( &Vm.frame );
   while ( argy-- )
     a = as_vector(a[0])->data;
   push( a[argx] );
   goto dispatch;
 
  op_put_local:
-  a = Vm.frame.bp;
+  a = frame_locals( &Vm.frame );
   while ( argy-- )
     a = as_vector(a[0])->data;
   a[argx] = Vm.frame.sp[-1];
@@ -200,4 +204,10 @@ value_t exec( chunk_t* chunk ) {
   goto dispatch;
 }
 
-void repl( void );
+void repl( void ) {
+  
+}
+
+void vm_init( void ) {
+  
+}

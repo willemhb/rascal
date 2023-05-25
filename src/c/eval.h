@@ -10,7 +10,11 @@ typedef struct frame_t frame_t;
 struct frame_t {
   frame_t* cp,* fp;
   chunk_t* code;
-  value_t* bp,* sp;
+  union {
+    vector_t* envt;
+    value_t*  bp;
+  };
+  value_t* sp;
   uint16*  ip;
 };
 
