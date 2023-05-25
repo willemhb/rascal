@@ -27,6 +27,7 @@ extern struct Error Error;
 // external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // error ----------------------------------------------------------------------
 void panic( value_t cause );
+void recover( void );
 void error( const char* fname, value_t cause, const char* fmt, ...);
 void require( const char* fname, bool test, value_t cause, const char* fmt, ...);
 void forbid( const char* fname, bool test, value_t cause, const char* fmt, ...);

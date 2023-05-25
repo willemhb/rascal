@@ -190,7 +190,8 @@ value_t exec( chunk_t* chunk ) {
   x = Vm.frame.sp[-argx-1];
 
  call_native:
-  
+
+ call_closure:
 
  op_return:
   v = pop();
@@ -204,8 +205,25 @@ value_t exec( chunk_t* chunk ) {
   goto dispatch;
 }
 
+#define PROMPT "rascal>"
+
 void repl( void ) {
-  
+  for (;;) {
+    value_t x, v;
+    printf("\n"PROMPT" ");
+
+    if ( setjmp(Error.safety) ) {
+      recover();
+      printf("\n");
+      continue;
+
+    } else {
+      x = read(stdin);
+      v = eval(x);
+      fprintf(stdout, "\n");
+      print(stdout, v);
+    }
+  }
 }
 
 void vm_init( void ) {
