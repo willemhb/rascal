@@ -83,7 +83,7 @@ symbol_t* make_symbol( char* name, flags fl ) {
   sym->left     = NULL;
   sym->right    = NULL;
   sym->name     = duplicate_str(name);
-  sym->bind     = UNDEFINED;
+  sym->constant = UNDEFINED;
 
   return sym;
 }
@@ -257,8 +257,8 @@ usize resize_vector( vector_t* slf, usize n ) {
   return slf->cnt;
 }
 
-void reset_vector( vector_t* slf ) {
-  resize_vector(slf, 0);
+usize reset_vector( vector_t* slf ) {
+  return resize_vector(slf, 0);
 }
 
 usize vector_write( vector_t* slf, usize n, value_t* data ) {

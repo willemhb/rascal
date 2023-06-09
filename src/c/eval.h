@@ -30,11 +30,11 @@ extern struct Vm Vm;
 
 // external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 value_t eval( value_t x );
-value_t apply( void* head, usize n, value_t* args );
 value_t exec( chunk_t* chunk );
 void    repl( void );
 
 // misc _______________________________________________________________________
+bool is_literal( value_t x );
 void vm_init( void );
 
 #endif

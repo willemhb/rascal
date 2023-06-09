@@ -23,18 +23,21 @@ typedef enum {
 
 typedef enum {
   // general flags
-  BLACK   =0x8000,
-  GRAY    =0x4000,
-  NOFREE  =0x2000,
-  FROZEN  =0x1000,
+  BLACK   =0x80000000,
+  GRAY    =0x40000000,
+  NOFREE  =0x20000000,
+  FROZEN  =0x10000000,
 
   // symbol flags
-  INTERNED=0x0001,
-  LITERAL =0x0002,
+  INTERNED=0x00010000,
+  LITERAL =0x00020000,
 
   // table flags
-  IDTABLE =0x0001,
-  EQTABLE =0x0002,
+  IDTABLE =0x00010000,
+  EQTABLE =0x00020000,
+
+  // native/closure flags
+  VARIADIC=0x00010000
 } objfl_t;
 
 struct object {
@@ -127,8 +130,8 @@ extern list_t EmptyList;
 #define PTRTAG   0x7ffe000000000000ul
 #define OBJTAG   0xffff000000000000ul
 
-#define TAGMASK 0xffff000000000000ul
-#define VALMASK 0x0000fffffffffffful
+#define TAGMASK  0xffff000000000000ul
+#define VALMASK  0x0000fffffffffffful
 
 #define NIL       (NILTAG|0)
 #define NOTFOUND  (NILTAG|1)
@@ -161,6 +164,10 @@ bool is_glyph( value_t x );
 bool is_pointer( value_t x );
 bool is_unit( value_t x );
 
+// miscellaneous predicates ---------------------------------------------------
+bool is_constant( value_t x );
+bool is_list_of( value_t x, bool (*test)(value_t x) );
+
 // casts ----------------------------------------------------------------------
 symbol_t*  as_symbol( value_t x );
 list_t*    as_list( value_t x );
@@ -184,7 +191,7 @@ vector_t*  vector( usize n, value_t* args );
 table_t*   table( bool id, usize n, value_t* args );
 native_t*  native( symbol_t* name, value_t (*funcptr)( usize n, value_t* args ) );
 closure_t* closure( chunk_t* code, vector_t* envt );
-chunk_t*   chunk( symbol_t* name, list_t* envt );
+chunk_t*   chunk( symbol_t* name, list_t* envt, bool variadic );
 value_t    object( void* ptr );
 value_t    number( number_t x );
 value_t    glyph( int x );
@@ -205,6 +212,8 @@ value_t vector_pop( vector_t* slf );
 usize   table_size( table_t* slf, bool cap );
 usize   reset_table( table_t* slf );
 bool    table_has( table_t* slf, value_t k );
+long    table_locate( table_t* slf, value_t k );
+long    table_add( table_t* slf, value_t k, value_t v );
 value_t table_get( table_t* slf, value_t k );
 value_t table_set( table_t* slf, value_t k, value_t v );
 value_t table_put( table_t* slf, value_t k, value_t v );
