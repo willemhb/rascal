@@ -190,6 +190,7 @@ value_t exec( chunk_t* chunk ) {
   x = Vm.frame.sp[-argx-1];
 
  call_native:
+  
 
  call_closure:
 

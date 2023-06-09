@@ -10,10 +10,12 @@ typedef struct frame_t frame_t;
 struct frame_t {
   frame_t* cp,* fp;
   chunk_t* code;
+
   union {
     vector_t* envt;
     value_t*  bp;
   };
+
   value_t* sp;
   uint16*  ip;
 };
@@ -30,7 +32,7 @@ extern struct Vm Vm;
 value_t eval( value_t x );
 value_t apply( void* head, usize n, value_t* args );
 value_t exec( chunk_t* chunk );
-void repl( void );
+void    repl( void );
 
 // misc _______________________________________________________________________
 void vm_init( void );

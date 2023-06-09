@@ -48,7 +48,7 @@ struct object {
 struct symbol {
   HEADER;
   char* name;
-  value_t bind; // toplevel
+  value_t constant; // toplevel constant binding
   uint64 idno, hash;
   symbol_t* left, * right;
 };
