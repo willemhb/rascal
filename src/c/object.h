@@ -81,6 +81,7 @@ struct table {
   HEADER;
   usize cnt, cap;
   value_t* data;
+
   union {
     void*   ord;
     sint8*  ord8;
