@@ -1,11 +1,10 @@
-(fun safe-divide
-  (x y)
-  (if (==? y 0)
-      (raise :division-by-zero)
-      (/ x y)))
+(fun not
+  (x)
+  (if x         true
+      otherwise false))
 
-(catch ((cause)
-        (case cause
-          :division-by-0 nil
-          otherwise      0)))
-          
+(fun cons*
+  (x y & more)
+  (if (null? more) (cons x y)
+      otherwise    (cons x (cons* y more))))
+

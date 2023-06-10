@@ -30,7 +30,8 @@
     ("\\_<nil[[:space:][:cntrl:],\\s)]" . font-lock-constant-face)
     ("\\_<true[[:space:][:cntrl:],\\s)]" . font-lock-constant-face)
     ("\\_<false[[:space:][:cntrl:],\\s)]" . font-lock-constant-face)
-    ("\\_<otherwise[[:space:][:cntrl:],\\s)]" . font-lock-constant-face)
+    ("\\_<otherwise[[:space:][:cntrl:],\\s)]" . font-lock-function-name-face)
+    ("\\_<&[[:space:][:cntrl:],\\s)]" . font-lock-function-name-face)
     ("\\_<error[[:space:][:cntrl:],\\s)]" . font-lock-warning-face))
   '("\\.rl$" "\\.rdn$" "\\.rlo$") ;; source file, serialization format, object file
   '(rainbow-delimiters-mode)
