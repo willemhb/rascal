@@ -1,10 +1,11 @@
-#ifndef common_h
+ #ifndef common_h
 #define common_h
 
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
+#include <stdio.h>
 
 // standard types -------------------------------------------------------------
 typedef uint8_t     ubyte;
@@ -26,19 +27,27 @@ typedef uint64_t uint64;
 typedef int64_t  sint64;
 
 // rascal types ---------------------------------------------------------------
-typedef uword value_t;
-typedef double number_t;
-typedef char glyph_t;
-typedef void* pointer_t;
-typedef struct object object_t;
-typedef struct symbol symbol_t;
-typedef struct list list_t;
-typedef struct binary binary_t;
-typedef struct vector vector_t;
-typedef struct table table_t;
-typedef struct native native_t;
-typedef struct closure closure_t;
-typedef struct chunk chunk_t;
+typedef uword           value_t;
+typedef double          number_t;
+typedef char            glyph_t;
+typedef FILE*           port_t;
+typedef struct object   object_t;
+
+typedef struct symbol   symbol_t;
+typedef struct cons     cons_t;
+typedef struct binary   binary_t;
+typedef struct vector   vector_t;
+typedef struct table    table_t;
+typedef struct function function_t;
+
+// internal types -------------------------------------------------------------
+typedef struct control  control_t;
+typedef struct toplevel toplevel_t;
+typedef struct heap     heap_t;
+typedef struct reader   reader_t;
+typedef struct error    error_t;
+
+typedef struct vm       vm_t;
 
 // miscellaneous macros -------------------------------------------------------
 #define unreachable __builtin_unreachable

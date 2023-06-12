@@ -8,13 +8,13 @@
 
 // internal API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // special form & syntax symbols ----------------------------------------------
-value_t Quote, Def, Put, Do, If, Lmb;
+value_t Quote, Def, Put, Do, If, Lmb, Begin, Cntl;
 value_t Ampersand;
 symbol_t* Toplevel, * LmbSym;
 
 // helpers --------------------------------------------------------------------
 usize    compile_expression( chunk_t* chunk, value_t expr );
-chunk_t* compile_chunk( symbol_t* name, chunk_t* context, list_t* formals, list_t* body, value_t singleton );
+chunk_t* compile_chunk( symbol_t* name, chunk_t* context, cons_t* formals, cons_t* body, value_t singleton );
 
 usize emit( chunk_t* chunk, opcode_t op, ... ) {
   int argc = opcode_argc(op);
@@ -54,9 +54,6 @@ usize compile_literal( chunk_t* chunk, value_t x ) {
   if ( x == NIL )
     out = emit(chunk, OP_LOAD_NIL);
 
-  else if ( x == object(&EmptyList) )
-    out = emit(chunk, OP_LOAD_LIST0);
-
   else
     out = emit(chunk, OP_LOAD_VALUE, add_value(chunk, x));
 
@@ -64,7 +61,7 @@ usize compile_literal( chunk_t* chunk, value_t x ) {
 }
 
 long define_local( chunk_t* chunk, value_t name ) {
-  list_t*  envt     = chunk->envt;
+  cons_t*  envt     = chunk->envt;
   table_t* locals   = as_table(envt->head);
   value_t  location = table_put(locals, name, number(locals->cnt));
 
@@ -79,9 +76,9 @@ opcode_t define_name( chunk_t* chunk, value_t name, int* i, int* j ) {
   *i = *j = 0;
   opcode_t out;
 
-  list_t* envt = chunk->envt;
+  cons_t* envt = chunk->envt;
 
-  if ( envt == &EmptyList ) { // toplevel
+  if ( envt == NULL ) { // toplevel
     *i = define_global(name);
     emit(chunk, OP_DEF_GLOBAL, *i);
     out = OP_PUT_GLOBAL;
@@ -99,7 +96,7 @@ opcode_t resolve_name( chunk_t* chunk, value_t name, bool assign, int* i, int* j
   *i = 0, *j = -1;
   opcode_t out = OP_NOOP;
 
-  list_t* envt = chunk->envt;
+  cons_t* envt = chunk->envt;
 
   while ( envt->arity ) {
     table_t* locals = as_table(envt->head);
@@ -148,15 +145,15 @@ usize compile_variable( chunk_t* chunk, value_t name ) {
   return out;
 }
 
-chunk_t* compile_chunk( symbol_t* name, chunk_t* context, list_t* formals, list_t* body, value_t singleton ) {
+chunk_t* compile_chunk( symbol_t* name, chunk_t* context, cons_t* formals, cons_t* body, value_t singleton ) {
   chunk_t* out;
 
   if ( context == NULL ) { // toplevel
-    out = chunk(name, &EmptyList, false);
+    out = chunk(name, &EmptyCons, false);
   } else {
     bool variadic = false;
     table_t* locals = table(true, 0, NULL);
-    list_t* fcopy = formals;
+    cons_t* fcopy = formals;
 
     for ( ;fcopy->arity; fcopy=fcopy->tail ) {
       require("compile", is_symbol(fcopy->head), object(formals), "syntax error: formals: type");
@@ -189,9 +186,9 @@ chunk_t* compile_chunk( symbol_t* name, chunk_t* context, list_t* formals, list_
   return out;
 }
 
-usize compile_combination( chunk_t* chunk, list_t* form ) {
+usize compile_combination( chunk_t* chunk, cons_t* form ) {
   value_t head = form->head;
-  list_t* args = form->tail;
+  cons_t* args = form->tail;
   usize out = 0;
   int i, j;
   opcode_t op;
@@ -245,13 +242,13 @@ usize compile_combination( chunk_t* chunk, list_t* form ) {
 
   } else if ( head == Lmb ) {
     require("compile", args->arity >= 2, object(form), "syntax error: arity");
-    require("compile", is_list(args->head), args->head, "syntax-error: type");
+    require("compile", is_cons(args->head), args->head, "syntax-error: type");
 
     if ( args->arity == 2 )
-      lmb = compile_chunk(LmbSym, chunk, as_list(args->head), NULL, args->tail->head);
+      lmb = compile_chunk(LmbSym, chunk, as_cons(args->head), NULL, args->tail->head);
 
     else
-      lmb = compile_chunk(LmbSym, chunk, as_list(args->head), args->tail, NIL);
+      lmb = compile_chunk(LmbSym, chunk, as_cons(args->head), args->tail, NIL);
 
     compile_literal(chunk, object(lmb));
     out = emit(chunk, OP_CLOSURE);
@@ -276,11 +273,11 @@ usize compile_expression( chunk_t* chunk, value_t expr ) {
     return compile_variable(chunk, expr);
 
   else
-    return compile_combination(chunk, as_list(expr));
+    return compile_combination(chunk, as_cons(expr));
 }
 
 // external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-chunk_t* compile( list_t* form ) {
+chunk_t* compile( cons_t* form ) {
   return compile_chunk(Toplevel, NULL, NULL, NULL, object(form) );
 }
 

@@ -11,10 +11,11 @@ usize size_of_type( type_t t );
 
 type_t type_of( value_t x ) {
   switch ( x & TAGMASK ) {
-    case OBJTAG:   return as_object(x)->type;
     case GLYPHTAG: return GLYPH;
     case NILTAG:   return UNIT;
+    case IOSTAG:   return PORT;
     case PTRTAG:   return POINTER;
+    case OBJTAG:   return as_object(x)->type;
     default:       return NUMBER;
   }
 }
@@ -26,38 +27,46 @@ usize size_of_value( value_t x ) {
 usize size_of_type( type_t t ) {
   switch ( t ) {
     case SYMBOL:      return sizeof(symbol_t);
-    case LIST:        return sizeof(list_t);
+    case PAIR:        return sizeof(pair_t);
+    case CONS:        return sizeof(cons_t);
     case BINARY:      return sizeof(binary_t);
     case VECTOR:      return sizeof(vector_t);
     case TABLE:       return sizeof(table_t);
+    case RECORD:      return sizeof(record_t);
     case NATIVE:      return sizeof(native_t);
-    case CLOSURE:     return sizeof(closure_t);
     case CHUNK:       return sizeof(chunk_t);
+    case CLOSURE:     return sizeof(closure_t);
+    case CONTROL:     return sizeof(control_t);
     case NUMBER:      return sizeof(number_t);
     case GLYPH:       return sizeof(glyph_t);
-    case POINTER:     return sizeof(pointer_t);
+    case PORT:        return sizeof(port_t);
     case UNIT:        return sizeof(value_t);
+    case POINTER:     return sizeof(pointer_t); 
     default:          return 0;
   }
 }
 
 // object APIs ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // object ---------------------------------------------------------------------
-value_t object( void* p ) {
-  return ((value_t)p) | OBJTAG;
+value_t object( void* p ) { 
+  return p ? ((value_t)p) | OBJTAG : NIL;
 }
 
 void  init_object( void* obj, type_t type, flags fl ) {
   object_t* head = obj;
-  head->next = Heap.live;
-  Heap.live = head;
+
+  if ( !!(fl & ISALLOC) ) {
+    head->next = Heap.live;
+    Heap.live  = head;
+  }
+
   head->type = type;
   head->flags = fl|GRAY;
 }
 
 void* make_object( type_t type, flags fl ) {
-  object_t* out = allocate(size_of(type));
-  init_object(out, type, fl);
+  object_t* out = allocate(size_of(type)) + sizeof(object_t*);
+  init_object(out, type, fl|ISALLOC);
   return out;
 }
 
@@ -77,7 +86,7 @@ bool is_symbol( value_t x ) {
 
 symbol_t* make_symbol( char* name, flags fl ) {
   assert(name);
-  symbol_t* sym = make_object(SYMBOL, fl| FROZEN | (*name==':') * LITERAL);
+  symbol_t* sym = make_object(SYMBOL, fl| ISFROZEN | (*name==':') * LITERAL);
   sym->idno     = ++SymbolTable.counter;
   sym->hash     = mix_3_hashes(hash_uword(SYMBOL), hash_uword(sym->idno), hash_str(name));
   sym->left     = NULL;
@@ -121,43 +130,75 @@ symbol_t* symbol( char* name, bool intern ) {
   return make_symbol(name, 0);
 }
 
-// list -----------------------------------------------------------------------
-list_t* as_list( value_t x ) {
-  return (list_t*)(x & VALMASK);
+// cons -----------------------------------------------------------------------
+cons_t* as_cons( value_t x ) {
+  return (cons_t*)(x & VALMASK);
 }
 
-bool is_list( value_t x ) {
-  return type_of(x) == LIST;
+bool is_cons( value_t x ) {
+  return type_of(x) == CONS;
 }
 
-static void init_list(list_t* slf, value_t hd, list_t* tl) {
+static void init_cons(cons_t* slf, value_t hd, cons_t* tl) {
   slf->head  = hd;
   slf->tail  = tl;
-  slf->arity = tl->arity+1;
+  slf->arity = 1 + (tl ? tl->arity : 0);
 }
 
-list_t* cons(value_t hd, list_t* tl) {
-  list_t* out = make_object(LIST, FROZEN);
-  init_list(out, hd, tl);
+usize list_arity( cons_t* slf ) {
+  return slf ? slf->arity : 0;
+}
+
+value_t list_head( cons_t* slf ) {
+  return slf ? slf->head : NIL;
+}
+
+cons_t* list_tail( cons_t* slf ) {
+  return slf ? slf->tail : NULL;
+}
+
+cons_t* cons( value_t hd, cons_t* tl ) {
+  cons_t* out = make_object(CONS, ISFROZEN);
+  init_cons(out, hd, tl);
   return out;
 }
 
-list_t* list(usize n, value_t* args) {
-  list_t* out;
+cons_t* list( usize n, value_t* args ) {
+  cons_t* out;
   if ( n == 0 )
-    out = &EmptyList;
+    out = NULL;
 
   else if ( n == 1 )
-    out = cons(*args, &EmptyList);
+    out = cons(*args, NULL);
 
   else {
-    out = allocate(sizeof(list_t) * n);
+    out = allocate(sizeof(cons_t) * n);
 
-    list_t* cur = &out[n-1], * prev = &EmptyList;
+    cons_t* cur = &out[n-1], * prev = NULL;
 
     for (usize i=n; i>0; i--, prev=cur, cur--) {
-      init_object(cur, LIST, FROZEN);
-      init_list(cur, args[i-1], prev);
+      init_object(cur, CONS, ISFROZEN);
+      init_cons(cur, args[i-1], prev);
+    }
+  }
+
+  return out;
+}
+
+cons_t* consn( usize n, value_t* args ) {
+  cons_t* out;
+  
+  if ( n == 2 )
+    out = cons(args[0], as_cons(args[1]));
+
+  else {
+    out = allocate(sizeof(cons_t) * n-1);
+
+    cons_t* cur = &out[n-2], * prev = as_cons(args[n-1]);
+
+    for ( usize i=n-1; i>0; i--, prev=cur, cur-- ) {
+      init_object(cur, CONS, ISFROZEN);
+      init_cons(cur, args[i-1], prev);
     }
   }
 
@@ -173,9 +214,15 @@ binary_t* as_binary( value_t x ) {
   return (binary_t*)(x & VALMASK);
 }
 
-static void init_binary( binary_t* slf, int elSize, bool encoded ) {
-  slf->elSize = elSize;
-  slf->encoded = encoded;
+bool is_encoded( binary_t* slf ) {
+  return has_flag(slf, ISENCODED);
+}
+
+usize elsize( binary_t* slf ) {
+  return slf->obj.flags & UINT8_MAX;
+}
+
+static void init_binary( binary_t* slf ) {
   slf->cnt = 0;
   slf->cap = 0;
   slf->data = NULL;
@@ -183,17 +230,19 @@ static void init_binary( binary_t* slf, int elSize, bool encoded ) {
 
 usize binary_size( binary_t* slf, bool cap ) {
   if ( cap )
-    return slf->cap * slf->elSize;
+    return slf->cap * elsize(slf);
 
-  return (slf->cnt + slf->encoded) * slf->elSize;
+  else
+    return (slf->cnt + is_encoded(slf)) * elsize(slf);
 }
 
 usize resize_binary( binary_t* slf, usize n ) {
-  usize an = n + slf->encoded;
+  usize an = n + is_encoded(slf);
 
   if ( an > slf->cap || an < (slf->cap >> 1)) {
     usize newc = n ? ceil2(an) : 0;
-    slf->data = reallocate(slf->data, slf->cap*slf->elSize, newc*slf->elSize);
+    usize es = elsize(slf);
+    slf->data = reallocate(slf->data, slf->cap*es, newc*es);
     slf->cap = newc;
   }
 
@@ -206,20 +255,20 @@ void reset_binary( binary_t* slf ) {
 }
 
 void* binary_offset( binary_t* slf, usize n ) {
-  return slf->data + (n * slf->elSize);
+  return slf->data + (n * elsize(slf));
 }
 
 usize binary_write( binary_t* slf, usize n, void* data ) {
   usize oldCnt = slf->cnt;
   resize_binary(slf, slf->cnt+n);
   void* buf = binary_offset(slf, oldCnt);
-  memcpy(buf, data, n * slf->elSize);
+  memcpy(buf, data, n * elsize(slf));
   return slf->cnt;
 }
 
 binary_t* binary( int elSize, bool encoded, usize n, void* data ) {
-  binary_t* out = make_object(BINARY, 0);
-  init_binary(out, elSize, encoded);
+  binary_t* out = make_object(BINARY, encoded*ISENCODED | elSize);
+  init_binary(out);
 
   if ( data )
     binary_write(out, n, data);
@@ -293,6 +342,7 @@ vector_t* vector( usize n, value_t* args ) {
 // table ----------------------------------------------------------------------
 #define MINCAP 8
 #define LOADF 0.625
+#define LOADC 1.6   // complement to load factor
 
 bool is_table( value_t x ) {
   return type_of(x) == TABLE;
@@ -345,57 +395,68 @@ static void* reallocate_table_ords( void* data, usize oldCap, usize newCap ) {
   return out;
 }
 
-static void init_table_data( value_t* data, usize cap ) {
-  for ( usize i=0; i < cap; i++ ) {
-    data[i*2]  = NOTFOUND;
-    data[i*2+1]= NOTFOUND;
+static usize pad_table_ords_size( usize newn, usize oldc ) {
+  usize newc = oldc;
+  usize loaded = newc * LOADF;
+
+  if ( newn > loaded || newn < (loaded >> 1) )
+    newc = ceil2(newn * LOADC);
+
+  return newc;
+}
+
+static usize pad_table_data_size( usize newn, usize oldn, usize oldc ) {
+  usize newc = oldc;
+  
+  if ( newn > oldc || newn < (oldc >> 1) ) {
+    newc = (newn + (newn >> 3) + 6) & ~3ul;
+
+    if ( newn - oldn > newc - newn )
+      newc = (newn + 3) & ~3ul;
   }
+
+  return newc;
 }
 
-static usize table_data_size( usize cap ) {
-  return cap * 2 * sizeof(value_t);
+static pair_t** allocate_table_data( usize cap ) {
+  return allocate(cap * sizeof(pair_t*));
 }
 
-static value_t* allocate_table_data( usize cap ) {
-  return allocate(cap * 2 * sizeof(value_t));
+static void deallocate_table_data( pair_t** data, usize cap ) {
+  deallocate(data, cap * sizeof(pair_t*));
 }
 
-static void deallocate_table_data( value_t* data, usize cap ) {
-  deallocate(data, cap * 2 * sizeof(value_t));
-}
-
-static value_t* reallocate_table_data( value_t* oldData, usize oldCap, usize newCap ) {
-  value_t* newData = reallocate(oldData, table_data_size(oldCap), table_data_size(newCap));
-
-  if ( oldCap < newCap )
-    init_table_data(newData+oldCap*2, newCap - oldCap);
+static pair_t** reallocate_table_data( pair_t** oldData, usize oldCap, usize newCap ) {
+  usize oldSize    = oldCap * sizeof(pair_t*);
+  usize newSize    = newCap * sizeof(pair_t*);
+  pair_t** newData = reallocate(oldData, oldSize, newSize);
 
   return newData;
 }
 
 static void init_table( table_t* slf ) {
   slf->cnt  = 0;
-  slf->cap  = MINCAP;
-  slf->data = allocate_table_data(slf->cap);
-  slf->ord  = allocate_table_ords(slf->cap);
-  init_table_data(slf->data, slf->cap);
+  slf->dcap = 0;
+  slf->ocap = MINCAP;
+  slf->data = allocate_table_data(slf->dcap);
+  slf->ord  = allocate_table_ords(slf->ocap);
 }
 
 static void free_table( table_t* slf ) {
-  deallocate_table_data(slf->data, slf->cap);
-  deallocate_table_ords(slf->ord, slf->cap);
+  deallocate_table_data(slf->data, slf->dcap);
+  deallocate_table_ords(slf->ord, slf->ocap);
 }
 
 static long get_table_ord( table_t* slf, usize n ) {
   long out;
   
-  if ( slf->cap <= INT8_MAX )
+  if ( slf->ocap <= INT8_MAX )
     out = slf->ord8[n];
 
-  else if ( slf->cap <= INT16_MAX )
+  else if ( slf->ocap <= INT16_MAX )
     out = slf->ord16[n];
 
-  else if ( slf->cap <= INT32_MAX )
+  else if ( slf->ocap <= INT32_MAX )
     out = slf->ord32[n];
 
   else
@@ -405,13 +466,13 @@ static long get_table_ord( table_t* slf, usize n ) {
 }
 
 static void set_table_ord( table_t* slf, usize n, usize o ) {
-  if ( slf->cap <= INT8_MAX )
+  if ( slf->ocap <= INT8_MAX )
     slf->ord8[n] = o;
 
-  else if ( slf->cap <= INT16_MAX )
+  else if ( slf->ocap <= INT16_MAX )
     slf->ord16[n] = o;
 
-  else if ( slf->cap <= INT32_MAX )
+  else if ( slf->ocap <= INT32_MAX )
     slf->ord32[n] = o;
 
   else
@@ -419,56 +480,60 @@ static void set_table_ord( table_t* slf, usize n, usize o ) {
 }
 
 usize table_size( table_t* slf, bool cap ) {
-  return (cap ? slf->cap : slf->cnt) * 2 * sizeof(value_t);
+  return (cap ? slf->ocap : slf->cnt) * 2 * sizeof(value_t);
 }
 
 usize resize_table( table_t* slf, usize n ) {
-  if ( n > slf->cap * LOADF || n < (slf->cap >> 1) * LOADF) {
-    usize newc = MAX((usize)MINCAP, ceil2(slf->cap));
-    usize newm = newc - 1;
-    bool isid = has_flag(slf, IDTABLE);
-    slf->data = reallocate_table_data(slf->data, slf->cap, newc);
-    slf->ord = reallocate_table_ords(slf->ord, slf->cap, newc);
-    slf->cap = newc;
+  usize newd = pad_table_data_size(n, slf->cnt, slf->dcap);
+  
+  if ( newd != slf->dcap ) {
+    slf->data = reallocate_table_data(slf->data, slf->dcap, newd);
+    slf->dcap = newd;
+  }
+
+  usize newo = pad_table_ords_size(n, slf->ocap);
+
+  if ( newo != slf->ocap ) {
+    usize newm = newo - 1;
+    
+    slf->ord  = reallocate_table_ords(slf->ord, slf->ocap, newo);
+    slf->ocap = newo;
 
     if ( n > 0 ) {
-      if ( newc <= INT8_MAX ) {
+      if ( newo <= INT8_MAX ) {
         sint8* ord = slf->ord8;
 
         for ( usize i=0; i < slf->cnt; i++ ) {
-          value_t k = slf->data[i*2];
-
-          uhash h = hash_value(k, isid);
-          usize j = h & newm;
+          pair_t* kv = slf->data[i];
+          uhash h    = kv->hash;
+          usize j    = h & newm;
 
           while ( ord[j] != -1 )
             j = (j + 1) & newm;
 
           ord[j] = i;
         }
-      } else if ( newc <= INT16_MAX ) {
+      } else if ( newo <= INT16_MAX ) {
         sint16* ord = slf->ord16;
 
         for ( usize i=0; i < slf->cnt; i++ ) {
-          value_t k = slf->data[i*2];
-
-          uhash h = hash_value(k, isid);
-          usize j = h & newm;
-
+          pair_t* kv = slf->data[i];
+          uhash h    = kv->hash;
+          usize j    = h & newm;
+          
           while ( ord[j] != -1 )
             j = (j + 1) & newm;
 
           ord[j] = i;
         }      
-      } else if ( newc <= INT32_MAX ) {
+      } else if ( newo <= INT32_MAX ) {
         sint32* ord = slf->ord32;
 
         for ( usize i=0; i < slf->cnt; i++ ) {
-          value_t k = slf->data[i*2];
-
-          uhash h = hash_value(k, isid);
-          usize j = h & newm;
-
+          pair_t* kv = slf->data[i];
+          uhash h    = kv->hash;
+          usize j    = h & newm;
+          
           while ( ord[j] != -1 )
             j = (j + 1) & newm;
 
@@ -478,11 +543,10 @@ usize resize_table( table_t* slf, usize n ) {
         sint64* ord = slf->ord64;
 
         for ( usize i=0; i < slf->cnt; i++ ) {
-          value_t k = slf->data[i*2];
-
-          uhash h = hash_value(k, isid);
-          usize j = h & newm;
-
+          pair_t* kv = slf->data[i];
+          uhash h    = kv->hash;
+          usize j    = h & newm;
+          
           while ( ord[j] != -1 )
             j = (j + 1) & newm;
 

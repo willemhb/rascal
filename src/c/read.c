@@ -52,6 +52,35 @@ struct Reader Reader = {
 };
 
 // internal API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+void    accumulate_expression( void );
+value_t take_expression( void );
+void    read_sequence( FILE* ios, int term );
+void    read_list( FILE* ios, int disp );
+void    read_symbol( FILE* ios, int disp );
+void    read_number( FILE* ios, int disp );
+void    read_quote( FILE* ios, int disp );
+void    read_space( FILE* ios, int disp );
+void    read_comment( FILE* ios, int disp );
+void    read_eof( FILE* ios, int disp );
+
+void accumulate_expression( void ) {
+  value_t expr = take_expression();
+  vector_push(&Reader.expressions, Reader.expression);
+}
+
+value_t take_expression( void ) {
+  value_t out = Reader.expression;
+  Reader.expression = NIL;
+  Reader.state = READY_TOKEN;
+  reset_binary(&Reader.buffer);
+  return out;
+}
+
+void give_expression( value_t expr, token_t token ) {
+    Reader.state      = token;
+    Reader.expression = expr;
+}
+
 void add_reader_dispatch( int ch, void (*fptr)( FILE* ios, int disp ) ) {
   table_set( &Reader.dispatch, glyph(ch), pointer(fptr) );
 }
@@ -67,13 +96,9 @@ bool is_symbol_character( int ch ) {
   return strchr(SYMCHR, ch);
 }
 
-void read_list( FILE* ios, int disp );
-void read_symbol( FILE* ios, int disp );
-void read_number( FILE* ios, int disp );
-void read_quote( FILE* ios, int disp );
-void read_space( FILE* ios, int disp );
-void read_comment( FILE* ios, int disp );
-void read_eof( FILE* ios, int disp );
+void read_sequence( FILE* ios, int term ) {
+  
+}
 
 // external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 void reset_reader( struct Reader* reader ) {

@@ -4,6 +4,6 @@
 #include "common.h"
 
 // external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-chunk_t* compile( list_t* form );
+function_t* compile( cons_t* form );
 
 #endif

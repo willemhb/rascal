@@ -8,29 +8,35 @@
 #include "print.h"
 
 // globals ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-#define NHEAP   65536
+#define NHEAP  131072
+#define NSTACK 65536
 
-struct Heap Heap = {
-  .cap  =NHEAP,
-  .used =0,
-  .live =NULL,
-  .grays={
-    .obj={
-      .next =NULL,
-      .type =VECTOR,
-      .flags=NOFREE|BLACK,
-    },
-    .cnt =0,
-    .cap =0,
-    .data=NULL
+value_t TheStack[NSTACK];
+
+vm_t Vm = {
+  .control ={
+    .ip=0,
+    .bp=0,
+    .fp=0,
+    .fl=0,
+    .sp=TheStack
+  },
+  .toplevel={
+    .symbolTable  =NULL,
+    .symbolCounter=0,
+    .globalVars   ={ .obj={ .type=TABLE, .flags=GRAY|IDTABLE|ISMAPPING } }
+  },
+  .heap    ={
+    .cap  =NHEAP,
+    .grays={ .obj={ .type=VECTOR, .flags=GRAY } }
+  },
+  .reader  ={
+    
+  },
+  .error   ={
+    .cause =NIL
   }
 };
-
-// error state ----------------------------------------------------------------
-struct Error Error = {
-  .cause=NIL
-};
-
 
 // external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // error handling -------------------------------------------------------------
@@ -43,17 +49,12 @@ static void print_error( const char* fname, value_t cause, const char* fmt, va_l
   fprintf(stderr, "\n");
 }
 
-void panic( value_t cause ) {
-  Error.cause = cause;
-  longjmp(Error.safety, 1);
-}
-
 void error( const char* fname, value_t cause, const char* fmt, ... ) {
   va_list va;
   va_start(va, fmt);
   print_error(fname, cause, fmt, va);
   va_end(va);
-  panic(cause);
+  longjmp(Vm.error.buf, 1);
 }
 
 void require( const char* fname, bool test, value_t cause, const char* fmt, ... ) {
