@@ -32,10 +32,10 @@ struct vm {
   struct {
     table_t* vars;
     vector_t* vals;
-  } globals;
+   } globals;
 
   // symbol table
-  symbol_t* symbolTable;
+  value_t symbolTable;
   usize symbolCounter;
 
   // heap

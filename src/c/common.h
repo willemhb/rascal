@@ -51,9 +51,12 @@ typedef struct control control_t;
 typedef value_t (*native_t)(usize n, value_t* args);
 typedef enum error error_t;
 typedef enum token token_t;
+typedef enum datatype datatype_t;
+typedef enum kind kind_t;
 typedef struct vm vm_t;
 
 // miscellaneous macros -------------------------------------------------------
 #define unreachable __builtin_unreachable
+#define generic _Generic
 
 #endif

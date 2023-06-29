@@ -7,9 +7,9 @@
 
 // C types ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 struct object {
-  object_t* next;
+  object_t* next; // invasive linked list of live objects
   type_t* type;
-  uint64 hash  : 48;
+  uint64 hash  : 48; // 
   uint64 flags : 14;
   uint64 black :  1;
   uint64 gray  :  1;
@@ -20,10 +20,9 @@ struct object {
 // user object types
 struct symbol {
   HEADER;
-  char* name;
-  value_t constant;
-  uint64 idno;
-  symbol_t* left, * right;
+  value_t left, right;
+  char*   name;
+  uint64  idno;
 };
 
 struct cons {
@@ -74,12 +73,49 @@ struct method {
   value_t handler;
 };
 
+enum datatype {
+  NOTYPE, // not a datatype
+  NUMBER=1,
+  GLYPH,
+  PORT,
+  UNIT,
+  POINTER,
+
+  SYMBOL,
+  CONS,
+  BINARY,
+  VECTOR,
+  TABLE,
+  RECORD,
+
+  FUNCTION,
+  METHOD_TABLE,
+  METHOD,
+
+  TYPE,
+  CHUNK,
+  CONTROL
+};
+
+#define NDTYPES (CONTROL+1)
+
+enum kind {
+  BOTTOM_TYPE=1,
+  UNIT_TYPE,
+  DATA_TYPE,
+  UNION_TYPE,
+  TOP_TYPE
+};
+
 struct type {
   HEADER;
+  value_t left, right; // union types are invasive trees
   value_t name;
-  uint64 idno;
   value_t ctor;
   value_t slots;
+  uint64 idno;
+  datatype_t datatype;
+  kind_t kind;
 };
 
 struct chunk {
@@ -94,8 +130,8 @@ struct chunk {
 struct control {
   HEADER;
   // copy of main registers
-  int ip, bp, fp, pp;
   value_t stack;
+  int ip, bp, fp, pp;
 };
 
 // globals ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -125,54 +161,27 @@ enum {
   VARIADIC =0x0100
 };
 
-// builtin type codes ---------------------------------------------------------
-enum {
-  NUMBER=1,
-  GLYPH,
-  PORT,
-  POINTER,
-
-  SYMBOL,
-  CONS,
-  BINARY,
-  VECTOR,
-  TABLE,
-  RECORD,
-
-  FUNCTION,
-  METHOD_TABLE,
-  METHOD,
-
-  TYPE,
-  CHUNK,
-  CONTROL,
-
-  UNIT,
-  BOTTOM,
-  TOP
-};
-
 // builtin types --------------------------------------------------------------
-extern type_t NumberType, GlyphType, PortType, PointerType,
+extern type_t NumberType, GlyphType, PortType, UnitType, PointerType,
   SymbolType, ConsType, BinaryType, VectorType, TableType, RecordType,
-  FunctionType, MethodTableType, MethodTYpe,
+  FunctionType, MethodTableType, MethodType,
   TypeType, ChunkType, ControlType,
-  UnitType, BottomType, TopType;
+  NoneType, AnyType;
 
 // tags -----------------------------------------------------------------------
 #define QNAN     0x7ff8000000000000ul
 #define SIGN     0x8000000000000000ul
 
-#define NUMTAG  0x0000000000000000ul // dummy
-#define CHRTAG  0x7ffc000000000000ul
-#define IOSTAG  0x7ffd000000000000ul
-#define NILTAG  0x7ffe000000000000ul
-#define PTRTAG  0x7fff000000000000ul
-#define FIXTAG  0xfffc000000000000ul
-#define OBJTAG  0xffff000000000000ul
+#define NUMTAG   0x0000000000000000ul // dummy
+#define CHRTAG   0x7ffc000000000000ul
+#define IOSTAG   0x7ffd000000000000ul
+#define NILTAG   0x7ffe000000000000ul
+#define PTRTAG   0x7fff000000000000ul
+#define FIXTAG   0xfffc000000000000ul
+#define OBJTAG   0xffff000000000000ul
 
-#define TAGMASK  0xffff000000000000ul
-#define VALMASK  0x0000fffffffffffful
+#define TAGMASK   0xffff000000000000ul
+#define VALMASK   0x0000fffffffffffful
 
 #define NIL       (NILTAG|0)
 #define NOTFOUND  (NILTAG|1)
@@ -190,7 +199,7 @@ extern type_t NumberType, GlyphType, PortType, PointerType,
 #define ascons(x) ((cons_t*)((x) & VALMASK))
 #define asbin(x) ((binary_t*)((x) & VALMASK))
 #define asvec(x) ((vector_t*)((x) & VALMASK))
-#define astable(x) ((table_t*)((x) & VALMASK))
+#define astb(x) ((table_t*)((x) & VALMASK))
 #define asrecord(x) ((record_t*)((x) & VALMASK))
 #define asfunc(x) ((function_t*)((x) & VALMASK))
 #define asmt(x) ((method_table_t*)((x) & VALMASK))
@@ -198,6 +207,12 @@ extern type_t NumberType, GlyphType, PortType, PointerType,
 #define astype(x) ((type_t*)((x) & VALMASK))
 #define aschunk(x) ((chunk_t*)((x) & VALMASK))
 #define asctl(x) ((control_t*)((x) & VALMASK))
+
+#define isob(x) (((x) & TAGMASK) == OBJTAG)
+
+bool isnum( value_t x );
+bool issym( value_t x );
+bool iscons( value_t x );
 
 #define intval(x) ((long)asnum(x))
 #define wrdval(x) ((uword)asnum(x))
@@ -207,11 +222,8 @@ extern type_t NumberType, GlyphType, PortType, PointerType,
 #define tagchr(x) (((value_t)(x)) | CHRTAG)
 #define tagnum(x) (((ieee64_t)((number_t)(x))).word)
 
-#define obtype(x) (asob(x)->type)
-#define obhash(x) (asob(x)->hash)
-#define obfl(x) (asob(x)->flags)
-#define hasfl(x, fl) (!!(obfl(x) & (fl)))
-#define setfl(x, fl) (obfl(x) |= (fl))
+#define hasfl(x, fl) (!!(asob(x)->flags & (fl)))
+#define setfl(x, fl) (asob(x)->flags |= (fl))
 #define sethash(x, h)                            \
   do {                                           \
     value_t _x = x;                              \
@@ -219,82 +231,38 @@ extern type_t NumberType, GlyphType, PortType, PointerType,
     obfl(_x) |= HASHED;                          \
   } while (false)
 
-#define symname(x) (assym(x)->name)
-#define symconst(x) (assym(x)->constant)
-#define symid(x) (assym(x)->idno)
-#define setconst(x, v)                          \
-  do {                                          \
-    value_t _x = x;                             \
-    symconst(_x) = v;                           \
-    obfl(_x) |= CONSTANT;                       \
-  } while (false)
-
-#define car(x) (ascons(x)->car)
-#define cdr(x) (ascons(x)->cdr)
-
-#define elsize(x) (obfl(x) & 0xff)
-#define bdata(x) (asbin(x)->data)
-#define bcnt(x) (asbin(x)->cnt)
-#define bcap(x) (asbin(x)->cap)
-
-#define vdata(x) (asvec(x)->data)
-#define vcnt(x) (asvec(x)->cnt)
-#define vcap(x) (asvec(x)->cap)
-
-#define tbdata(x) (astable(x)->data)
-#define tbcnt(x) (astable(x)->cnt)
-#define tbcap(x) (astable(x)->cap)
-
-#define rslots(x) (asrecord(x)->slots)
-
-#define fname(x) (asfunc(x)->name)
-#define ftemplate(x) (asfunc(x)->template)
-
-#define mtcache(x) (asmt(x)->cache)
-#define mtthunk(x) (asmt(x)->thunk)
-#define mtmethods(x) (asmt(x)->methods)
-
-#define msig(x) (asmethod(x)->signature)
-#define mhandler(x) (asmethod(x)->handler)
-
-#define tname(x) (astype(x)->name)
-#define tidno(x) (astype(x)->idno)
-#define ttag(x)  (astype(x)->tag)
-#define tsize(x) (astype(x)->size)
-#define tslots(x) (astype(x)->slots)
-#define tctor(x) (astype(x)->ctor)
-#define tisa(x) (astype(x)->isa)
-#define ttrace(x) (astype(x)->trace)
-#define tinit(x) (astype(x)->init)
-#define tfree(x) (astype(x)->free)
-#define thash(x) (astype(x)->hash)
-#define tcompare(x) (astype(x)->compare)
-
-#define cname(x) (aschunk(x)->name)
-#define cnamespc(x) (aschunk(x)->namespc)
-#define cvals(x) (aschunk(x)->vals)
-#define cinstr(x) (aschunk(x)->instr)
-#define cenvt(x) (aschunk(x)->envt)
-
-#define ctlip(x) (asctl(x)->ip)
-#define ctlbp(x) (asctl(x)->bp)
-#define ctlfp(x) (asctl(x)->fp)
-#define ctlpp(x) (asctl(x)->pp)
-#define ctlstk(x) (asctl(x)->stk)
-
 type_t* type_of( value_t x );
-usize size_of( value_t x );
-bool rl_isa( value_t x, type_t* type );
+usize size_of_val( value_t x );
+usize size_of_dtype( datatype_t dt );
 
-value_t make_object( type_t* type, flags fl );
-void init_object( void* slf, type_t* type, flags fl );
-void mark_object( void* slf );
+#define size_of(x) generic((x), value_t:size_of_val, datatype_t:size_of_dtype)(x)
+
 void mark_value( value_t slf );
-void mark_values( value_t* vals, usize n );
-void free_object( void* slf );
+void free_value( value_t slf );
+
+// high level constructors
+value_t number( number_t num );
+value_t glyph( glyph_t ch );
+value_t symbol( char* name );
+value_t gensym( char* name );
+value_t cons( value_t car, value_t cdr );
+value_t vector( usize n, ... );
+
+// accessors/mutators/&c
+usize binary_write( binary_t* slf, usize n, void* data );
+usize vector_push( vector_t* slf, value_t v );
+value_t vector_pop( vector_t* slf );
+value_t table_get( table_t* slf, value_t k );
+value_t table_set( table_t* slf, value_t k, value_t v );
+value_t table_put( table_t* slf, value_t k, value_t v );
+value_t table_del( table_t* slf, value_t k );
+
 
 // working with methods
 value_t make_signature( usize n, ... );
 void add_method( value_t func, value_t sig, value_t handler, flags fl );
+
+// initialization
+void toplevel_init_object( void );
 
 #endif
