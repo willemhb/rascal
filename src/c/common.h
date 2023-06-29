@@ -27,27 +27,31 @@ typedef uint64_t uint64;
 typedef int64_t  sint64;
 
 // rascal types ---------------------------------------------------------------
-typedef uword           value_t;
-typedef double          number_t;
-typedef char            glyph_t;
-typedef FILE*           port_t;
-typedef struct object   object_t;
+typedef uword value_t;
+typedef double number_t;
+typedef char glyph_t;
+typedef FILE* port_t;
+typedef void* pointer_t;
+typedef struct object object_t;
 
-typedef struct symbol   symbol_t;
-typedef struct cons     cons_t;
-typedef struct binary   binary_t;
-typedef struct vector   vector_t;
-typedef struct table    table_t;
+typedef struct symbol symbol_t;
+typedef struct cons cons_t;
+typedef struct binary binary_t;
+typedef struct vector vector_t;
+typedef struct table table_t;
+typedef struct record record_t;
 typedef struct function function_t;
+typedef struct method_table method_table_t;
+typedef struct method method_t;
+typedef struct type type_t;
+typedef struct chunk chunk_t;
+typedef struct control control_t;
 
 // internal types -------------------------------------------------------------
-typedef struct control  control_t;
-typedef struct toplevel toplevel_t;
-typedef struct heap     heap_t;
-typedef struct reader   reader_t;
-typedef struct error    error_t;
-
-typedef struct vm       vm_t;
+typedef value_t (*native_t)(usize n, value_t* args);
+typedef enum error error_t;
+typedef enum token token_t;
+typedef struct vm vm_t;
 
 // miscellaneous macros -------------------------------------------------------
 #define unreachable __builtin_unreachable

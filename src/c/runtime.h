@@ -7,60 +7,53 @@
 #include "object.h"
 
 // C types ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-// execution state ------------------------------------------------------------
-struct control {
-  // main registers -----------------------------------------------------------
-  int ip, bp, fp, fl;
-
-  // stack state --------------------------------------------------------------
-  value_t* sp;
+enum error {
+  NO_ERROR,
+  READ_ERROR,
+  EVAL_ERROR,
+  RUNTIME_ERROR,
+  SYSTEM_ERROR
 };
 
-// global variable state ------------------------------------------------------
-struct toplevel {
-  symbol_t* symbolTable;
-  usize     symbolCounter;
-  table_t   globalVars;
+enum token {
+  TOKEN_READY,
+  TOKEN_EXPRESSION,
+  TOKEN_EOF,
+  TOKEN_ERROR
 };
 
-// heap state -----------------------------------------------------------------
-struct heap {
-  usize cap, used;
-  object_t* live;
-  vector_t  grays;
-};
-
-// reader state ---------------------------------------------------------------
-typedef enum {
-  READY_TOKEN,
-  EXPRESSION_TOKEN,
-  EOF_TOKEN,
-  ERROR_TOKEN,
-  INIT_TOKEN
-} token_t;
-
-struct reader {
-  vector_t  expressions;
-  binary_t  buffer;
-  table_t   dispatch;
-  port_t*   source;
-  token_t   token;
-};
-
-// error statte ---------------------------------------------------------------
-struct error {
-  jmp_buf   buf;
-  value_t   cause;
-  char      message[2048];
-};
-
-// combined VM state ----------------------------------------------------------
 struct vm {
-  control_t  control;
-  toplevel_t toplevel;
-  heap_t     heap;
-  reader_t   reader;
-  error_t    error;
+  // main registers
+  int ip, bp, fp, pp;
+
+  vector_t* stack;
+
+  // globals
+  struct {
+    table_t* vars;
+    vector_t* vals;
+  } globals;
+
+  // symbol table
+  symbol_t* symbolTable;
+  usize symbolCounter;
+
+  // heap
+  usize used, capacity;
+  object_t* live;
+  vector_t* grays;
+
+  // reader
+  token_t token;
+  port_t* source;
+  table_t* dispatch;
+  vector_t* expressions;
+  binary_t* buffer;
+
+  // error
+  error_t error;
+  value_t cause;
+  char message[4096];
 };
 
 // globals ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -74,6 +67,8 @@ int     pushn( int n );
 value_t popn( int n );
 
 // error ----------------------------------------------------------------------
+void panic( void );
+void recover( void );
 void error( const char* fname, value_t cause, const char* fmt, ... );
 void require( const char* fname, bool test, value_t cause, const char* fmt, ... );
 void forbid( const char* fname, bool test, value_t cause, const char* fmt, ... );

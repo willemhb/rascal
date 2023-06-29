@@ -9,8 +9,13 @@
 (define-generic-mode
   'rascal-mode
   '(";" ("#|" . "|#"))
-  '("def" "put" "lmb" "if" "quote" "do" "catch" "raise" ;; special forms
-    "fun" "mac" "and" "or" "case" "cond" "do*"          ;; macros
+  '("def" "put" "lmb" "if" "quote" "do" ;; common special forms
+    "begin" "perform" "handle" "resume" ;; special forms for effect handling
+    "and" "or" "case" "cond"            ;; macros (branching)
+    "try" "catch"                       ;; macros (control)
+    "fun" "mac" "type" "val" "var"      ;; macros (binding)
+    "let" "labl"                        ;; macros (more binding
+    "backquote" "unquote" "splice"      ;; macros (quasiquote)
     )
   '((":[-a-zA-Z?*+0-9]+[[:space:][:cntrl:],\\s)]" . font-lock-reference-face)
     ("\\_<symbol[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
@@ -18,10 +23,17 @@
     ("\\_<binary[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<vector[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<table[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
+    ("\\_<record[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<function[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
+    ("\\_<method-table[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
+    ("\\_<method[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
+    ("\\_<type[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
+    ("\\_<chunk[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
+    ("\\_<control[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<number[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<glyph[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<port[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
+    ("\\_<pointer[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<unit[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<nil[[:space:][:cntrl:],\\s)]" . font-lock-constant-face)
     ("\\_<true[[:space:][:cntrl:],\\s)]" . font-lock-constant-face)
