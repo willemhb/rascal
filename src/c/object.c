@@ -6,241 +6,270 @@
 #include "util/hashing.h"
 #include "util/string.h"
 
-// globals ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-type_t NumberType;
-type_t GlyphType;
-type_t PortType;
-type_t UnitType;
-type_t PointerType;
-type_t SymbolType;
-type_t ConsType;
-type_t BinaryType;
-type_t VectorType;
-type_t TableType;
-type_t RecordType;
-type_t FunctionType;
-type_t MethodTableType;
-type_t MethodType;
-type_t TypeType;
-type_t ChunkType;
-type_t ControlType;
-type_t NoneType;
-type_t AnyType;
 
-// APIs +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-// misc helpers ---------------------------------------------------------------
-void init_object( void* slf, type_t* type, flags fl ) {
-  object_t* obj = slf;
-
-  obj->next  = Vm.live;
-  obj->type  = type;
-  obj->flags = fl;
-  obj->gray  = true;
-  Vm.live    = obj;
+// external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// cast/access/test functions -------------------------------------------------
+number_t as_number( value_t x ) {
+  return ((ieee64_t)x).dbl;
 }
 
-value_t make_object( type_t* type, flags fl ) {
-  object_t* out = allocate(size_of(type->datatype), true);
-  init_object(out, type, fl);
-  return tagob(out);
+port_t as_port( value_t x ) {
+  return (port_t)(x & VALMASK);
 }
 
-type_t* type_of( value_t x ) {
+native_t as_native( value_t x ) {
+  return (native_t)(x & VALMASK);
+}
+
+object_t* as_object( value_t x ) {
+  return (object_t*)(x & VALMASK);
+}
+
+symbol_t* as_symbol( value_t x ) {
+  return (symbol_t*)(x & VALMASK);
+}
+
+list_t* as_list( value_t x ) {
+  return (list_t*)(x & VALMASK);
+}
+
+tuple_t* as_tuple( value_t x ) {
+  return (tuple_t*)(x & VALMASK);
+}
+
+closure_t* as_closure( value_t x ) {
+  return (closure_t*)(x & VALMASK);
+}
+
+chunk_t* as_chunk( value_t x ) {
+  return (chunk_t*)(x & VALMASK);
+}
+
+bool is_number( value_t x ) {
+  return (x & QNAN) != QNAN; 
+}
+
+bool is_port( value_t x ) {
+  return (x & TAGMASK) == IOSTAG;
+}
+
+bool is_native( value_t x ) {
+  return (x & TAGMASK) == NTVTAG;
+}
+
+bool is_unit( value_t x ) {
+  return x == NIL;
+}
+
+bool is_object( value_t x ) {
+  return (x & TAGMASK) == OBJTAG;
+}
+
+bool is_symbol( value_t x ) {
+  return is_object(x) && as_object(x)->type == SYMBOL;
+}
+
+bool is_list( value_t x ) {
+  return is_object(x) && as_object(x)->type == LIST;
+}
+
+bool is_tuple( value_t x ) {
+  return is_object(x) && as_object(x)->type == TUPLE;
+}
+
+bool is_closure( value_t x ) {
+  return is_object(x) && as_object(x)->type == CLOSURE;
+}
+
+bool is_chunk( value_t x ) {
+  return is_object(x) && as_object(x)->type == CHUNK;
+}
+
+long intval( value_t x ) {
+  return (long)as_number(x);
+}
+
+uword wrdval( value_t x ) {
+  return (uword)as_number(x);
+}
+
+// basic queries --------------------------------------------------------------
+datatype_t type_of_value( value_t x ) {
   switch ( x & TAGMASK ) {
-    case CHRTAG: return &GlyphType;
-    case IOSTAG: return &PortType;
-    case NILTAG: return &UnitType;
-    case PTRTAG: return &PointerType;
-    case OBJTAG: return asob(x)->type;
-    default:     return &NumberType;
+	case IOSTAG: return PORT;
+	case NILTAG: return UNIT;
+	case NTVTAG: return NATIVE;
+	case OBJTAG: return as_object(x)->type;
+	default:     return NUMBER;
   }
 }
 
-usize size_of_val( value_t x ) {
-  return size_of_dtype(type_of(x)->datatype);
+datatype_t type_of_object( void* obj ) {
+  assert(obj);
+  return ((object_t*)obj)->type;
 }
 
-usize size_of_dtype( datatype_t dt ) {
-  switch ( dt ) {
-    case NOTYPE:       return 0;
-    case NUMBER:       return sizeof(number_t);
-    case GLYPH:        return sizeof(glyph_t);
-    case PORT:         return sizeof(port_t);
-    case UNIT:         return sizeof(value_t);
-    case POINTER:      return sizeof(pointer_t);
-    case SYMBOL:       return sizeof(symbol_t);
-    case CONS:         return sizeof(cons_t);
-    case BINARY:       return sizeof(binary_t);
-    case VECTOR:       return sizeof(vector_t);
-    case TABLE:        return sizeof(table_t);
-    case RECORD:       return sizeof(record_t);
-    case FUNCTION:     return sizeof(function_t);
-    case METHOD_TABLE: return sizeof(method_table_t);
-    case METHOD:       return sizeof(method_t);
-    case TYPE:         return sizeof(type_t);
-    case CHUNK:        return sizeof(chunk_t);
-    case CONTROL:      return sizeof(control_t);
-  }
-  unreachable();
-}
+usize size_of_value( value_t val ) {
+  datatype_t dt = type_of(val);
+  usize out = size_of_datatype(dt);
 
-void mark_value( value_t slf ) {
-  if ( !isob(slf) )
-    return;
-
-  if ( asob(slf)->black )
-    return;
-
-  if ( hasfl(slf, NOMANAGE) )
-    return;
-
-  asob(slf)->black = true;
-
-  if ( type_of(slf)->datatype == BINARY )
-    asob(slf)->gray = false;
-
-  else
-    vector_push(Vm.grays, slf);
-}
-
-void trace_value( value_t slf ) {
-  asob(slf)->gray = false;
-  
-  switch ( asob(slf)->type->datatype ) {
-    case SYMBOL:
-      mark_value(assym(slf)->left);
-      mark_value(assym(slf)->right);
-      break;
-
-    case CONS:
-      mark_value(ascons(slf)->car);
-      mark_value(ascons(slf)->cdr);
-      break;
-
-    case VECTOR: {
-      value_t *v = asvec(slf)->data;
-
-      for ( usize i=0; i<asvec(slf)->cnt; i++ )
-        mark_value(v[i]);
-
-      break;
-    }
-
-    case TABLE: {
-      value_t* tb = astb(slf)->data;
-
-      for ( usize i=0; i < astb(slf)->cap; i++ ) {
-        if ( tb[i*2] == NOTFOUND )
-          continue;
-
-        mark_value(tb[i*2]);
-        mark_value(tb[i*2+1]);
-      }
-
-      break;
-    }
-
-    case RECORD:
-      mark_value(asrecord(slf)->slots);
-      break;
-
-    case FUNCTION:
-      mark_value(asfunc(slf)->name);
-      mark_value(asfunc(slf)->template);
-      break;
-
-    case METHOD_TABLE:
-      mark_value(asmt(slf)->cache);
-      mark_value(asmt(slf)->thunk);
-      mark_value(asmt(slf)->varMethods);
-      mark_value(asmt(slf)->fixMethods);
-      break;
-
-    case METHOD:
-      mark_value(asmethod(slf)->signature);
-      mark_value(asmethod(slf)->handler);
-      break;
-
-    case TYPE:
-      mark_value(astype(slf)->left);
-      mark_value(astype(slf)->right);
-      mark_value(astype(slf)->name);
-      mark_value(astype(slf)->ctor);
-      mark_value(astype(slf)->slots);
-      break;
-
-    case CHUNK:
-      mark_value(aschunk(slf)->name);
-      mark_value(aschunk(slf)->namespc);
-      mark_value(aschunk(slf)->vals);
-      mark_value(aschunk(slf)->instr);
-      mark_value(aschunk(slf)->envt);
-      break;
-
-    case CONTROL:
-      mark_value(asctl(slf)->stack);
-      break;
-
-    default:
-      unreachable();
-  }
-}
-
-void free_value( value_t slf ) {
-  if ( !isob(slf) )
-    return;
-
-  if ( !hasfl(slf, NOFREE) ) {
-    switch ( asob(slf)->type->datatype ) {
-      case SYMBOL:
-        deallocate(assym(slf)->name, 0, false);
-        break;
-
-      case BINARY:
-        deallocate(asbin(slf)->data, 0, false);
-        break;
-
-      case VECTOR:
-        deallocate(asvec(slf)->data, 0, false);
-        break;
-
-      case TABLE:
-        deallocate(astb(slf)->data, 0, false);
-        break;
-
-      default:
-        break;
-    }
-  }
-
-  if ( !hasfl(slf, NODEALLOC) )
-    deallocate( asob(slf), size_of(slf), true);
-}
-
-// high level constructors
-value_t cons( value_t car, value_t cdr ) {
-  flags fl = FROZEN;
-
-  if ( cdr != NIL && (!iscons(cdr) || hasfl(cdr, DOTTED)) )
-    fl |= DOTTED;
-
-  value_t out = make_object(&ConsType, fl);
-
-  ascons(out)->car = car;
-  ascons(out)->cdr = cdr;
+  if ( dt == TUPLE )
+    out += sizeof(value_t) * as_tuple(val)->arity;
 
   return out;
 }
 
-value_t* locate_symbol( char* name, value_t* st ) {
-  while (*st != NIL ) {
-    int o = strcmp(name, assym(*st)->name);
+usize size_of_object( void* obj ) {
+  datatype_t dt = type_of(obj);
+  usize out = size_of_datatype(dt);
+
+  if ( dt == TUPLE )
+    out += sizeof(value_t) * ((tuple_t*)obj)->arity;
+
+  return out;
+}
+
+usize size_of_datatype( datatype_t dt ) {
+  switch ( dt ) {
+	case NUMBER:  return sizeof(number_t);
+	case PORT:    return sizeof(port_t);
+	case NATIVE:  return sizeof(native_t);
+	case UNIT:    return sizeof(value_t);
+	case SYMBOL:  return sizeof(symbol_t);
+	case LIST:    return sizeof(list_t);
+    case TUPLE:   return sizeof(tuple_t);
+	case CLOSURE: return sizeof(closure_t);
+	case CHUNK:   return sizeof(chunk_t);
+	default:      return 0;
+  }
+}
+
+// object lifetime APIs -------------------------------------------------------
+static void push_gray( void* obj ) {
+  objects_push(&Vm.grays, obj);
+}
+
+void mark_value( value_t slf ) {
+  if ( is_object(slf) )
+	mark_object(as_object(slf));
+}
+
+void mark_object( void* obj ) {
+  if ( obj == NULL )
+	return;
+
+  if ( ((object_t*)obj)->black )
+	return;
+
+  ((object_t*)obj)->black = true;
+
+  push_gray(obj);
+}
+
+void trace_value( value_t val ) {
+  assert(is_object(val));
+  trace_object(as_object(val));
+}
+
+void trace_object( void* obj ) {
+  assert(obj);
+  ((object_t*)obj)->gray = false;
+
+  switch ( type_of(obj) ) {
+	case SYMBOL:
+	  mark(((symbol_t*)obj)->left);
+	  mark(((symbol_t*)obj)->right);
+	  break;
+
+	case LIST:
+	  mark(((list_t*)obj)->head);
+	  mark(((list_t*)obj)->tail);
+	  break;
+
+	case TUPLE:
+	  for ( usize i=0; i<((tuple_t*)obj)->arity; i++ )
+		mark(((tuple_t*)obj)->slots[i]);
+	  break;
+
+	case CLOSURE:
+	  mark(((closure_t*)obj)->code);
+	  mark(((closure_t*)obj)->envt);
+	  break;
+
+	case CHUNK:
+	  trace_values(&((chunk_t*)obj)->vals);
+	  break;
+
+	default:
+	  break;
+  }
+}
+
+void destruct_value( value_t val ) {
+  assert(is_object(val));
+  destruct_object(as_object(val));
+}
+
+void destruct_object( void* obj ) {
+  if ( obj == NULL )
+    return;
+
+  switch ( type_of(obj) ) {
+    case SYMBOL:
+      deallocate(((symbol_t*)obj)->name, 0, false);
+      break;
+
+    case CHUNK:
+      free_values(&((chunk_t*)obj)->vals);
+      free_buffer(&((chunk_t*)obj)->instr);
+      break;
+
+    default:
+      break;
+  }
+
+  deallocate(obj, size_of(obj), true);
+}
+
+// high level constructors ----------------------------------------------------
+value_t number( number_t num ) {
+  return ((ieee64_t)num).word;
+}
+
+value_t port( port_t p ) {
+  return ((value_t)p) | IOSTAG;
+}
+
+value_t native( native_t n ) {
+  return ((value_t)n) | NTVTAG;
+}
+
+value_t object( void* obj ) {
+  return ((value_t)obj) | OBJTAG;
+}
+
+static void init_object( void* obj, datatype_t type ) {
+  object_t* slf = obj;
+
+  slf->type  = type;
+  slf->next  = Vm.live;
+  slf->hash  = 0;
+  slf->flags = 0;
+  slf->gray  = true;
+  slf->black = false;
+
+  Vm.live = slf;
+}
+
+static symbol_t** find_symbol( char* name, symbol_t** st ) {
+  while ( *st ) {
+    int o = strcmp(name, (*st)->name);
 
     if ( o < 0 )
-      st = &assym(*st)->left;
+      st = &(*st)->left;
 
     else if ( o > 0 )
-      st = &assym(*st)->right;
+      st = &(*st)->right;
 
     else
       break;
@@ -249,31 +278,39 @@ value_t* locate_symbol( char* name, value_t* st ) {
   return st;
 }
 
-value_t make_symbol( char* name, flags fl ) {
-  if ( *name == ':' )
-    fl |= LITERAL;
-  
-  value_t out = make_object(&SymbolType, fl|FROZEN);
-  assym(out)->left = assym(out)->right = NIL;
-  assym(out)->idno = ++Vm.symbolCounter;
-  assym(out)->name = duplicates(name, false);
+static symbol_t* make_symbol( char* name ) {
+  symbol_t* out = allocate(sizeof(symbol_t), true);
+  init_object(out, SYMBOL);
+  out->left = out->right = NULL;
+  out->idno = ++Vm.symbolCounter;
+  out->name = duplicates(name, false);
+
   return out;
 }
 
-value_t symbol( char* name ) {
-  value_t* spc = locate_symbol(name, &Vm.symbolTable);
+symbol_t* symbol( char* name ) {
+  symbol_t** loc = find_symbol(name, &Vm.symbolTable);
 
-  if ( *spc == NIL )
-    *spc = make_symbol( name, INTERNED);
+  if ( *loc == NULL )
+    *loc = make_symbol(name);
 
-  return *spc;
+  return *loc;
 }
 
-value_t gensym( char* name ) {
+symbol_t* gensym( char* name ) {
   if ( name == NULL )
     name = "symbol";
 
-  return make_symbol(name, 0);
+  return make_symbol(name);
 }
 
-// initialization
+list_t* list( value_t head, list_t* tail ) {
+  
+}
+
+tuple_t* tuple( usize n, ... );
+closure_t* closure( chunk_t* chunk, usize n, value_t vals );
+chunk_t* chunk( void );
+
+// initialization -------------------------------------------------------------
+void toplevel_init_object( void ) {}

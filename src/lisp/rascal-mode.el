@@ -13,11 +13,11 @@
     "begin" "perform" "handle" "resume" ;; special forms for effect handling
     "and" "or" "case" "cond"            ;; macros (branching)
     "try" "catch"                       ;; macros (control)
-    "fun" "mac" "type" "val" "var"      ;; macros (binding)
-    "let" "labl"                        ;; macros (more binding
+    "fun" "mac" "type" "val"            ;; macros (binding)
+    "let" "labl"                        ;; macros (more binding)
     "backquote" "unquote" "splice"      ;; macros (quasiquote)
     )
-  '((":[-a-zA-Z?*+0-9]+[[:space:][:cntrl:],\\s)]" . font-lock-reference-face)
+  '(("\\(:[-a-zA-Z?*+0-9]+\\)[[:space:][:cntrl:],\\s)]" 1 font-lock-reference-face)
     ("\\_<symbol[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<cons[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<binary[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)

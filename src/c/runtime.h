@@ -26,29 +26,30 @@ struct vm {
   // main registers
   int ip, bp, fp, pp;
 
-  vector_t* stack;
+  values_t stack;
 
   // globals
   struct {
-    table_t* vars;
-    vector_t* vals;
+    table_t vars;
+    values_t vals;
    } globals;
 
   // symbol table
-  value_t symbolTable;
+  symbol_t* symbolTable;
   usize symbolCounter;
 
   // heap
-  usize used, capacity;
+  usize used, cap;
+  bool managing;
   object_t* live;
-  vector_t* grays;
+  objects_t grays;
 
   // reader
   token_t token;
-  port_t* source;
-  table_t* dispatch;
-  vector_t* expressions;
-  binary_t* buffer;
+  port_t source;
+  table_t dispatch;
+  values_t expressions;
+  buffer_t buffer;
 
   // error
   error_t error;
@@ -61,10 +62,15 @@ extern vm_t Vm;
 
 // external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // stack ----------------------------------------------------------------------
-int     push( value_t x );
+int push( value_t x );
 value_t pop( void );
-int     pushn( int n );
+int pushn( int n );
 value_t popn( int n );
+
+// variables & methods --------------------------------------------------------
+void toplevel_define( char* name, value_t bind );
+value_t make_signature( usize n, ... );
+void add_method( value_t func, value_t sig, value_t handler, flags fl );
 
 // error ----------------------------------------------------------------------
 void panic( void );
@@ -81,6 +87,6 @@ char* duplicates( char* str, bool fromHeap );
 void  deallocate( void* ptr, usize nBytes, bool fromHeap );
 
 // misc -----------------------------------------------------------------------
-void runtime_init( void );
+void toplevel_init_runtime( void );
 
 #endif

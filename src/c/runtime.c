@@ -5,7 +5,8 @@
 
 
 #include "runtime.h"
-#include "print.h"
+#include "lang.h"
+#include "object.h"
 
 // globals ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #define NHEAP  131072
@@ -14,28 +15,7 @@
 value_t TheStack[NSTACK];
 
 vm_t Vm = {
-  .control ={
-    .ip=0,
-    .bp=0,
-    .fp=0,
-    .fl=0,
-    .sp=TheStack
-  },
-  .toplevel={
-    .symbolTable  =NULL,
-    .symbolCounter=0,
-    .globalVars   ={ .obj={ .type=TABLE, .flags=GRAY|IDTABLE|ISMAPPING } }
-  },
-  .heap    ={
-    .cap  =NHEAP,
-    .grays={ .obj={ .type=VECTOR, .flags=GRAY } }
-  },
-  .reader  ={
-    
-  },
-  .error   ={
-    .cause =NIL
-  }
+  
 };
 
 // external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -54,7 +34,7 @@ void error( const char* fname, value_t cause, const char* fmt, ... ) {
   va_start(va, fmt);
   print_error(fname, cause, fmt, va);
   va_end(va);
-  longjmp(Vm.error.buf, 1);
+  panic();
 }
 
 void require( const char* fname, bool test, value_t cause, const char* fmt, ... ) {
@@ -63,7 +43,7 @@ void require( const char* fname, bool test, value_t cause, const char* fmt, ... 
     va_start(va, fmt);
     print_error(fname, cause, fmt, va);
     va_end(va);
-    panic(cause);
+    panic();
   }
 }
 
@@ -73,85 +53,56 @@ void forbid( const char* fname, bool test, value_t cause, const char* fmt, ... )
     va_start(va, fmt);
     print_error(fname, cause, fmt, va);
     va_end(va);
-    panic(cause);
+    panic();
   }
 }
 
 // memory ---------------------------------------------------------------------
 static bool overflows_heap( usize nbytes ) {
-  return Heap.used + nbytes > Heap.cap;
+  return Vm.used + nbytes > Vm.cap;
 }
 
 void manage( void ) {
-    Heap.cap >>= 1; // for now just grow the heap
-}
+  Vm.managing = true;
 
-void* allocate( usize nbytes ) {
-  if ( nbytes == 0 )
-    return NULL;
+  // mark roots
+  mark_object(&Vm.stack);
+  mark_object(&Vm.globals.vars);
+  mark_object(&Vm.globals.vals);
+  mark_value(Vm.symbolTable);
+  mark_object(&Vm.dispatch);
+  mark_object(&Vm.expressions);
+  mark_object(&Vm.buffer);
 
-  if ( overflows_heap(nbytes) )
-    manage();
-  void* out = malloc(nbytes);
-  assert(out != NULL);
-  Heap.used += nbytes;
-  memset(out, 0, nbytes);
-  return out;
-}
+  // begin tracing
+  while ( Vm.grays.cnt ) {
+    value_t v = vector_pop(&Vm.grays);
+    trace_value(v);
+  }
 
-void* reallocate( void* ptr, usize oldSize, usize newSize ) {
-  usize diff;
-  
-  if ( ptr == NULL ) {
-    assert(oldSize == 0);
-    ptr = allocate(newSize);
-  } else if ( newSize > oldSize ) {
-    diff = newSize - oldSize;
+  // free unused objects
+  object_t* curr = Vm.live, **prev = &Vm.live;
 
-    if ( overflows_heap(diff) )
-      manage();
-
-    ptr = realloc(ptr, newSize);
-    assert(ptr != NULL);
-    Heap.used += diff;
-    memset(ptr+oldSize, 0, diff);
-  } else if ( newSize < oldSize ) {
-    diff = oldSize - newSize;
-
-    if ( newSize == 0 ) {
-      free(ptr);
-      ptr = NULL;
+  while ( curr ) {
+    if ( curr->black ) {
+      unmark_object(curr);
+      prev = &curr->next;
+      curr = curr->next;
     } else {
-      ptr = realloc(ptr, newSize);
-      assert(ptr != NULL);
+      object_t* tmp = curr;
+      curr = tmp->next;
+      *prev = curr;
+      free_object(tmp);
     }
-    Heap.used -= diff;
-  } else {
-    // do nothing, same size
   }
 
-  return ptr;
-}
+  // unmark global objects
+  unmark_object(&Vm.stack);
+  unmark_object(&Vm.globals.vars);
+  unmark_object(&Vm.globals.vals);
+  unmark_object(&Vm.dispatch);
+  unmark_object(&Vm.expressions);
+  unmark_object(&Vm.buffer);
 
-void deallocate( void* ptr, usize nbytes ) {
-  assert(nbytes <= Heap.used);
-  if ( ptr == NULL ) {
-    assert(nbytes == 0);
-  } else {
-    free(ptr);
-    Heap.used -= nbytes;
-  }
-}
-
-void* duplicate( void* ptr, usize nbytes ) {
-  void* out = allocate(nbytes);
-  memcpy(out, ptr, nbytes);
-  return out;
-}
-
-char* duplicate_str(char* str) {
-  usize n = strlen(str);
-  char* out = allocate(n+1);
-  memcpy(out, str, n);
-  return out;
+  Vm.managing = false;
 }

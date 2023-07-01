@@ -29,30 +29,24 @@ typedef int64_t  sint64;
 // rascal types ---------------------------------------------------------------
 typedef uword value_t;
 typedef double number_t;
-typedef char glyph_t;
 typedef FILE* port_t;
-typedef void* pointer_t;
+typedef value_t (*native_t)(usize n, value_t* args);
 typedef struct object object_t;
 
 typedef struct symbol symbol_t;
-typedef struct cons cons_t;
-typedef struct binary binary_t;
-typedef struct vector vector_t;
-typedef struct table table_t;
-typedef struct record record_t;
-typedef struct function function_t;
-typedef struct method_table method_table_t;
-typedef struct method method_t;
-typedef struct type type_t;
+typedef struct list list_t;
+typedef struct tuple tuple_t;
+typedef struct closure closure_t;
 typedef struct chunk chunk_t;
-typedef struct control control_t;
 
 // internal types -------------------------------------------------------------
-typedef value_t (*native_t)(usize n, value_t* args);
+typedef struct values values_t;
+typedef struct objects objects_t;
+typedef struct buffer buffer_t;
+typedef struct table table_t;
 typedef enum error error_t;
 typedef enum token token_t;
 typedef enum datatype datatype_t;
-typedef enum kind kind_t;
 typedef struct vm vm_t;
 
 // miscellaneous macros -------------------------------------------------------

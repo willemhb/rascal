@@ -12,8 +12,8 @@ value_t compile( value_t src );
 value_t exec( value_t ch );
 value_t apply( value_t f, value_t a );
 
-value_t hash( value_t x );
-value_t compare( value_t x, value_t y );
+int compare( value_t x, value_t y );
+uhash hash( value_t x );
 
 // initialization -------------------------------------------------------------
 void toplevel_init_lang( void );
