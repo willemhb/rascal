@@ -66,6 +66,7 @@ struct closure {
 
 struct chunk {
   HEADER;
+  list_t*  envt; // compile-time environment
   values_t vals;
   buffer_t instr;
 };
@@ -73,7 +74,11 @@ struct chunk {
 // globals ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // object flags ---------------------------------------------------------------
 enum {
-  HASHED=0x8000
+  // general flags
+  HASHED  =0x8000,
+
+  // chunk flags
+  VARIADIC=0x4000
 };
 
 // empty singletons -----------------------------------------------------------

@@ -19,6 +19,12 @@ static bool is_literal( value_t x ) {
   return true;
 }
 
+static void init_envt( void ) {
+  if ( !!(Vm.fn->envt->obj.flags & VARIADIC) ) {
+    
+  }
+}
+
 static void capture_values( void ) {
   value_t* bp = Vm.bp;
 
@@ -56,7 +62,6 @@ value_t exec( value_t ch ) {
     [OP_CLOSURE] = &&op_closure, [OP_RETURN] = &&op_return,
 
     [OP_CALL] = &&op_call,
-    [OP_ARGC] = &&op_argc, [OP_VARGC] = &&op_vargc,
     [OP_LOADV] = &&op_loadv, [OP_LOADGL] = &&op_loadgl,
     [OP_PUTGL] = &&op_putgl, [OP_JUMP] = &&op_jump, [OP_JUMPN] = &&op_jumpn,
 
@@ -65,7 +70,7 @@ value_t exec( value_t ch ) {
 
   opcode_t op;
   int argx, argy;
-  value_t x, v;
+  value_t x, v, * b;
 
  fetch:
   op = *(Vm.ip++);
@@ -133,11 +138,9 @@ value_t exec( value_t ch ) {
   Vm.bp = Vm.sp-argx-1;
   Vm.ip = Vm.fn->instr.data;
   Vm.bp[0] = object(as_closure(x)->envt);
+  init_envt();
 
   goto fetch;
-
- op_argc:
- op_vargc:
   
  op_loadv:
   push(Vm.fn->vals.data[argx]);
@@ -164,8 +167,18 @@ value_t exec( value_t ch ) {
   goto fetch;
 
  op_loadcl:
+  b = Vm.bp;
+  while ( argx-- )
+    b = as_tuple(b[0])->slots;
+  push(b[argy]);
+  goto fetch;
   
  op_putcl:
+  b = Vm.bp;
+  while ( argx-- )
+    b = as_tuple(b[0])->slots;
+  b[argy] = Vm.sp[-1];
+  goto fetch;
 }
 
 uhash hash( value_t x ) {

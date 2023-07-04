@@ -10,7 +10,10 @@
   'rascal-mode
   '(";" ("#|" . "|#"))
   '("def" "put" "lmb" "if" "quote" "do" ;; common special forms
-    )
+    "fun" "mac" "var"                   ;; binding macros
+    "case" "cond" "and" "or"            ;; branching macros
+    "let" "labl"                        ;; closure macros
+   )
   '(("\\(:[-a-zA-Z?*+0-9]+\\)[[:space:][:cntrl:],\\s)]" 1 font-lock-reference-face)
     ("\\_<number[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<port[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
