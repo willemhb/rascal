@@ -50,7 +50,7 @@ static value_t* table_locate( table_t* slf, value_t key ) {
   usize keyHash = hash(key);
   usize i = keyHash & mask;
 
-  while ( data[i*2] != NOTFOUND && compare(key, data[i*2]) )
+  while ( data[i*2] != NOTFOUND && compare(key, data[i*2], true) )
     i = (i + 1) & mask;
 
   return &data[i*2];

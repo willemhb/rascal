@@ -24,9 +24,9 @@ enum token {
 
 struct vm {
   // main registers
-  int ip, bp, fp, pp;
-
-  values_t stack;
+  chunk_t* fn;
+  ushort* ip;
+  value_t* bp, * fp, * sp;
 
   // globals
   struct {
@@ -62,15 +62,15 @@ extern vm_t Vm;
 
 // external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // stack ----------------------------------------------------------------------
-int push( value_t x );
+value_t* push( value_t x );
 value_t pop( void );
-int pushn( int n );
-value_t popn( int n );
+value_t* save( value_t x );
+value_t restore( void );
+bool in_stack( void* p );
 
 // variables & methods --------------------------------------------------------
 void toplevel_define( char* name, value_t bind );
-value_t make_signature( usize n, ... );
-void add_method( value_t func, value_t sig, value_t handler, flags fl );
+value_t toplevel_lookup( value_t name );
 
 // error ----------------------------------------------------------------------
 void panic( void );

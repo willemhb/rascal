@@ -73,8 +73,12 @@ struct chunk {
 // globals ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // object flags ---------------------------------------------------------------
 enum {
-  HASHED=0x8000,
+  HASHED=0x8000
 };
+
+// empty singletons -----------------------------------------------------------
+extern list_t EmptyList;
+extern tuple_t EmptyTuple;
 
 // tags -----------------------------------------------------------------------
 #define QNAN     0x7ff8000000000000ul
@@ -97,6 +101,7 @@ enum {
 // external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // cast/access/test functions -------------------------------------------------
 number_t as_number( value_t x );
+void* as_pointer( value_t x );
 port_t as_port( value_t x );
 native_t as_native( value_t x );
 object_t* as_object( value_t x );
@@ -159,6 +164,7 @@ void destruct_object( void* obj );
 
 // high level constructors ----------------------------------------------------
 value_t number( number_t n );
+value_t pointer( void* p );
 value_t port( port_t p );
 value_t native( native_t n );
 value_t object( void* o );

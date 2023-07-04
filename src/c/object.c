@@ -93,6 +93,10 @@ uword wrdval( value_t x ) {
   return (uword)as_number(x);
 }
 
+void* ptrval( value_t x ) {
+  return (void*)wrdval(x);
+}
+
 // basic queries --------------------------------------------------------------
 datatype_t type_of_value( value_t x ) {
   switch ( x & TAGMASK ) {

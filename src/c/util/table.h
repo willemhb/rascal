@@ -17,5 +17,7 @@ value_t table_get( table_t* slf, value_t k );
 value_t table_add( table_t* slf, value_t k, value_t v );
 value_t table_set( table_t* slf, value_t k, value_t v );
 value_t table_del( table_t* slf, value_t k );
+uhash hash_table( table_t* slf );
+void mark_table( table_t* slf );
 
 #endif
