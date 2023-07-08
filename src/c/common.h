@@ -47,6 +47,7 @@ typedef struct table table_t;
 typedef enum error error_t;
 typedef enum token token_t;
 typedef enum datatype datatype_t;
+typedef struct frame frame_t;
 typedef struct vm vm_t;
 
 // miscellaneous macros -------------------------------------------------------

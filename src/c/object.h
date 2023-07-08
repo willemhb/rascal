@@ -66,9 +66,9 @@ struct closure {
 
 struct chunk {
   HEADER;
-  list_t*  envt; // compile-time environment
-  values_t vals;
-  buffer_t instr;
+  list_t*  envt;  // compile-time environment
+  values_t vals;  // constant store
+  buffer_t instr; // instruction sequence
 };
 
 // globals ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -129,8 +129,13 @@ bool is_chunk( value_t x );
 long intval( value_t x );
 uword wrdval( value_t x );
 
-#define hasfl( x, fl ) (!!(as_object(x)->flags & (fl)))
-#define setfl( x, fl ) (as_object(x)->flags |= (fl))
+#define hasfl( x, f ) generic((x), value_t:value_hasfl, default: object_hasfl)(x, f)
+bool object_hasfl( void* obj, flags fl );
+bool value_hasfl( value_t val, flags fl );
+
+#define setfl( x, f ) generic((x), value_t:value_setfl, default: object_setfl)(x, f)
+bool object_setfl( void* obj, flags fl );
+bool value_setfl( value_t val, flags fl );
 
 #define sethash( x, h )							 \
   do {                                           \
@@ -177,8 +182,16 @@ symbol_t* symbol( char* name );
 symbol_t* gensym( char* name );
 list_t* list( value_t head, list_t* tail );
 tuple_t* tuple( usize n, ... );
-closure_t* closure( chunk_t* chunk, usize n, value_t vals );
-chunk_t* chunk( void );
+closure_t* closure( chunk_t* chunk, tuple_t* env );
+chunk_t* chunk( list_t* env );
+
+// canonical constructors -----------------------------------------------------
+list_t* mk_list( usize n, value_t* a );
+tuple_t* mk_tuple( usize n, value_t* a );
+
+// accessors/mutators ---------------------------------------------------------
+list_t* set_head( list_t* xs, value_t val );
+tuple_t* set_slot( tuple_t* xs, usize o, value_t val );
 
 // initialization -------------------------------------------------------------
 void toplevel_init_object( void );

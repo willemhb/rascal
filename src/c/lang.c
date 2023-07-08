@@ -1,4 +1,5 @@
 #include <string.h>
+#include <stdarg.h>
 
 #include "lang.h"
 #include "object.h"
@@ -7,6 +8,9 @@
 #include "opcodes.h"
 
 #include "util/hashing.h"
+
+// globals ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+value_t Quote, Do, If, Lmb, Def, Put, Amp, Otherwise;
 
 // internal API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 static bool is_literal( value_t x ) {
@@ -17,20 +21,6 @@ static bool is_literal( value_t x ) {
     return as_list(x)->arity > 0;
 
   return true;
-}
-
-static void init_envt( void ) {
-  if ( !!(Vm.fn->envt->obj.flags & VARIADIC) ) {
-    
-  }
-}
-
-static void capture_values( void ) {
-  value_t* bp = Vm.bp;
-
-  while ( in_stack(bp) ) {
-    
-  }
 }
 
 // external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -52,7 +42,178 @@ value_t eval( value_t x ) {
   return out;
 }
 
-value_t compile( value_t src ) {}
+static usize emit_instr( chunk_t* target, opcode_t op, ... );
+static usize add_value( chunk_t* target, value_t val );
+static bool is_toplevel_form( chunk_t* target );
+static opcode_t resolve_name( chunk_t* target, value_t name, usize* i, usize* j );
+static usize define_global( value_t name );
+static usize define_local( chunk_t* target, value_t name );
+static usize compile_value( chunk_t* target, value_t val );
+static usize compile_variable( chunk_t* target, value_t name );
+static usize compile_combination( chunk_t* target, value_t sexpr );
+static usize compile_expr( chunk_t* target, value_t src );
+static usize compile_exprs( chunk_t* target, list_t* exprs );
+static usize compile_args( chunk_t* target, list_t* args );
+static usize compile_quote( chunk_t* target, list_t* form );
+static usize compile_do( chunk_t* target, list_t* form );
+static usize compile_if( chunk_t* target, list_t* form );
+static usize compile_lmb( chunk_t* target, list_t* form );
+static usize compile_def( chunk_t* target, list_t* form );
+static usize compile_put( chunk_t* target, list_t* form );
+
+value_t compile( value_t src ) {
+  chunk_t* target = chunk( &EmptyList );
+  compile_expr(target, src);
+  return object(target);
+}
+
+static usize emit_instr( chunk_t* target, opcode_t op, ... ) {
+  va_list va;
+  va_start(va, op);
+
+  ushort buf[3] = { op, 0, 0 };
+  usize n = opcode_argc(op);
+
+  if ( n > 0 )
+    buf[1] = va_arg(va, int);
+
+  if ( n > 1 )
+    buf[2] = va_arg(va, int);
+
+  va_end(va);
+  buffer_write(&target->instr, n+1, buf);
+  return target->instr.cnt;
+}
+
+static usize add_value( chunk_t* target, value_t val ) {
+  return values_push(&target->vals, val);
+}
+
+static bool is_toplevel_form( chunk_t* target ) {
+  return target->envt->arity == 0; // target is for a toplevel from if its environment is the empty list
+}
+
+static opcode_t resolve_name( chunk_t* target, value_t name, usize* i, usize* j ) {
+  opcode_t out = OP_LOADCL;
+  *i = *j = 0;
+
+  list_t* envt = target->envt;
+
+  while ( envt->arity ) {
+    list_t* locals = as_list(envt->head);
+
+    while ( locals->arity ) {
+      if ( locals->head == name ) {
+        *j = locals->arity;
+        break;
+      }
+
+      locals = locals->tail;
+    }
+
+    if ( *j )
+      break;
+
+    *i = *i + 1;
+    envt = envt->tail;
+  }
+
+  if ( *j == 0 ) { // not found
+    *i = define_global(name);
+    out = OP_LOADGL;
+  }
+
+  return out;
+}
+
+static usize define_global( value_t name ) {
+  value_t location = table_add(&Vm.globals.vars, name, number(Vm.globals.vars.cnt));
+
+  if ( location == NOTFOUND )
+    location = number(values_push(&Vm.globals.vals, UNDEFINED));
+
+  return wrdval(location);
+}
+
+static usize define_local( chunk_t* target, value_t name ) {
+  list_t* envt = target->envt;
+  list_t* locals = as_list(envt->head);
+  set_head(envt, object(list(name, locals)));
+  return locals->arity + 1;
+}
+
+static usize compile_value( chunk_t* target, value_t val ) {
+  usize location = add_value(target, val);
+  return emit_instr(target, OP_LOADV, location);
+}
+
+static usize compile_variable( chunk_t* target, value_t name ) {
+  usize i, j;
+  opcode_t op = resolve_name(target, name, &i, &j);
+  return emit_instr(target, op, i, j);
+}
+
+static usize compile_combination( chunk_t* target, value_t sexpr ) {
+  list_t* form = as_list(sexpr);
+
+  if ( form->head == Quote )
+    return compile_quote(target, form);
+
+  if ( form->head == Do )
+    return compile_do(target, form);
+
+  if ( form->head == If )
+    return compile_if(target, form);
+
+  if ( form->head == Lmb )
+    return compile_lmb(target, form);
+
+  if ( form->head == Def )
+    return compile_def(target, form);
+
+  if ( form->head == Put )
+    return compile_put(target, form);
+
+  compile_expr(target, form->head); // compile caller
+  compile_args(target, form->tail); // compile arguments
+  return emit_instr(target, OP_CALL, form->tail->arity);
+}
+
+static usize compile_expr( chunk_t* target, value_t expr ) {
+  usize out;
+  
+  if ( is_literal(expr) )
+    out = compile_value(target, expr);
+
+  else if ( is_symbol(expr) )
+    out = compile_variable(target, expr);
+
+  else
+    out = compile_combination(target, expr);
+
+  return out;
+}
+
+static usize compile_exprs( chunk_t* target, list_t* exprs ) {
+  while ( exprs->arity > 1 ) {
+    compile_expr(target, exprs->head);
+    emit_instr(target, OP_POP);
+    exprs = exprs->tail;
+  }
+
+  return compile_expr(target, exprs->head);
+}
+
+static usize compile_args( chunk_t* target, list_t* args ) {
+  usize out = target->instr.cnt;
+  
+  while ( args->arity ) {
+    out = compile_expr(target, args->head);
+    args = args->tail;
+  }
+
+  return out;
+}
 
 value_t apply( value_t f, value_t a );
 
@@ -61,6 +222,7 @@ value_t exec( value_t ch ) {
     [OP_NOOP] = &&op_noop, [OP_START] = &&op_start, [OP_POP] = &&op_pop,
     [OP_CLOSURE] = &&op_closure, [OP_RETURN] = &&op_return,
 
+    [OP_ARGC] = &&op_argc, [OP_VARGC] = &&op_vargc,
     [OP_CALL] = &&op_call,
     [OP_LOADV] = &&op_loadv, [OP_LOADGL] = &&op_loadgl,
     [OP_PUTGL] = &&op_putgl, [OP_JUMP] = &&op_jump, [OP_JUMPN] = &&op_jumpn,
@@ -71,15 +233,16 @@ value_t exec( value_t ch ) {
   opcode_t op;
   int argx, argy;
   value_t x, v, * b;
+  list_t* va;
 
- fetch:
-  op = *(Vm.ip++);
+ fetch: // next instruction
+  op = *(IP++);
 
   if ( op > OP_RETURN )
-    argx = *(Vm.ip++);
+    argx = *(IP++);
 
   if ( op > OP_JUMPN )
-    argy = *(Vm.ip++);
+    argy = *(IP++);
 
   goto *labels[op];
 
@@ -94,24 +257,47 @@ value_t exec( value_t ch ) {
   goto fetch;
 
  op_closure:
-  
-  
+  v = pop();
+  capture_frame(FP);
+  v = object(closure(as_chunk(v), ENV));
+  push(v);
+
+  goto fetch;
+
  op_return:
   v = pop();
-  Vm.sp = Vm.bp;
-  Vm.bp = (value_t*)wrdval(restore());
-  Vm.ip = (ushort*)wrdval(restore());
-  Vm.fn = (chunk_t*)as_object(restore());
+  pop_frame();
 
-  if ( Vm.fn == NULL )
+  if ( FN == NULL )
     return v;
 
   push(v);
 
   goto fetch;
 
+ op_argc:
+  argy = SP - BP - 1;
+  require("exec", argy == argx, object(FN), "Incorrect arity");
+
+  goto pad_locals;
+
+ op_vargc:
+  argy = SP - BP - 1;
+  require("exec", argy >= argx, object(FN), "Incorrect arity");
+  va = mk_list(argy - argx, BP+argx+1);
+  BP[argx+1] = object(va);
+  SP = BP+argx+2;
+
+  goto pad_locals;
+
+ pad_locals: // adjust stack to hold all local bindings, including those introduced in function body
+  for ( int i=argx; i<(int)FN->envt->arity; i++ )
+    push(NIL);
+
+  goto fetch;
+
  op_call:
-  x = Vm.sp[-argx-1];
+  x = SP[-argx-1];
 
   if ( is_native(x) )
     goto do_call_native;
@@ -126,24 +312,21 @@ value_t exec( value_t ch ) {
   v = as_native(x)(argx, Vm.sp-argx);
   Vm.sp[-argx-1] = v;
   Vm.sp -= argx;
-  
+
   goto fetch;
 
  do_call_closure:
-  save(object(Vm.fn));
-  save(pointer(Vm.ip));
-  save(pointer(Vm.bp));
+  push_frame();
 
-  Vm.fn = as_closure(x)->code;
-  Vm.bp = Vm.sp-argx-1;
-  Vm.ip = Vm.fn->instr.data;
-  Vm.bp[0] = object(as_closure(x)->envt);
-  init_envt();
+  FN = as_closure(x)->code;
+  BP = SP-argx-1;
+  IP = FN->instr.data;
+  BP[0] = object(as_closure(x)->envt);
 
   goto fetch;
   
  op_loadv:
-  push(Vm.fn->vals.data[argx]);
+  push(FN->vals.data[argx]);
   goto fetch;
   
  op_loadgl:
@@ -155,29 +338,29 @@ value_t exec( value_t ch ) {
   goto fetch;
   
  op_jump:
-  Vm.ip += argx;
+  IP += argx;
   goto fetch;
 
  op_jumpn:
   x = pop();
 
   if ( x == NIL )
-    Vm.ip += argx;
+    IP += argx;
 
   goto fetch;
 
  op_loadcl:
-  b = Vm.bp;
+  b = ENV ? ENV->slots : BP;
   while ( argx-- )
     b = as_tuple(b[0])->slots;
-  push(b[argy]);
+  push(b[argy+1]);
   goto fetch;
-  
+
  op_putcl:
-  b = Vm.bp;
+  b = ENV ? ENV->slots : BP;
   while ( argx-- )
     b = as_tuple(b[0])->slots;
-  b[argy] = Vm.sp[-1];
+  b[argy+1] = Vm.sp[-1];
   goto fetch;
 }
 
@@ -224,7 +407,7 @@ uhash hash( value_t x ) {
 
         case CHUNK: {
           chunk_t* c = as_chunk(x);
-          nh = mix_3_hashes(nh, hash_buffer(&c->instr), hash_values(&c->vals));
+          nh = mix_n_hashes(4, nh, hash(object(c->envt)), hash_buffer(&c->instr), hash_values(&c->vals));
           break;
         }
 
@@ -299,7 +482,8 @@ int compare( value_t x, value_t y, bool eq ) {
 
         case CHUNK: {
           chunk_t* cx = as_chunk(x), * cy = as_chunk(y);
-          out = compare_buffers(&cx->instr, &cy->instr, true);
+          out = compare(object(cx->envt), object(cy->envt), true);
+          out = out && compare_buffers(&cx->instr, &cy->instr, true);
           out = out && compare_values(&cx->vals, &cy->vals, true);
           break;
         }
@@ -370,7 +554,8 @@ int compare( value_t x, value_t y, bool eq ) {
         case CHUNK: {
           chunk_t* cx = as_chunk(x), * cy = as_chunk(y);
 
-          out = compare_buffers(&cx->instr, &cy->instr, false);
+          out = compare(object(cx->envt), object(cy->envt), false);
+          out = out ? : compare_buffers(&cx->instr, &cy->instr, false);
           out = out ? : compare_values(&cx->vals, &cy->vals, false);
 
           break;

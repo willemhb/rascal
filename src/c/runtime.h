@@ -22,11 +22,17 @@ enum token {
   TOKEN_ERROR
 };
 
-struct vm {
-  // main registers
+struct frame {
   chunk_t* fn;
   ushort* ip;
-  value_t* bp, * fp, * sp;
+  value_t* bp;
+  tuple_t* env;
+};
+
+struct vm {
+  // stack pointers
+  value_t* sp;
+  frame_t* fp;
 
   // globals
   struct {
@@ -58,15 +64,28 @@ struct vm {
 };
 
 // globals ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// pseudo-registers -----------------------------------------------------------
+#define SP  (Vm.sp)
+#define FP  (Vm.fp)
+#define FN  (FP->fn)
+#define IP  (FP->ip)
+#define BP  (FP->bp)
+#define ENV (FP->env)
+
 extern vm_t Vm;
+extern value_t Values[]; // values stack
+extern frame_t Frames[]; // frames stack
 
 // external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // stack ----------------------------------------------------------------------
-value_t* push( value_t x );
+value_t* push( value_t val );
 value_t pop( void );
-value_t* save( value_t x );
-value_t restore( void );
-bool in_stack( void* p );
+bool in_stack( void* ptr );
+
+// frame ----------------------------------------------------------------------
+frame_t* push_frame( void );
+void pop_frame( void );
+tuple_t* capture_frame( frame_t* f );
 
 // variables & methods --------------------------------------------------------
 void toplevel_define( char* name, value_t bind );

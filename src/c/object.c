@@ -97,6 +97,35 @@ void* ptrval( value_t x ) {
   return (void*)wrdval(x);
 }
 
+bool object_hasfl( void* obj, flags fl ) {
+  assert(obj);
+
+  object_t* theObj = obj;
+  bool out = !!(theObj->flags & fl);
+  return out;
+}
+
+bool value_hasfl( value_t val, flags fl ) {
+  assert(is_object(val));
+
+  return object_hasfl(as_object(val), fl);
+}
+
+bool object_setfl( void* obj, flags fl ) {
+  assert(obj);
+
+  object_t* theObj = obj;
+  bool out = !!(theObj->flags & fl);
+  theObj->flags |= fl;
+  return out;
+}
+
+bool value_setfl( value_t val, flags fl ) {
+  assert(is_object(val));
+
+  return object_setfl(as_object(val), fl);
+}
+
 // basic queries --------------------------------------------------------------
 datatype_t type_of_value( value_t x ) {
   switch ( x & TAGMASK ) {

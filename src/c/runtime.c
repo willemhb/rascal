@@ -10,19 +10,19 @@
 
 // globals ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #define NHEAP  131072
-#define NSTACK 65536
-#define NFRAME 8192
+#define NVALUES 65536
+#define NFRAMES 8192
 
-value_t TheStack[NSTACK];
-value_t TheFrame[NFRAME];
+value_t Values[NVALUES];
+frame_t Frames[NFRAMES];
 
 vm_t Vm = {
   // main registers
-  .ip=NULL,
-  .sp=TheStack,
-  .fp=TheFrame,
-  .bp=NULL,
   .fn=NULL,
+  .ip=NULL,
+  .bp=NULL,
+  .sp=Values,
+  .fp=Frames,
 
   // globals & symbol table
   .globals={
@@ -92,19 +92,26 @@ value_t pop( void ) {
   return out;
 }
 
-value_t* save( value_t x ) {
-  value_t* out = Vm.fp++;
-  *out = x;
-  return out;
+frame_t* push_frame( void ) {
+  return Vm.fp++;
 }
 
-value_t restore( void ) {
-  value_t out = *(--Vm.fp);
-  return out;
+void pop_frame( void ) {
+  SP = BP;
+  FP--;
+}
+
+tuple_t* capture_frame( frame_t* f ) {
+  if ( f->env == NULL ) {
+    tuple_t* parent = f == Frames ? &EmptyTuple : capture_frame(f-1);
+    f->env = mk_tuple(f->fn->envt->arity+1, f->bp);
+    f->env->slots[0] = object(parent);
+  }
+  return f->env;
 }
 
 bool in_stack( void* p ) {
-  return (value_t*)p >= TheStack && (value_t*)p < (TheStack+NSTACK);
+  return (value_t*)p >= Values && (value_t*)p < (Values+NVALUES);
 }
 
 // error handling -------------------------------------------------------------
@@ -151,19 +158,17 @@ static bool overflows_heap( usize nbytes ) {
 }
 
 static void mark_stack( void ) {
-  for ( value_t* slot=TheStack; slot < Vm.sp; slot++ )
+  for ( value_t* slot=Values; slot < Vm.sp; slot++ )
     mark(*slot);
 }
 
 static void mark_frames( void ) {
-  for ( value_t* slot=TheFrame; slot < Vm.fp; slot+=3 ) {
-    mark(slot[0]);
+  for ( frame_t* slot=Frames; slot < Vm.fp; slot++ ) {
+    mark(slot->fn);
 
-    // might be captured, in which case it's the first slot of a heap-allocated tuple (mark head)
-    value_t* bp = as_pointer(slot[1]);
-
-    if ( !in_stack(bp) )
-      mark(((void*)bp) - sizeof(tuple_t));
+    // might be captured
+    if ( !in_stack(slot->bp) )
+      mark(slot->env);
   }
 }
 

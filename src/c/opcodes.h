@@ -9,7 +9,7 @@ typedef enum {
   OP_NOOP, OP_START, OP_POP, OP_CLOSURE, OP_RETURN,
 
   // 1-input instructions -----------------------------------------------------
-  OP_CALL, OP_LOADV, OP_LOADGL, OP_PUTGL, OP_JUMP, OP_JUMPN,
+  OP_ARGC, OP_VARGC, OP_CALL, OP_LOADV, OP_LOADGL, OP_PUTGL, OP_JUMP, OP_JUMPN,
 
   // 2-input instructions -----------------------------------------------------
   OP_LOADCL, OP_PUTCL
