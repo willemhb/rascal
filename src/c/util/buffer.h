@@ -5,7 +5,7 @@
 
 // simple dynamic array of binary data ++++++++++++++++++++++++++++++++++++++++
 typedef enum {
-  BINARY,
+  BYTES,
   ASCII
 } encoding_t;
 

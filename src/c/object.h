@@ -12,16 +12,25 @@
 enum datatype {
   NOTYPE, // not a datatype
   NUMBER=1,
+  FIXNUM,
+  GLYPH,
+  BOOL,
   PORT,
   NATIVE,
+  POINTER,
   UNIT,
 
   OBJECT=UNIT,
   SYMBOL,
   LIST,
-  TUPLE,
+  VECTOR,
+  DICT,
+  BINARY,
+  NS,
+  ENVT,
+  CHUNK,
   CLOSURE,
-  CHUNK
+  CONTROL
 };
 
 #define NDTYPES (CONTROL+1)
@@ -52,47 +61,96 @@ struct list {
   list_t* tail;
 };
 
-struct tuple {
+struct vector {
   HEADER;
-  usize arity;
-  value_t slots[];
+  values_t values;
+};
+
+struct dict {
+  HEADER;
+  table_t table;
+};
+
+struct binary {
+  HEADER;
+  buffer_t buffer;
+};
+
+struct namespace {
+  HEADER;
+  ns_t*   next;
+  dict_t* locals;
+};
+
+struct environment {
+  HEADER;
+  envt_t*   next;
+  ns_t*     ns;
+  vector_t* binds;
+};
+
+struct chunk {
+  HEADER;
+  ns_t*     ns;
+  vector_t* vals;
+  binary_t* instr;
 };
 
 struct closure {
   HEADER;
   chunk_t* code;
-  tuple_t* envt;
+  envt_t*  envt;
 };
 
-struct chunk {
+struct frame {
+  chunk_t* fn;
+  envt_t*  envt;
+  ushort*  ip;
+  int bp, fl;
+};
+
+struct control {
   HEADER;
-  list_t*  envt;  // compile-time environment
-  values_t vals;  // constant store
-  buffer_t instr; // instruction sequence
+  frame_t frame;
+  int sp, fp;
+  frame_t* frames;
+  value_t* values;
 };
 
 // globals ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // object flags ---------------------------------------------------------------
 enum {
   // general flags
-  HASHED  =0x8000,
+  FROZEN   =0x8000,
+  HASHED   =0x4000,
+  NODEALLOC=0x2000,
+  NOFREE   =0x1000,
 
-  // chunk flags
-  VARIADIC=0x4000
+  // environment/ns/chunk flags
+  TOPLEVEL =0x0800,
+  VARIADIC =0x0400,
+
+  // table flags
+  FASTCMP  =0x0800,
+
+  // frame flags
+  CAPTURED =0x0001
 };
 
 // empty singletons -----------------------------------------------------------
 extern list_t EmptyList;
-extern tuple_t EmptyTuple;
 
 // tags -----------------------------------------------------------------------
 #define QNAN     0x7ff8000000000000ul
 #define SIGN     0x8000000000000000ul
 
 #define NUMTAG   0x0000000000000000ul // dummy
-#define IOSTAG   0x7ffd000000000000ul
-#define NILTAG   0x7ffe000000000000ul
-#define NTVTAG   0x7fff000000000000ul
+#define FIXTAG   0x7ffc000000000000ul
+#define CHRTAG   0x7ffd000000000000ul
+#define IOSTAG   0x7ffe000000000000ul
+#define FUNTAG   0x7fff000000000000ul
+#define PTRTAG   0xfffc000000000000ul
+#define NILTAG   0x7ffd000000000000ul
 #define OBJTAG   0xffff000000000000ul
 
 #define TAGMASK   0xffff000000000000ul
@@ -106,25 +164,41 @@ extern tuple_t EmptyTuple;
 // external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // cast/access/test functions -------------------------------------------------
 number_t as_number( value_t x );
-void* as_pointer( value_t x );
+fixnum_t as_fixnum( value_t x );
+glyph_t as_glyph( value_t x );
 port_t as_port( value_t x );
 native_t as_native( value_t x );
+pointer_t as_pointer( value_t x );
 object_t* as_object( value_t x );
 symbol_t* as_symbol( value_t x );
 list_t* as_list( value_t x );
-tuple_t* as_tuple( value_t x );
-closure_t* as_closure( value_t x );
+vector_t* as_vector( value_t x );
+dict_t* as_dict( value_t x );
+binary_t* as_binary( value_t x );
+ns_t* as_ns( value_t x );
+envt_t* as_envt( value_t x );
 chunk_t* as_chunk( value_t x );
+closure_t* as_closure( value_t x );
+control_t* as_control( value_t x );
 
 bool is_number( value_t x );
+bool is_fixnum( value_t x );
+bool is_glyph( value_t x );
 bool is_port( value_t x );
 bool is_native( value_t x );
+bool is_pointer( value_t x );
 bool is_unit( value_t x );
 bool is_object( value_t x );
 bool is_symbol( value_t x );
 bool is_list( value_t x );
-bool is_closure( value_t x );
+bool is_vector( value_t x );
+bool is_dict( value_t x );
+bool is_binary( value_t x );
+bool is_ns( value_t x );
+bool is_envt( value_t x );
 bool is_chunk( value_t x );
+bool is_closure( value_t x );
+bool is_control( value_t x );
 
 long intval( value_t x );
 uword wrdval( value_t x );
@@ -174,24 +248,31 @@ void destruct_object( void* obj );
 
 // high level constructors ----------------------------------------------------
 value_t number( number_t n );
-value_t pointer( void* p );
+value_t fixnum( fixnum_t f );
+value_t glyph( glyph_t g );
 value_t port( port_t p );
 value_t native( native_t n );
+value_t pointer( pointer_t p );
 value_t object( void* o );
+
 symbol_t* symbol( char* name );
 symbol_t* gensym( char* name );
 list_t* list( value_t head, list_t* tail );
-tuple_t* tuple( usize n, ... );
-closure_t* closure( chunk_t* chunk, tuple_t* env );
-chunk_t* chunk( list_t* env );
+chunk_t* chunk( ns_t* ns );
 
 // canonical constructors -----------------------------------------------------
 list_t* mk_list( usize n, value_t* a );
-tuple_t* mk_tuple( usize n, value_t* a );
+vector_t* mk_vector( usize n, value_t* a );
+envt_t* mk_envt( envt_t* parent, ns_t* ns, vector_t* vals );
+closure_t* mk_closure( chunk_t* chunk, envt_t* envt );
+control_t* mk_control( frame_t* f, int sp, int fp, frame_t* frames, value_t* values );
 
-// accessors/mutators ---------------------------------------------------------
-list_t* set_head( list_t* xs, value_t val );
-tuple_t* set_slot( tuple_t* xs, usize o, value_t val );
+// getters/setters/accessors --------------------------------------------------
+value_t dict_get( dict_t* dict, value_t key );
+value_t dict_set( dict_t* dict, value_t key, value_t val );
+value_t dict_add( dict_t* dict, value_t key, value_t val );
+usize   vector_push( vector_t* vec, value_t val );
+usize   binary_write( binary_t* bin, usize n, void* data );
 
 // initialization -------------------------------------------------------------
 void toplevel_init_object( void );

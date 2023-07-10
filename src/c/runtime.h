@@ -7,14 +7,6 @@
 #include "object.h"
 
 // C types ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-enum error {
-  NO_ERROR,
-  READ_ERROR,
-  EVAL_ERROR,
-  RUNTIME_ERROR,
-  SYSTEM_ERROR
-};
-
 enum token {
   TOKEN_READY,
   TOKEN_EXPRESSION,
@@ -22,23 +14,15 @@ enum token {
   TOKEN_ERROR
 };
 
-struct frame {
-  chunk_t* fn;
-  ushort* ip;
-  value_t* bp;
-  tuple_t* env;
-};
-
 struct vm {
+  // currently executing frame (main registers)
+  frame_t frame;
+
   // stack pointers
-  value_t* sp;
-  frame_t* fp;
+  int sp, fp;
 
   // globals
-  struct {
-    table_t vars;
-    values_t vals;
-   } globals;
+  envt_t* globals;
 
   // symbol table
   symbol_t* symbolTable;
@@ -46,31 +30,33 @@ struct vm {
 
   // heap
   usize used, cap;
-  bool managing;
+  bool managing, initialized;
   object_t* live;
   objects_t grays;
 
   // reader
   token_t token;
   port_t source;
-  table_t dispatch;
-  values_t expressions;
-  buffer_t buffer;
+  dict_t* dispatch;
+  vector_t* expressions;
+  binary_t* buffer;
 
   // error
-  error_t error;
-  value_t cause;
-  char message[4096];
+  jmp_buf context;
 };
 
 // globals ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // pseudo-registers -----------------------------------------------------------
-#define SP  (Vm.sp)
-#define FP  (Vm.fp)
-#define FN  (FP->fn)
-#define IP  (FP->ip)
-#define BP  (FP->bp)
-#define ENV (FP->env)
+#define SP      (Vm.sp)
+#define FP      (Vm.fp)
+#define FRAME   (Vm.frame)
+#define FN      (Vm.frame.fn)
+#define IP      (Vm.frame.ip)
+#define BP      (Vm.frame.bp)
+#define FL      (Vm.frame.fl)
+#define ENV     (Vm.frame.envt)
+#define VALS    (Vm.frame.fn->vals->values.data)
+#define GLOBALS (Vm.globals->binds->values.data)
 
 extern vm_t Vm;
 extern value_t Values[]; // values stack
@@ -80,20 +66,14 @@ extern frame_t Frames[]; // frames stack
 // stack ----------------------------------------------------------------------
 value_t* push( value_t val );
 value_t pop( void );
-bool in_stack( void* ptr );
+value_t popnth( int n );
+value_t popn( int n );
 
 // frame ----------------------------------------------------------------------
-frame_t* push_frame( void );
+void push_frame( void );
 void pop_frame( void );
-tuple_t* capture_frame( frame_t* f );
-
-// variables & methods --------------------------------------------------------
-void toplevel_define( char* name, value_t bind );
-value_t toplevel_lookup( value_t name );
 
 // error ----------------------------------------------------------------------
-void panic( void );
-void recover( void );
 void error( const char* fname, value_t cause, const char* fmt, ... );
 void require( const char* fname, bool test, value_t cause, const char* fmt, ... );
 void forbid( const char* fname, bool test, value_t cause, const char* fmt, ... );

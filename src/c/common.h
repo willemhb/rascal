@@ -27,24 +27,40 @@ typedef uint64_t uint64;
 typedef int64_t  sint64;
 
 // rascal types ---------------------------------------------------------------
+// tagged value ---------------------------------------------------------------
 typedef uword value_t;
+
+// immediate types ------------------------------------------------------------
 typedef double number_t;
+typedef uword fixnum_t;
+typedef int glyph_t;
+typedef bool bool_t;
 typedef FILE* port_t;
 typedef value_t (*native_t)(usize n, value_t* args);
+typedef void* pointer_t;
+
+// common object type ---------------------------------------------------------
 typedef struct object object_t;
 
+// user object types ----------------------------------------------------------
 typedef struct symbol symbol_t;
 typedef struct list list_t;
-typedef struct tuple tuple_t;
-typedef struct closure closure_t;
-typedef struct chunk chunk_t;
+typedef struct vector vector_t;
+typedef struct dict dict_t;
+typedef struct binary binary_t;
 
-// internal types -------------------------------------------------------------
+// internal object types ------------------------------------------------------
+typedef struct environment envt_t;
+typedef struct namespace ns_t;
+typedef struct chunk chunk_t;
+typedef struct closure closure_t;
+typedef struct control control_t;
+
+// internal types (not objects) -----------------------------------------------
 typedef struct values values_t;
 typedef struct objects objects_t;
 typedef struct buffer buffer_t;
 typedef struct table table_t;
-typedef enum error error_t;
 typedef enum token token_t;
 typedef enum datatype datatype_t;
 typedef struct frame frame_t;

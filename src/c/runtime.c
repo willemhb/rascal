@@ -8,6 +8,8 @@
 #include "lang.h"
 #include "object.h"
 
+#include "util/memory.h"
+
 // globals ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #define NHEAP  131072
 #define NVALUES 65536
@@ -18,11 +20,16 @@ frame_t Frames[NFRAMES];
 
 vm_t Vm = {
   // main registers
-  .fn=NULL,
-  .ip=NULL,
-  .bp=NULL,
-  .sp=Values,
-  .fp=Frames,
+  .frame={
+    .fn =NULL,
+    .ip =0,
+    .bp =0,
+    .env=NULL
+  },
+
+  // stack pointers
+  .sp=0,
+  .fp=0,
 
   // globals & symbol table
   .globals={
@@ -71,47 +78,33 @@ vm_t Vm = {
     .data=NULL,
     .elSize=1,
     .encoding=ASCII
-  },
-
-  // error
-  .error=NO_ERROR,
-  .cause=NIL,
-  .message=""
+  }
 };
 
 // external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // stack ----------------------------------------------------------------------
 value_t* push( value_t x ) {
-  value_t* out = Vm.sp++;
+  require("exec", Vm.sp < NVALUES, UNDEFINED, "stack overflow");
+  value_t* out = &Values[Vm.sp++];
   *out = x;
   return out;
 }
 
 value_t pop( void ) {
-  value_t out = *(--Vm.sp);
+  require("exec", Vm.sp > 0, UNDEFINED, "stack underflow");
+  value_t out = Values[--Vm.sp];
   return out;
 }
 
-frame_t* push_frame( void ) {
-  return Vm.fp++;
+void push_frame( void ) {
+  require("exec", Vm.fp < NFRAMES, UNDEFINED, "call stack overflow");
+  Frames[Vm.fp++] = Vm.frame;
 }
 
 void pop_frame( void ) {
-  SP = BP;
-  FP--;
-}
-
-tuple_t* capture_frame( frame_t* f ) {
-  if ( f->env == NULL ) {
-    tuple_t* parent = f == Frames ? &EmptyTuple : capture_frame(f-1);
-    f->env = mk_tuple(f->fn->envt->arity+1, f->bp);
-    f->env->slots[0] = object(parent);
-  }
-  return f->env;
-}
-
-bool in_stack( void* p ) {
-  return (value_t*)p >= Values && (value_t*)p < (Values+NVALUES);
+  require("exec", Vm.fp > 0, UNDEFINED, "call stack underflow");
+  Vm.sp = Vm.frame.bp;
+  Vm.frame = Frames[--Vm.fp];
 }
 
 // error handling -------------------------------------------------------------
@@ -120,7 +113,8 @@ static void print_error( const char* fname, value_t cause, const char* fmt, va_l
   vfprintf(stderr, fmt, va);
   fprintf(stderr, ".\n");
   fprintf(stderr, "caused by: ");
-  print(stderr, cause);
+  if ( cause != UNDEFINED )
+    print(stderr, cause);
   fprintf(stderr, "\n");
 }
 
@@ -129,7 +123,7 @@ void error( const char* fname, value_t cause, const char* fmt, ... ) {
   va_start(va, fmt);
   print_error(fname, cause, fmt, va);
   va_end(va);
-  panic();
+  longjmp(Vm.context, 1);
 }
 
 void require( const char* fname, bool test, value_t cause, const char* fmt, ... ) {
@@ -138,7 +132,7 @@ void require( const char* fname, bool test, value_t cause, const char* fmt, ... 
     va_start(va, fmt);
     print_error(fname, cause, fmt, va);
     va_end(va);
-    panic();
+    longjmp(Vm.context, 1);
   }
 }
 
@@ -148,7 +142,7 @@ void forbid( const char* fname, bool test, value_t cause, const char* fmt, ... )
     va_start(va, fmt);
     print_error(fname, cause, fmt, va);
     va_end(va);
-    panic();
+    longjmp(Vm.context, 1);
   }
 }
 
@@ -158,17 +152,17 @@ static bool overflows_heap( usize nbytes ) {
 }
 
 static void mark_stack( void ) {
-  for ( value_t* slot=Values; slot < Vm.sp; slot++ )
-    mark(*slot);
+  for ( int i=0; i < Vm.sp; i++ )
+    mark(Values[i]);
 }
 
 static void mark_frames( void ) {
-  for ( frame_t* slot=Frames; slot < Vm.fp; slot++ ) {
-    mark(slot->fn);
+  mark(FN);
+  mark(ENV);
 
-    // might be captured
-    if ( !in_stack(slot->bp) )
-      mark(slot->env);
+  for ( int i=0; i < Vm.fp; i++ ) {
+    mark(Frames[i].fn);
+    mark(Frames[i].env);
   }
 }
 
@@ -210,9 +204,67 @@ void manage( void ) {
       object_t* tmp = curr;
       curr = tmp->next;
       *prev = curr;
-      destruct_object(tmp);
+      destruct(tmp);
     }
   }
 
   Vm.managing = false;
+}
+
+void* allocate( usize nBytes, bool fromHeap ) {
+  if ( fromHeap ) {
+    if ( overflows_heap(nBytes) )
+      manage();
+
+    Vm.used += nBytes;
+  }
+
+  void* out = SAFE_ALLOC(malloc, nBytes);
+  memset(out, 0, nBytes);
+  return out;
+}
+
+void* reallocate( void* ptr, usize oldSize, usize newSize, bool fromHeap ) {
+  void* out;
+  
+  if ( fromHeap ) {
+    if ( newSize > oldSize ) {
+      usize diff = newSize - oldSize;
+      
+      if ( overflows_heap(diff) )
+        manage();
+
+      Vm.used += diff;
+      out = SAFE_ALLOC(realloc, ptr, newSize);
+      memset(out+oldSize, 0, diff);
+    } else {
+      usize diff = oldSize - newSize;
+      out = SAFE_ALLOC(realloc, ptr, newSize);
+      Vm.used -= diff;
+    }
+  } else {
+    out = SAFE_ALLOC(realloc, ptr, newSize);
+
+    if ( newSize > oldSize )
+      memset(out+oldSize, 0, newSize - oldSize);
+  }
+
+  return out;
+}
+
+void* duplicate( void* ptr, usize nBytes, bool fromHeap ) {
+  void* copy = allocate(nBytes, fromHeap);
+  memcpy(copy, ptr, nBytes);
+  return copy;
+}
+
+char* duplicates( char* str, bool fromHeap ) {
+  return duplicate(str, strlen(str)+1, fromHeap);
+}
+
+void deallocate( void* ptr, usize nBytes, bool fromHeap ) {
+  free(ptr);
+
+  if ( fromHeap )
+    Vm.used -= nBytes;
 }
