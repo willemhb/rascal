@@ -45,9 +45,6 @@ typedef struct object object_t;
 // user object types ----------------------------------------------------------
 typedef struct symbol symbol_t;
 typedef struct list list_t;
-typedef struct vector vector_t;
-typedef struct dict dict_t;
-typedef struct binary binary_t;
 
 // internal object types ------------------------------------------------------
 typedef struct environment envt_t;

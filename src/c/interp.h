@@ -7,8 +7,6 @@
 #include "runtime.h"
 
 // external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-value_t  lookup( value_t name, void* ptr );
-value_t  define( value_t name, void* ptr, value_t bind );
 value_t  eval( value_t x, envt_t* envt );
 void     repl( void );
 chunk_t* compile( value_t src, ns_t* ns );

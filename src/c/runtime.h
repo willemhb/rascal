@@ -35,11 +35,11 @@ struct vm {
   objects_t grays;
 
   // reader
-  token_t token;
-  port_t source;
-  dict_t* dispatch;
-  vector_t* expressions;
-  binary_t* buffer;
+  token_t  token;
+  port_t   source;
+  table_t  dispatch;
+  values_t expressions;
+  buffer_t buffer;
 
   // error
   jmp_buf context;
@@ -65,9 +65,9 @@ extern frame_t Frames[]; // frames stack
 // external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // stack ----------------------------------------------------------------------
 value_t* push( value_t val );
-value_t pop( void );
-value_t popnth( int n );
-value_t popn( int n );
+value_t  pop( void );
+value_t  popnth( int n );
+value_t  popn( int n );
 
 // frame ----------------------------------------------------------------------
 void push_frame( void );

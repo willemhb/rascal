@@ -21,11 +21,12 @@ enum datatype {
   UNIT,
 
   OBJECT=UNIT,
+
+  // user object types
   SYMBOL,
   LIST,
-  VECTOR,
-  DICT,
-  BINARY,
+
+  // interpreter object types
   NS,
   ENVT,
   CHUNK,
@@ -33,7 +34,7 @@ enum datatype {
   CONTROL
 };
 
-#define NDTYPES (CONTROL+1)
+#define N_DTYPES (CONTROL+1)
 
 struct object {
   object_t* next; // invasive linked list of live objects
@@ -61,39 +62,24 @@ struct list {
   list_t* tail;
 };
 
-struct vector {
-  HEADER;
-  values_t values;
-};
-
-struct dict {
-  HEADER;
-  table_t table;
-};
-
-struct binary {
-  HEADER;
-  buffer_t buffer;
-};
-
 struct namespace {
   HEADER;
   ns_t*   next;
-  dict_t* locals;
+  table_t locals;
 };
 
 struct environment {
   HEADER;
   envt_t*   next;
   ns_t*     ns;
-  vector_t* binds;
+  values_t  binds;
 };
 
 struct chunk {
   HEADER;
-  ns_t*     ns;
-  vector_t* vals;
-  binary_t* instr;
+  ns_t*    ns;
+  values_t vals;
+  buffer_t instr;
 };
 
 struct closure {
@@ -129,9 +115,6 @@ enum {
   // environment/ns/chunk flags
   TOPLEVEL =0x0800,
   VARIADIC =0x0400,
-
-  // table flags
-  FASTCMP  =0x0800,
 
   // frame flags
   CAPTURED =0x0001
@@ -172,9 +155,6 @@ pointer_t as_pointer( value_t x );
 object_t* as_object( value_t x );
 symbol_t* as_symbol( value_t x );
 list_t* as_list( value_t x );
-vector_t* as_vector( value_t x );
-dict_t* as_dict( value_t x );
-binary_t* as_binary( value_t x );
 ns_t* as_ns( value_t x );
 envt_t* as_envt( value_t x );
 chunk_t* as_chunk( value_t x );
@@ -191,9 +171,6 @@ bool is_unit( value_t x );
 bool is_object( value_t x );
 bool is_symbol( value_t x );
 bool is_list( value_t x );
-bool is_vector( value_t x );
-bool is_dict( value_t x );
-bool is_binary( value_t x );
 bool is_ns( value_t x );
 bool is_envt( value_t x );
 bool is_chunk( value_t x );
@@ -261,18 +238,17 @@ list_t* list( value_t head, list_t* tail );
 chunk_t* chunk( ns_t* ns );
 
 // canonical constructors -----------------------------------------------------
-list_t* mk_list( usize n, value_t* a );
-vector_t* mk_vector( usize n, value_t* a );
-envt_t* mk_envt( envt_t* parent, ns_t* ns, vector_t* vals );
+list_t*    mk_list( usize n, value_t* a );
+ns_t*      mk_ns( ns_t* parent, usize n, value_t* l );
+envt_t*    mk_envt( envt_t* parent, ns_t* ns, value_t* vals );
 closure_t* mk_closure( chunk_t* chunk, envt_t* envt );
 control_t* mk_control( frame_t* f, int sp, int fp, frame_t* frames, value_t* values );
 
-// getters/setters/accessors --------------------------------------------------
-value_t dict_get( dict_t* dict, value_t key );
-value_t dict_set( dict_t* dict, value_t key, value_t val );
-value_t dict_add( dict_t* dict, value_t key, value_t val );
-usize   vector_push( vector_t* vec, value_t val );
-usize   binary_write( binary_t* bin, usize n, void* data );
+// namespace/environment APIs -------------------------------------------------
+bool    ns_lookup( value_t name, ns_t* ns, bool* toplevel, ushort* i, ushort* j );
+void    ns_define( value_t name, ns_t* ns, bool* toplevel, ushort* i );
+value_t envt_lookup( value_t name, envt_t* envt );
+void    envt_define( value_t name, envt_t* envt, value_t val );
 
 // initialization -------------------------------------------------------------
 void toplevel_init_object( void );

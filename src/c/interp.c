@@ -34,85 +34,14 @@ static bool is_toplevel( void* ptr ) {
 }
 
 // external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-value_t  lookup( value_t name, void* ptr ) {
-  object_t* o = ptr;
-
-  assert(o);
-  assert(o->type == ENVT || o->type == NS);
-  value_t v = NOTFOUND;
-
-  if ( o->type == NS ) {
-    ns_t* ns = ptr;
-    uint i = 0, j = 0;
-
-    while ( ns && v == NOTFOUND ) {
-      v = dict_get(ns->locals, name);
-
-      if ( v == NOTFOUND ) {
-        i++;
-        ns = ns->next;
-      } else {
-        j = wrdval(v);
-        v = fixnum(i | (j<<16));
-      }
-    }
-  } else {
-    envt_t* e = ptr;
-    v = lookup(name, e->ns);
-
-    if ( v != NOTFOUND ) {
-      uword w = wrdval(v);
-      uint i = w & UINT16_MAX;
-      uint j = w >> 16 & UINT16_MAX;
-
-      while ( i-- )
-        e = e->next;
-
-      v = e->binds->values.data[j];
-    }
-  }
-
-  if ( v == NOTFOUND )
-    v = UNDEFINED;
-
-  return v;
-}
-
-value_t define( value_t name, void* ptr, value_t bind ) {
-  object_t* o = ptr;
-
-  assert(o);
-  assert(o->type == ENVT || o->type == NS);
-  value_t v = NOTFOUND;
-
-  if ( o->type == NS ) {
-    ns_t* ns = ptr;
-    v = dict_add(ns->locals, name, fixnum(ns->locals->table.cnt));
-  } else {
-    envt_t* e = ptr;
-    value_t l = define(name, e->ns, NIL);
-    fixnum_t i = as_fixnum(l);
-
-    if ( l == e->binds->values.cnt ) {
-      v = bind;
-      vector_push(e->binds, bind);
-    } else {
-      v = e->binds->values.data[i];
-      e->binds->values.data[i] = bind;
-    }
-  }
-
-  return v;
-}
-
 value_t eval( value_t x, envt_t* envt ) {
   value_t v;
-  
+
   if ( is_literal(x) )
     v = x;
 
   else if ( is_symbol(x) ) {
-    value_t out = lookup(x, envt);
+    value_t out = envt_lookup(x, envt);
     forbid("eval", out == UNDEFINED, x, "unbound symbol");
     return out;
   }
@@ -123,6 +52,10 @@ value_t eval( value_t x, envt_t* envt ) {
   }
 
   return v;
+}
+
+void repl( void ) {
+  
 }
 
 static usize emit_instr( chunk_t* target, opcode_t op, ... );
@@ -161,12 +94,12 @@ static usize emit_instr( chunk_t* target, opcode_t op, ... ) {
     buf[2] = va_arg(va, int);
 
   va_end(va);
-  binary_write(target->instr, n+1, buf);
-  return target->instr->buffer.cnt;
+  buffer_write(&target->instr, n+1, buf);
+  return target->instr.cnt;
 }
 
 static usize add_value( chunk_t* target, value_t val ) {
-  return vector_push(target->vals, val);
+  return values_push(&target->vals, val);
 }
 
 static usize compile_value( chunk_t* target, value_t val ) {
@@ -175,7 +108,7 @@ static usize compile_value( chunk_t* target, value_t val ) {
 }
 
 static usize compile_variable( chunk_t* target, value_t name ) {
-  usize i, j;
+  usize i=0, j=0;
 
   if ( is_toplevel(target) ) {
     define(name, Vm.globals, UNDEFINED); // reserve space
