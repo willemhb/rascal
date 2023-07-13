@@ -1,4 +1,4 @@
- #ifndef common_h
+#ifndef common_h
 #define common_h
 
 #include <assert.h>
@@ -9,8 +9,8 @@
 
 // standard types -------------------------------------------------------------
 typedef uint8_t     ubyte;
-typedef uint32_t    uint;
 typedef uint16_t    ushort;
+typedef uint32_t    uint;
 typedef uintptr_t   uword;
 typedef uintptr_t   uhash;
 typedef size_t      usize;
@@ -31,37 +31,46 @@ typedef int64_t  sint64;
 typedef uword value_t;
 
 // immediate types ------------------------------------------------------------
-typedef double number_t;
-typedef uword fixnum_t;
-typedef int glyph_t;
-typedef bool bool_t;
-typedef FILE* port_t;
+typedef double    number_t;
+typedef uword     fixnum_t;
+typedef int       glyph_t;
+typedef bool      bool_t;
+typedef FILE*     port_t;
 typedef value_t (*native_t)(usize n, value_t* args);
-typedef void* pointer_t;
+typedef void*     pointer_t;
 
 // common object type ---------------------------------------------------------
 typedef struct object object_t;
 
 // user object types ----------------------------------------------------------
 typedef struct symbol symbol_t;
-typedef struct list list_t;
+typedef struct list   list_t;
+typedef struct vector vector_t;
+typedef struct dict   dict_t;
+typedef struct binary binary_t;
+
+// node object types ----------------------------------------------------------
+typedef struct vector_node vector_node_t;
+typedef struct vector_leaf vector_leaf_t;
+typedef struct dict_node   dict_node_t;
+typedef struct dict_leaf   dict_leaf_t;
 
 // internal object types ------------------------------------------------------
 typedef struct environment envt_t;
-typedef struct namespace ns_t;
-typedef struct chunk chunk_t;
-typedef struct closure closure_t;
-typedef struct control control_t;
+typedef struct namespace   ns_t;
+typedef struct chunk       chunk_t;
+typedef struct closure     closure_t;
+typedef struct control     control_t;
 
 // internal types (not objects) -----------------------------------------------
-typedef struct values values_t;
+typedef struct values  values_t;
 typedef struct objects objects_t;
-typedef struct buffer buffer_t;
-typedef struct table table_t;
-typedef enum token token_t;
-typedef enum datatype datatype_t;
-typedef struct frame frame_t;
-typedef struct vm vm_t;
+typedef struct buffer  buffer_t;
+typedef struct table   table_t;
+typedef enum token     token_t;
+typedef enum datatype  datatype_t;
+typedef struct frame   frame_t;
+typedef struct vm      vm_t;
 
 // miscellaneous macros -------------------------------------------------------
 #define unreachable __builtin_unreachable

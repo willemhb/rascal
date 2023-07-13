@@ -13,18 +13,33 @@ enum datatype {
   NOTYPE, // not a datatype
   NUMBER=1,
   FIXNUM,
+  SMALL,
   GLYPH,
   BOOL,
+  UNIT,
   PORT,
   NATIVE,
+  CSTRING,
   POINTER,
-  UNIT,
 
-  OBJECT=UNIT,
+  OBJECT=POINTER,
 
   // user object types
   SYMBOL,
   LIST,
+  VECTOR,
+  DICT,
+  RECORD,
+  BINARY,
+  BIGINT,
+  RATIO,
+  COMPLEX,
+
+  // node types (for vector/dict implementation types)
+  VECTOR_NODE,
+  VECTOR_LEAF,
+  DICT_NODE,
+  DICT_LEAF,
 
   // interpreter object types
   NS,
@@ -37,12 +52,12 @@ enum datatype {
 #define N_DTYPES (CONTROL+1)
 
 struct object {
-  object_t* next; // invasive linked list of live objects
-  uhash hash;
-  datatype_t type;
-  ushort flags;
-  ubyte black;
-  ubyte gray;
+  object_t* next;        // invasive linked list of live objects
+  uword     hash  : 48;  // cached hash code
+  uword     flags :  8;  // misc flags
+  uword     type  :  6;  // object type
+  uword     black :  1;  // GC black flag
+  uword     gray  :  1;  // GC gray flag
 };
 
 #define HEADER object_t obj
@@ -62,10 +77,56 @@ struct list {
   list_t* tail;
 };
 
+struct vector {
+  HEADER;
+  usize arity;
+  vector_node_t* root;
+  value_t* tail;
+};
+
+struct dict {
+  HEADER;
+  usize arity;
+  dict_node_t* root;
+};
+
+struct binary {
+  HEADER;
+  buffer_t buffer;
+};
+
+// node object types
+struct vector_node {
+  HEADER;
+  uint cnt, shift;
+  object_t** children;
+};
+
+struct vector_leaf {
+  HEADER;
+  value_t data[64];
+};
+
+struct dict_node {
+  HEADER;
+  uint shift;
+  usize bitmap;
+  object_t** children;
+};
+
+struct dict_leaf {
+  HEADER;
+  dict_leaf_t* next; // collision list
+  value_t      key;
+  value_t      val;
+};
+
+// interpreter object types
 struct namespace {
   HEADER;
   ns_t*   next;
-  table_t locals;
+  table_t vars;
+  table_t macros;
 };
 
 struct environment {
@@ -127,66 +188,80 @@ extern list_t EmptyList;
 #define QNAN     0x7ff8000000000000ul
 #define SIGN     0x8000000000000000ul
 
-#define NUMTAG   0x0000000000000000ul // dummy
-#define FIXTAG   0x7ffc000000000000ul
-#define CHRTAG   0x7ffd000000000000ul
-#define IOSTAG   0x7ffe000000000000ul
-#define FUNTAG   0x7fff000000000000ul
-#define PTRTAG   0xfffc000000000000ul
-#define NILTAG   0x7ffd000000000000ul
-#define OBJTAG   0xffff000000000000ul
+#define NUMTAG   0x0000000000000000ul // dummy tag for 64-bit floats
+#define FIXTAG   0x7ffc000000000000ul // 48-bit unsigned integer (represents sizes and hashes)
+#define ATMTAG   0x7ffd000000000000ul // 32-bit immediate (full type in next 16 bits)
+#define IOSTAG   0x7ffe000000000000ul // pointer of type port_t
+#define FUNTAG   0x7fff000000000000ul // pointer of type native_t
+#define CSTRTAG  0xfffc000000000000ul // pointer of type cstring_t
+#define PTRTAG   0xfffd000000000000ul // pointer of type pointer_t
+#define OBJTAG   0xffff000000000000ul // pointer of type object_t (full type in header)
 
 #define TAGMASK   0xffff000000000000ul
+#define WIDEMASK  0xffffffff00000000ul
 #define VALMASK   0x0000fffffffffffful
+#define SMALLMASK 0x00000000fffffffful
 
-#define NIL       (NILTAG|0)
-#define NOTFOUND  (NILTAG|1)
-#define UNDEFINED (NILTAG|3)
-#define UNBOUND   (NILTAG|5)
+#define NILTAG    (ATMTAG|(((uword)UNIT)  << 32))
+#define BOOLTAG   (ATMTAG|(((uword)BOOL)  << 32))
+#define GLYPHTAG  (ATMTAG|(((uword)GLYPH) << 32))
+#define SMALLTAG  (ATMTAG|(((uword)SMALL) << 32))
+
+#define TRUE      (BOOLTAG | 1)
+#define FALSE     (BOOLTAG | 0)
+#define NIL       (NILTAG  | 0)
+#define NOTFOUND  (NILTAG  | 1)
+#define UNDEFINED (NILTAG  | 3)
 
 // external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // cast/access/test functions -------------------------------------------------
 number_t as_number( value_t x );
 fixnum_t as_fixnum( value_t x );
 glyph_t as_glyph( value_t x );
+bool_t as_bool( value_t x );
 port_t as_port( value_t x );
 native_t as_native( value_t x );
 pointer_t as_pointer( value_t x );
 object_t* as_object( value_t x );
 symbol_t* as_symbol( value_t x );
 list_t* as_list( value_t x );
+vector_t* as_vector( value_t x );
+dict_t* as_dict( value_t x );
+binary_t* as_binary( value_t x );
+vector_node_t* as_vector_node( value_t x );
+vector_leaf_t* as_vector_leaf( value_t x );
 ns_t* as_ns( value_t x );
 envt_t* as_envt( value_t x );
-chunk_t* as_chunk( value_t x );
+chunk_t*   as_chunk( value_t x );
 closure_t* as_closure( value_t x );
 control_t* as_control( value_t x );
 
-bool is_number( value_t x );
-bool is_fixnum( value_t x );
-bool is_glyph( value_t x );
-bool is_port( value_t x );
-bool is_native( value_t x );
-bool is_pointer( value_t x );
-bool is_unit( value_t x );
-bool is_object( value_t x );
-bool is_symbol( value_t x );
-bool is_list( value_t x );
-bool is_ns( value_t x );
-bool is_envt( value_t x );
-bool is_chunk( value_t x );
-bool is_closure( value_t x );
-bool is_control( value_t x );
+bool       is_number( value_t x );
+bool       is_fixnum( value_t x );
+bool       is_glyph( value_t x );
+bool       is_port( value_t x );
+bool       is_native( value_t x );
+bool       is_pointer( value_t x );
+bool       is_unit( value_t x );
+bool       is_object( value_t x );
+bool       is_symbol( value_t x );
+bool       is_list( value_t x );
+bool       is_ns( value_t x );
+bool       is_envt( value_t x );
+bool       is_chunk( value_t x );
+bool       is_closure( value_t x );
+bool       is_control( value_t x );
 
-long intval( value_t x );
-uword wrdval( value_t x );
+long       intval( value_t x );
+uword      wrdval( value_t x );
 
-#define hasfl( x, f ) generic((x), value_t:value_hasfl, default: object_hasfl)(x, f)
-bool object_hasfl( void* obj, flags fl );
-bool value_hasfl( value_t val, flags fl );
+#define    hasfl( x, f ) generic((x), value_t:value_hasfl, default: object_hasfl)(x, f)
+bool       object_hasfl( void* obj, flags fl );
+bool       value_hasfl( value_t val, flags fl );
 
-#define setfl( x, f ) generic((x), value_t:value_setfl, default: object_setfl)(x, f)
-bool object_setfl( void* obj, flags fl );
-bool value_setfl( value_t val, flags fl );
+#define    setfl( x, f ) generic((x), value_t:value_setfl, default: object_setfl)(x, f)
+bool       object_setfl( void* obj, flags fl );
+bool       value_setfl( value_t val, flags fl );
 
 #define sethash( x, h )							 \
   do {                                           \
@@ -224,18 +299,18 @@ void destruct_value( value_t val );
 void destruct_object( void* obj );
 
 // high level constructors ----------------------------------------------------
-value_t number( number_t n );
-value_t fixnum( fixnum_t f );
-value_t glyph( glyph_t g );
-value_t port( port_t p );
-value_t native( native_t n );
-value_t pointer( pointer_t p );
-value_t object( void* o );
+value_t   number( number_t n );
+value_t   fixnum( fixnum_t f );
+value_t   glyph( glyph_t g );
+value_t   port( port_t p );
+value_t   native( native_t n );
+value_t   pointer( pointer_t p );
+value_t   object( void* o );
 
 symbol_t* symbol( char* name );
 symbol_t* gensym( char* name );
-list_t* list( value_t head, list_t* tail );
-chunk_t* chunk( ns_t* ns );
+list_t*   list( value_t head, list_t* tail );
+chunk_t*  chunk( ns_t* ns );
 
 // canonical constructors -----------------------------------------------------
 list_t*    mk_list( usize n, value_t* a );
@@ -245,12 +320,12 @@ closure_t* mk_closure( chunk_t* chunk, envt_t* envt );
 control_t* mk_control( frame_t* f, int sp, int fp, frame_t* frames, value_t* values );
 
 // namespace/environment APIs -------------------------------------------------
-bool    ns_lookup( value_t name, ns_t* ns, bool* toplevel, ushort* i, ushort* j );
-void    ns_define( value_t name, ns_t* ns, bool* toplevel, ushort* i );
-value_t envt_lookup( value_t name, envt_t* envt );
-void    envt_define( value_t name, envt_t* envt, value_t val );
+bool       ns_lookup( value_t name, ns_t* ns, bool* toplevel, ushort* i, ushort* j );
+void       ns_define( value_t name, ns_t* ns, bool* toplevel, ushort* i );
+value_t    envt_lookup( value_t name, envt_t* envt );
+void       envt_define( value_t name, envt_t* envt, value_t val );
 
 // initialization -------------------------------------------------------------
-void toplevel_init_object( void );
+void       toplevel_init_object( void );
 
 #endif

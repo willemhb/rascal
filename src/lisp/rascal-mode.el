@@ -26,7 +26,7 @@
     ("\\_<symbol[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<list[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<vector[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
-    ("\\_<table[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
+    ("\\_<dict[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<binary[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<ns[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<envt[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)

@@ -9,72 +9,41 @@
 
 // external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // cast/access/test functions -------------------------------------------------
-number_t as_number( value_t x ) {
-  return ((ieee64_t)x).dbl;
-}
+number_t as_number( value_t x ) { return ((ieee64_t)x).dbl; }
+fixnum_t as_fixnum( value_t x ) { return (fixnum_t)(x & VALMASK); }
+glyph_t as_glyph( value_t x ) { return (glyph_t)(x & SMALLMASK); }
+bool_t as_bool( value_t x ) { return (bool_t)(x & SMALLMASK); }
+port_t as_port( value_t x ) { return (port_t)(x & VALMASK); }
+native_t as_native( value_t x ) { return (native_t)(x & VALMASK); }
+pointer_t as_pointer( value_t x ) { return (pointer_t)(x & VALMASK); }
+object_t* as_object( value_t x ) { return (object_t*)(x & VALMASK); }
+symbol_t* as_symbol( value_t x ) { return (symbol_t*)(x & VALMASK); }
+list_t* as_list( value_t x ) { return (list_t*)(x & VALMASK); }
+vector_t* as_vector( value_t x ) { return (vector_t*)(x & VALMASK); }
+dict_t* as_dict( value_t x ) { return (dict_t*)(x & VALMASK); }
+binary_t* as_binary( value_t x ) { return (binary_t*)(x & VALMASK); }
+vector_node_t* as_vector_node( value_t x ) { return (vector_node_t*)(x & VALMASK); }
+vector_leaf_t* as_vector_leaf( value_t x ) { return (vector_leaf_t*)(x & VALMASK); }
+dict_node_t* as_dict_node( value_t x ) { return (dict_node_t*)(x & VALMASK); }
+dict_leaf_t* as_dict_leaf( value_t x ) { return (dict_leaf_t*)(x & VALMASK); }
+ns_t* as_ns( value_t x ) { return (ns_t*)(x & VALMASK); }
+envt_t* as_envt( value_t x ) { return (envt_t*)(x & VALMASK); }
+closure_t* as_closure( value_t x ) { return (closure_t*)(x & VALMASK); }
+chunk_t* as_chunk( value_t x ) { return (chunk_t*)(x & VALMASK); }
+control_t* as_control( value_t x ) { return (control_t*)(x & VALMASK); }
 
-port_t as_port( value_t x ) {
-  return (port_t)(x & VALMASK);
-}
-
-native_t as_native( value_t x ) {
-  return (native_t)(x & VALMASK);
-}
-
-object_t* as_object( value_t x ) {
-  return (object_t*)(x & VALMASK);
-}
-
-symbol_t* as_symbol( value_t x ) {
-  return (symbol_t*)(x & VALMASK);
-}
-
-list_t* as_list( value_t x ) {
-  return (list_t*)(x & VALMASK);
-}
-
-tuple_t* as_tuple( value_t x ) {
-  return (tuple_t*)(x & VALMASK);
-}
-
-closure_t* as_closure( value_t x ) {
-  return (closure_t*)(x & VALMASK);
-}
-
-chunk_t* as_chunk( value_t x ) {
-  return (chunk_t*)(x & VALMASK);
-}
-
-bool is_number( value_t x ) {
-  return (x & QNAN) != QNAN; 
-}
-
-bool is_port( value_t x ) {
-  return (x & TAGMASK) == IOSTAG;
-}
-
-bool is_native( value_t x ) {
-  return (x & TAGMASK) == NTVTAG;
-}
-
-bool is_unit( value_t x ) {
-  return x == NIL;
-}
-
-bool is_object( value_t x ) {
-  return (x & TAGMASK) == OBJTAG;
-}
-
-bool is_symbol( value_t x ) {
-  return is_object(x) && as_object(x)->type == SYMBOL;
-}
+bool is_number( value_t x ) { return (x & QNAN) != QNAN;  }
+bool is_fixnum( value_t x ) { return (x & TAGMASK) == FIXTAG; }
+bool is_glyph( value_t x )  { return (x & WIDEMASK) == GLYPHTAG; }
+bool is_bool( value_t x )   { return (x & WIDEMASK) == BOOLTAG; }
+bool is_port( value_t x )   { return (x & TAGMASK) == IOSTAG; }
+bool is_native( value_t x ) { return (x & TAGMASK) == FUNTAG; }
+bool is_unit( value_t x )   { return x == NIL; }
+bool is_object( value_t x ) { return (x & TAGMASK) == OBJTAG; }
+bool is_symbol( value_t x ) { return is_object(x) && as_object(x)->type == SYMBOL; }
 
 bool is_list( value_t x ) {
   return is_object(x) && as_object(x)->type == LIST;
-}
-
-bool is_tuple( value_t x ) {
-  return is_object(x) && as_object(x)->type == TUPLE;
 }
 
 bool is_closure( value_t x ) {
@@ -129,9 +98,11 @@ bool value_setfl( value_t val, flags fl ) {
 // basic queries --------------------------------------------------------------
 datatype_t type_of_value( value_t x ) {
   switch ( x & TAGMASK ) {
-	case IOSTAG: return PORT;
-	case NILTAG: return UNIT;
-	case NTVTAG: return NATIVE;
+	case FIXTAG: return FIXNUM;
+	case ATMTAG: return x >> 32 & UINT16_MAX;
+	case FUNTAG: return NATIVE;
+    case IOSTAG: return PORT;
+    case PTRTAG: return POINTER;
 	case OBJTAG: return as_object(x)->type;
 	default:     return NUMBER;
   }
@@ -146,18 +117,12 @@ usize size_of_value( value_t val ) {
   datatype_t dt = type_of(val);
   usize out = size_of_datatype(dt);
 
-  if ( dt == TUPLE )
-    out += sizeof(value_t) * as_tuple(val)->arity;
-
   return out;
 }
 
 usize size_of_object( void* obj ) {
   datatype_t dt = type_of(obj);
   usize out = size_of_datatype(dt);
-
-  if ( dt == TUPLE )
-    out += sizeof(value_t) * ((tuple_t*)obj)->arity;
 
   return out;
 }
@@ -170,7 +135,6 @@ usize size_of_datatype( datatype_t dt ) {
 	case UNIT:    return sizeof(value_t);
 	case SYMBOL:  return sizeof(symbol_t);
 	case LIST:    return sizeof(list_t);
-    case TUPLE:   return sizeof(tuple_t);
 	case CLOSURE: return sizeof(closure_t);
 	case CHUNK:   return sizeof(chunk_t);
 	default:      return 0;
@@ -219,17 +183,13 @@ void trace_object( void* obj ) {
 	  mark(((list_t*)obj)->tail);
 	  break;
 
-	case TUPLE:
-	  for ( usize i=0; i<((tuple_t*)obj)->arity; i++ )
-		mark(((tuple_t*)obj)->slots[i]);
-	  break;
-
 	case CLOSURE:
 	  mark(((closure_t*)obj)->code);
 	  mark(((closure_t*)obj)->envt);
 	  break;
 
 	case CHUNK:
+      mark(((chunk_t*)obj)->ns);
 	  trace_values(&((chunk_t*)obj)->vals);
 	  break;
 
@@ -269,12 +229,16 @@ value_t number( number_t num ) {
   return ((ieee64_t)num).word;
 }
 
+value_t fixnum( fixnum_t f ) {
+  return f | FIXTAG;
+}
+
 value_t port( port_t p ) {
   return ((value_t)p) | IOSTAG;
 }
 
 value_t native( native_t n ) {
-  return ((value_t)n) | NTVTAG;
+  return ((value_t)n) | FUNTAG;
 }
 
 value_t object( void* obj ) {
@@ -336,14 +300,6 @@ symbol_t* gensym( char* name ) {
 
   return make_symbol(name);
 }
-
-list_t* list( value_t head, list_t* tail ) {
-  
-}
-
-tuple_t* tuple( usize n, ... );
-closure_t* closure( chunk_t* chunk, usize n, value_t vals );
-chunk_t* chunk( void );
 
 // initialization -------------------------------------------------------------
 void toplevel_init_object( void ) {}
