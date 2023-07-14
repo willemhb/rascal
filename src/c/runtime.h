@@ -21,9 +21,8 @@ struct vm {
   // stack pointers
   int sp, fp;
 
-  // globals & macros
+  // toplevel environment
   envt_t* globals;
-  table_t macros;
 
   // symbol table
   symbol_t* symbolTable;

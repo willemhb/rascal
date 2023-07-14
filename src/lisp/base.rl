@@ -1,5 +1,5 @@
 ;; macro implementation
-(def *syntax* {})
+(def :base *syntax* {})
 
 (def set-syntax
   (lmb (name transformer)
