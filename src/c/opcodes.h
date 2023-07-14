@@ -28,7 +28,7 @@ typedef enum {
 #define N_OPS (OP_PUTCL+1)
 
 static inline usize opcode_argc( opcode_t opcode ) {
-  if ( opcode < OP_CALL )
+  if ( opcode < OP_ARGC )
     return 0;
 
   else if ( opcode < OP_LOADCL )

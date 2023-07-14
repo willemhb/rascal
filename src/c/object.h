@@ -13,33 +13,17 @@ enum datatype {
   NOTYPE, // not a datatype
   NUMBER=1,
   FIXNUM,
-  SMALL,
   GLYPH,
   BOOL,
   UNIT,
   PORT,
   NATIVE,
-  CSTRING,
-  POINTER,
 
-  OBJECT=POINTER,
+  OBJECT=NATIVE,
 
   // user object types
   SYMBOL,
   LIST,
-  VECTOR,
-  DICT,
-  RECORD,
-  BINARY,
-  BIGINT,
-  RATIO,
-  COMPLEX,
-
-  // node types (for vector/dict implementation types)
-  VECTOR_NODE,
-  VECTOR_LEAF,
-  DICT_NODE,
-  DICT_LEAF,
 
   // interpreter object types
   NS,
@@ -77,56 +61,11 @@ struct list {
   list_t* tail;
 };
 
-struct vector {
-  HEADER;
-  usize arity;
-  vector_node_t* root;
-  value_t* tail;
-};
-
-struct dict {
-  HEADER;
-  usize arity;
-  dict_node_t* root;
-};
-
-struct binary {
-  HEADER;
-  buffer_t buffer;
-};
-
-// node object types
-struct vector_node {
-  HEADER;
-  uint cnt, shift;
-  object_t** children;
-};
-
-struct vector_leaf {
-  HEADER;
-  value_t data[64];
-};
-
-struct dict_node {
-  HEADER;
-  uint shift;
-  usize bitmap;
-  object_t** children;
-};
-
-struct dict_leaf {
-  HEADER;
-  dict_leaf_t* next; // collision list
-  value_t      key;
-  value_t      val;
-};
-
 // interpreter object types
 struct namespace {
   HEADER;
   ns_t*   next;
   table_t vars;
-  table_t macros;
 };
 
 struct environment {
@@ -193,8 +132,6 @@ extern list_t EmptyList;
 #define ATMTAG   0x7ffd000000000000ul // 32-bit immediate (full type in next 16 bits)
 #define IOSTAG   0x7ffe000000000000ul // pointer of type port_t
 #define FUNTAG   0x7fff000000000000ul // pointer of type native_t
-#define CSTRTAG  0xfffc000000000000ul // pointer of type cstring_t
-#define PTRTAG   0xfffd000000000000ul // pointer of type pointer_t
 #define OBJTAG   0xffff000000000000ul // pointer of type object_t (full type in header)
 
 #define TAGMASK   0xffff000000000000ul
@@ -221,47 +158,37 @@ glyph_t as_glyph( value_t x );
 bool_t as_bool( value_t x );
 port_t as_port( value_t x );
 native_t as_native( value_t x );
-pointer_t as_pointer( value_t x );
 object_t* as_object( value_t x );
 symbol_t* as_symbol( value_t x );
 list_t* as_list( value_t x );
-vector_t* as_vector( value_t x );
-dict_t* as_dict( value_t x );
-binary_t* as_binary( value_t x );
-vector_node_t* as_vector_node( value_t x );
-vector_leaf_t* as_vector_leaf( value_t x );
 ns_t* as_ns( value_t x );
 envt_t* as_envt( value_t x );
 chunk_t*   as_chunk( value_t x );
 closure_t* as_closure( value_t x );
 control_t* as_control( value_t x );
 
-bool       is_number( value_t x );
-bool       is_fixnum( value_t x );
-bool       is_glyph( value_t x );
-bool       is_port( value_t x );
-bool       is_native( value_t x );
-bool       is_pointer( value_t x );
-bool       is_unit( value_t x );
-bool       is_object( value_t x );
-bool       is_symbol( value_t x );
-bool       is_list( value_t x );
-bool       is_ns( value_t x );
-bool       is_envt( value_t x );
-bool       is_chunk( value_t x );
-bool       is_closure( value_t x );
-bool       is_control( value_t x );
+bool is_number( value_t x );
+bool is_fixnum( value_t x );
+bool is_glyph( value_t x );
+bool is_port( value_t x );
+bool is_native( value_t x );
+bool is_unit( value_t x );
+bool is_object( value_t x );
+bool is_symbol( value_t x );
+bool is_list( value_t x );
+bool is_ns( value_t x );
+bool is_envt( value_t x );
+bool is_chunk( value_t x );
+bool is_closure( value_t x );
+bool is_control( value_t x );
 
-long       intval( value_t x );
-uword      wrdval( value_t x );
+#define hasfl( x, f ) generic((x), value_t:value_hasfl, default: object_hasfl)(x, f)
+bool object_hasfl( void* obj, flags fl );
+bool value_hasfl( value_t val, flags fl );
 
-#define    hasfl( x, f ) generic((x), value_t:value_hasfl, default: object_hasfl)(x, f)
-bool       object_hasfl( void* obj, flags fl );
-bool       value_hasfl( value_t val, flags fl );
-
-#define    setfl( x, f ) generic((x), value_t:value_setfl, default: object_setfl)(x, f)
-bool       object_setfl( void* obj, flags fl );
-bool       value_setfl( value_t val, flags fl );
+#define setfl( x, f ) generic((x), value_t:value_setfl, default: object_setfl)(x, f)
+bool object_setfl( void* obj, flags fl );
+bool value_setfl( value_t val, flags fl );
 
 #define sethash( x, h )							 \
   do {                                           \

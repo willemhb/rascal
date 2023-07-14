@@ -37,7 +37,6 @@ typedef int       glyph_t;
 typedef bool      bool_t;
 typedef FILE*     port_t;
 typedef value_t (*native_t)(usize n, value_t* args);
-typedef void*     pointer_t;
 
 // common object type ---------------------------------------------------------
 typedef struct object object_t;
@@ -45,15 +44,6 @@ typedef struct object object_t;
 // user object types ----------------------------------------------------------
 typedef struct symbol symbol_t;
 typedef struct list   list_t;
-typedef struct vector vector_t;
-typedef struct dict   dict_t;
-typedef struct binary binary_t;
-
-// node object types ----------------------------------------------------------
-typedef struct vector_node vector_node_t;
-typedef struct vector_leaf vector_leaf_t;
-typedef struct dict_node   dict_node_t;
-typedef struct dict_leaf   dict_leaf_t;
 
 // internal object types ------------------------------------------------------
 typedef struct environment envt_t;
