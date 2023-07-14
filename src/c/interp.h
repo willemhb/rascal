@@ -9,7 +9,7 @@
 // external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 value_t  eval( value_t x, envt_t* envt );
 void     repl( void );
-chunk_t* compile( value_t src, ns_t* ns );
+chunk_t* compile( value_t src, list_t* ns );
 value_t  exec( chunk_t* code, envt_t* envt );
 
 #endif
