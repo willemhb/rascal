@@ -25,6 +25,7 @@ enum datatype {
   LIST,
 
   // interpreter object types
+  NAMESPC,
   ENVT,
   CHUNK,
   CLOSURE,
@@ -34,12 +35,12 @@ enum datatype {
 #define N_DTYPES (CONTROL+1)
 
 struct object {
-  object_t* next;        // invasive linked list of live objects
-  uword     hash  : 48;  // cached hash code
-  uword     flags :  8;  // misc flags
-  uword     type  :  6;  // object type
-  uword     black :  1;  // GC black flag
-  uword     gray  :  1;  // GC gray flag
+  object_t* next;    // invasive linked list of live objects
+  uword hash  : 48;  // cached hash code
+  uword flags :  8;  // misc flags
+  uword type  :  6;  // object type
+  uword black :  1;  // GC black flag
+  uword gray  :  1;  // GC gray flag
 };
 
 #define HEADER object_t obj
@@ -48,8 +49,8 @@ struct object {
 struct symbol {
   HEADER;
   symbol_t* left, * right;
-  char*   name;
-  uint64  idno;
+  char* name;
+  uint64 idno;
 };
 
 struct list {
@@ -60,15 +61,22 @@ struct list {
 };
 
 // interpreter object types
+struct namespace {
+  HEADER;
+  namespc_t* next;
+  table_t locals;
+};
+
 struct environment {
   HEADER;
-  envt_t*   next;
-  values_t  binds;
+  envt_t* next;
+  namespc_t* vars;
+  values_t binds;
 };
 
 struct chunk {
   HEADER;
-  list_t*  vars;
+  namespc_t* vars;
   values_t vals;
   buffer_t instr;
 };
@@ -76,13 +84,13 @@ struct chunk {
 struct closure {
   HEADER;
   chunk_t* code;
-  envt_t*  envt;
+  envt_t* envt;
 };
 
 struct frame {
   chunk_t* fn;
-  envt_t*  envt;
-  ushort*  ip;
+  envt_t* envt;
+  ushort* ip;
   int bp, fl;
 };
 
@@ -149,6 +157,7 @@ pointer_t as_pointer( value_t x );
 object_t* as_object( value_t x );
 symbol_t* as_symbol( value_t x );
 list_t* as_list( value_t x );
+namespc_t* as_namespc( value_t x );
 envt_t* as_envt( value_t x );
 chunk_t*   as_chunk( value_t x );
 closure_t* as_closure( value_t x );
@@ -162,7 +171,7 @@ bool is_unit( value_t x );
 bool is_object( value_t x );
 bool is_symbol( value_t x );
 bool is_list( value_t x );
-bool is_ns( value_t x );
+bool is_namespc( value_t x );
 bool is_envt( value_t x );
 bool is_chunk( value_t x );
 bool is_closure( value_t x );
@@ -215,25 +224,26 @@ void destruct_value( value_t val );
 void destruct_object( void* obj );
 
 // high level constructors ----------------------------------------------------
-value_t   number( number_t n );
-value_t   glyph( glyph_t g );
-value_t   port( port_t p );
-value_t   native( native_t n );
-value_t   pointer( pointer_t p );
-value_t   object( void* o );
+value_t number( number_t n );
+value_t glyph( glyph_t g );
+value_t port( port_t p );
+value_t native( native_t n );
+value_t pointer( pointer_t p );
+value_t object( void* o );
 
 symbol_t* symbol( char* name );
 symbol_t* gensym( char* name );
-list_t*   list( value_t head, list_t* tail );
-chunk_t*  chunk( void );
+list_t* list( value_t head, list_t* tail );
+chunk_t* chunk( namespc_t* ns );
 
 // canonical constructors -----------------------------------------------------
-list_t*    mk_list( usize n, value_t* a );
-envt_t*    mk_envt( envt_t* parent, usize n, value_t* vals );
+list_t* mk_list( usize n, value_t* a );
+envt_t* mk_envt( envt_t* parent, usize n, value_t* vals );
+namespc_t* mk_namespc( );
 closure_t* mk_closure( chunk_t* chunk, envt_t* envt );
 control_t* mk_control( frame_t* f, int sp, int fp, frame_t* frames, value_t* values );
 
 // initialization -------------------------------------------------------------
-void       toplevel_init_object( void );
+void toplevel_init_object( void );
 
 #endif

@@ -3,6 +3,7 @@
 #include <stdarg.h>
 
 #include "interp.h"
+#include "lang.h"
 
 #include "opcodes.h"
 
@@ -28,9 +29,55 @@ static bool is_toplevel( void* ptr ) {
   object_t* o = ptr;
 
   assert(o);
-  assert(o->type == ENVT || o->type == CHUNK || o->type == NS);
+  assert(o->type == ENVT || o->type == CHUNK || o->type == NAMESPC);
 
   return hasfl(o, TOPLEVEL);
+}
+
+static bool namespc_lookup( value_t name, namespc_t* ns, bool* toplevel, usize* i, usize* j ) {
+  *toplevel = is_toplevel(ns);
+  *i = *j = 0;
+
+  bool out = false;
+
+  while ( ns && out == false ) {
+    value_t val = table_get(&ns->locals, name);
+
+    if ( val != NOTFOUND ) {
+      *j = wrdval(val);
+      out = true;
+    } else {
+      (*i)++;
+      ns = ns->next;
+    }
+  }
+
+  return out;
+}
+
+static value_t envt_lookup( value_t name, envt_t* envt ) {
+  value_t val = UNDEFINED;
+
+  while ( envt && val == UNDEFINED ) {
+    value_t loc = table_get(&envt->vars->locals, name);
+
+    if ( loc != NOTFOUND ) {
+      val = envt->binds.data[wrdval(loc)];
+    } else {
+      envt = envt->next;
+    }
+  }
+
+  return val;
+}
+
+static usize static_envt_define( value_t name, envt_t* envt, value_t val ) {
+  value_t loc = table_add(&envt->vars->locals, name, envt->binds.cnt);
+
+  if ( wrdval(loc) == envt->binds.cnt )
+    values_push(&envt->binds, val);
+
+  return wrdval(loc);
 }
 
 // external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -41,27 +88,42 @@ value_t eval( value_t x, envt_t* envt ) {
     v = x;
 
   else if ( is_symbol(x) ) {
-    value_t out = envt_lookup(x, envt);
-    forbid("eval", out == UNDEFINED, x, "unbound symbol");
-    return out;
+    v = envt_lookup(x, envt);
+    forbid("eval", v == UNDEFINED, x, "unbound symbol");
   }
 
   else {
-    chunk_t* chunk = compile(x, envt->ns);
+    chunk_t* chunk = compile(x, envt->vars);
     v = exec(chunk, envt);
   }
 
   return v;
 }
 
-void repl( void ) {
-  
-}
+#define prompt "rascal>"
 
+void repl( void ) {
+  while ( true ) {
+    if ( setjmp(Vm.context) ) {
+      reset_interp();
+      reset_reader();
+    } else {
+      printf(prompt" ");
+      value_t x = read(stdin);
+      printf("\n\n");
+      value_t v = eval(x, Vm.globals);
+      print(stdout, v);
+      printf("\n\n");
+    }
+  }
+}
+//  compiler 
 static usize emit_instr( chunk_t* target, opcode_t op, ... );
 static usize add_value( chunk_t* target, value_t val );
 static usize compile_value( chunk_t* target, value_t val );
 static usize compile_variable( chunk_t* target, value_t name );
+static usize compile_assignment( chunk_t* target, value_t name, value_t val );
+static usize compile_definition( chunk_t* target, value_t name, value_t val );
 static usize compile_combination( chunk_t* target, value_t sexpr );
 static usize compile_expr( chunk_t* target, value_t src );
 static usize compile_exprs( chunk_t* target, list_t* exprs );
@@ -74,7 +136,7 @@ static usize compile_def( chunk_t* target, list_t* form );
 static usize compile_put( chunk_t* target, list_t* form );
 static usize compile_ccc( chunk_t* target, list_t* form );
 
-chunk_t* compile( value_t src, ns_t* ns ) {
+chunk_t* compile( value_t src, namespc_t* ns ) {
   chunk_t* target = chunk( ns );
   compile_expr(target, src);
   return target;
@@ -103,16 +165,85 @@ static usize add_value( chunk_t* target, value_t val ) {
 }
 
 static usize compile_value( chunk_t* target, value_t val ) {
-  usize location = add_value(target, val);
-  return emit_instr(target, OP_LOADV, location);
+  usize out;
+
+  if ( val == NIL )
+    out = emit_instr(target, OP_LOADN);
+
+  else {
+    usize location = add_value(target, val);
+    out = emit_instr(target, OP_LOADV, location);
+  }
+
+  return out;
 }
 
 static usize compile_variable( chunk_t* target, value_t name ) {
-  usize i=0, j=0;
+  bool toplevel;
+  usize i, j;
+  usize out;
 
-  if ( is_toplevel(target) ) {
-    define(name, Vm.globals, UNDEFINED); // reserve space
+  if ( !namespc_lookup(name, target->vars, &toplevel, &i, &j) ) {
+    toplevel = true;
+    i = static_envt_define(name, Vm.globals, UNDEFINED);
   }
+
+  if ( toplevel )
+    out = emit_instr(target, OP_LOADGL, i);
+
+  else if ( i == 0 )
+    out = emit_instr(target, OP_LOADL, j);
+
+  else
+    out = emit_instr(target, OP_LOADCL, i, j);
+
+  return out;
+}
+
+static usize compile_assignment( chunk_t* target, value_t name, value_t val ) {
+  bool toplevel;
+  usize i, j;
+  usize out;
+
+  if ( !namespc_lookup(name, target->vars, &toplevel, &i, &j) ) {
+    toplevel = true;
+    i = static_envt_define(name, Vm.globals, UNDEFINED);
+  }
+
+  compile_expr(target, val);
+
+  if ( toplevel )
+    out = emit_instr(target, OP_PUTGL, i);
+
+  else if ( i == 0 )
+    out = emit_instr(target, OP_PUTL, j);
+  else
+    out = emit_instr(target, OP_PUTCL, i, j);
+
+  return out;
+}
+
+static usize compile_definition( chunk_t* target, value_t name, value_t val ) {
+  bool toplevel;
+  usize i, j;
+  usize out;
+
+  if ( !namespc_lookup(name, target->vars, &toplevel, &i, &j) ) {
+    toplevel = true;
+    i = static_envt_define(name, Vm.globals, UNDEFINED);
+  }
+
+  compile_expr(target, val);
+
+  if ( toplevel )
+    out = emit_instr(target, OP_PUTGL, i);
+
+  else if ( i == 0 )
+    out = emit_instr(target, OP_PUTL, j);
+  else
+    out = emit_instr(target, OP_PUTCL, i, j);
+
+  return out;
 }
 
 static usize compile_combination( chunk_t* target, value_t sexpr ) {

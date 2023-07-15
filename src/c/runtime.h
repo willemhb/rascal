@@ -63,6 +63,10 @@ extern value_t Values[]; // values stack
 extern frame_t Frames[]; // frames stack
 
 // external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// toplevel reset functions ---------------------------------------------------
+void reset_interp( void );
+void reset_reader( void );
+
 // stack ----------------------------------------------------------------------
 value_t* push( value_t val );
 value_t  pop( void );

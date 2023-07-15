@@ -42,13 +42,14 @@ typedef struct object object_t;
 
 // user object types ----------------------------------------------------------
 typedef struct symbol symbol_t;
-typedef struct list   list_t;
+typedef struct list list_t;
 
 // internal object types ------------------------------------------------------
+typedef struct namespace namespc_t;
 typedef struct environment envt_t;
-typedef struct chunk       chunk_t;
-typedef struct closure     closure_t;
-typedef struct control     control_t;
+typedef struct chunk chunk_t;
+typedef struct closure closure_t;
+typedef struct control control_t;
 
 // internal types (not objects) -----------------------------------------------
 typedef struct values  values_t;

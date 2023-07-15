@@ -4,8 +4,8 @@
 #include "common.h"
 
 // external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-value_t read( value_t src );
-value_t print( FILE* ios, value_t x );
+value_t read( port_t ios );
+value_t print( port_t ios, value_t x );
 bool    same( value_t x, value_t y );
 bool    equal( value_t x, value_t y );
 int     compare( value_t x, value_t y );

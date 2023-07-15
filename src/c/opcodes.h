@@ -11,7 +11,7 @@ typedef enum {
   OP_POP,
   OP_CLOSURE, OP_CONTROL,
   OP_RETURN,
-  OP_LOADT, OP_LOADF, OP_LOADN,
+  OP_LOADN,
 
   // 1-input instructions -----------------------------------------------------
   OP_ARGC, OP_VARGC,
