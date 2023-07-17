@@ -26,7 +26,6 @@
     ;; user object types
     ("\\_<symbol[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<list[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
-    ("\\_<tuple[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ;; utility object types
     ("\\_<alist[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<table[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
@@ -35,6 +34,7 @@
     ("\\_<chunk[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<closure[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<control[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
+    ("\\_<type[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ;; type system types
     ("\\_<any[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<none[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
