@@ -9,10 +9,10 @@
 (define-generic-mode
   'rascal-mode
   '(";" ("#|" . "|#"))
-  '("def" "put" "fun" "mac" "type" ;; binding syntax
-    "handle" "perform"             ;; control syntax
-    "if" "case" "cond" "and" "or"  ;; branching syntax
-    "let" "lmb" "do" "quote"       ;; misc syntax
+  '("def" "put" "fun" "mac" "type"   ;; binding syntax
+    "handle" "perform" "try" "catch" ;; control syntax
+    "if" "case" "cond" "and" "or"    ;; branching syntax
+    "let" "lmb" "do" "quote"         ;; misc syntax
    )
   '(("\\(:[-a-zA-Z?*+0-9/]+\\)[[:space:][:cntrl:],\\s)]" 1 font-lock-reference-face)
     ;; immediate types
