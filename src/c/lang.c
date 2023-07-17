@@ -10,22 +10,36 @@
 #include "util/hashing.h"
 
 // globals ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-value_t Quote, Do, If, Lmb, Def, Put, Amp, Otherwise;
-
 // internal API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-static bool is_literal( value_t x ) {
-  if ( is_symbol(x) )
-    return *as_symbol(x)->name == ':';
+// external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// read implementation --------------------------------------------------------
+value_t read( port_t src );
 
-  if ( is_list(x) )
-    return as_list(x)->arity > 0;
+// print implementation -------------------------------------------------------
+value_t print( port_t ios, value_t x );
 
-  return true;
+// hash implementation --------------------------------------------------------
+static uhash hash_symbol( symbol_t* s ) {
+  assert(s);
+  uhash type_hash = hash_uword(SYMBOL);
+  uhash name_hash = hash_str(s->name);
+  uhash idno_hash = hash_uword(s->idno);
+  return mix_3_hashes(type_hash, name_hash, idno_hash);
 }
 
-// external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-value_t read( value_t src );
-value_t print( FILE* ios, value_t x );
+static uhash hash_list( list_t* l ) {
+  assert(l);
+  uhash type_hash = hash_uword(LIST);
+  uhash output_hash = type_hash;
+
+  while ( l->arity ) {
+    uhash head_hash = hash(l->head);
+    output_hash = mix_2_hashes(output_hash, head_hash);
+    l = l->tail;
+  }
+
+  return output_hash;
+}
 
 uhash hash( value_t x ) {
   uhash out;
@@ -38,44 +52,10 @@ uhash hash( value_t x ) {
         nh = hash_uword(x);
 
       else {
-        datatype_t dt = type_of(x);
-        nh = hash_uword(dt);
-
         switch ( type_of(x) ) {
-          case SYMBOL: {
-            symbol_t* s = as_symbol(x);
-            nh = mix_3_hashes(nh, hash_str(s->name), hash_uword(s->idno));
-            break;
-          }
-
-          case LIST: {
-            list_t* l = as_list(x);
-
-            if ( l == &EmptyList )
-              nh  = mix_2_hashes(nh, nh);
-
-            else
-              for ( ; l->arity; l=l->tail )
-                nh = mix_2_hashes(nh, hash(l->head));
-
-            break;
-          }
-
-          case CHUNK: {
-            chunk_t* c = as_chunk(x);
-            nh = mix_n_hashes(4, nh, hash(object(c->envt)), hash_buffer(&c->instr), hash_values(&c->vals));
-            break;
-          }
-
-          case CLOSURE: {
-            closure_t* cl = as_closure(x);
-            nh = mix_3_hashes(nh, hash(object(cl->code)), hash(object(cl->envt)));
-            break;
-          }
-
-          default:
-            nh = hash_uword(x);
-            break;
+          case SYMBOL: nh = hash_symbol(as_symbol(x)); break;
+          case LIST:   nh = hash_list(as_list(x));     break;
+          default:     nh = hash_uword(x);             break;
         }
       }
 
@@ -89,6 +69,13 @@ uhash hash( value_t x ) {
 
   return out;
 }
+
+// same implementation --------------------------------------------------------
+bool same( value_t x, value_t y ) {
+  return x == y;
+}
+
+// equal implementation 
 
 int compare( value_t x, value_t y, bool eq ) {
   int out = 0;

@@ -10,12 +10,11 @@
   'rascal-mode
   '(";" ("#|" . "|#"))
   '("def" "put" "fun" "mac" "type" ;; binding syntax
-    "handle" "perform" "resume"    ;; control syntax
+    "handle" "perform"             ;; control syntax
     "if" "case" "cond" "and" "or"  ;; branching syntax
-    "let" "label"                  ;; block/closure syntax
-    "do" "quote"                   ;; misc syntax
+    "let" "lmb" "do" "quote"       ;; misc syntax
    )
-  '(("\\(:[-a-zA-Z?*+0-9]+\\)[[:space:][:cntrl:],\\s)]" 1 font-lock-reference-face)
+  '(("\\(:[-a-zA-Z?*+0-9/]+\\)[[:space:][:cntrl:],\\s)]" 1 font-lock-reference-face)
     ;; immediate types
     ("\\_<real[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<glyph[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
@@ -27,6 +26,7 @@
     ;; user object types
     ("\\_<symbol[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<list[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
+    ("\\_<tuple[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ;; utility object types
     ("\\_<alist[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<table[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
@@ -44,7 +44,7 @@
     ("\\_<false[[:space:][:cntrl:],\\s)]" . font-lock-constant-face)
     ;; syntax
     ("\\_<otherwise[[:space:][:cntrl:],\\s)]" . font-lock-function-name-face)
-    ("\\_<&[[:space:][:cntrl:],\\s)]" . font-lock-function-name-face)
+    ("\\_<&?&[[:space:][:cntrl:],\\s)]" . font-lock-function-name-face)
     ;; misc
     ("\\_<error[[:space:][:cntrl:],\\s)]" . font-lock-warning-face))
   '("\\.rl$" "\\.rdn$" "\\.rlo$") ;; source file, serialization format, object file

@@ -102,7 +102,7 @@ struct closure {
 struct frame {
   chunk_t* fn;
   ushort* ip;
-  int bp, fl;
+  int bp, fl, pp;
 };
 
 struct control {
@@ -253,7 +253,7 @@ list_t* mk_list( usize n, value_t* a );
 alist_t* mk_alist( usize n, value_t* a );
 chunk_t* mk_chunk( alist_t* vars );
 closure_t* mk_closure( chunk_t* code, alist_t* envt );
-control_t* mk_control( frame_t* f, int sp, int fp, frame_t* frames, value_t* values );
+control_t* mk_control( frame_t* f, int sp, int fp, int pp, frame_t* frames, value_t* values );
 
 // list API
 value_t list_nth( list_t* l, usize n );

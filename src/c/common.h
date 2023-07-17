@@ -8,23 +8,23 @@
 #include <stdio.h>
 
 // standard types -------------------------------------------------------------
-typedef uint8_t     ubyte;
-typedef uint16_t    ushort;
-typedef uint32_t    uint;
-typedef uintptr_t   uword;
-typedef uintptr_t   uhash;
-typedef size_t      usize;
-typedef void      (*funcptr)(void);
-typedef uint32_t    flags;
+typedef uint8_t ubyte;
+typedef uint16_t ushort;
+typedef uint32_t uint;
+typedef uintptr_t uword;
+typedef uintptr_t uhash;
+typedef size_t usize;
+typedef void (*funcptr)(void);
+typedef uint32_t flags;
 
-typedef uint8_t  uint8;
-typedef int8_t   sint8;
+typedef uint8_t uint8;
+typedef int8_t sint8;
 typedef uint16_t uint16;
-typedef int16_t  sint16;
+typedef int16_t sint16;
 typedef uint32_t uint32;
-typedef int32_t  sint32;
+typedef int32_t sint32;
 typedef uint64_t uint64;
-typedef int64_t  sint64;
+typedef int64_t sint64;
 
 // rascal types ---------------------------------------------------------------
 // tagged value ---------------------------------------------------------------
@@ -43,6 +43,8 @@ typedef struct object object_t;
 // user object types ----------------------------------------------------------
 typedef struct symbol symbol_t;
 typedef struct list list_t;
+
+// utility object types -------------------------------------------------------
 typedef struct alist alist_t;
 typedef struct table table_t;
 typedef struct buffer buffer_t;
