@@ -43,23 +43,21 @@ typedef struct object object_t;
 // user object types ----------------------------------------------------------
 typedef struct symbol symbol_t;
 typedef struct list list_t;
+typedef struct alist alist_t;
+typedef struct table table_t;
+typedef struct buffer buffer_t;
 
 // internal object types ------------------------------------------------------
-typedef struct namespace namespc_t;
-typedef struct environment envt_t;
 typedef struct chunk chunk_t;
 typedef struct closure closure_t;
 typedef struct control control_t;
 
 // internal types (not objects) -----------------------------------------------
-typedef struct values  values_t;
-typedef struct objects objects_t;
-typedef struct buffer  buffer_t;
-typedef struct table   table_t;
-typedef enum token     token_t;
-typedef enum datatype  datatype_t;
-typedef struct frame   frame_t;
-typedef struct vm      vm_t;
+typedef enum token token_t;
+typedef enum encoding encoding_t;
+typedef enum datatype datatype_t;
+typedef struct frame frame_t;
+typedef struct vm vm_t;
 
 // miscellaneous macros -------------------------------------------------------
 #define unreachable __builtin_unreachable

@@ -4,9 +4,6 @@
 #include "common.h"
 
 #include "util/number.h"
-#include "util/buffer.h"
-#include "util/table.h"
-#include "util/alist.h"
 
 // C types ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 enum datatype {
@@ -24,9 +21,12 @@ enum datatype {
   SYMBOL,
   LIST,
 
+  // utility object types
+  ALIST,
+  TABLE,
+  BUFFER,
+
   // interpreter object types
-  NAMESPC,
-  ENVT,
   CHUNK,
   CLOSURE,
   CONTROL
@@ -60,36 +60,47 @@ struct list {
   list_t* tail;
 };
 
+struct alist {
+  HEADER;
+  value_t* data;
+  usize cnt, cap;
+};
+
+struct table {
+  HEADER;
+  value_t* data;
+  usize cnt, cap;
+};
+
+enum encoding {
+  BYTES,
+  ASCII
+};
+
+struct buffer {
+  HEADER;
+  void* data;
+  usize cnt, cap;
+  int elSize;
+  encoding_t encoding;
+};
+
 // interpreter object types
-struct namespace {
-  HEADER;
-  namespc_t* next;
-  table_t locals;
-};
-
-struct environment {
-  HEADER;
-  envt_t* next;
-  namespc_t* vars;
-  values_t binds;
-};
-
 struct chunk {
   HEADER;
-  namespc_t* vars;
-  values_t vals;
-  buffer_t instr;
+  alist_t*  vars;
+  alist_t*  vals;
+  buffer_t* code;
 };
 
 struct closure {
   HEADER;
   chunk_t* code;
-  envt_t* envt;
+  alist_t* envt;
 };
 
 struct frame {
   chunk_t* fn;
-  envt_t* envt;
   ushort* ip;
   int bp, fl;
 };
@@ -106,17 +117,17 @@ struct control {
 // object flags ---------------------------------------------------------------
 enum {
   // general flags
-  FROZEN   =0x8000,
-  HASHED   =0x4000,
-  NODEALLOC=0x2000,
-  NOFREE   =0x1000,
+  FROZEN   =0x80,
+  HASHED   =0x40,
+  NODEALLOC=0x20,
+  NOFREE   =0x10,
 
   // environment/ns/chunk flags
-  TOPLEVEL =0x0800,
-  VARIADIC =0x0400,
+  TOPLEVEL =0x08,
+  VARIADIC =0x04,
 
   // frame flags
-  CAPTURED =0x0001
+  CAPTURED =0x01
 };
 
 // empty singletons -----------------------------------------------------------
@@ -157,8 +168,9 @@ pointer_t as_pointer( value_t x );
 object_t* as_object( value_t x );
 symbol_t* as_symbol( value_t x );
 list_t* as_list( value_t x );
-namespc_t* as_namespc( value_t x );
-envt_t* as_envt( value_t x );
+alist_t* as_alist( value_t x );
+table_t* as_table( value_t x );
+buffer_t* as_buffer( value_t x );
 chunk_t*   as_chunk( value_t x );
 closure_t* as_closure( value_t x );
 control_t* as_control( value_t x );
@@ -171,8 +183,9 @@ bool is_unit( value_t x );
 bool is_object( value_t x );
 bool is_symbol( value_t x );
 bool is_list( value_t x );
-bool is_namespc( value_t x );
-bool is_envt( value_t x );
+bool is_alist( value_t x );
+bool is_table( value_t x );
+bool is_buffer( value_t x );
 bool is_chunk( value_t x );
 bool is_closure( value_t x );
 bool is_control( value_t x );
@@ -234,14 +247,43 @@ value_t object( void* o );
 symbol_t* symbol( char* name );
 symbol_t* gensym( char* name );
 list_t* list( value_t head, list_t* tail );
-chunk_t* chunk( namespc_t* ns );
 
 // canonical constructors -----------------------------------------------------
 list_t* mk_list( usize n, value_t* a );
-envt_t* mk_envt( envt_t* parent, usize n, value_t* vals );
-namespc_t* mk_namespc( );
-closure_t* mk_closure( chunk_t* chunk, envt_t* envt );
+alist_t* mk_alist( usize n, value_t* a );
+chunk_t* mk_chunk( alist_t* vars );
+closure_t* mk_closure( chunk_t* code, alist_t* envt );
 control_t* mk_control( frame_t* f, int sp, int fp, frame_t* frames, value_t* values );
+
+// list API
+value_t list_nth( list_t* l, usize n );
+
+// alist API 
+void init_alist( alist_t* slf );
+void free_alist( alist_t* slf );
+void reset_alist( alist_t* slf );
+usize resize_alist( alist_t* slf, usize n );
+usize alist_push( alist_t* slf, value_t val );
+usize alist_write( alist_t* slf, usize n, value_t* vals );
+value_t alist_pop( alist_t* slf );
+
+// table API
+void init_table( table_t* slf );
+void free_table( table_t* slf );
+void reset_table( table_t* slf );
+usize resize_table( table_t* slf, usize n );
+value_t* table_find( table_t* slf, value_t k );
+value_t table_get( table_t* slf, value_t k );
+value_t table_add( table_t* slf, value_t k, value_t v );
+value_t table_set( table_t* slf, value_t k, value_t v );
+value_t table_del( table_t* slf, value_t k );
+
+// buffer API
+void init_buffer( buffer_t* slf, int elSize, encoding_t encoding );
+void free_buffer( buffer_t* slf );
+void reset_buffer( buffer_t* slf );
+usize resize_buffer( buffer_t* slf, usize n );
+usize buffer_write( buffer_t* slf, usize n, void* data );
 
 // initialization -------------------------------------------------------------
 void toplevel_init_object( void );

@@ -17,9 +17,8 @@ typedef enum {
   OP_ARGC, OP_VARGC,
   OP_CALL,
   OP_LOADV,
-  OP_LOADGL, OP_PUTGL,
-  OP_LOADL, OP_PUTL,
-  OP_JUMP, OP_JUMPF,
+  OP_LOADGL, OP_PUTGL, OP_DEFGL,
+  OP_JUMP, OP_JUMPN,
 
   // 2-input instructions -----------------------------------------------------
   OP_LOADCL, OP_PUTCL

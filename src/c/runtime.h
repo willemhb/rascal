@@ -22,7 +22,7 @@ struct vm {
   int sp, fp;
 
   // toplevel environment
-  envt_t* globals;
+  table_t globals;
 
   // symbol table
   symbol_t* symbolTable;
@@ -32,13 +32,13 @@ struct vm {
   usize used, cap;
   bool managing, initialized;
   object_t* live;
-  objects_t grays;
+  alist_t grays;
 
   // reader
   token_t  token;
   port_t   source;
   table_t  dispatch;
-  values_t expressions;
+  alist_t  expressions;
   buffer_t buffer;
 
   // error
@@ -54,9 +54,9 @@ struct vm {
 #define IP      (Vm.frame.ip)
 #define BP      (Vm.frame.bp)
 #define FL      (Vm.frame.fl)
-#define ENV     (Vm.frame.envt)
-#define VALS    (Vm.frame.fn->vals->values.data)
-#define GLOBALS (Vm.globals->binds->values.data)
+#define ENV     (Values[BP])
+#define TOS     (Values[SP-1])
+#define VALS    (Vm.frame.fn->vals->data)
 
 extern vm_t Vm;
 extern value_t Values[]; // values stack
@@ -81,8 +81,11 @@ void pop_frame( void );
 void error( const char* fname, value_t cause, const char* fmt, ... );
 void require( const char* fname, bool test, value_t cause, const char* fmt, ... );
 void forbid( const char* fname, bool test, value_t cause, const char* fmt, ... );
+void argco( const char* fname, bool variadic, usize expect, usize got );
 
 // memory ---------------------------------------------------------------------
+void push_gray( void* o );
+void* pop_gray( void );
 void* allocate( usize nBytes, bool fromHeap );
 void* reallocate( void* ptr, usize oldSize, usize newSize, bool fromHeap );
 void* duplicate( void* ptr, usize nBytes, bool fromHeap );
