@@ -9,23 +9,23 @@
 (define-generic-mode
   'rascal-mode
   '(";" ("#|" . "|#"))
-  '("def" "put" "fun" "mac" "type"   ;; binding syntax
-    "handle" "perform" "try" "catch" ;; control syntax
-    "if" "case" "cond" "and" "or"    ;; branching syntax
-    "let" "lmb" "do" "quote"         ;; misc syntax
+  '("def" "put" "fun" "mac" "type" ;; binding syntax
+    "ccc" "try" "catch"            ;; control syntax
+    "if" "case" "cond" "and" "or"  ;; branching syntax
+    "let" "lmb" "do" "quote"       ;; misc syntax
    )
   '(("\\(:[-a-zA-Z?*+0-9/]+\\)[[:space:][:cntrl:],\\s)]" 1 font-lock-reference-face)
     ;; immediate types
     ("\\_<real[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<glyph[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
-    ("\\_<bool[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
-    ("\\_<unit[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<port[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<native[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<pointer[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ;; user object types
     ("\\_<symbol[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
+    ("\\_<function[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<list[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
+    ("\\_<record[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ;; utility object types
     ("\\_<alist[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<table[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
@@ -34,9 +34,13 @@
     ("\\_<chunk[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<closure[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<control[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
-    ("\\_<type[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
+    ("\\_<method-table[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
+    ("\\_<method-table-node[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
+    ("\\_<method[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ;; type system types
+    ("\\_<type[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<any[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
+    ("\\_<unit[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<none[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ;; special constants
     ("\\_<nul[[:space:][:cntrl:],\\s)]" . font-lock-constant-face)

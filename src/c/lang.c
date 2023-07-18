@@ -43,7 +43,7 @@ static uhash hash_list( list_t* l ) {
 
 uhash hash( value_t x ) {
   uhash out;
-  
+
   if ( is_object(x) ) {
     if ( !hasfl(x, HASHED) ) {
       uhash nh;
@@ -61,7 +61,7 @@ uhash hash( value_t x ) {
 
       sethash(x, nh);
     }
-    
+
     out = as_object(x)->hash;
   } else {
     out = hash_uword(x);
@@ -75,130 +75,111 @@ bool same( value_t x, value_t y ) {
   return x == y;
 }
 
-// equal implementation 
+// equal implementation -------------------------------------------------------
+static bool equal_lists( list_t* lx, list_t* ly ) {
+  bool out = lx->arity == ly->arity;
 
-int compare( value_t x, value_t y, bool eq ) {
+  for ( ; out && lx->arity; lx=lx->tail, ly=ly->tail )
+    out = equal(lx->head, ly->head);
+
+  return out;
+}
+
+static bool equal_alists( alist_t* ax, alist_t* ay ) {
+  bool out = ax->cnt == ay->cnt;
+
+  for ( usize i=0; out && i<ax->cnt; i++ )
+    out = equal(ax->data[i], ay->data[i]);
+
+  return out;
+}
+
+static bool equal_tables( table_t* tx, table_t* ty ) {
+  bool out = tx->cnt == ty->cnt;
+
+  for ( usize i=0; out && i<tx->cap; i++ ) {
+    out = equal(tx->data[i*2], ty->data[i*2]);
+    out = out && equal(tx->data[i*2+1], ty->data[i*2+1]);
+  }
+
+  return out;
+}
+
+static bool equal_buffers( buffer_t* bx, buffer_t* by ) {
+  bool out = bx->cnt == by->cnt;
+  out = out && bx->encoding == by->encoding;
+  out = out && bx->elSize == by->elSize;
+  out = out && memcmp(bx->data, by->data, bx->cnt * bx->elSize == 0);
+  return out;
+}
+
+static bool equal_chunks( chunk_t* cx, chunk_t* cy ) {
+  bool out = equal_alists(cx->vars, cy->vars) &&
+    equal_alists(cx->vals, cy->vals) &&
+    equal_buffers(cx->code, cy->code);
+
+  return out;
+}
+
+static bool equal_closures( closure_t* cx, closure_t* cy ) {
+  bool out = equal_chunks(cx->code, cy->code) && equal_alists(cx->envt, cy->envt);
+
+  return out;
+}
+
+bool equal( value_t x, value_t y ) {
+  bool out;
+
+  if ( x == y )
+    out = true;
+
+  if ( is_object(x) ) {
+    datatype_t tx = type_of(x), ty = type_of(y);
+
+    if ( tx == ty )
+      switch ( tx ) {
+        case LIST:    out = equal_lists(as_list(x), as_list(y)); break;
+        case ALIST:   out = equal_alists(as_alist(x), as_alist(y)); break;
+        case TABLE:   out = equal_tables(as_table(x), as_table(y)); break;
+        case BUFFER:  out = equal_buffers(as_buffer(x), as_buffer(y)); break;
+        case CHUNK:   out = equal_chunks(as_chunk(x), as_chunk(y)); break;
+        case CLOSURE: out = equal_closures(as_closure(x), as_closure(y)); break;
+        default:      out = false; break;
+      }
+  } else {
+    out = false;
+  }
+
+  return out;
+}
+
+// compare implementation -----------------------------------------------------
+static int compare_symbols( symbol_t* sx, symbol_t* sy ) {
+  int out = strcmp(sx->name, sy->name);
+  out = out ? : CMP(sx->idno, sy->idno);
+
+  return out;
+}
+
+static int compare_lists( list_t* lx, list_t* ly ) {
+  int out = 0;
+
+  for ( ; out == 0 && lx->arity && ly->arity; lx=lx->tail, ly=ly->tail )
+    out = compare(lx->head, ly->head);
+
+  out = out ? : 0 - (lx->arity < ly->arity) + (ly->arity < lx->arity);
+
+  return out;
+}
+
+int compare( value_t x, value_t y ) {
   int out = 0;
 
   if ( x == y )
     out = 0;
+
   
-  else if ( eq ) {
-    datatype_t tx = type_of(x), ty = type_of(y);
-
-    if ( tx != ty )
-      out = 1;
-
-    else {
-      switch ( tx ) {
-        case LIST: {
-          list_t* lx = as_list(x), * ly = as_list(y);
-
-          if ( lx->arity != ly->arity )
-            out = 1;
-
-          else
-            for ( ; lx->arity && out == 0; lx=lx->tail, ly=ly->tail )
-              out = compare(lx->head, ly->head, true);
-
-          break;
-        }
-
-        case CLOSURE: {
-          closure_t* cx = as_closure(x), * cy = as_closure(y);
-          out = compare(object(cx->code), object(cy->code), true);
-          out = out && compare(object(cx->envt), object(cy->envt), true);
-          break;
-        }
-
-        case CHUNK: {
-          chunk_t* cx = as_chunk(x), * cy = as_chunk(y);
-          out = compare(object(cx->envt), object(cy->envt), true);
-          out = out && compare_buffers(&cx->instr, &cy->instr, true);
-          out = out && compare_values(&cx->vals, &cy->vals, true);
-          break;
-        }
-          
-        default:
-          out = 1;
-          break;
-      }
-    }
-  } else {
-    datatype_t tx = type_of(x), ty = type_of(y);
-
-    if ( tx != ty )
-      out = CMP(tx, ty);
-
-    else {
-      switch ( tx ) {
-        case NUMBER: {
-          number_t nx = as_number(x), ny = as_number(y);
-          out = CMP(nx, ny);
-          break;
-        }
-
-        case SYMBOL: {
-          symbol_t* sx = as_symbol(x), * sy = as_symbol(y);
-          
-          out = strcmp(sx->name, sy->name);
-
-          if ( out == 0 )
-            out = CMP(sx->idno, sy->idno);
-
-          break;
-        }
-
-        case LIST: {
-          list_t* lx = as_list(x), * ly = as_list(y);
-
-          for ( ; lx->arity && ly->arity && out == 0; lx=lx->tail, ly=ly->tail )
-            out = compare(lx->head, ly->head, false);
-
-          if ( out == 0 )
-            out = 0 - (lx->arity < ly->arity) + (lx->arity > ly->arity);
-
-          break;
-        }
-
-        case TUPLE: {
-          tuple_t* tx = as_tuple(x), * ty = as_tuple(y);
-
-          for ( usize i=0; i<tx->arity && i<ty->arity && out == 0; i++ )
-            out = compare(tx->slots[i], ty->slots[i], false);
-
-          if ( out == 0 )
-            out = 0 - (tx->arity < ty->arity) + (tx->arity > ty->arity);
-
-          break;
-        }
-
-        case CLOSURE: {
-          closure_t* cx = as_closure(x), * cy = as_closure(y);
-
-          out = compare(object(cx->code), object(cy->code), false);
-          out = out ? : compare(object(cx->envt), object(cy->envt), false);
-
-          break;
-        }
-
-        case CHUNK: {
-          chunk_t* cx = as_chunk(x), * cy = as_chunk(y);
-
-          out = compare(object(cx->envt), object(cy->envt), false);
-          out = out ? : compare_buffers(&cx->instr, &cy->instr, false);
-          out = out ? : compare_values(&cx->vals, &cy->vals, false);
-
-          break;
-        }
-
-        default:
-          out = CMP(x, y);
-          break;
-      }
-    }
-  }
-
+  
   return out;
 }
 

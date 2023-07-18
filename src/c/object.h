@@ -102,7 +102,7 @@ struct closure {
 struct frame {
   chunk_t* fn;
   ushort* ip;
-  int bp, fl, pp;
+  int bp, fl;
 };
 
 struct control {
