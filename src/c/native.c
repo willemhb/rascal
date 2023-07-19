@@ -55,6 +55,9 @@ NATIVE_FN(consp);
 NATIVE_FN(stringp);
 
 // constructors ---------------------------------------------------------------
+NATIVE_FN(number);
+NATIVE_FN(glyph);
+NATIVE_FN(unit);
 NATIVE_FN(list);
 NATIVE_FN(cons);
 NATIVE_FN(symbol);
@@ -63,6 +66,8 @@ NATIVE_FN(alist);
 NATIVE_FN(table);
 NATIVE_FN(buffer);
 NATIVE_FN(string);
+NATIVE_FN(any);
+NATIVE_FN(none);
 
 // collection generics --------------------------------------------------------
 NATIVE_FN(len);
@@ -451,6 +456,8 @@ void toplevel_init_interp( void ) {
   define_native("string?", native_stringp);
 
   // constructors -------------------------------------------------------------
+  define_native("number", native_number);
+  define_native("glyph", native_glyph);
   define_native("list", native_list);
   define_native("cons", native_cons);
   define_native("symbol", native_symbol);
@@ -485,7 +492,7 @@ void toplevel_init_interp( void ) {
   define_native("read", native_read);
   define_native("print", native_print);
 
-  // runtime ------------------------------------------------------------------
+  // runtime & os -------------------------------------------------------------
   define_native("exit", native_exit);
   define_native("error", native_error);
 
