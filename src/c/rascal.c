@@ -8,12 +8,8 @@
 #include "common.h"
 #include "object.h"
 #include "runtime.h"
-#include "compare.h"
-#include "read.h"
-#include "compile.h"
-#include "eval.h"
-#include "print.h"
-#include "native.h"
+#include "interp.h"
+#include "lang.h"
 
 // library includes -----------------------------------------------------------
 #include "util/string.h"
@@ -30,10 +26,11 @@
 
 // initialization/finalization ++++++++++++++++++++++++++++++++++++++++++++++++
 void init_rascal( void ) {
-  runtime_init();
-  reader_init();
-  vm_init();
-  native_init();
+  toplevel_init_runtime();
+  toplevel_init_object();
+  toplevel_init_interp();
+  toplevel_init_lang();
+  
   printf("Welcome to rascal version "VERSION"!\n", MAJOR, MINOR, PATCH, DEV);
 }
 

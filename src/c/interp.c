@@ -16,17 +16,26 @@ value_t Quote, Do, If, Lmb, Def, Put, Ccc;
 value_t Ampersand;
 
 // special constants ----------------------------------------------------------
-value_t True;
+value_t True, False;
 
 // internal API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 static bool is_literal( value_t x ) {
   if ( is_symbol(x) )
-    return *as_symbol(x)->name == ':';
+    return hasfl(x, LITERAL);
 
   else if ( is_list(x) )
     return as_list(x)->arity > 0;
 
-  else return true;
+  else
+    return true;
+}
+
+static value_t c_to_rl_bool( bool b ) {
+  return b ? True : False;
+}
+
+static bool rl_to_c_bool( value_t x ) {
+  return x != NIL && x != False;
 }
 
 // external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -628,11 +637,6 @@ value_t exec( chunk_t* code ) {
   return do_exec(code, OP_START);
 }
 
-value_t apply( value_t f, list_t* a ) {
-  push(f);
-  
-}
-
 // native functions
 value_t native_idp( usize n, value_t* args ) {
   argco("id?", false, 2, n);
@@ -656,13 +660,180 @@ value_t native_hash( usize n, value_t* args ) {
 
 value_t native_add( usize n, value_t* args ) {
   argco("+", true, 1, n);
-
+  value_t out;
+  
   if ( n == 1 ) {
-    require("+", is_number(args[0]), args[0], "not a number");
-    return args[0];
-  } else if ( n == 2 ) {
-    
+    argtype("+", args[0], NUMBER);
+    out = args[0];
+  } else {
+    number_t accum = to_number("+", args[0]);
+
+    for ( usize i=1; i<n; i++ )
+      accum += to_number("+", args[i]);
+
+    out = number(accum);
   }
+
+  return out;
 }
 
+value_t native_sub( usize n, value_t* args ) {
+  argco("-", true, 1, n);
+  value_t out;
+
+  if ( n == 1 ) {
+    argtype("-", args[0], NUMBER);
+    out = number(-as_number(args[0]));
+  } else {
+    number_t accum = to_number("-", args[0]);
+
+    for ( usize i=1; i<n; i++ )
+      accum -= to_number("-", args[i]);
+
+    out = number(accum);
+  }
+
+  return out;
+}
+
+value_t native_mul( usize n, value_t* args ) {
+  argco("*", true, 2, n);
+
+  number_t accum = to_number("*", args[0]);
+
+  for ( usize i=1; i<n && accum != 0; i++ )
+    accum *= to_number("*", args[i]);
+
+  return number(accum);
+}
+
+value_t native_div( usize n, value_t* args ) {
+  argco("/", true, 1, n);
+
+  value_t out;
+
+  if ( n == 1 ) {
+    number_t denom = to_number("/", args[0]);
+    require("/", denom != 0, args[0], "division by zero");
+    out = number(1/denom);
+  } else {
+    number_t accum = to_number("/", args[0]);
+    
+    for ( usize i=1; i<n && accum != 0; i++ ) {
+      number_t divisor = to_number("/", args[i]);
+      require("/", divisor != 0, args[i], "division by zero");
+      accum /= divisor;
+    }
+    out = number(accum);
+  }
+
+  return out;
+}
+
+value_t native_mod( usize n, value_t* args ) {
+  argco("mod", false, 2, n);
+  long numer = to_integer("mod", args[0]);
+  long denom = to_integer("mod", args[1]);
+  require("mod", denom != 0, args[1], "division by zero");
+  return number(numer % denom);
+}
+
+value_t native_eql( usize n, value_t* args ) {
+  argco("=", true, 2, n);
+  argtype("=", args[0], NUMBER);
+
+  value_t out = True;
+
+  for ( usize i=1; out != False && i<n; i++ ) {
+    argtype("=", args[i], NUMBER);
+
+    if ( args[i] != args[i-1] )
+      out = False;
+  }
+
+  return out;
+}
+
+value_t native_ltp( usize n, value_t* args ) {
+  argco("<", true, 2, n);
+  argtype("<", args[0], NUMBER);
+  value_t out = True;
+
+  for ( usize i=1; out != False && i<n; i++ ) {
+    argtype("<", args[i], NUMBER);
+
+    if ( as_number(args[i-1]) >= as_number(args[i]) )
+      out = False;
+  }
+
+  return out;
+}
+
+#define NATIVE_TYPEP( type )                            \
+  value_t native_##type##p( usize n, value_t* args )    \
+  {                                                     \
+    argco(#type"?", false, 1, n);                       \
+    return c_to_rl_bool(is_##type(args[0]));            \
+  }
+
+NATIVE_TYPEP(number);
+NATIVE_TYPEP(glyph);
+NATIVE_TYPEP(unit);
+NATIVE_TYPEP(port);
+NATIVE_TYPEP(native);
+NATIVE_TYPEP(pointer);
+NATIVE_TYPEP(symbol);
+NATIVE_TYPEP(list);
+NATIVE_TYPEP(alist);
+NATIVE_TYPEP(table);
+NATIVE_TYPEP(buffer);
+NATIVE_TYPEP(chunk);
+NATIVE_TYPEP(closure);
+NATIVE_TYPEP(control);
+
+#undef NATIVE_TYPEP
+
 // toplevel initialization
+static void define_native( const char* fname, native_t fun ) {
+  toplevel_define(fname, native(fun));
+}
+
+void toplevel_init_interp( void ) {
+  // create special forms & constants +++++++++++++++++++++++++++++++++++++++++
+  Quote     = object(symbol("quote"));
+  Do        = object(symbol("do"));
+  If        = object(symbol("if"));
+  Lmb       = object(symbol("lmb"));
+  Def       = object(symbol("def"));
+  Put       = object(symbol("put"));
+  Ccc       = object(symbol("ccc"));
+  Ampersand = object(symbol("&"));
+  True      = object(keyword("true"));
+  False     = object(keyword("false"));
+  
+  // create native functions ++++++++++++++++++++++++++++++++++++++++++++++++++
+  // comparison ---------------------------------------------------------------
+  define_native("id?", native_idp);
+  define_native("eq?", native_eqp);
+  define_native("compare", native_compare);
+  define_native("hash", native_hash);
+
+  // arithmetic ---------------------------------------------------------------
+  define_native("+", native_add);
+  define_native("-", native_sub);
+  define_native("*", native_mul);
+  define_native("/", native_div);
+  define_native("mod", native_mod);
+  define_native("=", native_eql);
+  define_native("<", native_ltp);
+
+  // type predicates ----------------------------------------------------------
+  define_native("number?", native_numberp);
+  define_native("glyph?", native_glyphp);
+    
+  // constructors -------------------------------------------------------------
+
+  // accessors/mutators -------------------------------------------------------
+
+  // interpreter --------------------------------------------------------------
+}

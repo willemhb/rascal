@@ -82,6 +82,8 @@ void error( const char* fname, value_t cause, const char* fmt, ... );
 void require( const char* fname, bool test, value_t cause, const char* fmt, ... );
 void forbid( const char* fname, bool test, value_t cause, const char* fmt, ... );
 void argco( const char* fname, bool variadic, usize expect, usize got );
+void argtype( const char* fname, value_t val, datatype_t expect );
+void argtypes( const char* fname, value_t val, usize n, ... );
 
 // memory ---------------------------------------------------------------------
 void push_gray( void* o );

@@ -122,6 +122,9 @@ enum {
   NODEALLOC=0x20,
   NOFREE   =0x10,
 
+  // symbol flags
+  LITERAL  =0x08,
+
   // environment/ns/chunk flags
   TOPLEVEL =0x08,
   VARIADIC =0x04,
@@ -141,6 +144,7 @@ extern list_t EmptyList;
 #define ATMTAG   0x7ffc000000000000ul // 32-bit immediate (full type in next 16 bits)
 #define IOSTAG   0x7ffd000000000000ul // pointer of type port_t
 #define FUNTAG   0x7ffe000000000000ul // pointer of type native_t
+#define PTRTAG   0x7fff000000000000ul // pointer of type pointer_t
 #define OBJTAG   0xffff000000000000ul // pointer of type object_t (full type in header)
 
 #define TAGMASK   0xffff000000000000ul
@@ -175,10 +179,26 @@ chunk_t*   as_chunk( value_t x );
 closure_t* as_closure( value_t x );
 control_t* as_control( value_t x );
 
+number_t to_number( const char* fname, value_t x );
+glyph_t to_glyph( const char* fname, value_t x );
+port_t to_port( const char* fname, value_t x );
+native_t to_native( const char* fname, value_t x );
+pointer_t to_pointer( const char* fname, value_t x ); 
+object_t* to_object( const char* fname, value_t x );
+symbol_t* to_symbol( const char* fname, value_t x );
+list_t* to_list( const char* fname, value_t x );
+alist_t* to_alist( const char* fname, value_t x );
+table_t* to_table( const char* fname, value_t x );
+buffer_t* to_buffer( const char* fname, value_t x );
+chunk_t*   to_chunk( const char* fname, value_t x );
+closure_t* to_closure( const char* fname, value_t x );
+control_t* to_control( const char* fname, value_t x );
+
 bool is_number( value_t x );
 bool is_glyph( value_t x );
 bool is_port( value_t x );
 bool is_native( value_t x );
+bool is_pointer( value_t x );
 bool is_unit( value_t x );
 bool is_object( value_t x );
 bool is_symbol( value_t x );
@@ -190,8 +210,9 @@ bool is_chunk( value_t x );
 bool is_closure( value_t x );
 bool is_control( value_t x );
 
-long intval( value_t x );
-uword wrdval( value_t x );
+bool is_integer( value_t x );
+long as_integer( value_t x );
+long to_integer( const char* fname, value_t x );
 
 #define hasfl( x, f ) generic((x), value_t:value_hasfl, default: object_hasfl)(x, f)
 bool object_hasfl( void* obj, flags fl );
@@ -245,6 +266,7 @@ value_t pointer( pointer_t p );
 value_t object( void* o );
 
 symbol_t* symbol( char* name );
+symbol_t* keyword( char* name );
 symbol_t* gensym( char* name );
 list_t* list( value_t head, list_t* tail );
 
@@ -253,13 +275,13 @@ list_t* mk_list( usize n, value_t* a );
 alist_t* mk_alist( usize n, value_t* a );
 chunk_t* mk_chunk( alist_t* vars );
 closure_t* mk_closure( chunk_t* code, alist_t* envt );
-control_t* mk_control( frame_t* f, int sp, int fp, int pp, frame_t* frames, value_t* values );
+control_t* mk_control( frame_t* f, int sp, int fp, frame_t* frames, value_t* values );
 
 // list API
 value_t list_nth( list_t* l, usize n );
 
 // alist API 
-void init_alist( alist_t* slf );
+void init_alist( alist_t* slf, bool ini );
 void free_alist( alist_t* slf );
 void reset_alist( alist_t* slf );
 usize resize_alist( alist_t* slf, usize n );
@@ -268,7 +290,7 @@ usize alist_write( alist_t* slf, usize n, value_t* vals );
 value_t alist_pop( alist_t* slf );
 
 // table API
-void init_table( table_t* slf );
+void init_table( table_t* slf, bool ini );
 void free_table( table_t* slf );
 void reset_table( table_t* slf );
 usize resize_table( table_t* slf, usize n );
@@ -279,7 +301,7 @@ value_t table_set( table_t* slf, value_t k, value_t v );
 value_t table_del( table_t* slf, value_t k );
 
 // buffer API
-void init_buffer( buffer_t* slf, int elSize, encoding_t encoding );
+void init_buffer( buffer_t* slf, bool ini, ... );
 void free_buffer( buffer_t* slf );
 void reset_buffer( buffer_t* slf );
 usize resize_buffer( buffer_t* slf, usize n );

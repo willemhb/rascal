@@ -24,11 +24,13 @@ buffer_t* as_buffer( value_t x ) { return (buffer_t*)(x & VALMASK); }
 closure_t* as_closure( value_t x ) { return (closure_t*)(x & VALMASK); }
 chunk_t* as_chunk( value_t x ) { return (chunk_t*)(x & VALMASK); }
 control_t* as_control( value_t x ) { return (control_t*)(x & VALMASK); }
+long as_integer( value_t x ) { return (long)as_number(x); }
 
 bool is_number( value_t x ) { return (x & QNAN) != QNAN;  }
 bool is_glyph( value_t x ) { return (x & WIDEMASK) == GLYPHTAG; }
 bool is_port( value_t x ) { return (x & TAGMASK) == IOSTAG; }
 bool is_native( value_t x ) { return (x & TAGMASK) == FUNTAG; }
+bool is_pointer( value_t x ) { return (x & TAGMASK) == PTRTAG; }
 bool is_unit( value_t x ) { return x == NIL; }
 bool is_object( value_t x ) { return (x & TAGMASK) == OBJTAG; }
 bool is_symbol( value_t x ) { return is_object(x) && as_object(x)->type == SYMBOL; }
@@ -39,17 +41,34 @@ bool is_buffer( value_t x ) { return is_object(x) && as_object(x)->type == BUFFE
 bool is_closure( value_t x ) { return is_object(x) && as_object(x)->type == CLOSURE; }
 bool is_chunk( value_t x ) { return is_object(x) && as_object(x)->type == CHUNK; }
 bool is_control( value_t x ) { return is_object(x) && as_object(x)->type == CONTROL; }
+bool is_integer( value_t x ) { return is_number(x) && as_number(x) - as_integer(x) == 0; }
 
-long intval( value_t x ) {
-  return (long)as_number(x);
-}
+#define SAFECAST(type, ctype)                                       \
+  ctype to_##type( value_t x, const char* fname )                   \
+  {                                                                 \
+    require(fname, is_##type(x), x, "expected a %s", #type);        \
+    return as_##type(x);                                            \
+  }
 
-uword wrdval( value_t x ) {
-  return (uword)as_number(x);
-}
+SAFECAST(number, number_t);
+SAFECAST(glyph, glyph_t);
+SAFECAST(port, port_t);
+SAFECAST(native, native_t);
+SAFECAST(pointer, pointer_t);
+SAFECAST(symbol, symbol_t*);
+SAFECAST(list, list_t*);
+SAFECAST(alist, alist_t*);
+SAFECAST(table, table_t*);
+SAFECAST(buffer, buffer_t*);
+SAFECAST(closure, closure_t*);
+SAFECAST(chunk, chunk_t*);
+SAFECAST(control, control_t*);
 
-void* ptrval( value_t x ) {
-  return (void*)wrdval(x);
+#undef SAFECAST
+
+long to_integer( value_t x, const char* fname ) {
+  require(fname, is_integer(x), x, "expected an integer");
+  return as_integer(x);
 }
 
 bool object_hasfl( void* obj, flags fl ) {
@@ -87,6 +106,7 @@ datatype_t type_of_value( value_t x ) {
 	case ATMTAG: return x >> 32 & UINT16_MAX;
 	case FUNTAG: return NATIVE;
     case IOSTAG: return PORT;
+    case PTRTAG: return POINTER;
 	case OBJTAG: return as_object(x)->type;
 	default:     return NUMBER;
   }
@@ -265,17 +285,21 @@ value_t native( native_t n ) {
   return ((value_t)n) | FUNTAG;
 }
 
+value_t pointer( pointer_t p ) {
+  return ((value_t)p) | PTRTAG;
+}
+
 value_t object( void* obj ) {
   return ((value_t)obj) | OBJTAG;
 }
 
-static void init_object( void* obj, datatype_t type ) {
+static void init_object( void* obj, datatype_t type, flags fl ) {
   object_t* slf = obj;
 
   slf->type  = type;
   slf->next  = Vm.live;
   slf->hash  = 0;
-  slf->flags = 0;
+  slf->flags = fl;
   slf->gray  = true;
   slf->black = false;
 
@@ -301,7 +325,7 @@ static symbol_t** find_symbol( char* name, symbol_t** st ) {
 
 static symbol_t* make_symbol( char* name ) {
   symbol_t* out = allocate(sizeof(symbol_t), true);
-  init_object(out, SYMBOL);
+  init_object(out, SYMBOL, FROZEN);
   out->left = out->right = NULL;
   out->idno = ++Vm.symbolCounter;
   out->name = duplicates(name, false);
@@ -325,7 +349,11 @@ symbol_t* gensym( char* name ) {
   return make_symbol(name);
 }
 
-void init_alist( alist_t* slf ) {
+// alist API
+void init_alist( alist_t* slf, bool ini ) {
+  if ( ini )
+    init_object(slf, ALIST, 0);
+
   slf->cnt = 0;
   slf->cap = 0;
   slf->data = NULL;
@@ -333,11 +361,11 @@ void init_alist( alist_t* slf ) {
 
 void free_alist( alist_t* slf ) {
   deallocate(slf->data, 0, false);
-  init_alist(slf);
 }
 
 void reset_alist( alist_t* slf ) {
   free_alist(slf);
+  init_alist(slf, false);
 }
 
 usize resize_alist( alist_t* slf, usize n ) {
@@ -398,20 +426,10 @@ static void rehash_table( table_t* slf, usize newCap, value_t* newData ) {
   }
 }
 
-static value_t* table_locate( table_t* slf, value_t key ) {
-  usize cap = slf->cap;
-  value_t* data = slf->data;
-  usize mask = cap-1;
-  usize keyHash = hash(key);
-  usize i = keyHash & mask;
+void init_table( table_t* slf, bool ini ) {
+  if ( ini )
+    init_object(slf, TABLE, 0);
 
-  while ( data[i*2] != NOTFOUND && equal(key, data[i*2]) )
-    i = (i + 1) & mask;
-
-  return &data[i*2];
-}
-
-void init_table( table_t* slf ) {
   slf->cnt = 0;
   slf->cap = MIN_CAP;
   slf->data = allocate_table_data(slf->cap);
@@ -419,11 +437,11 @@ void init_table( table_t* slf ) {
 
 void free_table( table_t* slf ) {
   deallocate(slf->data, 0, false);
-  init_table(slf);
 }
 
 void reset_table( table_t* slf ) {
   free_table(slf);
+  init_table(slf, false);
 }
 
 usize resize_table( table_t* slf, usize n ) {
@@ -440,30 +458,28 @@ usize resize_table( table_t* slf, usize n ) {
   return slf->cap;
 }
 
-value_t table_get( table_t* slf, value_t k ) {
-  value_t* buf = table_locate(slf, k);
-  return buf[1];
+value_t* table_find( table_t* slf, value_t key ) {
+  usize cap = slf->cap;
+  value_t* data = slf->data;
+  usize mask = cap-1;
+  usize keyHash = hash(key);
+  usize i = keyHash & mask;
+
+  while ( data[i*2] != NOTFOUND && equal(key, data[i*2]) )
+    i = (i + 1) & mask;
+
+  return &data[i*2];
 }
 
-value_t table_set( table_t* slf, value_t k, value_t v ) {
-  resize_table(slf, slf->cnt+1);
-
-  value_t* buf = table_locate(slf, k);
-  value_t out = buf[1];
-
-  if ( *buf == NOTFOUND ) {
-    slf->cnt++;
-    *buf = k;
-  }
-
-  buf[1] = v;
-  return out;
+value_t table_get( table_t* slf, value_t k ) {
+  value_t* buf = table_find(slf, k);
+  return buf[1];
 }
 
 value_t table_add( table_t* slf, value_t k, value_t v ) {
   resize_table(slf, slf->cnt+1);
 
-  value_t* buf = table_locate(slf, k);
+  value_t* buf = table_find(slf, k);
   value_t out = buf[1];
 
   if ( *buf == NOTFOUND ) {
@@ -475,8 +491,23 @@ value_t table_add( table_t* slf, value_t k, value_t v ) {
   return out;
 }
 
+value_t table_set( table_t* slf, value_t k, value_t v ) {
+  resize_table(slf, slf->cnt+1);
+
+  value_t* buf = table_find(slf, k);
+  value_t out = buf[1];
+
+  if ( *buf == NOTFOUND ) {
+    slf->cnt++;
+    *buf = k;
+  }
+
+  buf[1] = v;
+  return out;
+}
+
 value_t table_del( table_t* slf, value_t k ) {
-  value_t* buf = table_locate(slf, k);
+  value_t* buf = table_find(slf, k);
   value_t out = buf[1];
 
   if ( *buf != NOTFOUND ) {
@@ -490,21 +521,27 @@ value_t table_del( table_t* slf, value_t k ) {
 }
 
 // buffer API
-void init_buffer( buffer_t* slf, int elSize, encoding_t encoding ) {
-  slf->elSize   = elSize;
-  slf->encoding = encoding;
-  reset_buffer(slf);
+void init_buffer( buffer_t* slf, bool ini, ... ) {
+  if ( ini ) {
+    init_object(slf, BUFFER, 0);
+    va_list va;
+    va_start(va, ini);
+    slf->elSize   = va_arg(va, int);
+    slf->encoding = va_arg(va, encoding_t);
+    va_end(va);
+  }
+  slf->cnt  = 0;
+  slf->cap  = 0;
+  slf->data = NULL;
 }
 
 void free_buffer( buffer_t* slf ) {
   deallocate(slf->data, 0, false);
-  reset_buffer(slf);
 }
 
 void reset_buffer( buffer_t* slf ) {
-  slf->cnt = 0;
-  slf->cap = 0;
-  slf->data = NULL;
+  free_buffer(slf);
+  init_buffer(slf, false);
 }
 
 usize resize_buffer( buffer_t* slf, usize n ) {
