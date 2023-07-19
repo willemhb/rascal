@@ -72,9 +72,9 @@ void repl( void ) {
 static usize emit_instr( chunk_t* target, opcode_t op, ... );
 static void fill_jump( chunk_t* target, usize offset );
 static usize add_value( chunk_t* target, value_t val );
-static alist_t* next_environment( alist_t* env );
-static void resolve_variable( chunk_t* target, value_t name, bool* toplevel, usize* i, usize* j );
-static void extend_environment( chunk_t* target, value_t name, bool* toplevel, usize* i );
+
+static variable_t* resolve( chunk_t* target, value_t name );
+static variable_t* extend( chunk_t* target, value_t name );
 static alist_t* prepare_environment( chunk_t* target, list_t* formals, bool* variadic );
 static usize compile_value( chunk_t* target, value_t val );
 static usize compile_variable( chunk_t* target, value_t name );
@@ -94,7 +94,7 @@ static usize compile_lmb( chunk_t* target, list_t* form );
 static usize compile_ccc( chunk_t* target, list_t* form );
 
 chunk_t* compile( value_t src ) {
-  chunk_t* target = mk_chunk( NULL );
+  chunk_t* target = mk_chunk( NULL, NULL, NULL );
   compile_expr(target, src);
   emit_instr(target, OP_RETURN);
   return target;
@@ -126,56 +126,52 @@ static usize add_value( chunk_t* target, value_t val ) {
   return alist_push(target->vals, val);
 }
 
-static alist_t* next_environment( alist_t* env ) {
-  if ( env == NULL )
-    return NULL;
+static variable_t* resolve( chunk_t* target, value_t name ) {
+  list_t* vars = target->vars;
+  variable_t* var = NULL;
 
-  if ( env->data[0] == NIL )
-    return NULL;
+  for ( ; vars->arity && var == NULL; vars=vars->tail ) {
+    table_t* locals = as_table(vars->head);
+    value_t val = table_get(locals, name);
 
-  return as_alist(env->data[0]);
-}
+    if ( val != NOTFOUND )
+      var = as_variable(val);
+  }
 
-static void resolve_variable( chunk_t* target, value_t name, bool* toplevel, usize* i, usize* j ) {
-  *toplevel = false;
-  *i = *j = 0;
+  if ( var == NULL ) {
+    value_t global = table_get(&Vm.globals, name);
 
-  alist_t* env = target->vars;
+    if ( global != NOTFOUND )
+      var = as_variable(global);
 
-  while ( env && *j == 0 ) {
-    for ( usize k=1; k<env->cnt && *j == 0; k++ )
-      if ( env->data[k] == name )
-        *j = k;
-
-    if ( *j == 0 ) { // not found in this frame
-      env = next_environment(env);
-      (*i)++;
+    else {
+      var = mk_global_variable(as_symbol(name), UNDEFINED);
+      table_set(&Vm.globals, name, object(var));
     }
   }
 
-  if ( *j == 0 ) {
-    *toplevel = true;
-    *i = add_value(target, name);
-  }
+  return var;
 }
 
-static void extend_environment( chunk_t* target, value_t name, bool* toplevel, usize* i ) {
-  if ( target->vars == NULL ) {
-    *toplevel = true;
-    *i = add_value(target, name);
+static variable_t* extend( chunk_t* target, value_t name ) {
+  list_t* vars = target->vars;
+  variable_t* var = NULL;
+
+  if ( vars->arity ) {
+    table_t* locals = as_table(vars->head);
+    value_t val = table_get(locals, name);
+
+    if ( val != NOTFOUND )
+      var = as_variable(val);
+
+    else {
+      var = mk_local_variable(as_symbol(name), vars->arity, );
+    }
   } else {
-    *toplevel = false;
-    *i = 0;
-
-    alist_t* env = target->vars;
-
-    for ( usize k=1; k<env->cnt && *i == 0; k++ )
-      if ( env->data[k] == name )
-        *i = k;
-
-    if ( *i == 0 )
-      *i = alist_push(env, name);
+    
   }
+
+  return var;
 }
 
 static alist_t* prepare_environment( chunk_t* target, list_t* formals, bool* variadic ) {
@@ -435,6 +431,7 @@ static value_t do_exec( chunk_t* code, opcode_t entry ) {
     [OP_RETURN] = &&op_return,
     [OP_LOADN] = &&op_loadn,
 
+    [OP_APPLY] = &&op_apply,
     [OP_ARGC] = &&op_argc, [OP_VARGC] = &&op_vargc,
     [OP_CALL] = &&op_call,
     [OP_LOADV] = &&op_loadv,
@@ -503,6 +500,18 @@ static value_t do_exec( chunk_t* code, opcode_t entry ) {
   push(NIL);
   goto fetch;
 
+ op_apply:
+  argco("apply", false, argx, 2);
+  x  = Values[SP-argx];
+  va = to_list("apply", Values[SP-argx+1]);
+  Values[SP-argx-1] = x;
+  SP = SP - 2;
+
+  for ( ; va->arity; va=va->tail )
+    push(va->head);
+
+  goto op_call;
+
  op_argc:
   argy = SP - BP - 1;
   require("exec", argy == argx, object(FN), "Incorrect arity");
@@ -517,13 +526,15 @@ static value_t do_exec( chunk_t* code, opcode_t entry ) {
   goto pad_locals;
 
  pad_locals: // adjust stack to hold all local bindings, including those introduced in function body
-  for ( int i=argx; i<(int)FN->vars->cnt; i++ )
+  for ( usize i=argx; i<num_locals(FN); i++ )
     push(NIL);
 
   goto fetch;
 
  op_call:
   x = Values[SP-argx-1];
+  if ( is_primitive(x) )
+    goto do_call_primitive;
   if ( is_native(x) )
     goto do_call_native;
   else if ( is_closure(x) )
@@ -532,6 +543,9 @@ static value_t do_exec( chunk_t* code, opcode_t entry ) {
     goto do_call_control;
   else
     error("exec", x, "not a function");
+
+ do_call_primitive:
+  goto *labels[as_primitive(x)];
 
  do_call_native:
   argy = SP - argx - 1;
@@ -607,10 +621,10 @@ static value_t do_exec( chunk_t* code, opcode_t entry ) {
 
  op_loadcl:
   b = is_captured(&FRAME) ? as_alist(ENV)->data : &Values[BP];
-    
+
   while ( argx-- )
     b = as_alist(ENV)->data;
-  
+
   push(b[argy]);
 
   goto fetch;

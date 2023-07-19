@@ -4,7 +4,7 @@
 #include "object.h"
 
 // C types ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-typedef enum {
+typedef enum opcode {
   // 0-input instructions -----------------------------------------------------
   OP_NOOP,
   OP_START,
@@ -14,6 +14,10 @@ typedef enum {
   OP_LOADN,
 
   // 1-input instructions -----------------------------------------------------
+  // primitives ---------------------------------------------------------------
+  OP_APPLY,
+
+  // vm instructions ----------------------------------------------------------
   OP_ARGC, OP_VARGC,
   OP_CALL, OP_CALLT,
   OP_LOADV,
@@ -27,7 +31,7 @@ typedef enum {
 #define N_OPS (OP_PUTCL+1)
 
 static inline usize opcode_argc( opcode_t opcode ) {
-  if ( opcode < OP_ARGC )
+  if ( opcode < OP_APPLY )
     return 0;
 
   else if ( opcode < OP_LOADCL )

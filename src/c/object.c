@@ -4,6 +4,7 @@
 #include "object.h"
 #include "runtime.h"
 #include "lang.h"
+#include "opcodes.h"
 
 #include "util/hashing.h"
 #include "util/string.h"
@@ -12,8 +13,9 @@
 // cast/access/test functions -------------------------------------------------
 number_t as_number( value_t x ) { return ((ieee64_t)x).dbl; }
 glyph_t as_glyph( value_t x ) { return (glyph_t)(x & SMALLMASK); }
-port_t as_port( value_t x ) { return (port_t)(x & VALMASK); }
+primitive_t as_primitive( value_t x ) { return (primitive_t)(x & SMALLMASK); }
 native_t as_native( value_t x ) { return (native_t)(x & VALMASK); }
+port_t as_port( value_t x ) { return (port_t)(x & VALMASK); }
 pointer_t as_pointer( value_t x ) { return (pointer_t)(x & VALMASK); }
 object_t* as_object( value_t x ) { return (object_t*)(x & VALMASK); }
 symbol_t* as_symbol( value_t x ) { return (symbol_t*)(x & VALMASK); }
@@ -21,15 +23,19 @@ list_t* as_list( value_t x ) { return (list_t*)(x & VALMASK); }
 alist_t* as_alist( value_t x ) { return (alist_t*)(x & VALMASK); }
 table_t* as_table( value_t x ) { return (table_t*)(x & VALMASK); }
 buffer_t* as_buffer( value_t x ) { return (buffer_t*)(x & VALMASK); }
-closure_t* as_closure( value_t x ) { return (closure_t*)(x & VALMASK); }
 chunk_t* as_chunk( value_t x ) { return (chunk_t*)(x & VALMASK); }
+variable_t* as_variable( value_t x ) { return (variable_t*)(x & VALMASK); }
+closure_t* as_closure( value_t x ) { return (closure_t*)(x & VALMASK); }
 control_t* as_control( value_t x ) { return (control_t*)(x & VALMASK); }
 long as_integer( value_t x ) { return (long)as_number(x); }
+list_t* as_cons( value_t x ) { return (list_t*)(x & VALMASK); }
+buffer_t* as_string( value_t x ) { return (buffer_t*)(x & VALMASK); }
 
 bool is_number( value_t x ) { return (x & QNAN) != QNAN;  }
 bool is_glyph( value_t x ) { return (x & WIDEMASK) == GLYPHTAG; }
-bool is_port( value_t x ) { return (x & TAGMASK) == IOSTAG; }
+bool is_primitive( value_t x ) { return (x & WIDEMASK) == PRIMTAG; }
 bool is_native( value_t x ) { return (x & TAGMASK) == FUNTAG; }
+bool is_port( value_t x ) { return (x & TAGMASK) == IOSTAG; }
 bool is_pointer( value_t x ) { return (x & TAGMASK) == PTRTAG; }
 bool is_unit( value_t x ) { return x == NIL; }
 bool is_object( value_t x ) { return (x & TAGMASK) == OBJTAG; }
@@ -38,13 +44,16 @@ bool is_list( value_t x ) { return is_object(x) && as_object(x)->type == LIST; }
 bool is_alist( value_t x ) { return is_object(x) && as_object(x)->type == ALIST; }
 bool is_table( value_t x ) { return is_object(x) && as_object(x)->type == TABLE; }
 bool is_buffer( value_t x ) { return is_object(x) && as_object(x)->type == BUFFER; }
-bool is_closure( value_t x ) { return is_object(x) && as_object(x)->type == CLOSURE; }
+bool is_variable( value_t x ) { return is_object(x) && as_object(x)->type == VARIABLE; }
 bool is_chunk( value_t x ) { return is_object(x) && as_object(x)->type == CHUNK; }
+bool is_closure( value_t x ) { return is_object(x) && as_object(x)->type == CLOSURE; }
 bool is_control( value_t x ) { return is_object(x) && as_object(x)->type == CONTROL; }
 bool is_integer( value_t x ) { return is_number(x) && as_number(x) - as_integer(x) == 0; }
+bool is_cons( value_t x ) { return is_list(x) && as_list(x)->arity > 0; }
+bool is_string( value_t x ) { return is_buffer(x) && as_buffer(x)->encoding == ASCII; }
 
 #define SAFECAST(type, ctype)                                       \
-  ctype to_##type( value_t x, const char* fname )                   \
+  ctype to_##type( const char* fname, value_t x )                   \
   {                                                                 \
     require(fname, is_##type(x), x, "expected a %s", #type);        \
     return as_##type(x);                                            \
@@ -52,24 +61,24 @@ bool is_integer( value_t x ) { return is_number(x) && as_number(x) - as_integer(
 
 SAFECAST(number, number_t);
 SAFECAST(glyph, glyph_t);
-SAFECAST(port, port_t);
+SAFECAST(primitive, primitive_t);
 SAFECAST(native, native_t);
+SAFECAST(port, port_t);
 SAFECAST(pointer, pointer_t);
 SAFECAST(symbol, symbol_t*);
 SAFECAST(list, list_t*);
 SAFECAST(alist, alist_t*);
 SAFECAST(table, table_t*);
 SAFECAST(buffer, buffer_t*);
-SAFECAST(closure, closure_t*);
+SAFECAST(variable, variable_t*);
 SAFECAST(chunk, chunk_t*);
+SAFECAST(closure, closure_t*);
 SAFECAST(control, control_t*);
+SAFECAST(integer, long);
+SAFECAST(cons, list_t*);
+SAFECAST(string, buffer_t*);
 
 #undef SAFECAST
-
-long to_integer( value_t x, const char* fname ) {
-  require(fname, is_integer(x), x, "expected an integer");
-  return as_integer(x);
-}
 
 bool object_hasfl( void* obj, flags fl ) {
   assert(obj);
@@ -325,7 +334,7 @@ static symbol_t** find_symbol( char* name, symbol_t** st ) {
 
 static symbol_t* make_symbol( char* name ) {
   symbol_t* out = allocate(sizeof(symbol_t), true);
-  init_object(out, SYMBOL, FROZEN);
+  init_object(out, SYMBOL, FROZEN | (LITERAL * (name[0] == ':')));
   out->left = out->right = NULL;
   out->idno = ++Vm.symbolCounter;
   out->name = duplicates(name, false);
