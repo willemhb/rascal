@@ -210,9 +210,18 @@ bool is_chunk( value_t x );
 bool is_closure( value_t x );
 bool is_control( value_t x );
 
+// pseudo-type APIs -----------------------------------------------------------
 bool is_integer( value_t x );
 long as_integer( value_t x );
 long to_integer( const char* fname, value_t x );
+
+bool is_cons( value_t x );
+list_t* as_cons( value_t x );
+list_t* to_cons( const char* fname, value_t x );
+
+bool is_string( value_t x );
+buffer_t* as_string( value_t x );
+buffer_t* to_string( const char* fname, value_t x );
 
 #define hasfl( x, f ) generic((x), value_t:value_hasfl, default: object_hasfl)(x, f)
 bool object_hasfl( void* obj, flags fl );
@@ -266,13 +275,14 @@ value_t pointer( pointer_t p );
 value_t object( void* o );
 
 symbol_t* symbol( char* name );
-symbol_t* keyword( char* name );
 symbol_t* gensym( char* name );
 list_t* list( value_t head, list_t* tail );
 
 // canonical constructors -----------------------------------------------------
 list_t* mk_list( usize n, value_t* a );
 alist_t* mk_alist( usize n, value_t* a );
+table_t* mk_table( usize n, value_t* a );
+buffer_t* mk_buffer( usize n, void* d, int elSize, encoding_t encoding );
 chunk_t* mk_chunk( alist_t* vars );
 closure_t* mk_closure( chunk_t* code, alist_t* envt );
 control_t* mk_control( frame_t* f, int sp, int fp, frame_t* frames, value_t* values );

@@ -6,6 +6,16 @@
 #include "object.h"
 #include "runtime.h"
 
+// globals ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// special forms --------------------------------------------------------------
+extern value_t Quote, Do, If, Lmb, Def, Put, Ccc;
+
+// other syntactic markers ----------------------------------------------------
+extern value_t Ampersand;
+
+// special constants ----------------------------------------------------------
+extern value_t True, False;
+
 // external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 value_t eval( value_t x );
 void repl( void );

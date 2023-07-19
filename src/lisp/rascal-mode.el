@@ -10,7 +10,7 @@
   'rascal-mode
   '(";" ("#|" . "|#"))
   '("def" "put" "fun" "mac" "type" ;; binding syntax
-    "ccc" "try" "catch"            ;; control syntax
+    "ccc" "catch" "throw"          ;; control syntax
     "if" "case" "cond" "and" "or"  ;; branching syntax
     "let" "lmb" "do" "quote"       ;; misc syntax
    )
@@ -18,12 +18,14 @@
     ;; immediate types
     ("\\_<real[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<glyph[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
+    ("\\_<primitive[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<port[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<native[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<pointer[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ;; user object types
     ("\\_<symbol[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<function[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
+    ("\\_<variable[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<list[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<record[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ;; utility object types
@@ -37,6 +39,7 @@
     ("\\_<method-table[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<method-table-node[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<method[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
+
     ;; type system types
     ("\\_<type[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<any[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)

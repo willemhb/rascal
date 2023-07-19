@@ -70,8 +70,6 @@ void reset_reader( void );
 // stack ----------------------------------------------------------------------
 value_t* push( value_t val );
 value_t  pop( void );
-value_t  popnth( int n );
-value_t  popn( int n );
 
 // frame ----------------------------------------------------------------------
 void push_frame( void );
@@ -81,8 +79,10 @@ void pop_frame( void );
 void error( const char* fname, value_t cause, const char* fmt, ... );
 void require( const char* fname, bool test, value_t cause, const char* fmt, ... );
 void forbid( const char* fname, bool test, value_t cause, const char* fmt, ... );
-void argco( const char* fname, bool variadic, usize expect, usize got );
+void argco( const char* fname, bool variadic, usize got, usize expected );
+void argcos( const char* fname, usize got, usize n, ... );
 void argtype( const char* fname, value_t val, datatype_t expect );
+void argstype( const char* fname, usize n, value_t* args, datatype_t expect );
 void argtypes( const char* fname, value_t val, usize n, ... );
 
 // memory ---------------------------------------------------------------------

@@ -9,6 +9,7 @@
 #include "object.h"
 #include "runtime.h"
 #include "interp.h"
+#include "native.h"
 #include "lang.h"
 
 // library includes -----------------------------------------------------------
@@ -28,8 +29,9 @@
 void init_rascal( void ) {
   toplevel_init_runtime();
   toplevel_init_object();
-  toplevel_init_interp();
   toplevel_init_lang();
+  toplevel_init_interp();
+  toplevel_init_native();
   
   printf("Welcome to rascal version "VERSION"!\n", MAJOR, MINOR, PATCH, DEV);
 }

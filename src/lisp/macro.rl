@@ -3,16 +3,16 @@
 
 (def get-syntax
   (lmb (name)
-    (table-get *syntax-table* name :fallback nul)))
+    (get *syntax-table* name :fallback nul)))
 
 (def set-syntax
   (lmb (name xform)
-    (table-set *syntax-table* name xform)))
+    (set *syntax-table* name xform)))
 
 (def macro-call?
   (lmb (form)
     (if (cons? form)
-        (table-has? *syntax-table* (head form)))))
+        (has? *syntax-table* (head form)))))
 
 (def macro-expand
   (lmb (form)
@@ -36,7 +36,16 @@
             form))))
 
 (def %eval% eval)
+(def %compile% compile)
 
 (def eval
-  (lmb (x e)
-    (%eval% (macro-expand* x) e)))
+  (lmb (x)
+    (%eval% (macro-expand* x))))
+
+(def compile
+  (lmb (x)
+    (%compile% (macro-expand* x))))
+
+;; basic binding macros
+(set-syntax 'mac (lmb (name args & body)))
+(set-syntax 'fun (lmb (name args & body)))
