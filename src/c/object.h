@@ -104,7 +104,7 @@ struct variable {
 
 struct chunk {
   HEADER;
-  list_t* vars;
+  list_t* envt;
   alist_t* vals;
   buffer_t* code;
 };

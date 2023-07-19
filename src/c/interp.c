@@ -15,8 +15,21 @@ value_t Quote, Do, If, Lmb, Def, Put, Ccc;
 // other syntactic markers ----------------------------------------------------
 value_t Ampersand;
 
+// metadata keywords ----------------------------------------------------------
+value_t Macro;
+
 // special constants ----------------------------------------------------------
 value_t True, False;
+
+// toplevel value of eval/compile variables -----------------------------------
+variable_t* Eval, * Compile;
+
+#define do_eval( x )                            \
+  ({                                            \
+    push(Eval->binding);                        \
+    push(x);                                    \
+    do_exec(NULL, OP_APPLY);                    \
+  })
 
 // internal API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 static bool is_literal( value_t x ) {
@@ -30,6 +43,10 @@ static bool is_literal( value_t x ) {
     return true;
 }
 
+static bool is_function( value_t x ) {
+  return is_primitive(x) || is_native(x) || is_closure(x);
+}
+
 // external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 value_t eval( value_t x ) {
   value_t v;
@@ -40,6 +57,8 @@ value_t eval( value_t x ) {
   else if ( is_symbol(x) ) {
     v = table_get(&Vm.globals, x);
     forbid("eval", v == NOTFOUND, x, "unbound symbol");
+    v = as_variable(v)->binding;
+    forbid("eval", v == UNDEFINED, x, "unbound symbol");
   }
 
   else {
@@ -69,19 +88,19 @@ void repl( void ) {
 }
 
 //  compiler
+static list_t* mk_environment( list_t* parent );
 static usize emit_instr( chunk_t* target, opcode_t op, ... );
 static void fill_jump( chunk_t* target, usize offset );
 static usize add_value( chunk_t* target, value_t val );
-
-static variable_t* resolve( chunk_t* target, value_t name );
-static variable_t* extend( chunk_t* target, value_t name );
-static alist_t* prepare_environment( chunk_t* target, list_t* formals, bool* variadic );
+static variable_t* resolve( value_t name, list_t* envt );
+static variable_t* extend( value_t name, list_t* envt, bool allowDuplicate );
+static list_t* prepare_environment( list_t* parent, list_t* formals, bool* variadic );
 static usize compile_value( chunk_t* target, value_t val );
 static usize compile_variable( chunk_t* target, value_t name );
 static usize compile_combination( chunk_t* target, value_t sexpr );
 static usize compile_assignment( chunk_t* target, value_t name, value_t val );
 static usize compile_definition( chunk_t* target, value_t name, value_t val );
-static usize compile_closure( chunk_t* target, alist_t* envt, list_t* exprs, bool variadic );
+static usize compile_closure( chunk_t* target, list_t* formals, list_t* exprs, bool variadic );
 static usize compile_expr( chunk_t* target, value_t src );
 static usize compile_exprs( chunk_t* target, list_t* exprs );
 static usize compile_args( chunk_t* target, list_t* args );
@@ -98,6 +117,11 @@ chunk_t* compile( value_t src ) {
   compile_expr(target, src);
   emit_instr(target, OP_RETURN);
   return target;
+}
+
+static list_t* mk_environment( list_t* parent ) {
+  table_t* locals = mk_table(0, NULL);
+  return list(object(locals), parent);
 }
 
 static usize emit_instr( chunk_t* target, opcode_t op, ... ) {
@@ -126,12 +150,11 @@ static usize add_value( chunk_t* target, value_t val ) {
   return alist_push(target->vals, val);
 }
 
-static variable_t* resolve( chunk_t* target, value_t name ) {
-  list_t* vars = target->vars;
+static variable_t* resolve( value_t name, list_t* envt ) {
   variable_t* var = NULL;
 
-  for ( ; vars->arity && var == NULL; vars=vars->tail ) {
-    table_t* locals = as_table(vars->head);
+  for ( ; envt->arity && var == NULL; envt=envt->tail ) {
+    table_t* locals = as_table(envt->head);
     value_t val = table_get(locals, name);
 
     if ( val != NOTFOUND )
@@ -153,52 +176,49 @@ static variable_t* resolve( chunk_t* target, value_t name ) {
   return var;
 }
 
-static variable_t* extend( chunk_t* target, value_t name ) {
-  list_t* vars = target->vars;
+static variable_t* extend( value_t name, list_t* envt, bool allowDuplicate ) {
+  bool toplevel = envt->arity == 0;
   variable_t* var = NULL;
 
-  if ( vars->arity ) {
-    table_t* locals = as_table(vars->head);
-    value_t val = table_get(locals, name);
+  table_t* vars = toplevel ? as_table(envt->head) : &Vm.globals;
+  value_t val = table_get(vars, name);
 
-    if ( val != NOTFOUND )
-      var = as_variable(val);
+  if ( val != NOTFOUND ) {
+    require("compile", allowDuplicate, name, "name already exists in given environment");
+    var = as_variable(val);
+  }
 
-    else {
-      var = mk_local_variable(as_symbol(name), vars->arity, );
-    }
-  } else {
-    
+  else {
+    if ( toplevel )
+      var = mk_global_variable(as_symbol(name), UNDEFINED);
+    else
+      var = mk_local_variable(as_symbol(name), envt->arity, vars->cnt+1);
+
+    table_set(vars, name, object(var));
   }
 
   return var;
 }
 
-static alist_t* prepare_environment( chunk_t* target, list_t* formals, bool* variadic ) {
+static list_t* prepare_environment( list_t* parent, list_t* formals, bool* variadic ) {
   *variadic = false;
+  list_t* out = mk_environment(parent);
   list_t* curr = formals;
-  value_t buffer[formals->arity+1];
-  buffer[0] = target->vars == NULL ? NIL : object(target->vars);
-  usize n = 1;
 
-  while ( curr->arity ) {
-    value_t name = curr->head;
-    require("compile", is_symbol(name), object(formals), "Formal argument is not a symbol");
+  for ( ; curr->arity; curr=curr->tail ) {
+    value_t formal = curr->head;
+    require("compile", is_symbol(formal), object(formals), "Formal argument not a symbol");
+    require("compile", !hasfl(formal, LITERAL), object(formals), "Keyword arguments not yet supported");
 
-    if ( name == Ampersand ) {
-      require("compile", formals->arity == 2, object(formals), "Illicit use of '&' syntax");
+    if ( formal == Ampersand ) {
+      require("compile", curr->arity == 2, object(formals), "Incorrect use of '&' syntax");
       *variadic = true;
     } else {
-      for ( usize i=1; i<n; i++ )
-        require("compile", name != buffer[i], object(formals), "Symbol appears multiple times in formal arguments list");
-
-      buffer[n++] = name;
+      extend(formal, out, false);
     }
-
-    curr = curr->tail;
   }
 
-  return mk_alist(n, buffer);
+  return out;
 }
 
 static usize compile_value( chunk_t* target, value_t val ) {
@@ -216,16 +236,54 @@ static usize compile_value( chunk_t* target, value_t val ) {
 }
 
 static usize compile_variable( chunk_t* target, value_t name ) {
+  variable_t* var = resolve(name, target->envt);
   usize out;
-  usize i, j;
-  bool toplevel;
-  resolve_variable(target, name, &toplevel, &i, &j);
 
-  if ( toplevel )
-    out = emit_instr(target, OP_LOADGL, i);
+  if ( hasfl(var, TOPLEVEL) ) {
+    usize loc = add_value(target, object(var));
+    out = emit_instr(target, OP_LOADGL, loc);
+  }
 
-  else
+  else {
+    usize i = target->envt->arity - var->depth, j = var->offset;
     out = emit_instr(target, OP_LOADCL, i, j);
+  }
+
+  return out;
+}
+
+
+static usize compile_assignment( chunk_t* target, value_t name, value_t val ) {
+  compile_expr(target, val);
+  variable_t* var = resolve(name, target->envt);
+  usize out;
+
+  if ( hasfl(var, TOPLEVEL) ) {
+    usize loc = add_value(target, object(var));
+    out = emit_instr(target, OP_PUTGL, loc);
+  } else {
+    usize i = target->envt->arity - var->depth, j = var->offset;
+    out = emit_instr(target, OP_PUTCL, i, j);
+  }
+
+  return out;
+}
+
+static usize compile_definition( chunk_t* target, value_t name, value_t val ) {
+  usize out;
+  variable_t* var = extend(name, target->envt, true);
+
+  if ( hasfl(var, TOPLEVEL) ) {
+    usize loc = add_value(target, object(var));
+    emit_instr(target, OP_DEFGL, loc);
+    compile_expr(target, val);
+    out = emit_instr(target, OP_PUTGL, loc);
+  }
+
+  else {
+    compile_expr(target, val);
+    out = emit_instr(target, OP_PUTCL, 0, var->offset);
+  }
 
   return out;
 }
@@ -259,47 +317,9 @@ static usize compile_combination( chunk_t* target, value_t sexpr ) {
   return emit_instr(target, OP_CALL, form->tail->arity);
 }
 
-static usize compile_assignment( chunk_t* target, value_t name, value_t val ) {
-  bool toplevel;
-  usize i, j;
-  usize out;
-
-  compile_expr(target, val);
-  resolve_variable(target, name, &toplevel, &i, &j);
-
-  if ( toplevel )
-    out = emit_instr(target, OP_PUTGL, i);
-
-  else
-    out = emit_instr(target, OP_PUTCL, i, j);
-
-  return out;
-}
-
-static usize compile_definition( chunk_t* target, value_t name, value_t val ) {
-  bool toplevel;
-  usize i;
-  usize out;
-
-  extend_environment(target, name, &toplevel, &i);
-
-  if ( toplevel ) {
-    emit_instr(target, OP_DEFGL, i);
-    compile_expr(target, val);
-    out = emit_instr(target, OP_PUTGL, i);
-  }
-
-  else {
-    compile_expr(target, val);
-    out = emit_instr(target, OP_PUTCL, 0, i);
-  }
-
-  return out;
-}
-
-static usize compile_closure( chunk_t* target, alist_t* envt, list_t* exprs, bool variadic ) {
-  chunk_t* closure = mk_chunk(envt);
-  emit_instr(closure, variadic ? OP_VARGC : OP_ARGC, envt->cnt-1);
+static usize compile_closure( chunk_t* target, list_t* envt, list_t* exprs, bool variadic ) {
+  chunk_t* closure = mk_chunk(envt, NULL, NULL);
+  emit_instr(closure, variadic ? OP_VARGC : OP_ARGC, num_locals(closure));
   compile_exprs(closure, exprs);
   emit_instr(closure, OP_RETURN);
   compile_value(target, object(closure));
@@ -392,18 +412,18 @@ static usize compile_lmb( chunk_t* target, list_t* form ) {
   value_t argl = form->tail->head;
   require("compile", is_list(argl), object(form), "Formal arguments not a list");
   bool variadic;
-  alist_t* vars = prepare_environment(target, as_list(argl), &variadic);
+  list_t* envt  = prepare_environment(target->envt, as_list(argl), &variadic);
   list_t* exprs = form->tail->tail;
-  return compile_closure(target, vars, exprs, variadic);
+  return compile_closure(target, envt, exprs, variadic);
 }
 
 static usize compile_ccc( chunk_t* target, list_t* form ) {
   require("compile", form->arity >= 3, object(form), "Incorrect arity for ccc");
   value_t ccs = form->tail->head;
   require("compile", is_symbol(ccs), object(form), "Continuation name is not a symbol");
-  value_t buffer[2] = { target->vars == NULL ? NIL : object(target->vars), ccs };
-  alist_t* envt = mk_alist(2, buffer);
+  list_t* envt = mk_environment(target->envt);
   list_t* exprs = form->tail->tail;
+  extend(ccs, envt, false);
   compile_closure(target, envt, exprs, false);
   emit_instr(target, OP_CONTROL);
   return emit_instr(target, OP_CALL, 1);
@@ -416,8 +436,8 @@ static bool is_captured( frame_t* f ) {
 
 static void capture_frame( frame_t* f ) {
   if ( !is_captured(f) ) {
-    alist_t* env = mk_alist(f->fn->vars->cnt, &Values[f->bp]);
-    Values[f->bp] = object(env);
+    alist_t* envt = mk_alist(num_locals(f->fn) + 1, &Values[f->bp]);
+    Values[f->bp] = object(envt);
     f->fl |= CAPTURED;
   }
 }
@@ -449,6 +469,9 @@ static value_t do_exec( chunk_t* code, opcode_t entry ) {
   goto *labels[op];
 
  fetch: // next instruction
+  if ( IP == NULL ) // 
+    goto op_return;
+
   op = *(IP++);
 
   if ( op > OP_RETURN )
@@ -590,21 +613,20 @@ static value_t do_exec( chunk_t* code, opcode_t entry ) {
   
  op_loadgl:
   x = VALS[argx];
-  v = table_get(&Vm.globals, x);
-  require("exec", v != NOTFOUND, x, "unbound symbol");
+  v = as_variable(x)->binding;
+  require("exec", v != UNDEFINED, x, "unbound symbol");
   goto fetch;
 
- op_putgl:{
-    x = VALS[argx];
-    b = table_find(&Vm.globals, x);
-    require("exec", b[0] != NOTFOUND, x, "unbound symbol");
-    b[1] = TOS;
-  }
+ op_putgl:
+  x = VALS[argx];
+  require("exec", as_variable(x)->binding != UNDEFINED, x, "unbound symbol");
+  as_variable(x)->binding = TOS;
   goto fetch;
 
  op_defgl:
   x = VALS[argx];
-  table_add(&Vm.globals, x, NIL);
+  if ( as_variable(x)->binding == UNDEFINED )
+    as_variable(x)->binding = NIL;
   goto fetch;
 
  op_jump:
