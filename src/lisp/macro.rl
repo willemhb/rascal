@@ -47,5 +47,22 @@
     (%compile% (macro-expand* x))))
 
 ;; basic binding macros
-(set-syntax 'mac (lmb (name args & body)))
-(set-syntax 'fun (lmb (name args & body)))
+(set-syntax 'mac
+  (lmb (name args & body)
+    `(set-syntax ~name (lmb ~args ~@body))))
+
+(set-syntax 'fun
+  (lmb (name args & body)
+    `(def ~name (lmb ~args ~@body))))
+
+;; use implementation
+(def *modules*  (table))
+
+(def use
+  (lmb (module)
+    (def expanded (expand-file-name module))
+    (if (has? *modules* expanded)
+        (get *modules* expanded)
+        (do (def loaded (load expanded))
+            (set *modules* expanded loaded)
+            loaded))))

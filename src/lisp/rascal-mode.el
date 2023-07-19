@@ -13,6 +13,7 @@
     "ccc" "catch" "throw"          ;; control syntax
     "if" "case" "cond" "and" "or"  ;; branching syntax
     "let" "lmb" "do" "quote"       ;; misc syntax
+    "require" "c-call"             ;; misc syntax (continued)
    )
   '(("\\(:[-a-zA-Z?*+0-9/]+\\)[[:space:][:cntrl:],\\s)]" 1 font-lock-reference-face)
     ;; immediate types
@@ -39,7 +40,6 @@
     ("\\_<method-table[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<method-table-node[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<method[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
-
     ;; type system types
     ("\\_<type[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
     ("\\_<any[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
