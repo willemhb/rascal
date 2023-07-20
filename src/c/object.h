@@ -33,12 +33,12 @@ enum datatype {
 #define N_DTYPES (CONTROL+1)
 
 struct object {
-  object_t* next;    // invasive linked list of live objects
-  uword hash  : 48;  // cached hash code
-  uword flags :  8;  // misc flags
-  uword type  :  6;  // object type
-  uword black :  1;  // GC black flag
-  uword gray  :  1;  // GC gray flag
+  object_t* next;     // invasive linked list of live objects
+  uword hash  : 48;   // cached hash code
+  uword flags :  8;   // misc flags
+  uword type  :  6;   // object type
+  uword black :  1;   // GC black flag
+  uword gray  :  1;   // GC gray flag
 };
 
 #define HEADER object_t obj
@@ -87,8 +87,8 @@ struct buffer {
 // interpreter object types ---------------------------------------------------
 struct chunk {
   HEADER;
-  list_t* envt;
-  alist_t* vals;
+  list_t*   envt;
+  alist_t*  vals;
   buffer_t* code;
 };
 
@@ -125,7 +125,8 @@ enum {
   LITERAL  =0x08,
 
   // chunk flags
-  MACRO    =0x08,
+  TOPLEVEL =0x08,
+  MACRO    =0x04,
 
   // frame flags
   CAPTURED =0x01
@@ -267,14 +268,14 @@ value_t object( void* o );
 
 symbol_t* symbol( char* name );
 symbol_t* gensym( char* name );
-list_t* list( value_t head, list_t* tail );
+list_t*   cons( value_t head, list_t* tail );
 
 // canonical constructors -----------------------------------------------------
 list_t* mk_list( usize n, value_t* a );
 alist_t* mk_alist( usize n, value_t* a );
 table_t* mk_table( usize n, value_t* a );
 buffer_t* mk_buffer( usize n, void* d, int elSize, encoding_t encoding );
-chunk_t* mk_chunk( list_t* vars, alist_t* vals, buffer_t* code );
+chunk_t* mk_chunk( list_t* envt, alist_t* vals, buffer_t* code, bool isMacro );
 closure_t* mk_closure( chunk_t* code, alist_t* envt );
 control_t* mk_control( frame_t* f, int sp, int fp, frame_t* frames, value_t* values );
 buffer_t* mk_string( usize n, char* d );

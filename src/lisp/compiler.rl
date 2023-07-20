@@ -22,19 +22,24 @@
 (def *op-load-closure*  17)
 (def *op-put-closure*   18)
 
-(type chunk [envt vals code])
+(fun literal?
+  (expr)
+  (if (symbol? expr)
+      (not (keyword? expr))
+      (not (cons? expr))))
 
-;; helpers
-(fun make-environment
-  (formals parent)
-  (let (locals {})
-    (for-each #(add locals %) formals)
-    (cons locals parent)))
+(fun variable?
+  (expr)
+  (and (symbol? expr)
+       (not (keyword? expr))))
 
-(fun add-value
-  (template value)
-  (let ({vals, code} template)
+(fun macro-call?
+  (expr)
+  (and (cons? expr)
+       (symbol? (hd expr))
+       (macro? (lookup (hd expr)))))
 
-(fun compile
-  (expression)
-  (compile-expression expression () [] '(:op-return)))
+(fun special-form?
+  (expr)
+  (and (cons? expr)
+       (has? '(quote do lmb if def put ccc) (hd expr))))

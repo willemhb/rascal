@@ -32,7 +32,9 @@ void init_rascal( void ) {
   toplevel_init_lang();
   toplevel_init_interp();
   toplevel_init_native();
-  
+
+  load("base.rl"); // for basic definitions
+
   printf("Welcome to rascal version "VERSION"!\n", MAJOR, MINOR, PATCH, DEV);
 }
 

@@ -5,6 +5,7 @@
 
 // external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 value_t read( port_t ios );
+value_t load( const char* filename );
 value_t print( port_t ios, value_t x );
 bool    same( value_t x, value_t y );
 bool    equal( value_t x, value_t y );
