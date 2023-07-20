@@ -3,40 +3,31 @@
 (def tl tail)
 
 (def ttl
-  (lmb (xs)
-    (tl (tl xs))))
+  (lmb (xs) tl.tl.xs))
 
 (def thd
-  (lmb (xs)
-    (tl (hd xs))))
+  (lmb (xs) tl.hd.xs))
 
 (def htl
-  (lmb (xs)
-    (hd (tl xs))))
+  (lmb (xs) hd.tl.xs))
 
 (def hhd
-  (lmb (xs)
-    (hd (hd xs))))
+  (lmb (xs) hd.hd.xs))
 
 (def tttl
-  (lmb (xs)
-    (tl (tl (tl xs)))))
+  (lmb (xs) tl.tl.tl.xs))
 
 (def tthd
-  (lmb (xs)
-    (tl (tl (hd xs)))))
+  (lmb (xs) tl.tl.hd.xs))
 
 (def thtl
-  (lmb (xs)
-    (tl (hd (tl xs)))))
+  (lmb (xs) tl.hd.tl.xs))
 
 (def thhd
-  (lmb (xs)
-    (tl (hd (hd xs)))))
+  (lmb (x) tl.hd.hd.xs))
 
 (def httl
-  (lmb (xs)
-    (head (tail (tail xs)))))
+  (lmb (xs) hd.tl.tl.xs))
 
 (def hthd
   (lmb (xs)
@@ -62,17 +53,17 @@
     (args)
     (if (empty? args)
         ()
-        (cons (hd args) (args-loop (ttl args)))))
+        (cons hd.args (args-loop ttl.args)))
   (fun argvals-loop
     (args)
     (if (empty? args)
         ()
-        (cons (htl args) (args-loop (ttl args)))))
-  (if (list? name)
+        (cons htl.args (args-loop ttl.args))))
+  (if list?.name
       `(labl loop ~name ~args ~@body)
       `((lmb ()
-          (fun ~name ~(args-loop args) ~@body)
-          (~name ~@(argvals-loop))))))
+          (fun ~name ~args-loop.args ~@body)
+          (~name ~@argvals-loop.args))))))
 
 ;; basic numeric utilities
 (fun zero?
@@ -118,40 +109,40 @@
 
 (fun make-list
   (x n)
-  (if (zero? n)
+  (if n.zero?
       ()
-      (cons x (make-list (dec n)))))
+      (cons x (make-list n.dec))))
 
 ;; more binding syntax
 (mac let
   (args & body)
   (def args*
     (labl (argl args accum ())
-      (if (empty? argl)
-          (rev accum)
-          (loop (ttl argl) (cons (hd argl) accum)))))
+      (if empty?.argl
+          rev.accum
+          (loop ttl.argl (cons hd.argl accum)))))
   (def body*
     (labl (argl args accum ())
-      (if (empty? argl)
-          (cat (rev accum) body)
-          (loop (ttl argl) (cons `(put ~(hd argl) ~(htl argl)) accum)))))
-  (def init* (make-list nul (len args*)))
+      (if argl.empty?
+          (cat accum.rev body)
+          (loop ttl.argl (cons `(put ~hd.argl ~htl.argl) accum)))))
+  (def init* (make-list nul len.args*))
   `((lmb ~args* ~@body*) ~@init*))
 
 ;; control syntax
 (mac cond ()
   (if (len<? &form 3)
       (error &form "not enough expressions in cond")
-      (if (len-even? &form)
+      (if len-even?.&form
           (error &form "unmatched predicate in cond")
-          (labl (test (htl &form) consequent (httl &form) more (tttl form))
-            (if (empty? more)
+          (labl (test htl.&form, consequent httl.&form, more tttl.form)
+            (if empty?.more
                 `(if ~test
                      ~consequent
                      (error ~&form "unhandled condition in cond"))
                 `(if ~test
                      ~consequent
-                     ~@(loop (hd more) (htl more) (ttl more)))))))
+                     ~@(loop hd.more htl.more ttl.more)))))))
 
 (mac case ()
   (cond (len<? &form 4)
