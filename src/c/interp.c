@@ -15,21 +15,8 @@ value_t Quote, Do, If, Lmb, Def, Put, Ccc;
 // other syntactic markers ----------------------------------------------------
 value_t Ampersand;
 
-// metadata keywords ----------------------------------------------------------
-value_t Macro;
-
 // special constants ----------------------------------------------------------
 value_t True, False;
-
-// toplevel value of eval/compile variables -----------------------------------
-variable_t* Eval, * Compile;
-
-#define do_eval( x )                            \
-  ({                                            \
-    push(Eval->binding);                        \
-    push(x);                                    \
-    do_exec(NULL, OP_APPLY);                    \
-  })
 
 // internal API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 static bool is_literal( value_t x ) {
@@ -44,7 +31,16 @@ static bool is_literal( value_t x ) {
 }
 
 static bool is_function( value_t x ) {
-  return is_primitive(x) || is_native(x) || is_closure(x);
+  return is_native(x) || is_closure(x);
+}
+
+static value_t lookup( value_t name ) {
+  value_t val = table_get(&Vm.globals, name);
+
+  if ( val == NOTFOUND )
+    val = UNDEFINED;
+
+  return val;
 }
 
 // external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -55,13 +51,9 @@ value_t eval( value_t x ) {
     v = x;
 
   else if ( is_symbol(x) ) {
-    v = table_get(&Vm.globals, x);
-    forbid("eval", v == NOTFOUND, x, "unbound symbol");
-    v = as_variable(v)->binding;
+    v = lookup(x);
     forbid("eval", v == UNDEFINED, x, "unbound symbol");
-  }
-
-  else {
+  } else {
     chunk_t* chunk = compile(x);
     v = exec(chunk);
   }
@@ -92,8 +84,8 @@ static list_t* mk_environment( list_t* parent );
 static usize emit_instr( chunk_t* target, opcode_t op, ... );
 static void fill_jump( chunk_t* target, usize offset );
 static usize add_value( chunk_t* target, value_t val );
-static variable_t* resolve( value_t name, list_t* envt );
-static variable_t* extend( value_t name, list_t* envt, bool allowDuplicate );
+static void resolve( value_t name, chunk_t* target, bool* toplevel, usize* i, usize* j );
+static void extend( value_t name, chunk_t* target, usize* i );
 static list_t* prepare_environment( list_t* parent, list_t* formals, bool* variadic );
 static usize compile_value( chunk_t* target, value_t val );
 static usize compile_variable( chunk_t* target, value_t name );
@@ -150,18 +142,20 @@ static usize add_value( chunk_t* target, value_t val ) {
   return alist_push(target->vals, val);
 }
 
-static variable_t* resolve( value_t name, list_t* envt ) {
-  variable_t* var = NULL;
-
-  for ( ; envt->arity && var == NULL; envt=envt->tail ) {
+static void resolve( value_t name, chunk_t* target, bool* toplevel, usize* i, usize* j ) {
+  list_t* envt = target->envt;
+  *toplevel = false;
+  *i = *j = 0;
+  
+  for ( ; envt->arity && *j == 0; envt=envt->tail ) {
     table_t* locals = as_table(envt->head);
     value_t val = table_get(locals, name);
 
     if ( val != NOTFOUND )
-      var = as_variable(val);
+      *j = as_integer(val);
   }
 
-  if ( var == NULL ) {
+  if ( *j == 0 ) {
     value_t global = table_get(&Vm.globals, name);
 
     if ( global != NOTFOUND )
@@ -290,6 +284,10 @@ static usize compile_definition( chunk_t* target, value_t name, value_t val ) {
 
 static usize compile_combination( chunk_t* target, value_t sexpr ) {
   list_t* form = as_list(sexpr);
+
+  if ( is_macro_call(form) ) {
+    
+  }
 
   if ( form->head == Quote )
     return compile_quote(target, form);

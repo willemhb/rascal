@@ -15,45 +15,20 @@
     "let" "lmb" "do" "quote"       ;; misc syntax
     "require" "c-call"             ;; misc syntax (continued)
    )
-  '(("\\(:[-a-zA-Z?*+0-9/]+\\)[[:space:][:cntrl:],\\s)]" 1 font-lock-reference-face)
-    ;; immediate types
-    ("\\_<real[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
-    ("\\_<glyph[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
-    ("\\_<primitive[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
-    ("\\_<port[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
-    ("\\_<native[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
-    ("\\_<pointer[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
-    ;; user object types
-    ("\\_<symbol[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
-    ("\\_<function[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
-    ("\\_<variable[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
-    ("\\_<list[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
-    ("\\_<record[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
-    ;; utility object types
-    ("\\_<alist[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
-    ("\\_<table[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
-    ("\\_<buffer[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
-    ;; interpreter object types
-    ("\\_<chunk[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
-    ("\\_<closure[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
-    ("\\_<control[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
-    ("\\_<method-table[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
-    ("\\_<method-table-node[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
-    ("\\_<method[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
-    ;; type system types
-    ("\\_<type[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
-    ("\\_<any[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
-    ("\\_<unit[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
-    ("\\_<none[[:space:][:cntrl:],\\s)]" . font-lock-builtin-face)
+  '(("[^:]\\(:[-a-zA-Z?*+0-9/]+\\)\\b" 1 font-lock-reference-face)
+    ;; special 
+    ("\\bany\\b" . font-lock-builtin-face)
+    ("\\bunit\\b" . font-lock-builtin-face)
+    ("\\bnone\\b" . font-lock-builtin-face)
     ;; special constants
-    ("\\_<nul[[:space:][:cntrl:],\\s)]" . font-lock-constant-face)
-    ("\\_<true[[:space:][:cntrl:],\\s)]" . font-lock-constant-face)
-    ("\\_<false[[:space:][:cntrl:],\\s)]" . font-lock-constant-face)
+    ("\\bnul\\b" . font-lock-constant-face)
+    ("\\btrue\\b" . font-lock-constant-face)
+    ("\\bfalse\\b" . font-lock-constant-face)
     ;; syntax
-    ("\\_<otherwise[[:space:][:cntrl:],\\s)]" . font-lock-function-name-face)
-    ("\\_<&?&[[:space:][:cntrl:],\\s)]" . font-lock-function-name-face)
+    ("\\botherwise\\b" . font-lock-function-name-face)
+    ("&" . font-lock-function-name-face)
     ;; misc
-    ("\\_<error[[:space:][:cntrl:],\\s)]" . font-lock-warning-face))
+    ("\\_<error\\b" . font-lock-warning-face))
   '("\\.rl$" "\\.rdn$" "\\.rlo$") ;; source file, serialization format, object file
   (list 'rainbow-delimiters-mode)
   "A mode for rascal files.")

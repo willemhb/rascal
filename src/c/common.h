@@ -32,11 +32,8 @@ typedef uword value_t;
 
 // immediate types ------------------------------------------------------------
 typedef double number_t;
-typedef int glyph_t;
 typedef FILE* port_t;
-typedef enum opcode primitive_t;
 typedef value_t (*native_t)(usize n, value_t* args);
-typedef void* pointer_t;
 
 // common object type ---------------------------------------------------------
 typedef struct object object_t;
@@ -51,7 +48,6 @@ typedef struct table table_t;
 typedef struct buffer buffer_t;
 
 // interpreter object types ---------------------------------------------------
-typedef struct variable variable_t;
 typedef struct chunk chunk_t;
 typedef struct closure closure_t;
 typedef struct control control_t;

@@ -18,10 +18,10 @@ extern value_t True, False;
 
 // external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 value_t eval( value_t x );
+value_t apply( value_t f, value_t a ); 
 void repl( void );
 chunk_t* compile( value_t src );
 value_t exec( chunk_t* code );
-void toplevel_define( const char* fname, value_t val );
 void toplevel_init_interp( void );
 
 #endif

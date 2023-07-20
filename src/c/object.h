@@ -9,14 +9,11 @@
 enum datatype {
   NOTYPE, // not a datatype
   NUMBER=1,
-  GLYPH,
   UNIT,
-  PRIMITIVE,
   NATIVE,
   PORT,
-  POINTER,
 
-  OBJECT=POINTER,
+  OBJECT=PORT,
 
   // user object types
   SYMBOL,
@@ -28,7 +25,6 @@ enum datatype {
   BUFFER,
 
   // interpreter object types
-  VARIABLE,
   CHUNK,
   CLOSURE,
   CONTROL
@@ -89,19 +85,6 @@ struct buffer {
 };
 
 // interpreter object types ---------------------------------------------------
-struct variable {
-  HEADER;
-  symbol_t* name;
-  table_t* metadata;
-  union {
-    value_t binding;
-    struct {
-      uint depth;
-      uint offset;
-    };
-  };
-};
-
 struct chunk {
   HEADER;
   list_t* envt;
@@ -141,8 +124,8 @@ enum {
   // symbol flags
   LITERAL  =0x08,
 
-  // variable flags
-  TOPLEVEL =0x08,
+  // chunk flags
+  MACRO    =0x08,
 
   // frame flags
   CAPTURED =0x01
@@ -181,45 +164,34 @@ extern list_t EmptyList;
 // external API +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // cast/access/test functions -------------------------------------------------
 number_t as_number( value_t x );
-glyph_t as_glyph( value_t x );
-primitive_t as_primitive( value_t x );
 native_t as_native( value_t x );
 port_t as_port( value_t x );
-pointer_t as_pointer( value_t x ); 
 object_t* as_object( value_t x );
 symbol_t* as_symbol( value_t x );
 list_t* as_list( value_t x );
 alist_t* as_alist( value_t x );
 table_t* as_table( value_t x );
 buffer_t* as_buffer( value_t x );
-variable_t* as_variable( value_t x );
 chunk_t*   as_chunk( value_t x );
 closure_t* as_closure( value_t x );
 control_t* as_control( value_t x );
 
 number_t to_number( const char* fname, value_t x );
-glyph_t to_glyph( const char* fname, value_t x );
-primitive_t to_primitive( const char* fname, value_t x );
 native_t to_native( const char* fname, value_t x );
 port_t to_port( const char* fname, value_t x );
-pointer_t to_pointer( const char* fname, value_t x ); 
 object_t* to_object( const char* fname, value_t x );
 symbol_t* to_symbol( const char* fname, value_t x );
 list_t* to_list( const char* fname, value_t x );
 alist_t* to_alist( const char* fname, value_t x );
 table_t* to_table( const char* fname, value_t x );
 buffer_t* to_buffer( const char* fname, value_t x );
-variable_t* to_variable( const char* fname, value_t x );
 chunk_t*   to_chunk( const char* fname, value_t x );
 closure_t* to_closure( const char* fname, value_t x );
 control_t* to_control( const char* fname, value_t x );
 
 bool is_number( value_t x );
-bool is_glyph( value_t x );
-bool is_primitive( value_t x );
 bool is_native( value_t x );
 bool is_port( value_t x );
-bool is_pointer( value_t x );
 bool is_unit( value_t x );
 bool is_object( value_t x );
 bool is_symbol( value_t x );
@@ -227,7 +199,6 @@ bool is_list( value_t x );
 bool is_alist( value_t x );
 bool is_table( value_t x );
 bool is_buffer( value_t x );
-bool is_variable( value_t x );
 bool is_chunk( value_t x );
 bool is_closure( value_t x );
 bool is_control( value_t x );
@@ -290,11 +261,8 @@ void destruct_object( void* obj );
 
 // high level constructors ----------------------------------------------------
 value_t number( number_t n );
-value_t glyph( glyph_t g );
-value_t primitive( primitive_t p );
 value_t native( native_t n );
 value_t port( port_t p );
-value_t pointer( pointer_t p );
 value_t object( void* o );
 
 symbol_t* symbol( char* name );
@@ -306,8 +274,6 @@ list_t* mk_list( usize n, value_t* a );
 alist_t* mk_alist( usize n, value_t* a );
 table_t* mk_table( usize n, value_t* a );
 buffer_t* mk_buffer( usize n, void* d, int elSize, encoding_t encoding );
-variable_t* mk_global_variable( symbol_t* name, value_t binding );
-variable_t* mk_local_variable( symbol_t* name, uint depth, uint offset );
 chunk_t* mk_chunk( list_t* vars, alist_t* vals, buffer_t* code );
 closure_t* mk_closure( chunk_t* code, alist_t* envt );
 control_t* mk_control( frame_t* f, int sp, int fp, frame_t* frames, value_t* values );
@@ -315,10 +281,6 @@ buffer_t* mk_string( usize n, char* d );
 
 // list API -------------------------------------------------------------------
 value_t list_nth( list_t* l, usize n );
-
-// variable API ---------------------------------------------------------------
-value_t get_metadata( variable_t* var, value_t key );
-value_t set_metadata( variable_t* var, value_t key, value_t val );
 
 // alist API ------------------------------------------------------------------
 void init_alist( alist_t* slf, bool ini );
