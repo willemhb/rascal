@@ -19,9 +19,9 @@ typedef enum opcode {
 
   // vm instructions ----------------------------------------------------------
   OP_ARGC, OP_VARGC,
-  OP_CALL, OP_CALLT,
+  OP_CALL,
   OP_LOADV,
-  OP_LOADGL, OP_PUTGL, OP_DEFGL,
+  OP_LOADGL, OP_PUTGL,
   OP_JUMP, OP_JUMPN,
 
   // 2-input instructions -----------------------------------------------------
