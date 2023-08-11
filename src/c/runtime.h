@@ -21,9 +21,6 @@ struct vm {
   // stack pointers
   int sp, fp;
 
-  // toplevel environment
-  table_t globals;
-
   // symbol table
   symbol_t* symbolTable;
   usize symbolCounter;

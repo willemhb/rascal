@@ -34,6 +34,7 @@ enum datatype {
 
 struct object {
   object_t* next;     // invasive linked list of live objects
+  table_t*  metadata;
   uword hash  : 48;   // cached hash code
   uword flags :  8;   // misc flags
   uword type  :  6;   // object type
@@ -49,6 +50,7 @@ struct symbol {
   symbol_t* left, * right;
   char* name;
   uint64 idno;
+  value_t bind; // toplevel binding
 };
 
 struct list {
