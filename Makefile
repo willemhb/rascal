@@ -28,7 +28,7 @@ CFLAGS   := $(INC_FLAGS) -g -lm
 # CPPFLAGS := $(INC_FLAGS) -MMD -MP
 
 # The final build step.
-$(TARGET_EXEC): $(OBJS)
+$(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
 	$(CC) $(OBJS) -o $@ $(LDFLAGS)
 
 # Build step for C source
