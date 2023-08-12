@@ -12,12 +12,12 @@
   '("def" "put" "fun" "mac"        ;; binding syntax
     "struct" "record" "union"      ;; binding syntax (continued)
     "perform" "handle" "resume"    ;; effect syntax
-    "ccc" "catch" "raise"          ;; control syntax
+    "catch" "raise" "yield"        ;; control syntax
     "if" "case" "cond" "and" "or"  ;; branching syntax
     "let" "lmb" "do" "quote"       ;; misc syntax
     "use" "c-call" "labl" "loop"   ;; misc syntax (continued)
    )
-  '((":[-a-zA-Z?*+0-9/]+" . font-lock-type-face)
+  '(("[^:]:[-a-zA-Z?*+0-9/]+" . font-lock-type-face)
     ;; special constants
     ("\\_<nul\\_>" . font-lock-constant-face)
     ("\\_<true\\_>" . font-lock-constant-face)

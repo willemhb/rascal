@@ -1,0 +1,11 @@
+* DONE Version 0.0.1
+** DONE implement main function
+
+* TODO Version 0.0.2
+** DONE add number type
+** DONE add Vm global
+** DONE add internal error function
+** TODO add internal read function
+** DONE add internal eval function
+** DONE add internal print function
+** DONE add internal repl function

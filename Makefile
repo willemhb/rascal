@@ -2,7 +2,7 @@
 TARGET_EXEC := rascal
 
 BUILD_DIR := ./build
-SRC_DIRS := ./src
+SRC_DIRS := ./src/c
 INC_DIRS := ./include
 
 # Find all the C and C++ files we want to compile
@@ -28,7 +28,7 @@ CFLAGS   := $(INC_FLAGS) -g -lm
 # CPPFLAGS := $(INC_FLAGS) -MMD -MP
 
 # The final build step.
-$(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
+$(TARGET_EXEC): $(OBJS)
 	$(CC) $(OBJS) -o $@ $(LDFLAGS)
 
 # Build step for C source
