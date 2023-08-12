@@ -3,6 +3,7 @@
 
 * TODO Version 0.0.2
 ** DONE add number type
+** TODO add unit type
 ** DONE add Vm global
 ** DONE add internal error function
 ** TODO add internal read function
