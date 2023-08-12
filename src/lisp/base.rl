@@ -10,7 +10,7 @@
 (union number (real small big ratio complex))
 
 ;; record types
-(record person (name age gender))
+(record person ((string name) (string age) (string gender)))
 
 ;; implementations of basic arithmetic for the complex type
 (fun + "Add two complex numbers."
@@ -32,6 +32,31 @@
         (real-z (- real-x real-y))
         (imag-z (- imag-x imag-y)))
     (complex real-z imag-z)))
+
+;; Example implementations for sequence types
+(fun first "Implementation for lists."
+  ((list xs))
+  (if (empty? xs)
+      nul
+      (head xs)))
+
+(fun rest "Implementation for lists."
+  ((list xs))
+  (if (empty? xs)
+      nul
+      (tail xs)))
+
+(fun first "Implementation for vectors."
+  ((vector xs))
+  (if (empty? xs)
+      nul
+      (ref xs 0)))
+
+(fun rest "Implementation for vectors."
+  ((vector xs))
+  (if (empty? xs)
+      nul
+      (vector-slice xs 1 -1)))
 
 ;; example of c-call usage
 (fun getenv "Get value of system environment variable."
@@ -83,6 +108,6 @@
   (x y)
   (catch
     (((:zero-division x y)
-      (do (print "Zero-division in (use-safe-division ~a ~a)" x y)
+      (do (print "Zero-division in (use-safe-division ~a ~a).\n" x y)
           nul)))
     (safe-division x y)))
