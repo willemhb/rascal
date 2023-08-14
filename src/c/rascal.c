@@ -25,23 +25,12 @@ typedef struct {
   size_t cnt, cap;
 } values_t;
 
-typedef struct {
-  char* data;
-  size_t cnt, cap;
-} text_buffer_t;
-
 // internal enum types --------------------------------------------------------
 typedef enum type_t {
   NOTYPE,
   NUMBER,
   UNIT
 } type_t;
-
-typedef enum token_t {
-  READY,
-  EXPRESSION,
-  END_OF_STREAM
-} token_t;
 
 // value types ----------------------------------------------------------------
 typedef uintptr_t value_t;
@@ -51,7 +40,6 @@ typedef double number_t;
 typedef struct {
   // reader -------------------------------------------------------------------
   struct {
-    value_t expression;
     size_t buffer_size;
     char* buffer;
   } reader;
@@ -61,7 +49,6 @@ typedef struct {
     jmp_buf jmpbuf;
   } error;
 } vm_t;
-
 
 // tags/masks +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #define QNAN 0x7ff8000000000000UL
@@ -81,8 +68,8 @@ void* allocate(size_t n, bool fromHeap);
 void* allocate_array(size_t n, size_t o, bool fromHeap);
 void* reallocate(void* ptr, size_t oldN, size_t newN, bool fromHeap);
 void* reallocate_array(void* ptr, size_t oldN, size_t newN, size_t o, bool fromHeap);
-void* deallocate(void* ptr, size_t n, bool fromHeap);
-void* deallocate_arraY(void* ptr, size_t n, size_t o, bool fromHeap);
+void  deallocate(void* ptr, size_t n, bool fromHeap);
+void  deallocate_array(void* ptr, size_t n, size_t o, bool fromHeap);
 
 // type implementations -------------------------------------------------------
 // number type ----------------------------------------------------------------
@@ -220,8 +207,60 @@ vm_t Vm;
 // array implementations ------------------------------------------------------
 ARRAY_API(values, values_t, value_t);
 ARRAY_IMPL(values, values_t, value_t, false);
-ARRAY_API(text_buffer, text_buffer_t, char);
-ARRAY_IMPL(text_buffer, text_buffer_t, char, true);
+
+// runtime implementations ----------------------------------------------------
+void* allocate(size_t n, bool fromHeap) {
+  (void)fromHeap;
+
+  void* out = malloc(n);
+
+  if (out == NULL) {
+    fprintf(stderr, "<runtime @ allocate>:error: out of memory.\n");
+    exit(1);
+  }
+
+  memset(out, 0, n);
+
+  return out;
+}
+
+void* allocate_array(size_t n, size_t o, bool fromHeap) {
+  return allocate(n * o, fromHeap);
+}
+
+void* reallocate(void* ptr, size_t oldN, size_t newN, bool fromHeap) {
+  if (newN == 0) {
+    deallocate(ptr, oldN, fromHeap);
+    return NULL;
+  }
+
+  ptr = realloc(ptr, newN);
+
+  if (ptr == NULL) {
+    fprintf(stderr, "<runtime @ allocate>:error: out of memory.\n");
+    exit(1);
+  }
+
+  if (newN > oldN)
+    memset(ptr+oldN, 0, newN-oldN);
+
+  return ptr;
+}
+
+void* reallocate_array(void* ptr, size_t oldN, size_t newN, size_t o, bool fromHeap) {
+  return reallocate(ptr, oldN*o, newN*o, fromHeap);
+}
+
+void  deallocate(void* ptr, size_t n, bool fromHeap) {
+  (void)fromHeap;
+  (void)n;
+  free(ptr);
+}
+
+void  deallocate_array(void* ptr, size_t n, size_t o, bool fromHeap) {
+  return deallocate(ptr, n*o, fromHeap);
+}
+
 
 // type implementations -------------------------------------------------------
 // number type ----------------------------------------------------------------
@@ -246,7 +285,7 @@ type_t rl_type_of(value_t v) {
 void rl_error(const char* fname, const char* fmt, ...) {
   va_list va;
   va_start(va, fmt);
-  fprintf(stderr, "%s: error: ", fname);
+  fprintf(stderr, "\n%s: error: ", fname);
   vfprintf(stderr, fmt, va);
   fprintf(stderr, ".\n");
   va_end(va);
@@ -256,31 +295,49 @@ void rl_error(const char* fname, const char* fmt, ...) {
 #define READER_BUFFER_SIZE 512
 
 static void init_reader(void) {
-  Vm.reader.expression = NUL;
   Vm.reader.buffer_size = READER_BUFFER_SIZE;
-  Vm.reader.buffer = allocate_array(READER_BUFFER_SIZE, , false);
+  Vm.reader.buffer      = allocate_array(READER_BUFFER_SIZE, sizeof(char), false);
 }
 
 static void free_reader(void) {
-  
+  deallocate_array(Vm.reader.buffer, Vm.reader.buffer_size, sizeof(char), false);
 }
 
-static void reset_reader(FILE* src) {
-  
+static void reset_reader(void) {
+  free_reader();
+  init_reader();
 }
 
-static char* rl_getline(FILE* src) {
+static char* rl_getline(char** buffer, size_t* size, FILE* stream) {
+  ssize_t result = getline(buffer, size, stream);
   
+
+  if ( result == -1 ) {
+    fprintf(stderr, "<runtime @ getline>: error: %s.\n", strerror(ferror(stream)));
+    exit(1);
+  }
+
+  (*buffer)[*size-1] = '\0'; // remove delimiter
+  return *buffer;
 }
 
 value_t rl_read(void) {
-  reset_reader(stdin);
-  char* token = rl_getline(Vm.source);
+  reset_reader();
 
-  if (strcmp(token, "nul") == 0) {
-    Vm.expression = NUL;
-    Vm.token = EXPRESSION;
+  value_t out;
+  char* token = rl_getline(&Vm.reader.buffer, &Vm.reader.buffer_size, stdin);
+
+  if ( strcmp(token, "nul") == 0 )
+    out = NUL;
+
+  else {
+    char* str_end;
+    number_t num = strtod(token, &str_end);
+    rl_require(*str_end=='\0', "<runtime @ read>", "unreadable token '%s", Vm.reader.buffer);
+    out = mk_number(num);
   }
+
+  return out;
 }
 
 value_t rl_eval(value_t v) {
@@ -327,9 +384,13 @@ void rl_repl(void) {
 #define GOODBYE "Later blood!"
 
 // startup helpers ------------------------------------------------------------
-static void initialize_rascal(void) {}
+static void initialize_rascal(void) {
+  init_reader();
+}
 
-static void finalize_rascal(void) {}
+static void finalize_rascal(void) {
+  free_reader();
+}
 
 static void run_rascal(const int argc, const char* argv[]) {
   (void)argc;
