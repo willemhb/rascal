@@ -1,12 +1,71 @@
-* DONE Version 0.0.1
-** DONE implement main function
-
-* TODO Version 0.0.2
-** DONE add number type
-** TODO add unit type
-** DONE add Vm global
-** DONE add internal error function
-** TODO add internal read function
-** DONE add internal eval function
-** DONE add internal print function
-** DONE add internal repl function
+* TODO Phase 1 - base implementation (tree walking interpreter, key features implemented, no fancy types, no fancy syntax, no multi-platform support)
+** DONE Version 00.00.01 - main function
+*** DONE implement main function
+** DONE Version 00.00.02 - basic atomic types, interpreter base
+*** DONE add number type
+*** DONE add unit type
+*** DONE add Vm global
+*** DONE add internal error function
+*** DONE add internal read function
+*** DONE add internal eval function
+*** DONE add internal print function
+*** DONE add internal repl function
+** DONE Version 00.00.03 - symbol type
+*** DONE add Symbol type
+**** DONE add symbol table to Vm
+**** DONE add read support for Symbol type
+**** DONE add eval support for Symbol type
+**** DONE add print support for Symbol type
+** TODO Version 00.00.04 - list type
+*** TODO add List type
+**** TODO add read support for List type
+**** TODO add eval support for List type
+**** TODO add print support for List type
+** TODO Version 00.00.05 - garbage collection
+*** TODO add 'objects_t' internal type 
+*** TODO update 'object_t' type with memory management fields
+*** TODO add 'manage', 'mark', 'trace' and 'sweep' runtime function
+*** TODO update 'allocate', 'duplicate', 'reallocate', and 'deallocate' runtime functions
+** TODO Version 00.00.06 - native functions, basic forms, and function evaluation
+*** TODO add Native type
+*** TODO add print support for Native type
+*** TODO add '+', '-', '*', '/' and '=' native functions
+*** TODO add 'quote' and 'do' native functions
+*** TODO add 'eval_args' interpreter function
+*** TODO add eval support for List type
+*** TODO add reader support for quote
+** TODO Version 00.00.07 - branching
+*** TODO add 'if' native function
+*** TODO add 'not' native function
+** TODO Version 00.00.08 - basic object APIs
+*** TODO add 'head', 'tail', 'cons', and 'len' native functions
+*** TODO add 'symbol?', 'list?', 'cons?', 'empty?', 'number?' and 'nul?' native functions
+** TODO Version 00.00.09 - environments and definition
+*** TODO add Environment type
+*** TODO add print support for Environment type
+*** TODO add '&envt' special global
+*** TODO add 'def' and 'put' native functions
+*** TODO add 'bound?' and 'environment?' native function
+** TODO Version 00.00.10 - lambdas, closures, and macros
+*** TODO add Closure type
+**** TODO add print support for Closure type
+*** TODO add 'lmb', 'fun', and 'mac' native functions
+*** TODO add 'closure?', 'lambda?', 'macro?' and 'function?' native functions 
+*** TODO extend eval with logic for macro expansion
+** TODO Version 00.00.11 - stream type
+*** TODO add Stream type
+**** TODO add print support for streams
+*** TODO add '&ins', '&outs', and '&errs' special globals
+*** TODO add 'open', 'close' and 'stream?' native functions
+** TODO Version 00.00.12 - fleshed out interpreter
+*** TODO add 'read', 'eval', 'print' and 'load' native functions
+*** TODO add 'error' and 'exit' native functions
+*** TODO add 'backquote', 'unquote', and 'splice' syntax
+** TODO Version 00.00.13 - continuations & cps transformation
+** TODO Version 00.00.14 - algebraic effects
+** TODO Version 00.00.15 - IO types, low-level IO
+** TODO Version 00.00.16 - user record type
+** TODO Version 00.00.17 - user union type
+** TODO Version 00.00.18 - generic functions
+* TODO Phase 2 - efficient implementation (bytecode interpreter, fancy types added, basic standard library, advanced features like object metadata)
+* TODO Phase 3 - advanced implementation (solicit contributors, experiment with syntax, add multi-platform support, extend standard library)

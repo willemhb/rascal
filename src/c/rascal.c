@@ -29,12 +29,32 @@ typedef struct {
 typedef enum type_t {
   NOTYPE,
   NUMBER,
-  UNIT
+  UNIT,
+  SYMBOL,
+  LIST
 } type_t;
 
 // value types ----------------------------------------------------------------
 typedef uintptr_t value_t;
 typedef double number_t;
+typedef struct object {
+  type_t type;
+} object_t;
+
+// object types ---------------------------------------------------------------
+typedef struct symbol {
+  object_t obj;
+  struct symbol* left, * right;
+  char* name;
+  value_t bind;
+} symbol_t;
+
+typedef struct list {
+  object_t obj;
+  size_t arity;
+  value_t head;
+  struct list* tail;
+} list_t;
 
 // internal structure types ---------------------------------------------------
 typedef struct {
@@ -43,6 +63,11 @@ typedef struct {
     size_t buffer_size;
     char* buffer;
   } reader;
+
+  // symbol table -------------------------------------------------------------
+  struct {
+    symbol_t* root;
+  } symbol_table;
 
   // error --------------------------------------------------------------------
   struct {
@@ -57,6 +82,7 @@ typedef struct {
 #define VALM 0x0000ffffffffffffUL
 
 #define NUL  0x7ffc000000000000UL
+#define OBJ  0x7ffd000000000000UL
 
 // size limits ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #define MAXPOW2 0x8000000000000000UL
@@ -66,6 +92,9 @@ typedef struct {
 // runtime implementations ----------------------------------------------------
 void* allocate(size_t n, bool fromHeap);
 void* allocate_array(size_t n, size_t o, bool fromHeap);
+void* duplicate(void* p, size_t n, bool fromHeap);
+void* duplicate_array(void* p, size_t n, size_t o, bool fromHeap);
+char* duplicate_string(char* string, bool fromHeap);
 void* reallocate(void* ptr, size_t oldN, size_t newN, bool fromHeap);
 void* reallocate_array(void* ptr, size_t oldN, size_t newN, size_t o, bool fromHeap);
 void  deallocate(void* ptr, size_t n, bool fromHeap);
@@ -80,15 +109,20 @@ bool is_number(value_t x);
 // unit type ------------------------------------------------------------------
 bool is_unit(value_t x);
 
+// symbol type ----------------------------------------------------------------
+symbol_t* to_symbol(const char* fname, value_t value);
+value_t   mk_symbol(char* token);
+bool      is_symbol(value_t x);
+
 // internal functions ---------------------------------------------------------
 type_t rl_type_of(value_t v);
 
 // interpreter functions ------------------------------------------------------
-void rl_error(const char* fname, const char* fmt, ...);
+void    rl_error(const char* fname, const char* fmt, ...);
 value_t rl_read(void);
 value_t rl_eval(value_t v);
-void rl_print(value_t v);
-void rl_repl(void);
+void    rl_print(value_t v);
+void    rl_repl(void);
 
 // utility macros & statics +++++++++++++++++++++++++++++++++++++++++++++++++++
 #define rl_require(test, fname, message, ...)               \
@@ -105,11 +139,25 @@ static inline number_t as_number(value_t val) {
   return ((ieee754_64_t)val).real;
 }
 
+static inline void* as_pointer(value_t val) {
+  return (void*)(val & VALM);
+}
+
+static inline object_t* as_object(value_t val) {
+  return (object_t*)(val & VALM);
+}
+
+static inline value_t tag_pointer(void* p, value_t t) {
+  return (value_t)p | t;
+}
+
 static const char* type_name(type_t type) {
   const char* out;
   
   switch (type) {
     case NUMBER: out = "number"; break;
+    case UNIT:   out = "unit"; break;
+    case SYMBOL: out = "symbol"; break;
     default:     out = "unknown"; break;
   }
 
@@ -203,6 +251,13 @@ uint64_t ceilpow2(uint64_t i) {
 // global variables +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 vm_t Vm;
 
+list_t EmptyList = {
+  .obj={ LIST },
+  .arity=0,
+  .head=NUL,
+  .tail=&EmptyList
+};
+
 // implementations ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // array implementations ------------------------------------------------------
 ARRAY_API(values, values_t, value_t);
@@ -226,6 +281,21 @@ void* allocate(size_t n, bool fromHeap) {
 
 void* allocate_array(size_t n, size_t o, bool fromHeap) {
   return allocate(n * o, fromHeap);
+}
+
+void* duplicate(void* ptr, size_t n, bool fromHeap) {
+  void* out = allocate(n, fromHeap);
+  memcpy(out, ptr, n);
+  return out;
+}
+
+void* duplicate_array(void* ptr, size_t n, size_t o, bool fromHeap) {
+  return duplicate(ptr, n*o, fromHeap);
+}
+
+char* duplicate_string(char* s, bool fromHeap) {
+  size_t l = strlen(s);
+  return duplicate_array(s, l+1, sizeof(char), fromHeap);
 }
 
 void* reallocate(void* ptr, size_t oldN, size_t newN, bool fromHeap) {
@@ -274,10 +344,56 @@ bool is_number(value_t x) {
   return (x & QNAN) != QNAN;
 }
 
+// unit type ------------------------------------------------------------------
+SAFECAST(symbol_t*, symbol, as_pointer);
+
+static symbol_t** find_symbol(symbol_t** root, char* token) {
+  while (*root) {
+    int o = strcmp(token, (*root)->name);
+
+    if ( o < 0 )
+      root = &(*root)->left;
+
+    else if ( o > 0 )
+      root = &(*root)->right;
+
+    else
+      break;
+  }
+
+  return root;
+}
+
+static symbol_t* new_symbol(char* token) {
+  symbol_t* out = allocate(sizeof(symbol_t), true);
+  out->obj.type = SYMBOL;
+  out->left     = NULL;
+  out->right    = NULL;
+  out->name     = duplicate_string(token, false);
+  out->bind     = NUL;
+
+  return out;
+}
+
+value_t mk_symbol(char* token) {
+  symbol_t** location = find_symbol(&Vm.symbol_table.root, token);
+
+  if (*location == NULL)
+    *location = new_symbol(token);
+
+  return tag_pointer(*location, OBJ);
+}
+
+bool is_symbol(value_t value) {
+  return rl_type_of(value) == SYMBOL;
+}
+
 // internal functions ---------------------------------------------------------
 type_t rl_type_of(value_t v) {
-  switch (v & VALM) {
-    default: return NUMBER;
+  switch (v & TAGM) {
+    case NUL:  return UNIT;
+    case OBJ:  return as_object(v)->type;
+    default:   return NUMBER;
   }
 }
 
@@ -317,7 +433,8 @@ static char* rl_getline(char** buffer, size_t* size, FILE* stream) {
     exit(1);
   }
 
-  (*buffer)[*size-1] = '\0'; // remove delimiter
+  size_t tokenLength = strlen(*buffer);
+  (*buffer)[tokenLength-1] = '\0'; // remove delimiter
   return *buffer;
 }
 
@@ -333,22 +450,30 @@ value_t rl_read(void) {
   else {
     char* str_end;
     number_t num = strtod(token, &str_end);
-    rl_require(*str_end=='\0', "<runtime @ read>", "unreadable token '%s", Vm.reader.buffer);
-    out = mk_number(num);
+
+    if (*str_end=='\0')
+      out = mk_number(num);
+
+    else
+      out = mk_symbol(token);
   }
 
   return out;
 }
 
 value_t rl_eval(value_t v) {
+  if ( is_symbol(v) )
+    return to_symbol("eval", v)->bind;
+
   return v;
 }
 
 void rl_print(value_t v) {
   type_t type = rl_type_of(v);
   switch (type) {
-    case NUMBER: printf("%.2g", as_number(v)); break;
+    case NUMBER: printf("%g", to_number("print", v)); break;
     case UNIT:   printf("nul"); break;
+    case SYMBOL: printf("%s", to_symbol("print", v)->name); break;
     default:     printf("#<%s @ %lx>", type_name(type), v); break;
   }
 }
@@ -364,7 +489,6 @@ void rl_repl(void) {
 
     printf(PROMPT" ");
     value_t x = rl_read();
-    newline();
     value_t v = rl_eval(x);
     rl_print(v);
     newline();
@@ -376,7 +500,7 @@ void rl_repl(void) {
 #define VERSION "%d.%d.%d.%c"
 #define MAJOR 0
 #define MINOR 0
-#define PATCH 2
+#define PATCH 3
 #define DEVELOPMENT 'a'
 
 // prompts/messages -----------------------------------------------------------
