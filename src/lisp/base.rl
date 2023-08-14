@@ -7,10 +7,15 @@
 (struct complex (real imag))
 
 ;; union types
-(union number (real small big ratio complex))
+(union integer  (small big))
+(union rational (integer ratio))
+(union real     (float rational))
+(union number   (real complex))
 
 ;; record types
-(record person ((string name) (string age) (string gender)))
+(record person ((small  name)
+                (string age)
+                (string gender)))
 
 ;; implementations of basic arithmetic for the complex type
 (fun + "Add two complex numbers."
