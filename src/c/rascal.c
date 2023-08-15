@@ -25,6 +25,11 @@ typedef struct {
   size_t cnt, cap;
 } values_t;
 
+typedef struct {
+  char* data;
+  size_t cnt, cap;
+} buffer_t;
+
 // internal enum types --------------------------------------------------------
 typedef enum type_t {
   NOTYPE,
@@ -37,6 +42,7 @@ typedef enum type_t {
 // value types ----------------------------------------------------------------
 typedef uintptr_t value_t;
 typedef double number_t;
+
 typedef struct object {
   type_t type;
 } object_t;
@@ -60,8 +66,8 @@ typedef struct list {
 typedef struct {
   // reader -------------------------------------------------------------------
   struct {
-    size_t buffer_size;
-    char* buffer;
+    values_t subexpressions;
+    buffer_t buffer;
   } reader;
 
   // symbol table -------------------------------------------------------------
@@ -114,6 +120,11 @@ symbol_t* to_symbol(const char* fname, value_t value);
 value_t   mk_symbol(char* token);
 bool      is_symbol(value_t x);
 
+// list type ------------------------------------------------------------------
+list_t* to_list(const char* fname, value_t value);
+value_t mk_list(value_t head, list_t* tail);
+bool    is_list(value_t x);
+
 // internal functions ---------------------------------------------------------
 type_t rl_type_of(value_t v);
 
@@ -164,6 +175,20 @@ static const char* type_name(type_t type) {
   return out;
 }
 
+static size_t type_size(type_t type) {
+  size_t out;
+  
+  switch (type) {
+    case NUMBER: out = sizeof(number_t); break;
+    case UNIT:   out = sizeof(value_t);  break;
+    case SYMBOL: out = sizeof(symbol_t); break;
+    case LIST:   out = sizeof(list_t);   break;
+    default:     out = 0; break;
+  }
+
+  return out;
+}
+
 // misc utilities +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 uint64_t ceilpow2(uint64_t i) {
   if (i == 0)
@@ -186,6 +211,11 @@ uint64_t ceilpow2(uint64_t i) {
   ctype to_##type(const char* fname, value_t val) {              \
     rl_require(is_##type(val), fname, "not a %s", #type);        \
     return (ctype)convert(val);                                  \
+  }
+
+#define TYPEP(type, T)                          \
+  bool is_##type(value_t val) {                 \
+    return rl_type_of(val) == T;                \
   }
 
 #define ARRAY_API(type, ctype, eltype)                                 \
@@ -262,6 +292,8 @@ list_t EmptyList = {
 // array implementations ------------------------------------------------------
 ARRAY_API(values, values_t, value_t);
 ARRAY_IMPL(values, values_t, value_t, false);
+ARRAY_API(buffer, buffer_t, char);
+ARRAY_IMPL(buffer, buffer_t, char, true);
 
 // runtime implementations ----------------------------------------------------
 void* allocate(size_t n, bool fromHeap) {
@@ -333,19 +365,28 @@ void  deallocate_array(void* ptr, size_t n, size_t o, bool fromHeap) {
 
 
 // type implementations -------------------------------------------------------
+// object type ----------------------------------------------------------------
+void* mk_object(type_t type) {
+  object_t* out = allocate(type_size(type), true);
+  out->type     = type;
+
+  return out;
+}
+
 // number type ----------------------------------------------------------------
 SAFECAST(number_t, number, as_number);
+TYPEP(number, NUMBER);
 
 value_t mk_number(number_t number) {
   return ((ieee754_64_t)number).word;
 }
 
-bool is_number(value_t x) {
-  return (x & QNAN) != QNAN;
-}
-
 // unit type ------------------------------------------------------------------
+TYPEP(unit, UNIT);
+
+// symbol type ----------------------------------------------------------------
 SAFECAST(symbol_t*, symbol, as_pointer);
+TYPEP(symbol, SYMBOL);
 
 static symbol_t** find_symbol(symbol_t** root, char* token) {
   while (*root) {
@@ -384,8 +425,17 @@ value_t mk_symbol(char* token) {
   return tag_pointer(*location, OBJ);
 }
 
-bool is_symbol(value_t value) {
-  return rl_type_of(value) == SYMBOL;
+// list type ------------------------------------------------------------------
+SAFECAST(list_t*, list, as_pointer);
+TYPEP(list, LIST);
+
+value_t mk_list(value_t head, list_t* tail) {
+  list_t* out = mk_object(LIST);
+  out->arity  = tail->arity+1;
+  out->head   = head;
+  out->tail   = tail;
+
+  return tag_pointer(out, OBJ);
 }
 
 // internal functions ---------------------------------------------------------
@@ -408,41 +458,33 @@ void rl_error(const char* fname, const char* fmt, ...) {
   longjmp(Vm.error.jmpbuf, 1);
 }
 
-#define READER_BUFFER_SIZE 512
+static void init_reader(bool total) {
+  if ( total )
+    init_values(&Vm.reader.subexpressions);
 
-static void init_reader(void) {
-  Vm.reader.buffer_size = READER_BUFFER_SIZE;
-  Vm.reader.buffer      = allocate_array(READER_BUFFER_SIZE, sizeof(char), false);
+  init_buffer(&Vm.reader.buffer);
 }
 
-static void free_reader(void) {
-  deallocate_array(Vm.reader.buffer, Vm.reader.buffer_size, sizeof(char), false);
+static void free_reader(bool total) {
+  if ( total )
+    free_values(&Vm.reader.subexpressions);
+
+  free_buffer(&Vm.reader.buffer);
 }
 
-static void reset_reader(void) {
-  free_reader();
-  init_reader();
-}
-
-static char* rl_getline(char** buffer, size_t* size, FILE* stream) {
-  ssize_t result = getline(buffer, size, stream);
+static value_t read_atom(int dispatch) {
   
+}
 
-  if ( result == -1 ) {
-    fprintf(stderr, "<runtime @ getline>: error: %s.\n", strerror(ferror(stream)));
-    exit(1);
-  }
-
-  size_t tokenLength = strlen(*buffer);
-  (*buffer)[tokenLength-1] = '\0'; // remove delimiter
-  return *buffer;
+static void reset_reader(bool total) {
+  free_reader(total);
+  init_reader(total);
 }
 
 value_t rl_read(void) {
-  reset_reader();
+  reset_reader(false);
 
   value_t out;
-  char* token = rl_getline(&Vm.reader.buffer, &Vm.reader.buffer_size, stdin);
 
   if ( strcmp(token, "nul") == 0 )
     out = NUL;
@@ -468,13 +510,49 @@ value_t rl_eval(value_t v) {
   return v;
 }
 
+
+// print implementations ------------------------------------------------------
+static void print_number(value_t val) {
+  printf("%g", to_number("print", val));
+}
+
+static void print_unit(value_t val) {
+  (void)val;
+  printf("nul");
+}
+
+static void print_symbol(value_t val) {
+  printf("%s", to_symbol("print", val)->name);
+}
+
+static void print_list(value_t val) {
+  printf("(");
+
+  list_t* xs = to_list("print", val);
+
+  for ( ; xs->arity > 0; xs=xs->tail ) {
+    rl_print(xs->head);
+
+    if ( xs->arity > 1 )
+      printf(" ");
+  }
+
+  printf(")");
+}
+
+static void print_value(value_t val) {
+  printf("<%s @ %lx>", type_name(rl_type_of(val)), val);
+}
+
 void rl_print(value_t v) {
   type_t type = rl_type_of(v);
+
   switch (type) {
-    case NUMBER: printf("%g", to_number("print", v)); break;
-    case UNIT:   printf("nul"); break;
-    case SYMBOL: printf("%s", to_symbol("print", v)->name); break;
-    default:     printf("#<%s @ %lx>", type_name(type), v); break;
+    case NUMBER: print_number(v); break;
+    case UNIT:   print_unit(v); break;
+    case SYMBOL: print_symbol(v); break;
+    case LIST:   print_list(v); break;
+    default:     print_value(v); break;
   }
 }
 
@@ -509,11 +587,11 @@ void rl_repl(void) {
 
 // startup helpers ------------------------------------------------------------
 static void initialize_rascal(void) {
-  init_reader();
+  init_reader(true);
 }
 
 static void finalize_rascal(void) {
-  free_reader();
+  free_reader(true);
 }
 
 static void run_rascal(const int argc, const char* argv[]) {
