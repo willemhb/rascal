@@ -458,6 +458,7 @@ void rl_error(const char* fname, const char* fmt, ...) {
   longjmp(Vm.error.jmpbuf, 1);
 }
 
+// reader helpers -------------------------------------------------------------
 static void init_reader(bool total) {
   if ( total )
     init_values(&Vm.reader.subexpressions);
@@ -472,8 +473,29 @@ static void free_reader(bool total) {
   free_buffer(&Vm.reader.buffer);
 }
 
+static int fpeekc(FILE* stream) {
+  int ch = fgetc(stream);
+
+  if (ch != EOF)
+    ungetc(ch, stream);
+
+  return ch;
+}
+
+static int peekc(void) {
+  return fpeekc(stdin);
+}
+
+static size_t accumc(int ch) {
+  return buffer_push(&Vm.reader.buffer, ch);
+}
+
 static value_t read_atom(int dispatch) {
-  
+  return NUL;
+}
+
+static value_t read_list(int dispatch) {
+  return NUL;
 }
 
 static void reset_reader(bool total) {
