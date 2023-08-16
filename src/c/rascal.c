@@ -6,6 +6,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <ctype.h>
 
 // typedefs +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // utility types --------------------------------------------------------------
@@ -18,17 +19,6 @@ typedef union {
     uintptr_t sign     :  1;
   };
 } ieee754_64_t;
-
-// array types ----------------------------------------------------------------
-typedef struct {
-  uintptr_t* data;
-  size_t cnt, cap;
-} values_t;
-
-typedef struct {
-  char* data;
-  size_t cnt, cap;
-} buffer_t;
 
 // internal enum types --------------------------------------------------------
 typedef enum type_t {
@@ -63,12 +53,36 @@ typedef struct list {
 } list_t;
 
 // internal structure types ---------------------------------------------------
+// array types ----------------------------------------------------------------
+typedef struct {
+  value_t* data;
+  size_t cnt, cap;
+} values_t;
+
+typedef struct {
+  object_t** data;
+  size_t cnt, cap;
+} objects_t;
+
+typedef struct {
+  char* data;
+  size_t cnt, cap;
+} buffer_t;
+
+// vm type --------------------------------------------------------------------
 typedef struct {
   // reader -------------------------------------------------------------------
   struct {
     values_t subexpressions;
     buffer_t buffer;
   } reader;
+
+  // heap ---------------------------------------------------------------------
+  struct {
+    objects_t grays;   // marked objects awaiting tracing
+    object_t* live;    // linked list of live objects
+    size_t used, max;  // current heap size + next collection
+  } heap;
 
   // symbol table -------------------------------------------------------------
   struct {
@@ -124,6 +138,8 @@ bool      is_symbol(value_t x);
 list_t* to_list(const char* fname, value_t value);
 value_t mk_list(value_t head, list_t* tail);
 bool    is_list(value_t x);
+value_t mk_listn(size_t n, value_t* args);
+
 
 // internal functions ---------------------------------------------------------
 type_t rl_type_of(value_t v);
@@ -166,9 +182,9 @@ static const char* type_name(type_t type) {
   const char* out;
   
   switch (type) {
-    case NUMBER: out = "number"; break;
-    case UNIT:   out = "unit"; break;
-    case SYMBOL: out = "symbol"; break;
+    case NUMBER: out = "number";  break;
+    case UNIT:   out = "unit";    break;
+    case SYMBOL: out = "symbol";  break;
     default:     out = "unknown"; break;
   }
 
@@ -225,7 +241,8 @@ uint64_t ceilpow2(uint64_t i) {
   size_t resize_##type(ctype* array, size_t n);                        \
   size_t type##_push(ctype* array, eltype element);                    \
   size_t type##_write(ctype* array, size_t n, eltype* elements);       \
-  eltype type##_pop(ctype* array)
+  eltype type##_pop(ctype* array);                                     \
+  eltype type##_popn(ctype* array, size_t n)
 
 #define ARRAY_IMPL(type, ctype, eltype, encoded)                        \
   void init_##type(ctype* array) {                                      \
@@ -275,6 +292,12 @@ uint64_t ceilpow2(uint64_t i) {
     rl_require(array->cnt > 0, "<runtime @ "#type"_pop>", "underflow"); \
     eltype out = array->data[array->cnt-1];                             \
     resize_##type(array, array->cnt-1);                                 \
+    return out;                                                         \
+  }                                                                     \
+  eltype type##_popn(ctype* array, size_t n) {                          \
+    rl_require(array->cnt >= n, "<runtime @ "#type"_popn>", "underflow"); \
+    eltype out = array->data[array->cnt-n];                             \
+    resize_##type(array, array->cnt-n);                                 \
     return out;                                                         \
   }
 
@@ -356,7 +379,9 @@ void* reallocate_array(void* ptr, size_t oldN, size_t newN, size_t o, bool fromH
 void  deallocate(void* ptr, size_t n, bool fromHeap) {
   (void)fromHeap;
   (void)n;
-  free(ptr);
+
+  if (ptr)
+    free(ptr);
 }
 
 void  deallocate_array(void* ptr, size_t n, size_t o, bool fromHeap) {
@@ -366,9 +391,15 @@ void  deallocate_array(void* ptr, size_t n, size_t o, bool fromHeap) {
 
 // type implementations -------------------------------------------------------
 // object type ----------------------------------------------------------------
+void  init_object(void* ptr, type_t type) {
+  object_t* obj = ptr;
+
+  obj->type     = type;
+}
+
 void* mk_object(type_t type) {
   object_t* out = allocate(type_size(type), true);
-  out->type     = type;
+  init_object(out, type);
 
   return out;
 }
@@ -406,8 +437,7 @@ static symbol_t** find_symbol(symbol_t** root, char* token) {
 }
 
 static symbol_t* new_symbol(char* token) {
-  symbol_t* out = allocate(sizeof(symbol_t), true);
-  out->obj.type = SYMBOL;
+  symbol_t* out = mk_object(SYMBOL);
   out->left     = NULL;
   out->right    = NULL;
   out->name     = duplicate_string(token, false);
@@ -429,11 +459,35 @@ value_t mk_symbol(char* token) {
 SAFECAST(list_t*, list, as_pointer);
 TYPEP(list, LIST);
 
+static void init_list(list_t* slf, value_t head, list_t* tail) {
+  init_object(slf, LIST);
+  slf->arity = tail->arity + 1;
+  slf->head  = head;
+  slf->tail  = tail;
+}
+
 value_t mk_list(value_t head, list_t* tail) {
   list_t* out = mk_object(LIST);
   out->arity  = tail->arity+1;
   out->head   = head;
   out->tail   = tail;
+
+  return tag_pointer(out, OBJ);
+}
+
+value_t mk_listn(size_t n, value_t* args) {
+  list_t* out;
+
+  if ( n == 0 )
+    out = &EmptyList;
+
+  else {
+    out = allocate_array(n, sizeof(list_t), true);
+    list_t* curr = out + n - 1, * prev = &EmptyList;
+
+    for ( size_t i=n; i > 0; i--, prev=curr, curr-- )
+      init_list(curr, args[i-1], prev);
+  }
 
   return tag_pointer(out, OBJ);
 }
@@ -459,6 +513,9 @@ void rl_error(const char* fname, const char* fmt, ...) {
 }
 
 // reader helpers -------------------------------------------------------------
+static value_t read_expression(FILE* stream);
+static void    reset_reader(bool total);
+
 static void init_reader(bool total) {
   if ( total )
     init_values(&Vm.reader.subexpressions);
@@ -471,6 +528,11 @@ static void free_reader(bool total) {
     free_values(&Vm.reader.subexpressions);
 
   free_buffer(&Vm.reader.buffer);
+}
+
+static void reset_reader(bool total) {
+  free_reader(total);
+  init_reader(total);
 }
 
 static int fpeekc(FILE* stream) {
@@ -486,36 +548,48 @@ static int peekc(void) {
   return fpeekc(stdin);
 }
 
+static bool isrlws(int ch) {
+  return ch == ',' || isspace(ch);
+}
+
+static bool isrlterm(int ch) {
+  return ch == EOF || isspace(ch) || ch == ',' || ch == ')';
+}
+
+static int skiprlws(FILE* stream) {
+  int out = fpeekc(stream);
+
+  while ( out != EOF && isrlws(out) ) {
+    fgetc(stream);
+    out = fpeekc(stream);
+  }
+
+  return out;
+}
+
 static size_t accumc(int ch) {
   return buffer_push(&Vm.reader.buffer, ch);
 }
 
-static value_t read_atom(int dispatch) {
-  return NUL;
-}
-
-static value_t read_list(int dispatch) {
-  return NUL;
-}
-
-static void reset_reader(bool total) {
-  free_reader(total);
-  init_reader(total);
-}
-
-value_t rl_read(void) {
-  reset_reader(false);
-
+static value_t read_atom(int dispatch, FILE* stream) {
   value_t out;
+
+  while ( !isrlterm(dispatch) ) {
+    accumc(dispatch);
+    fgetc(stream);
+    dispatch = fpeekc(stream);
+  }
+
+  char* token = Vm.reader.buffer.data;
 
   if ( strcmp(token, "nul") == 0 )
     out = NUL;
 
   else {
-    char* str_end;
-    number_t num = strtod(token, &str_end);
+    char* num_end;
+    number_t num = strtod(token, &num_end);
 
-    if (*str_end=='\0')
+    if ( *num_end == '\0' )
       out = mk_number(num);
 
     else
@@ -525,11 +599,67 @@ value_t rl_read(void) {
   return out;
 }
 
+static value_t read_list(int dispatch, FILE* stream) {
+  fgetc(stream); // clear opening '('
+  size_t base = Vm.reader.subexpressions.cnt; // index of first value
+
+  dispatch = fpeekc(stream);
+
+  while ( dispatch != ')' && dispatch != EOF ) {
+    value_t x = read_expression(stream);
+    values_push(&Vm.reader.subexpressions, x);
+    dispatch = fpeekc(stream);
+  }
+
+  rl_require(dispatch != EOF, "read", "unexpected EOF reading list");
+  fgetc(stream); // clear closing ')'
+
+  size_t n    = Vm.reader.subexpressions.cnt - base;
+  value_t* a  = Vm.reader.subexpressions.data + base;
+  value_t out = mk_listn(n, a);
+
+  values_popn(&Vm.reader.subexpressions, n); // remove saved subexpressions
+
+  return out;
+}
+
+static value_t read_expression(FILE* stream) {
+  reset_reader(false); // clear last token
+  value_t out = NUL;
+  int ch = skiprlws(stream);
+
+  switch (ch) {
+    case ')': rl_error("read", "Unmatched ')'"); break;
+
+    case '(': out = read_list(ch, stream); break;
+    default:  out = read_atom(ch, stream); break;
+  }
+
+  reset_reader(false); // clear last token
+  return out;
+}
+
+value_t rl_read(void) {
+  reset_reader(true);
+  value_t out = read_expression(stdin);
+  reset_reader(true);
+  return out;
+}
+
+// eval implementation --------------------------------------------------------
+static value_t eval_literal(value_t v) {
+  return v;
+}
+
+static value_t eval_symbol(value_t v) {
+  return to_symbol("eval", v)->bind;
+}
+
 value_t rl_eval(value_t v) {
   if ( is_symbol(v) )
-    return to_symbol("eval", v)->bind;
+    return eval_symbol(v);
 
-  return v;
+  return eval_literal(v);
 }
 
 
@@ -578,11 +708,13 @@ void rl_print(value_t v) {
   }
 }
 
+// repl implementation --------------------------------------------------------
 #define PROMPT  "rascal>"
 
 void rl_repl(void) {
   while (true) {
     if (savepoint()) {
+      reset_reader(true);
       newline();
       continue;
     }
@@ -600,7 +732,7 @@ void rl_repl(void) {
 #define VERSION "%d.%d.%d.%c"
 #define MAJOR 0
 #define MINOR 0
-#define PATCH 3
+#define PATCH 4
 #define DEVELOPMENT 'a'
 
 // prompts/messages -----------------------------------------------------------
