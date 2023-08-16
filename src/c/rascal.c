@@ -202,7 +202,9 @@ static const char* type_name(type_t type) {
   switch ( type ) {
     case NUMBER: out = "number";  break;
     case UNIT:   out = "unit";    break;
+    case NATIVE: out = "native";  break;
     case SYMBOL: out = "symbol";  break;
+    case LIST:   out = "list";    break;
     default:     out = "unknown"; break;
   }
 
@@ -215,9 +217,10 @@ static size_t type_size(type_t type) {
   switch ( type ) {
     case NUMBER: out = sizeof(number_t); break;
     case UNIT:   out = sizeof(value_t);  break;
+    case NATIVE: out = sizeof(native_t); break;
     case SYMBOL: out = sizeof(symbol_t); break;
     case LIST:   out = sizeof(list_t);   break;
-    default:     out = 0; break;
+    default:     out = 0;                break;
   }
 
   return out;
