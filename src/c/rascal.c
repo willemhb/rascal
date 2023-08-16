@@ -25,32 +25,42 @@ typedef enum type_t {
   NOTYPE,
   NUMBER,
   UNIT,
+  NATIVE,
   SYMBOL,
   LIST
 } type_t;
 
+// object types (forward) -----------------------------------------------------
+typedef struct object object_t;
+typedef struct symbol symbol_t;
+typedef struct list list_t;
+
 // value types ----------------------------------------------------------------
 typedef uintptr_t value_t;
 typedef double number_t;
+typedef value_t (*native_t)(list_t* args);
 
-typedef struct object {
-  type_t type;
-} object_t;
+struct object {
+  object_t* next;
+  type_t    type;
+  short     gray;
+  short     black;
+};
 
 // object types ---------------------------------------------------------------
-typedef struct symbol {
+struct symbol {
   object_t obj;
-  struct symbol* left, * right;
+  symbol_t* left, * right;
   char* name;
   value_t bind;
-} symbol_t;
+};
 
-typedef struct list {
+struct list {
   object_t obj;
   size_t arity;
   value_t head;
-  struct list* tail;
-} list_t;
+  list_t* tail;
+};
 
 // internal structure types ---------------------------------------------------
 // array types ----------------------------------------------------------------
@@ -102,11 +112,15 @@ typedef struct {
 #define VALM 0x0000ffffffffffffUL
 
 #define NUL  0x7ffc000000000000UL
-#define OBJ  0x7ffd000000000000UL
+#define NTV  0x7ffd000000000000UL
+#define OBJ  0x7ffe000000000000UL
 
 // size limits ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-#define MAXPOW2 0x8000000000000000UL
-#define MAXSIZE 0x0000ffffffffffffUL
+#define MAXPOW2  0x8000000000000000UL
+#define MAXSIZE  0x0000ffffffffffffUL
+
+// other size macros ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#define HEAPSIZE 0x0000000000010000UL
 
 // forward declarations +++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // runtime implementations ----------------------------------------------------
@@ -123,8 +137,13 @@ void  deallocate_array(void* ptr, size_t n, size_t o, bool fromHeap);
 // type implementations -------------------------------------------------------
 // number type ----------------------------------------------------------------
 number_t to_number(const char* fname, value_t value);
-value_t mk_number(number_t number);
-bool is_number(value_t x);
+value_t  mk_number(number_t number);
+bool     is_number(value_t x);
+
+// native type ----------------------------------------------------------------
+native_t to_native(const char* fname, value_t value);
+value_t  mk_native(native_t native);
+bool     is_native(value_t x);
 
 // unit type ------------------------------------------------------------------
 bool is_unit(value_t x);
@@ -139,7 +158,6 @@ list_t* to_list(const char* fname, value_t value);
 value_t mk_list(value_t head, list_t* tail);
 bool    is_list(value_t x);
 value_t mk_listn(size_t n, value_t* args);
-
 
 // internal functions ---------------------------------------------------------
 type_t rl_type_of(value_t v);
@@ -181,7 +199,7 @@ static inline value_t tag_pointer(void* p, value_t t) {
 static const char* type_name(type_t type) {
   const char* out;
   
-  switch (type) {
+  switch ( type ) {
     case NUMBER: out = "number";  break;
     case UNIT:   out = "unit";    break;
     case SYMBOL: out = "symbol";  break;
@@ -194,7 +212,7 @@ static const char* type_name(type_t type) {
 static size_t type_size(type_t type) {
   size_t out;
   
-  switch (type) {
+  switch ( type ) {
     case NUMBER: out = sizeof(number_t); break;
     case UNIT:   out = sizeof(value_t);  break;
     case SYMBOL: out = sizeof(symbol_t); break;
@@ -207,16 +225,16 @@ static size_t type_size(type_t type) {
 
 // misc utilities +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 uint64_t ceilpow2(uint64_t i) {
-  if (i == 0)
+  if ( i == 0 )
     return 1;
 
-  if ((i & (i - 1)) == 0)
+  if ( (i & (i - 1)) == 0 )
     return i;
 
-  if (i & MAXPOW2)
+  if ( i & MAXPOW2 )
     return MAXPOW2;
 
-  while (i & (i - 1))
+  while ( i & (i - 1) )
     i = i & (i - 1);
 
   return i << 1;
@@ -302,10 +320,40 @@ uint64_t ceilpow2(uint64_t i) {
   }
 
 // global variables +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-vm_t Vm;
+vm_t Vm = {
+  .reader={
+    .subexpressions={
+      .data=NULL,
+      .cnt =0,
+      .cap =0
+    },
+
+    .buffer={
+      .data=NULL,
+      .cnt =0,
+      .cap =0
+    }
+  },
+
+  .heap={
+    .grays={
+      .data=NULL,
+      .cnt =0,
+      .cap =0
+    },
+
+    .live=NULL,
+    .used=0,
+    .max =HEAPSIZE
+  },
+
+  .symbol_table={
+    .root=NULL
+  }
+};
 
 list_t EmptyList = {
-  .obj={ LIST },
+  .obj={ NULL, LIST, true, false },
   .arity=0,
   .head=NUL,
   .tail=&EmptyList
@@ -313,6 +361,8 @@ list_t EmptyList = {
 
 // implementations ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // array implementations ------------------------------------------------------
+ARRAY_API(objects, objects_t, object_t*);
+ARRAY_IMPL(objects, objects_t, object_t*, false);
 ARRAY_API(values, values_t, value_t);
 ARRAY_IMPL(values, values_t, value_t, false);
 ARRAY_API(buffer, buffer_t, char);
@@ -496,6 +546,7 @@ value_t mk_listn(size_t n, value_t* args) {
 type_t rl_type_of(value_t v) {
   switch (v & TAGM) {
     case NUL:  return UNIT;
+    case NTV:  return NATIVE;
     case OBJ:  return as_object(v)->type;
     default:   return NUMBER;
   }
