@@ -407,6 +407,11 @@ void mark_value(value_t val) {
     mark_object(as_pointer(val));
 }
 
+void mark_values(values_t* values) {
+  for (size_t i=0; i<values->cnt; i++)
+    mark(values->data[i]);
+}
+
 static void trace_list(list_t* xs) {
   mark(xs->head);
   mark(xs->tail);
@@ -435,12 +440,36 @@ void trace_object(void* ptr) {
   }
 }
 
+void trace_value(value_t val) {
+  if ( is_object(val) )
+    trace_object(as_pointer(val));
+}
+
+#define HLF 0.625
+
+bool checkheap(size_t n) {
+  return n + Vm.heap.used + n >= Vm.heap.max;
+}
+
 void manage(void) {
-  
+  // mark roots ---------------------------------------------------------------
+  mark(Vm.symbol_table.root);
+  mark_values(&Vm.reader.subexpressions);
+
+  // trace grays --------------------------------------------------------------
+  while ( Vm.heap.grays.cnt ) {
+    object_t* obj = objects_pop(&Vm.heap.grays);
+    trace(obj);
+  }
+
+  // grow heap (if necessary) -------------------------------------------------
+  if ( (double)Vm.heap.used / (double)Vm.heap.max > HLF )
+    Vm.heap.max <<= 1;
 }
 
 void* allocate(size_t n, bool fromHeap) {
-  (void)fromHeap;
+  if ( fromHeap && checkheap(n) )
+    manage();
 
   void* out = malloc(n);
 
@@ -479,15 +508,20 @@ void* reallocate(void* ptr, size_t oldN, size_t newN, bool fromHeap) {
     return NULL;
   }
 
+
+  if ( newN > oldN ) {
+    if ( fromHeap && checkheap(newN - oldN) )
+      manage();
+
+    
+  }
+
   ptr = realloc(ptr, newN);
 
   if (ptr == NULL) {
     fprintf(stderr, "<runtime @ allocate>:error: out of memory.\n");
     exit(1);
   }
-
-  if (newN > oldN)
-    memset(ptr+oldN, 0, newN-oldN);
 
   return ptr;
 }
@@ -510,10 +544,21 @@ void  deallocate_array(void* ptr, size_t n, size_t o, bool fromHeap) {
 
 
 // type implementations -------------------------------------------------------
-// object type ----------------------------------------------------------------
+// object 'type' --------------------------------------------------------------
+SAFECAST(object_t*, object, as_pointer);
+
+bool  is_object(value_t x) {
+  return (x & TAGM) == OBJ;
+}
+
 void  init_object(void* ptr, type_t type) {
   object_t* obj = ptr;
+  obj->next     = Vm.heap.live;
   obj->type     = type;
+  obj->gray     = true;
+  obj->black    = false;
+
+  Vm.heap.live  = obj;
 }
 
 void* mk_object(type_t type) {
