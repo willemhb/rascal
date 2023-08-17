@@ -24,11 +24,11 @@
 ** TODO Version 00.00.05 - garbage collection
 *** DONE add 'objects_t' internal type
 *** DONE update 'object_t' type with memory management fields
-*** TODO add 'manage', 'mark', 'trace' and 'sweep' runtime function
-*** TODO update 'allocate', 'duplicate', 'reallocate', and 'deallocate' runtime functions
+*** TODO add 'manage', 'mark', 'trace' and 'sweep' runtime functions
+*** TODO update 'allocate', 'duplicate', 'reallocate' and 'deallocate' runtime functions
 ** TODO Version 00.00.06 - native functions, basic forms, and function evaluation
 *** TODO add Native type
-*** TODO add print support for Native type
+**** TODO add print support for Native type
 *** TODO add '+', '-', '*', '/' and '=' native functions
 *** TODO add 'quote' and 'do' native functions
 *** TODO add 'eval_args' interpreter function

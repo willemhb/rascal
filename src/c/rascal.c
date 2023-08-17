@@ -31,9 +31,9 @@ typedef enum type_t {
 } type_t;
 
 // object types (forward) -----------------------------------------------------
-typedef struct object object_t;
-typedef struct symbol symbol_t;
-typedef struct list list_t;
+typedef struct object      object_t;
+typedef struct symbol      symbol_t;
+typedef struct list        list_t;
 
 // value types ----------------------------------------------------------------
 typedef uintptr_t value_t;
@@ -389,6 +389,17 @@ void trace_value(value_t val);
 
 #define trace(x) _Generic((x), value_t:trace_value, default:trace_object)(x)
 
+void finalize_object(void* ptr);
+void finalize_value(value_t val);
+
+#define finalize(x) _Generic((x), value_t:finalize_value, default:finalize_object)(x)
+
+void gc_mark_phase(void);
+void gc_trace_phase(void);
+void gc_sweep_phase(void);
+void gc_cleanup_phase(void);
+
+// mark dispatch & helpers ----------------------------------------------------
 void mark_object(void* ptr) {
   if ( ptr == NULL )
     return;
@@ -412,6 +423,7 @@ void mark_values(values_t* values) {
     mark(values->data[i]);
 }
 
+// trace dispatch & helpers ---------------------------------------------------
 static void trace_list(list_t* xs) {
   mark(xs->head);
   mark(xs->tail);
@@ -445,30 +457,91 @@ void trace_value(value_t val) {
     trace_object(as_pointer(val));
 }
 
-#define HLF 0.625
-
-bool checkheap(size_t n) {
-  return n + Vm.heap.used + n >= Vm.heap.max;
+// finalize dispatch & helpers ------------------------------------------------
+static void finalize_symbol(symbol_t* sym) {
+  deallocate(sym->name, strlen(sym->name)+1, false);
 }
 
-void manage(void) {
-  // mark roots ---------------------------------------------------------------
-  mark(Vm.symbol_table.root);
-  mark_values(&Vm.reader.subexpressions);
+void finalize_object(void* ptr) {
+  assert(ptr != NULL);
 
+  object_t* obj = ptr;
+
+  switch ( obj->type ) {
+    case SYMBOL: finalize_symbol(ptr); break;
+    default:                           break;
+  }
+
+  deallocate(ptr, type_size(obj->type), true);
+}
+
+void finalize_value(value_t val) {
+  if ( is_object(val) )
+    finalize_object(as_pointer(val));
+}
+
+// misc memory helpers --------------------------------------------------------
+#define HLF 0.625
+
+bool check_heap_overflow(size_t n) {
+  return n + Vm.heap.used >= Vm.heap.max;
+}
+
+bool check_heap_resize(void) {
+  return (double)Vm.heap.used / (double)Vm.heap.max >= HLF;
+}
+
+void resize_heap(void) {
+  Vm.heap.max <<= 1;
+}
+
+// gc phases ------------------------------------------------------------------
+void gc_mark_phase(void) {
+  // mark gc roots ------------------------------------------------------------
+  mark(Vm.symbol_table.root);
+  mark_values(&Vm.reader.subexpressions);  
+}
+
+void gc_trace_phase(void) {
   // trace grays --------------------------------------------------------------
   while ( Vm.heap.grays.cnt ) {
     object_t* obj = objects_pop(&Vm.heap.grays);
     trace(obj);
   }
+}
 
+void gc_sweep_phase(void) {
+  object_t *curr = Vm.heap.live, **prev = &Vm.heap.live;
+
+  while ( curr != NULL ) {
+    if ( curr->black ) {
+      curr->black = false;
+      curr->gray  = true;
+      prev        = &curr->next;
+      curr        = curr->next;
+    } else {
+      object_t* tmp = curr;
+      *prev         = curr = tmp->next;
+      finalize(tmp);
+    }
+  }
+}
+
+void gc_cleanup_phase(void) {
   // grow heap (if necessary) -------------------------------------------------
-  if ( (double)Vm.heap.used / (double)Vm.heap.max > HLF )
-    Vm.heap.max <<= 1;
+  if ( check_heap_resize() )
+    resize_heap();
+}
+
+void manage(void) {
+  gc_mark_phase();
+  gc_trace_phase();
+  gc_sweep_phase();
+  gc_cleanup_phase();
 }
 
 void* allocate(size_t n, bool fromHeap) {
-  if ( fromHeap && checkheap(n) )
+  if ( fromHeap && check_heap_overflow(n) )
     manage();
 
   void* out = malloc(n);
@@ -503,27 +576,45 @@ char* duplicate_string(char* s, bool fromHeap) {
 }
 
 void* reallocate(void* ptr, size_t oldN, size_t newN, bool fromHeap) {
+  void* out = NULL;
+
   if (newN == 0) {
-    deallocate(ptr, oldN, fromHeap);
-    return NULL;
-  }
-
-
-  if ( newN > oldN ) {
-    if ( fromHeap && checkheap(newN - oldN) )
-      manage();
-
+    if (oldN > 0)
+      deallocate(ptr, oldN, fromHeap);
     
+  } else if ( newN > oldN ) {
+    size_t diff = newN - oldN;
+    
+    if ( fromHeap ) {
+      if ( check_heap_overflow(diff) )
+        manage();
+      
+      Vm.heap.used += diff;      
+    }
+    
+    out = realloc(ptr, newN);
+    
+    if ( ptr == NULL ) {
+      fprintf(stderr, "<runtime @ allocate>:error: out of memory.\n");
+      exit(1);
+    }
+    
+    memset(out+oldN, 0, diff);
+  } else {
+    size_t diff   = oldN - newN;
+    
+    if ( fromHeap )
+      Vm.heap.used -= diff;
+    
+    out           = realloc(ptr, newN);
+    
+    if ( ptr == NULL ) {
+      fprintf(stderr, "<runtime @ allocate>:error: out of memory.\n");
+      exit(1);
+    }
   }
-
-  ptr = realloc(ptr, newN);
-
-  if (ptr == NULL) {
-    fprintf(stderr, "<runtime @ allocate>:error: out of memory.\n");
-    exit(1);
-  }
-
-  return ptr;
+  
+  return out;
 }
 
 void* reallocate_array(void* ptr, size_t oldN, size_t newN, size_t o, bool fromHeap) {
@@ -531,8 +622,10 @@ void* reallocate_array(void* ptr, size_t oldN, size_t newN, size_t o, bool fromH
 }
 
 void  deallocate(void* ptr, size_t n, bool fromHeap) {
-  (void)fromHeap;
-  (void)n;
+  if ( fromHeap ) {
+    assert(n <= Vm.heap.used);
+    Vm.heap.used -= n;
+  }
 
   if (ptr)
     free(ptr);
