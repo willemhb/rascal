@@ -135,6 +135,12 @@ void  deallocate(void* ptr, size_t n, bool fromHeap);
 void  deallocate_array(void* ptr, size_t n, size_t o, bool fromHeap);
 
 // type implementations -------------------------------------------------------
+// object 'type' --------------------------------------------------------------
+object_t* to_object(const char* fname, value_t value);
+void*     mk_object(type_t type);
+void      init_object(void* ptr, type_t type);
+bool      is_object(value_t val);
+
 // number type ----------------------------------------------------------------
 number_t to_number(const char* fname, value_t value);
 value_t  mk_number(number_t number);
@@ -158,6 +164,7 @@ list_t* to_list(const char* fname, value_t value);
 value_t mk_list(value_t head, list_t* tail);
 bool    is_list(value_t x);
 value_t mk_listn(size_t n, value_t* args);
+value_t list_nth(const char* fname, list_t* xs, size_t n);
 
 // internal functions ---------------------------------------------------------
 type_t rl_type_of(value_t v);
@@ -372,6 +379,66 @@ ARRAY_API(buffer, buffer_t, char);
 ARRAY_IMPL(buffer, buffer_t, char, true);
 
 // runtime implementations ----------------------------------------------------
+void mark_object(void* ptr);
+void mark_value(value_t val);
+
+#define mark(x) _Generic((x), value_t:mark_value, default:mark_object)(x)
+
+void trace_object(void* ptr);
+void trace_value(value_t val);
+
+#define trace(x) _Generic((x), value_t:trace_value, default:trace_object)(x)
+
+void mark_object(void* ptr) {
+  if ( ptr == NULL )
+    return;
+
+  object_t* obj = ptr;
+
+  if ( obj->black )
+    return;
+
+  obj->black = true;
+  objects_push(&Vm.heap.grays, obj);
+}
+
+void mark_value(value_t val) {
+  if ( is_object(val) )
+    mark_object(as_pointer(val));
+}
+
+static void trace_list(list_t* xs) {
+  mark(xs->head);
+  mark(xs->tail);
+}
+
+static void trace_symbol(symbol_t* sym) {
+  if (sym == NULL)
+    return;
+
+  mark(sym->bind);
+  mark(sym->left);
+  mark(sym->right);
+}
+
+void trace_object(void* ptr) {
+  if ( ptr == NULL )
+    return;
+
+  object_t* obj = ptr;
+  obj->gray     = false;
+
+  switch ( obj->type ) {
+    case SYMBOL: trace_symbol(ptr); break;
+    case LIST:   trace_list(ptr);   break;
+    default:                        break;
+  }
+}
+
+void manage(void) {
+  
+}
+
 void* allocate(size_t n, bool fromHeap) {
   (void)fromHeap;
 
@@ -446,12 +513,12 @@ void  deallocate_array(void* ptr, size_t n, size_t o, bool fromHeap) {
 // object type ----------------------------------------------------------------
 void  init_object(void* ptr, type_t type) {
   object_t* obj = ptr;
-
   obj->type     = type;
 }
 
 void* mk_object(type_t type) {
   object_t* out = allocate(type_size(type), true);
+
   init_object(out, type);
 
   return out;
@@ -473,7 +540,7 @@ SAFECAST(symbol_t*, symbol, as_pointer);
 TYPEP(symbol, SYMBOL);
 
 static symbol_t** find_symbol(symbol_t** root, char* token) {
-  while (*root) {
+  while ( *root ) {
     int o = strcmp(token, (*root)->name);
 
     if ( o < 0 )
@@ -543,6 +610,19 @@ value_t mk_listn(size_t n, value_t* args) {
   }
 
   return tag_pointer(out, OBJ);
+}
+
+value_t list_nth(const char* fname, list_t* xs, size_t n) {
+  rl_require(n > 0 && n <= xs->arity,
+             fname,
+             "%zu out of bounds for list of arity %zu",
+             n,
+             xs->arity );
+
+  while ( --n )
+    xs = xs->tail;
+
+  return xs->head;
 }
 
 // internal functions ---------------------------------------------------------
@@ -786,7 +866,7 @@ void rl_repl(void) {
 #define VERSION "%d.%d.%d.%c"
 #define MAJOR 0
 #define MINOR 0
-#define PATCH 4
+#define PATCH 5
 #define DEVELOPMENT 'a'
 
 // prompts/messages -----------------------------------------------------------

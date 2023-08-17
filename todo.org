@@ -22,8 +22,8 @@
 **** DONE add eval support for List type
 **** DONE add print support for List type
 ** TODO Version 00.00.05 - garbage collection
-*** TODO add 'objects_t' internal type
-*** TODO update 'object_t' type with memory management fields
+*** DONE add 'objects_t' internal type
+*** DONE update 'object_t' type with memory management fields
 *** TODO add 'manage', 'mark', 'trace' and 'sweep' runtime function
 *** TODO update 'allocate', 'duplicate', 'reallocate', and 'deallocate' runtime functions
 ** TODO Version 00.00.06 - native functions, basic forms, and function evaluation

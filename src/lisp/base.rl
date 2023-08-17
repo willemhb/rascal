@@ -113,6 +113,5 @@
   (x y)
   (catch
     (((:zero-division x y)
-      (do (print "Zero-division in (use-safe-division ~a ~a).\n" x y)
-          nul)))
+      (print "Zero-division in (use-safe-division ~a ~a).\n" x y)))
     (safe-division x y)))
