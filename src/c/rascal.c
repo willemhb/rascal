@@ -181,14 +181,19 @@ number_t to_number(list_t* form, const char* fname, value_t value);
 value_t  mk_number(number_t number);
 bool     is_number(value_t x);
 
+// unit type ------------------------------------------------------------------
+bool is_unit(value_t x);
+
 // native type ----------------------------------------------------------------
 native_t* to_native(list_t* form, const char* fname, value_t value);
 value_t   mk_native(symbol_t* name, bool special, bool variadic, size_t arity, value_t (*callback)(list_t* form, list_t* args));
 bool      is_native(value_t x);
 value_t   def_native(const char* fname, bool special, bool variadic, size_t arity, value_t (*callback)(list_t* form, list_t* args));
 
-// unit type ------------------------------------------------------------------
-bool is_unit(value_t x);
+// environment type -----------------------------------------------------------
+environment_t* to_environment(list_t* form, const char* fname, value_t value);
+environment_t* mk_environment(list_t* names, list_t* binds, environment_t* parent);
+bool           is_environment(value_t x);
 
 // symbol type ----------------------------------------------------------------
 symbol_t* to_symbol(list_t* form, const char* fname, value_t value);
@@ -662,8 +667,12 @@ void manage(void) {
 }
 
 void* allocate(size_t n, bool fromHeap) {
-  if ( fromHeap && check_heap_overflow(n) )
-    manage();
+  if ( fromHeap ) {
+    if ( check_heap_overflow(n) )
+      manage();
+
+    Vm.heap.used += n;
+  }
 
   void* out = malloc(n);
 
@@ -1490,6 +1499,7 @@ value_t native_len(list_t* form, list_t* args) {
 
 NATIVE_TYPEP(number);
 NATIVE_TYPEP(native);
+NATIVE_TYPEP(environment);
 NATIVE_TYPEP(symbol);
 NATIVE_TYPEP(list);
 
@@ -1528,7 +1538,7 @@ void rl_repl(void) {
     value_t v = rl_eval(x);
     rl_print(v);
     newline();
-  }
+ }
 }
 
 // main +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1552,6 +1562,8 @@ static void initialize_rascal(void) {
   Quote = def_native("quote", true, false, 1, native_quote);
   Do    = def_native("do", true, true, 1, native_do);
   If    = def_native("if", true, true, 2, native_if);
+  Def   = def_native("def", true, false, 2, native_def);
+  Put   = def_native("put", true, false, 2, native_put);
 
   // initialize native functions
   Add     = def_native("+", false, true, 1, native_add);
