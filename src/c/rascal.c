@@ -56,7 +56,7 @@ struct native {
   bool        special;
   bool        variadic;
   size_t      arity;
-  value_t   (*callback)(list_t* form, list_t* args);
+  value_t   (*callback)(list_t* form, environment_t* environment, list_t* args);
 };
 
 struct environment {
@@ -194,6 +194,9 @@ value_t   def_native(const char* fname, bool special, bool variadic, size_t arit
 environment_t* to_environment(list_t* form, const char* fname, value_t value);
 environment_t* mk_environment(list_t* names, list_t* binds, environment_t* parent);
 bool           is_environment(value_t x);
+value_t        lookup_name(value_t name, environment_t* environment);
+value_t        define_name(value_t name, value_t value, environment_t* environment);
+value_t        assign_name(value_t name, value_t value, environment_t* environment);
 
 // symbol type ----------------------------------------------------------------
 symbol_t* to_symbol(list_t* form, const char* fname, value_t value);
