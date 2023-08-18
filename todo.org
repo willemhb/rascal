@@ -21,30 +21,30 @@
 **** DONE add read support for List type
 **** DONE add eval support for List type
 **** DONE add print support for List type
-** TODO Version 00.00.05 - garbage collection
+** DONE Version 00.00.05 - garbage collection
 *** DONE add 'objects_t' internal type
 *** DONE update 'object_t' type with memory management fields
-*** TODO add 'manage', 'mark', 'trace' and 'sweep' runtime functions
-*** TODO update 'allocate', 'duplicate', 'reallocate' and 'deallocate' runtime functions
-** TODO Version 00.00.06 - native functions, basic forms, and function evaluation
-*** TODO add Native type
-**** TODO add print support for Native type
-*** TODO add '+', '-', '*', '/' and '=' native functions
-*** TODO add 'quote' and 'do' native functions
-*** TODO add 'eval_args' interpreter function
-*** TODO add eval support for List type
-*** TODO add reader support for quote
-** TODO Version 00.00.07 - branching
-*** TODO add 'if' native function
-*** TODO add 'not' native function
-** TODO Version 00.00.08 - basic object APIs
-*** TODO add 'head', 'tail', 'cons', and 'len' native functions
-*** TODO add 'symbol?', 'list?', 'cons?', 'empty?', 'number?' and 'nul?' native functions
+*** DONE add 'manage', 'mark', 'trace' and 'sweep' runtime functions
+*** DONE update 'allocate', 'duplicate', 'reallocate' and 'deallocate' runtime functions
+** DONE Version 00.00.06 - native functions, basic forms, and function evaluation
+*** DONE add Native type
+**** DONE add print support for Native type
+*** DONE add '+', '-', '*', '/' and '=' native functions
+*** DONE add 'quote' and 'do' native functions
+*** DONE add 'eval_args' interpreter function
+*** DONE add eval support for List type
+*** DONE add reader support for quote
+** DONE Version 00.00.07 - branching
+*** DONE add 'if' native function
+*** DONE add 'not' native function
+** DONE Version 00.00.08 - basic object APIs
+*** DONE add 'head', 'tail', 'cons', and 'len' native functions
+*** DONE add 'symbol?', 'list?', 'cons?', 'empty?', 'number?', 'native?' and 'nul?' native functions
 ** TODO Version 00.00.09 - environments and definition
 *** TODO add Environment type
-*** TODO add print support for Environment type
+**** TODO add print support for Environment type
 *** TODO add '&envt' special global
-*** TODO add 'def' and 'put' native functions
+*** TODO add 'def' and 'put' special forms
 *** TODO add 'bound?' and 'environment?' native function
 ** TODO Version 00.00.10 - lambdas, closures, and macros
 *** TODO add Closure type

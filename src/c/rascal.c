@@ -26,19 +26,21 @@ typedef enum type_t {
   NUMBER,
   UNIT,
   NATIVE,
+  ENVIRONMENT,
   SYMBOL,
   LIST
 } type_t;
 
 // object types (forward) -----------------------------------------------------
 typedef struct object      object_t;
+typedef struct native      native_t;
+typedef struct environment environment_t;
 typedef struct symbol      symbol_t;
 typedef struct list        list_t;
 
 // value types ----------------------------------------------------------------
 typedef uintptr_t value_t;
 typedef double number_t;
-typedef value_t (*native_t)(list_t* args);
 
 struct object {
   object_t* next;
@@ -48,6 +50,22 @@ struct object {
 };
 
 // object types ---------------------------------------------------------------
+struct native {
+  object_t    obj;
+  symbol_t*   name;
+  bool        special;
+  bool        variadic;
+  size_t      arity;
+  value_t   (*callback)(list_t* form, list_t* args);
+};
+
+struct environment {
+  object_t       obj;
+  list_t*        names;
+  list_t*        binds;
+  environment_t* parent;
+};
+
 struct symbol {
   object_t obj;
   symbol_t* left, * right;
@@ -81,6 +99,11 @@ typedef struct {
 
 // vm type --------------------------------------------------------------------
 typedef struct {
+  // interpreter --------------------------------------------------------------
+  struct {
+    values_t stack; // temporary values store ---------------------------------
+  } interpreter;
+
   // reader -------------------------------------------------------------------
   struct {
     values_t subexpressions;
@@ -112,8 +135,9 @@ typedef struct {
 #define VALM 0x0000ffffffffffffUL
 
 #define NUL  0x7ffc000000000000UL
-#define NTV  0x7ffd000000000000UL
-#define OBJ  0x7ffe000000000000UL
+#define OBJ  0x7ffd000000000000UL
+
+#define NOTHING (NUL|1UL) // invalid value
 
 // size limits ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #define MAXPOW2  0x8000000000000000UL
@@ -128,59 +152,108 @@ void* allocate(size_t n, bool fromHeap);
 void* allocate_array(size_t n, size_t o, bool fromHeap);
 void* duplicate(void* p, size_t n, bool fromHeap);
 void* duplicate_array(void* p, size_t n, size_t o, bool fromHeap);
-char* duplicate_string(char* string, bool fromHeap);
+char* duplicate_string(const char* string, bool fromHeap);
 void* reallocate(void* ptr, size_t oldN, size_t newN, bool fromHeap);
 void* reallocate_array(void* ptr, size_t oldN, size_t newN, size_t o, bool fromHeap);
 void  deallocate(void* ptr, size_t n, bool fromHeap);
 void  deallocate_array(void* ptr, size_t n, size_t o, bool fromHeap);
 
+// stack API ------------------------------------------------------------------
+void     init_interpreter(void);
+void     free_interpreter(void);
+void     reset_interpreter(void);
+size_t   push(value_t val);
+size_t   pushn(size_t n, ...);
+void     setsp(size_t n);
+value_t  pop(void);
+value_t  popn(size_t n);
+value_t* peek(size_t n);
+
 // type implementations -------------------------------------------------------
 // object 'type' --------------------------------------------------------------
-object_t* to_object(const char* fname, value_t value);
+object_t* to_object(list_t* form, const char* fname, value_t value);
 void*     mk_object(type_t type);
 void      init_object(void* ptr, type_t type);
 bool      is_object(value_t val);
 
 // number type ----------------------------------------------------------------
-number_t to_number(const char* fname, value_t value);
+number_t to_number(list_t* form, const char* fname, value_t value);
 value_t  mk_number(number_t number);
 bool     is_number(value_t x);
 
 // native type ----------------------------------------------------------------
-native_t to_native(const char* fname, value_t value);
-value_t  mk_native(native_t native);
-bool     is_native(value_t x);
+native_t* to_native(list_t* form, const char* fname, value_t value);
+value_t   mk_native(symbol_t* name, bool special, bool variadic, size_t arity, value_t (*callback)(list_t* form, list_t* args));
+bool      is_native(value_t x);
+value_t   def_native(const char* fname, bool special, bool variadic, size_t arity, value_t (*callback)(list_t* form, list_t* args));
 
 // unit type ------------------------------------------------------------------
 bool is_unit(value_t x);
 
 // symbol type ----------------------------------------------------------------
-symbol_t* to_symbol(const char* fname, value_t value);
-value_t   mk_symbol(char* token);
+symbol_t* to_symbol(list_t* form, const char* fname, value_t value);
+symbol_t* intern_symbol(const char* token);
+value_t   mk_symbol(const char* token);
 bool      is_symbol(value_t x);
+value_t   def_toplevel(const char* name, value_t bind);
 
 // list type ------------------------------------------------------------------
-list_t* to_list(const char* fname, value_t value);
+list_t* to_list(list_t* form, const char* fname, value_t value);
 value_t mk_list(value_t head, list_t* tail);
 bool    is_list(value_t x);
+value_t mk_list2(value_t fst, value_t snd);
 value_t mk_listn(size_t n, value_t* args);
 value_t list_nth(const char* fname, list_t* xs, size_t n);
+
+// native functions -----------------------------------------------------------
+// special forms --------------------------------------------------------------
+value_t native_quote(list_t* form, list_t* args);
+value_t native_do(list_t* form, list_t* args);
+value_t native_if(list_t* form, list_t* args);
+value_t native_def(list_t* form, list_t* args);
+value_t native_put(list_t* form, list_t* args);
+
+// arithmetic -----------------------------------------------------------------
+value_t native_add(list_t* form, list_t* args);
+value_t native_sub(list_t* form, list_t* args);
+value_t native_mul(list_t* form, list_t* args);
+value_t native_div(list_t* form, list_t* args);
+value_t native_eql(list_t* form, list_t* args);
+value_t native_not(list_t* form, list_t* args);
+value_t native_head(list_t* form, list_t* args);
+value_t native_tail(list_t* form, list_t* args);
+value_t native_cons(list_t* form, list_t* args);
+value_t native_len(list_t* form, list_t* args);
+value_t native_numberp(list_t* form, list_t* args);
+value_t native_nativep(list_t* form, list_t* args);
+value_t native_symbolp(list_t* form, list_t* args);
+value_t native_listp(list_t* form, list_t* args);
+value_t native_consp(list_t* form, list_t* args);
+value_t native_emptyp(list_t* form, list_t* args);
+value_t native_nulp(list_t* form, list_t* args);
 
 // internal functions ---------------------------------------------------------
 type_t rl_type_of(value_t v);
 
 // interpreter functions ------------------------------------------------------
-void    rl_error(const char* fname, const char* fmt, ...);
+// interpreter helpers --------------------------------------------------------
+list_t* eval_args(list_t* args);
+void    argcount(list_t* form, const char* fname, bool variadic, size_t expect, size_t got);
+void    argtype(value_t got, list_t* form, const char* fname, type_t expect);
+
+// main interpreter functions -------------------------------------------------
+void    rl_error(value_t cause, list_t* form, const char* fname, const char* fmt, ...);
 value_t rl_read(void);
 value_t rl_eval(value_t v);
 void    rl_print(value_t v);
+void    rl_println(value_t v);
 void    rl_repl(void);
 
 // utility macros & statics +++++++++++++++++++++++++++++++++++++++++++++++++++
-#define rl_require(test, fname, message, ...)               \
-  do {                                                      \
-    if (!(test))                                            \
-      rl_error(fname, message __VA_OPT__(,) __VA_ARGS__);   \
+#define rl_require(test, cause, form, fname, message, ...)              \
+  do {                                                                  \
+    if (!(test))                                                        \
+      rl_error(cause, form, fname, message __VA_OPT__(,) __VA_ARGS__);  \
   } while (false)
 
 #define newline() printf("\n")
@@ -220,7 +293,7 @@ static const char* type_name(type_t type) {
 
 static size_t type_size(type_t type) {
   size_t out;
-  
+
   switch ( type ) {
     case NUMBER: out = sizeof(number_t); break;
     case UNIT:   out = sizeof(value_t);  break;
@@ -251,10 +324,15 @@ uint64_t ceilpow2(uint64_t i) {
 }
 
 // describe macros ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-#define SAFECAST(ctype, type, convert)                           \
-  ctype to_##type(const char* fname, value_t val) {              \
-    rl_require(is_##type(val), fname, "not a %s", #type);        \
-    return (ctype)convert(val);                                  \
+#define SAFECAST(ctype, type, convert)                              \
+  ctype to_##type(list_t* form, const char* fname, value_t val) {   \
+    rl_require(is_##type(val),                                      \
+               val,                                                 \
+               form,                                                \
+               fname,                                               \
+               "expected a value of type %s",                       \
+               #type);                                              \
+    return (ctype)convert(val);                                     \
   }
 
 #define TYPEP(type, T)                          \
@@ -268,11 +346,12 @@ uint64_t ceilpow2(uint64_t i) {
   void reset_##type(ctype* array);                                     \
   size_t resize_##type(ctype* array, size_t n);                        \
   size_t type##_push(ctype* array, eltype element);                    \
+  size_t type##_pushn(ctype* array, size_t n, ...);                    \
   size_t type##_write(ctype* array, size_t n, eltype* elements);       \
   eltype type##_pop(ctype* array);                                     \
   eltype type##_popn(ctype* array, size_t n)
 
-#define ARRAY_IMPL(type, ctype, eltype, encoded)                        \
+#define ARRAY_IMPL(type, ctype, eltype, vatype, encoded)                \
   void init_##type(ctype* array) {                                      \
     array->cnt  = 0;                                                    \
     array->cap  = 0;                                                    \
@@ -286,7 +365,11 @@ uint64_t ceilpow2(uint64_t i) {
     init_##type(array);                                                 \
   }                                                                     \
   size_t resize_##type(ctype* array, size_t n) {                        \
-    rl_require(n <= MAXSIZE, "<runtime @ resize_"#type">", "overflow"); \
+    rl_require(n <= MAXSIZE,                                            \
+               NOTHING,                                                 \
+               NULL,                                                    \
+               "<runtime @ resize_"#type">",                            \
+               "overflow" );                                            \
     if (n == 0)                                                         \
       reset_##type(array);                                              \
     else {                                                              \
@@ -308,6 +391,17 @@ uint64_t ceilpow2(uint64_t i) {
     array->data[array->cnt-1] = element;                                \
     return array->cnt;                                                  \
   }                                                                     \
+  size_t type##_pushn(ctype* array, size_t n, ...) {                    \
+    size_t offset = array->cnt;                                         \
+    resize_##type(array, array->cnt+n);                                 \
+    eltype* buffer = array->data+offset;                                \
+    va_list va;                                                         \
+    va_start(va, n);                                                    \
+    for ( size_t i=0; i<n; i++ )                                        \
+      buffer[i] = va_arg(va, vatype);                                   \
+    va_end(va);                                                         \
+    return array->cnt;                                                  \
+  }                                                                     \
   size_t type##_write(ctype* array, size_t n, eltype* elements) {       \
     assert(elements != NULL);                                           \
     size_t oldN = array->cnt;                                           \
@@ -317,13 +411,23 @@ uint64_t ceilpow2(uint64_t i) {
     return array->cnt;                                                  \
   }                                                                     \
   eltype type##_pop(ctype* array) {                                     \
-    rl_require(array->cnt > 0, "<runtime @ "#type"_pop>", "underflow"); \
+    rl_require(array->cnt > 0,                                          \
+               NOTHING,                                                 \
+               NULL,                                                    \
+               "<runtime @ "#type"_pop>",                               \
+               "underflow");                                            \
     eltype out = array->data[array->cnt-1];                             \
     resize_##type(array, array->cnt-1);                                 \
     return out;                                                         \
   }                                                                     \
   eltype type##_popn(ctype* array, size_t n) {                          \
-    rl_require(array->cnt >= n, "<runtime @ "#type"_popn>", "underflow"); \
+    rl_require(array->cnt >= n,                                         \
+               NOTHING,                                                 \
+               NULL,                                                    \
+               "<runtime @ "#type"_popn>",                              \
+               "underflow" );                                           \
+    if ( n == 0 )                                                       \
+      return (eltype)0;                                                 \
     eltype out = array->data[array->cnt-n];                             \
     resize_##type(array, array->cnt-n);                                 \
     return out;                                                         \
@@ -369,14 +473,25 @@ list_t EmptyList = {
   .tail=&EmptyList
 };
 
+// special constants ----------------------------------------------------------
+value_t True, False;
+
+// special forms --------------------------------------------------------------
+value_t Quote, Do, If, Def, Put;
+
+// native functions -----------------------------------------------------------
+value_t Add, Sub, Mul, Div, Eql, Not;
+value_t Head, Tail, Cons, Len;
+value_t NumberP, NativeP, SymbolP, ListP, ConsP, EmptyP, NulP;
+
 // implementations ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // array implementations ------------------------------------------------------
 ARRAY_API(objects, objects_t, object_t*);
-ARRAY_IMPL(objects, objects_t, object_t*, false);
+ARRAY_IMPL(objects, objects_t, object_t*, object_t*, false);
 ARRAY_API(values, values_t, value_t);
-ARRAY_IMPL(values, values_t, value_t, false);
+ARRAY_IMPL(values, values_t, value_t, value_t, false);
 ARRAY_API(buffer, buffer_t, char);
-ARRAY_IMPL(buffer, buffer_t, char, true);
+ARRAY_IMPL(buffer, buffer_t, char, int, true);
 
 // runtime implementations ----------------------------------------------------
 void mark_object(void* ptr);
@@ -438,6 +553,10 @@ static void trace_symbol(symbol_t* sym) {
   mark(sym->right);
 }
 
+static void trace_native(native_t* native) {
+  mark(native->name);
+}
+
 void trace_object(void* ptr) {
   if ( ptr == NULL )
     return;
@@ -446,6 +565,7 @@ void trace_object(void* ptr) {
   obj->gray     = false;
 
   switch ( obj->type ) {
+    case NATIVE: trace_native(ptr); break;
     case SYMBOL: trace_symbol(ptr); break;
     case LIST:   trace_list(ptr);   break;
     default:                        break;
@@ -499,7 +619,8 @@ void resize_heap(void) {
 void gc_mark_phase(void) {
   // mark gc roots ------------------------------------------------------------
   mark(Vm.symbol_table.root);
-  mark_values(&Vm.reader.subexpressions);  
+  mark(&EmptyList);
+  mark_values(&Vm.reader.subexpressions);
 }
 
 void gc_trace_phase(void) {
@@ -570,9 +691,9 @@ void* duplicate_array(void* ptr, size_t n, size_t o, bool fromHeap) {
   return duplicate(ptr, n*o, fromHeap);
 }
 
-char* duplicate_string(char* s, bool fromHeap) {
+char* duplicate_string(const char* s, bool fromHeap) {
   size_t l = strlen(s);
-  return duplicate_array(s, l+1, sizeof(char), fromHeap);
+  return duplicate_array((void*)s, l+1, sizeof(char), fromHeap);
 }
 
 void* reallocate(void* ptr, size_t oldN, size_t newN, bool fromHeap) {
@@ -594,7 +715,7 @@ void* reallocate(void* ptr, size_t oldN, size_t newN, bool fromHeap) {
     
     out = realloc(ptr, newN);
     
-    if ( ptr == NULL ) {
+    if ( out == NULL ) {
       fprintf(stderr, "<runtime @ allocate>:error: out of memory.\n");
       exit(1);
     }
@@ -608,12 +729,12 @@ void* reallocate(void* ptr, size_t oldN, size_t newN, bool fromHeap) {
     
     out           = realloc(ptr, newN);
     
-    if ( ptr == NULL ) {
-      fprintf(stderr, "<runtime @ allocate>:error: out of memory.\n");
+    if ( out == NULL ) {
+      fprintf(stderr, "<runtime @ allocate>: error: out of memory.\n");
       exit(1);
     }
   }
-  
+
   return out;
 }
 
@@ -635,6 +756,51 @@ void  deallocate_array(void* ptr, size_t n, size_t o, bool fromHeap) {
   return deallocate(ptr, n*o, fromHeap);
 }
 
+// stack API ------------------------------------------------------------------
+void    init_interpreter(void) {
+  init_values(&Vm.interpreter.stack);
+}
+
+void    free_interpreter(void) {
+  free_values(&Vm.interpreter.stack);
+}
+
+void    reset_interpreter(void) {
+  reset_values(&Vm.interpreter.stack);
+}
+
+size_t  push(value_t val) {
+  return values_push(&Vm.interpreter.stack, val);
+}
+
+size_t pushn(size_t n, ...) {
+  size_t offset = Vm.interpreter.stack.cnt;
+  resize_values(&Vm.interpreter.stack, Vm.interpreter.stack.cnt+n);
+  
+  value_t* buffer = Vm.interpreter.stack.data+offset;
+  va_list va;
+  va_start(va, n);
+
+  for ( size_t i=0; i<n; i++ )
+    buffer[i] = va_arg(va, value_t);
+
+  va_end(va);
+  
+  return offset;
+}
+
+value_t pop(void) {
+  return values_pop(&Vm.interpreter.stack);
+}
+
+value_t popn(size_t n) {
+  return values_popn(&Vm.interpreter.stack, n);
+}
+
+value_t* peek(size_t n) {
+  assert(n < Vm.interpreter.stack.cnt);
+  return Vm.interpreter.stack.data + n;
+}
 
 // type implementations -------------------------------------------------------
 // object 'type' --------------------------------------------------------------
@@ -670,6 +836,29 @@ value_t mk_number(number_t number) {
   return ((ieee754_64_t)number).word;
 }
 
+// native type ----------------------------------------------------------------
+SAFECAST(native_t*, native, as_pointer);
+TYPEP(native, NATIVE);
+
+value_t  mk_native(symbol_t* name, bool special, bool variadic, size_t arity, value_t (*callback)(list_t* form, list_t* args)) {
+  native_t* native = mk_object(NATIVE);
+  native->name     = name;
+  native->special  = special;
+  native->variadic = variadic;
+  native->arity    = arity;
+  native->callback = callback;
+
+  return tag_pointer(native, OBJ);
+}
+
+value_t def_native(const char* fname, bool special, bool variadic, size_t arity, value_t (*callback)(list_t* form, list_t* args)) {
+  symbol_t* sym  = intern_symbol(fname);
+  value_t native = mk_native(sym, special, variadic, arity, callback);
+  sym->bind      = native;
+
+  return tag_pointer(sym, OBJ);
+}
+
 // unit type ------------------------------------------------------------------
 TYPEP(unit, UNIT);
 
@@ -677,7 +866,7 @@ TYPEP(unit, UNIT);
 SAFECAST(symbol_t*, symbol, as_pointer);
 TYPEP(symbol, SYMBOL);
 
-static symbol_t** find_symbol(symbol_t** root, char* token) {
+static symbol_t** find_symbol(symbol_t** root, const char* token) {
   while ( *root ) {
     int o = strcmp(token, (*root)->name);
 
@@ -694,7 +883,7 @@ static symbol_t** find_symbol(symbol_t** root, char* token) {
   return root;
 }
 
-static symbol_t* new_symbol(char* token) {
+static symbol_t* new_symbol(const char* token) {
   symbol_t* out = mk_object(SYMBOL);
   out->left     = NULL;
   out->right    = NULL;
@@ -704,13 +893,29 @@ static symbol_t* new_symbol(char* token) {
   return out;
 }
 
-value_t mk_symbol(char* token) {
+symbol_t* intern_symbol(const char* token) {
   symbol_t** location = find_symbol(&Vm.symbol_table.root, token);
 
   if (*location == NULL)
     *location = new_symbol(token);
 
-  return tag_pointer(*location, OBJ);
+  return *location;
+}
+
+value_t mk_symbol(const char* token) {
+  symbol_t* out = intern_symbol(token);
+
+  return tag_pointer(out, OBJ);
+}
+
+value_t def_toplevel(const char* name, value_t value) {
+  symbol_t* sym = intern_symbol(name);
+
+  if ( value == NOTHING )          // create a self-evaluating symbol
+    value = tag_pointer(sym, OBJ);
+
+  sym->bind = value;
+  return tag_pointer(sym, OBJ);
 }
 
 // list type ------------------------------------------------------------------
@@ -725,12 +930,21 @@ static void init_list(list_t* slf, value_t head, list_t* tail) {
 }
 
 value_t mk_list(value_t head, list_t* tail) {
+  pushn(2, head, tag_pointer(tail, OBJ));
   list_t* out = mk_object(LIST);
+  popn(2);
   out->arity  = tail->arity+1;
   out->head   = head;
   out->tail   = tail;
 
   return tag_pointer(out, OBJ);
+}
+
+value_t mk_list2(value_t fst, value_t snd) {
+  size_t offset = pushn(2, fst, snd);
+  value_t out   = mk_listn(2, peek(offset));
+  popn(2);
+  return out;
 }
 
 value_t mk_listn(size_t n, value_t* args) {
@@ -752,6 +966,8 @@ value_t mk_listn(size_t n, value_t* args) {
 
 value_t list_nth(const char* fname, list_t* xs, size_t n) {
   rl_require(n > 0 && n <= xs->arity,
+             NOTHING,
+             NULL,
              fname,
              "%zu out of bounds for list of arity %zu",
              n,
@@ -767,42 +983,88 @@ value_t list_nth(const char* fname, list_t* xs, size_t n) {
 type_t rl_type_of(value_t v) {
   switch (v & TAGM) {
     case NUL:  return UNIT;
-    case NTV:  return NATIVE;
     case OBJ:  return as_object(v)->type;
     default:   return NUMBER;
   }
 }
 
 // interpreter functions ------------------------------------------------------
-void rl_error(const char* fname, const char* fmt, ...) {
-  va_list va;
-  va_start(va, fmt);
+// error & error helpers ------------------------------------------------------
+static void print_error(value_t cause, list_t* form, const char* fname, const char* fmt, va_list va) {
   fprintf(stderr, "\n%s: error: ", fname);
   vfprintf(stderr, fmt, va);
   fprintf(stderr, ".\n");
+
+  if ( cause != NOTHING ) {
+    fprintf(stderr, "caused by: " );
+    rl_println(cause);
+  }
+
+  if ( form != NULL ) {
+    fprintf(stderr, "in expression: ");
+    rl_println(tag_pointer(form, OBJ));
+  }   
+}
+
+void rl_error(value_t cause, list_t* form, const char* fname, const char* fmt, ...) {
+  va_list va;
+  va_start(va, fmt);
+  print_error(cause, form, fname, fmt, va);
   va_end(va);
   longjmp(Vm.error.jmpbuf, 1);
 }
 
+void argcount(list_t* form, const char* fname, bool variadic, size_t expect, size_t got) {
+  if ( variadic )
+    rl_require(got >= expect,
+               NOTHING,
+               form,
+               fname,
+               "expected at least %zu inputs to #, got %zu",
+               expect,
+               got );
+
+  else
+    rl_require(got == expect,
+               NOTHING,
+               form,
+               fname,
+               "expected %zu inputs to #, got %zu",
+               expect,
+               got );
+}
+
+void argtype(value_t got, list_t* form, const char* fname, type_t expect) {
+  rl_require(rl_type_of(got) == expect,
+             got,
+             form,
+             fname,
+             "expected a value of type %s",
+             type_name(expect) );
+}
+
 // reader helpers -------------------------------------------------------------
 static value_t read_expression(FILE* stream);
-static void    reset_reader(bool total);
 
-static void init_reader(bool total) {
+void init_reader(bool total);
+void free_reader(bool total);
+void reset_reader(bool total);
+
+void init_reader(bool total) {
   if ( total )
     init_values(&Vm.reader.subexpressions);
 
   init_buffer(&Vm.reader.buffer);
 }
 
-static void free_reader(bool total) {
+void free_reader(bool total) {
   if ( total )
     free_values(&Vm.reader.subexpressions);
 
   free_buffer(&Vm.reader.buffer);
 }
 
-static void reset_reader(bool total) {
+void reset_reader(bool total) {
   free_reader(total);
   init_reader(total);
 }
@@ -883,7 +1145,11 @@ static value_t read_list(int dispatch, FILE* stream) {
     dispatch = fpeekc(stream);
   }
 
-  rl_require(dispatch != EOF, "read", "unexpected EOF reading list");
+  rl_require(dispatch != EOF,
+             NOTHING,
+             NULL,
+             "read",
+             "unexpected EOF reading list");
   fgetc(stream); // clear closing ')'
 
   size_t n    = Vm.reader.subexpressions.cnt - base;
@@ -895,16 +1161,31 @@ static value_t read_list(int dispatch, FILE* stream) {
   return out;
 }
 
+static value_t read_quote(int dispatch, FILE* stream) {
+  fgetc(stream);               // clear '
+  dispatch = skiprlws(stream);
+  
+  rl_require(dispatch != EOF,  // require a quoted expression
+             NOTHING,
+             NULL,
+             "read",
+             "unexpected EOF reading quote");
+
+  value_t quoted = read_expression(stream);
+  return mk_list2(Quote, quoted);
+}
+
 static value_t read_expression(FILE* stream) {
   reset_reader(false); // clear last token
   value_t out = NUL;
   int ch = skiprlws(stream);
 
   switch (ch) {
-    case ')': rl_error("read", "Unmatched ')'"); break;
+    case ')':  rl_error(NOTHING, NULL, "read", "Unmatched ')'"); break;
 
-    case '(': out = read_list(ch, stream); break;
-    default:  out = read_atom(ch, stream); break;
+    case '\'': out = read_quote(ch, stream); break;
+    case '(':  out = read_list(ch, stream);  break;
+    default:   out = read_atom(ch, stream);  break;
   }
 
   reset_reader(false); // clear last token
@@ -919,40 +1200,96 @@ value_t rl_read(void) {
 }
 
 // eval implementation --------------------------------------------------------
-static value_t eval_literal(value_t v) {
-  return v;
+list_t* eval_args(list_t* args) {
+  size_t offset = push(tag_pointer(args, OBJ));
+  size_t n = 0;
+
+  for ( ; args->arity; n++, args=args->tail ) {
+    value_t v = rl_eval(args->head);
+    push(v);
+  }
+
+  value_t out = mk_listn(n, peek(offset));
+  popn(n+1);
+  return as_pointer(out);
 }
 
 static value_t eval_symbol(value_t v) {
-  return to_symbol("eval", v)->bind;
+  return to_symbol(NULL, "eval", v)->bind;
+}
+
+static value_t eval_list(value_t v) {
+  if ( v == tag_pointer(&EmptyList, OBJ) ) // treat empty list as a literal
+    return v;
+  
+  push(v);                             // save in case of GC
+  list_t* form   = to_list(NULL, "eval", v);
+  value_t head   = form->head;
+  list_t* args   = form->tail;
+  head           = rl_eval(head);
+
+  argtype(head, form, "eval", NATIVE);
+  native_t* native = as_pointer(head);
+  argcount(form, native->name->name, native->variadic, native->arity, args->arity);
+  value_t out;
+
+  if (!native->special)
+    args = eval_args(args);
+
+  out = native->callback(form, args);
+
+  pop();                               // remove form from stack
+
+  return out;
+}
+
+static value_t eval_literal(value_t v) {
+  return v;
 }
 
 value_t rl_eval(value_t v) {
   if ( is_symbol(v) )
     return eval_symbol(v);
 
-  return eval_literal(v);
+  else if ( is_list(v) )
+    return eval_list(v);
+
+  else
+    return eval_literal(v);
 }
 
 
 // print implementations ------------------------------------------------------
-static void print_number(value_t val) {
-  printf("%g", to_number("print", val));
+static void print_number(value_t val, bool newline) {
+  if ( newline )
+    printf("%g\n", to_number(NULL, "print", val));
+
+  else
+    printf("%g", to_number(NULL, "print", val));    
 }
 
-static void print_unit(value_t val) {
+static void print_unit(value_t val, bool newline) {
   (void)val;
-  printf("nul");
+
+  if ( newline )
+    printf("nul\n");
+
+  else
+    printf("nul");
 }
 
-static void print_symbol(value_t val) {
-  printf("%s", to_symbol("print", val)->name);
+static void print_symbol(value_t val, bool newline) {
+  if ( newline )
+    printf("%s\n", to_symbol(NULL, "print", val)->name);
+
+  else
+    printf("%s", to_symbol(NULL, "print", val)->name);    
 }
 
-static void print_list(value_t val) {
+static void print_list(value_t val, bool newline) {
   printf("(");
 
-  list_t* xs = to_list("print", val);
+  list_t* xs = to_list(NULL, "print", val);
 
   for ( ; xs->arity > 0; xs=xs->tail ) {
     rl_print(xs->head);
@@ -961,23 +1298,217 @@ static void print_list(value_t val) {
       printf(" ");
   }
 
-  printf(")");
+  printf(newline ? ")\n" : ")");
 }
 
-static void print_value(value_t val) {
-  printf("<%s @ %lx>", type_name(rl_type_of(val)), val);
+static void print_native(value_t val, bool newline) {
+  const char* fmt = newline ? "<native function %s>\n" : "<native function %s>";
+  printf(fmt, to_native(NULL, "print", val)->name->name);
+}
+
+static void print_value(value_t val, bool newline) {
+  const char* fmt = newline ? "<%s @ %lx>\n" : "<%s @ %lx>";  
+  printf(fmt, type_name(rl_type_of(val)), val);
 }
 
 void rl_print(value_t v) {
   type_t type = rl_type_of(v);
 
   switch (type) {
-    case NUMBER: print_number(v); break;
-    case UNIT:   print_unit(v); break;
-    case SYMBOL: print_symbol(v); break;
-    case LIST:   print_list(v); break;
-    default:     print_value(v); break;
+    case NUMBER: print_number(v, false); break;
+    case UNIT:   print_unit(v, false); break;
+    case NATIVE: print_native(v, false); break;
+    case SYMBOL: print_symbol(v, false); break;
+    case LIST:   print_list(v, false); break;
+    default:     print_value(v, false); break;
   }
+}
+
+void rl_println(value_t v) {
+  type_t type = rl_type_of(v);
+
+  switch (type) {
+    case NUMBER: print_number(v, true); break;
+    case UNIT:   print_unit(v, true); break;
+    case NATIVE: print_native(v, true); break;
+    case SYMBOL: print_symbol(v, true); break;
+    case LIST:   print_list(v, true); break;
+    default:     print_value(v, true); break;
+  }
+}
+
+// native functions -----------------------------------------------------------
+// helpers --------------------------------------------------------------------
+static value_t rl_bool(bool test) {
+  return test ? True : NUL;
+}
+// special forms --------------------------------------------------------------
+value_t native_quote(list_t* form, list_t* args) {
+  (void)form;
+
+  return args->head;
+}
+
+value_t native_do(list_t* form, list_t* args) {
+  (void)form;
+
+  for ( ; args->arity > 1; args=args->tail )
+    rl_eval(args->head); // initial subexpressions evaluated for side effects only
+
+  return rl_eval(args->head);
+}
+
+value_t native_if(list_t* form, list_t* args) {
+  rl_require(args->arity == 2 || args->arity == 3,
+             NOTHING,
+             form,
+             "if",
+             "expected 2 or 3 inputs, got %zu",
+             args->arity );
+
+  value_t test = args->head;
+  value_t csqt = args->tail->head;
+  value_t alt  = args->tail->tail->head;
+  value_t x    = rl_eval(test);
+  value_t v    = x == NUL ? rl_eval(alt) : rl_eval(csqt);
+
+  return v;
+}
+
+// arithmetic -----------------------------------------------------------------
+value_t native_add(list_t* form, list_t* args) {
+  number_t out = 0;
+
+  for ( ; args->arity; args=args->tail )
+    out += to_number(form, "+", args->head);
+
+  return mk_number(out);
+}
+
+value_t native_sub(list_t* form, list_t* args) {
+  if ( args->arity == 1 )
+    return mk_number(-to_number(form, "-", args->head));
+
+  number_t out = to_number(form, "-", args->head);
+  args         = args->tail;
+
+  for ( ; args->arity; args=args->tail )
+    out -= to_number(form, "-", args->head);
+
+  return mk_number(out);
+}
+
+value_t native_mul(list_t* form, list_t* args) {
+  number_t out = to_number(form, "*", args->head);
+  args         = args->tail;
+
+  for ( ; args->arity && out != 0; args=args->tail )
+    out *= to_number(form, "*", args->head);
+
+  return mk_number(out);
+}
+
+value_t native_div(list_t* form, list_t* args) {
+  number_t out = to_number(form, "/", args->head);
+
+  if ( args->arity == 1 ) {
+    rl_require(out != 0, NOTHING, form, "/", "zero-division");
+    out = 1 / out;
+  }
+
+  else {
+    args = args->tail;
+
+    for ( ; out != 0 && args->arity; args=args->tail ) {
+      number_t denom = to_number(form, "/", args->head);
+      rl_require(denom != 0, NOTHING, form, "/", "zero-division");
+      out /= denom;
+    }
+  }
+
+  return mk_number(out);
+}
+
+value_t native_eql(list_t* form, list_t* args) {
+  number_t first = to_number(form, "=", args->head);
+  value_t out = True;
+  args = args->tail;
+
+  for ( ; out != NUL && args->arity; args=args->tail ) {
+    number_t second = to_number(form, "=", args->head);
+
+    if ( first != second )
+      out = NUL;
+  }
+
+  return out;
+}
+
+value_t native_not(list_t* form, list_t* args) {
+  (void)form;
+  return args->head == NUL ? True : NUL;
+}
+
+value_t native_head(list_t* form, list_t* args) {
+  list_t* xs = to_list(form, "head", args->head);
+  rl_require(xs->arity > 0,
+             NOTHING,
+             form,
+             "head",
+             "head called on empty list");
+
+  return xs->head;
+}
+
+value_t native_tail(list_t* form, list_t* args) {
+  list_t* xs = to_list(form, "tail", args->head);
+  rl_require(xs->arity > 0,
+             NOTHING,
+             form,
+             "tail",
+             "tail called on empty list");
+
+  return tag_pointer(xs->tail, OBJ);
+}
+
+value_t native_cons(list_t* form, list_t* args) {
+  value_t head = args->head;
+  list_t* tail = to_list(form, "cons", args->tail->head);
+  return mk_list(head, tail);
+}
+
+value_t native_len(list_t* form, list_t* args) {
+  list_t* xs = to_list(form, "len", args->head);
+  return mk_number(xs->arity);
+}
+
+#define NATIVE_TYPEP(type)                                   \
+  value_t native_##type##p(list_t* form, list_t* args) {     \
+    (void)form;                                              \
+    return is_##type(args->head) ? True : NUL;               \
+  }
+
+NATIVE_TYPEP(number);
+NATIVE_TYPEP(native);
+NATIVE_TYPEP(symbol);
+NATIVE_TYPEP(list);
+
+value_t native_consp(list_t* form, list_t* args) {
+  (void)form;
+  value_t x = args->head;
+  return rl_bool(is_list(x) && to_list(form, "cons?", x)->arity > 0);
+}
+
+value_t native_emptyp(list_t* form, list_t* args) {
+  (void)form;
+  value_t x = args->head;
+  return rl_bool(is_list(x) && to_list(form, "empty?", x)->arity == 0);
+}
+
+value_t native_nulp(list_t* form, list_t* args) {
+  (void)form;
+
+  return rl_bool(args->head == NUL);
 }
 
 // repl implementation --------------------------------------------------------
@@ -986,6 +1517,7 @@ void rl_print(value_t v) {
 void rl_repl(void) {
   while (true) {
     if (savepoint()) {
+      reset_interpreter();
       reset_reader(true);
       newline();
       continue;
@@ -1004,7 +1536,7 @@ void rl_repl(void) {
 #define VERSION "%d.%d.%d.%c"
 #define MAJOR 0
 #define MINOR 0
-#define PATCH 5
+#define PATCH 9
 #define DEVELOPMENT 'a'
 
 // prompts/messages -----------------------------------------------------------
@@ -1013,10 +1545,40 @@ void rl_repl(void) {
 
 // startup helpers ------------------------------------------------------------
 static void initialize_rascal(void) {
+  init_interpreter();
   init_reader(true);
+
+  // initialize special forms
+  Quote = def_native("quote", true, false, 1, native_quote);
+  Do    = def_native("do", true, true, 1, native_do);
+  If    = def_native("if", true, true, 2, native_if);
+
+  // initialize native functions
+  Add     = def_native("+", false, true, 1, native_add);
+  Sub     = def_native("-", false, true, 1, native_sub);
+  Mul     = def_native("*", false, true, 1, native_mul);
+  Div     = def_native("/", false, true, 1, native_div);
+  Eql     = def_native("=", false, true, 2, native_eql);
+  Not     = def_native("not", false, false, 1, native_not);
+  Head    = def_native("head", false, false, 1, native_head);
+  Tail    = def_native("tail", false, false, 1, native_tail);
+  Cons    = def_native("cons", false, false, 2, native_cons);
+  Len     = def_native("len", false, false, 1, native_len);
+  NumberP = def_native("number?", false, false, 1, native_numberp);
+  NativeP = def_native("native?", false, false, 1, native_nativep);
+  SymbolP = def_native("symbol?", false, false, 1, native_symbolp);
+  ListP   = def_native("list?", false, false, 1, native_listp);
+  ConsP   = def_native("cons?", false, false, 1, native_consp);
+  EmptyP  = def_native("empty?", false, false, 1, native_emptyp);
+  NulP    = def_native("nul?", false, false, 1, native_nulp);
+
+  // initialize special constants
+  True  = def_toplevel("true", NOTHING);
+  False = def_toplevel("false", NUL);
 }
 
 static void finalize_rascal(void) {
+  free_interpreter();
   free_reader(true);
 }
 
