@@ -49,14 +49,17 @@ struct object {
   short     black;
 };
 
+// other internal types -------------------------------------------------------
+typedef value_t (*native_callback_t)(list_t* form, environment_t* environment, list_t* args);
+
 // object types ---------------------------------------------------------------
 struct native {
-  object_t    obj;
-  symbol_t*   name;
-  bool        special;
-  bool        variadic;
-  size_t      arity;
-  value_t   (*callback)(list_t* form, environment_t* environment, list_t* args);
+  object_t          obj;
+  symbol_t*         name;
+  bool              special;
+  bool              variadic;
+  size_t            arity;
+  native_callback_t callback;
 };
 
 struct environment {
@@ -186,9 +189,9 @@ bool is_unit(value_t x);
 
 // native type ----------------------------------------------------------------
 native_t* to_native(list_t* form, const char* fname, value_t value);
-value_t   mk_native(symbol_t* name, bool special, bool variadic, size_t arity, value_t (*callback)(list_t* form, list_t* args));
+value_t   mk_native(symbol_t* name, bool special, bool variadic, size_t arity, native_callback_t callback);
 bool      is_native(value_t x);
-value_t   def_native(const char* fname, bool special, bool variadic, size_t arity, value_t (*callback)(list_t* form, list_t* args));
+value_t   def_native(const char* fname, bool special, bool variadic, size_t arity, native_callback_t callback);
 
 // environment type -----------------------------------------------------------
 environment_t* to_environment(list_t* form, const char* fname, value_t value);
@@ -215,44 +218,44 @@ value_t list_nth(const char* fname, list_t* xs, size_t n);
 
 // native functions -----------------------------------------------------------
 // special forms --------------------------------------------------------------
-value_t native_quote(list_t* form, list_t* args);
-value_t native_do(list_t* form, list_t* args);
-value_t native_if(list_t* form, list_t* args);
-value_t native_def(list_t* form, list_t* args);
-value_t native_put(list_t* form, list_t* args);
+value_t native_quote(list_t* form, environment_t* environment, list_t* args);
+value_t native_do(list_t* form, environment_t* environment, list_t* args);
+value_t native_if(list_t* form, environment_t* environment, list_t* args);
+value_t native_def(list_t* form, environment_t* environment, list_t* args);
+value_t native_put(list_t* form, environment_t* environment, list_t* args);
 
 // arithmetic -----------------------------------------------------------------
-value_t native_add(list_t* form, list_t* args);
-value_t native_sub(list_t* form, list_t* args);
-value_t native_mul(list_t* form, list_t* args);
-value_t native_div(list_t* form, list_t* args);
-value_t native_eql(list_t* form, list_t* args);
-value_t native_not(list_t* form, list_t* args);
-value_t native_head(list_t* form, list_t* args);
-value_t native_tail(list_t* form, list_t* args);
-value_t native_cons(list_t* form, list_t* args);
-value_t native_len(list_t* form, list_t* args);
-value_t native_numberp(list_t* form, list_t* args);
-value_t native_nativep(list_t* form, list_t* args);
-value_t native_symbolp(list_t* form, list_t* args);
-value_t native_listp(list_t* form, list_t* args);
-value_t native_consp(list_t* form, list_t* args);
-value_t native_emptyp(list_t* form, list_t* args);
-value_t native_nulp(list_t* form, list_t* args);
+value_t native_add(list_t* form, environment_t* environment, list_t* args);
+value_t native_sub(list_t* form, environment_t* environment, list_t* args);
+value_t native_mul(list_t* form, environment_t* environment, list_t* args);
+value_t native_div(list_t* form, environment_t* environment, list_t* args);
+value_t native_eql(list_t* form, environment_t* environment, list_t* args);
+value_t native_not(list_t* form, environment_t* environment, list_t* args);
+value_t native_head(list_t* form, environment_t* environment, list_t* args);
+value_t native_tail(list_t* form, environment_t* environment, list_t* args);
+value_t native_cons(list_t* form, environment_t* environment, list_t* args);
+value_t native_len(list_t* form, environment_t* environment, list_t* args);
+value_t native_numberp(list_t* form, environment_t* environment, list_t* args);
+value_t native_nativep(list_t* form, environment_t* environment, list_t* args);
+value_t native_symbolp(list_t* form, environment_t* environment, list_t* args);
+value_t native_listp(list_t* form, environment_t* environment, list_t* args);
+value_t native_consp(list_t* form, environment_t* environment, list_t* args);
+value_t native_emptyp(list_t* form, environment_t* environment, list_t* args);
+value_t native_nulp(list_t* form, environment_t* environment, list_t* args);
 
 // internal functions ---------------------------------------------------------
 type_t rl_type_of(value_t v);
 
 // interpreter functions ------------------------------------------------------
 // interpreter helpers --------------------------------------------------------
-list_t* eval_args(list_t* args);
+list_t* eval_args(list_t* args, environment_t* environment);
 void    argcount(list_t* form, const char* fname, bool variadic, size_t expect, size_t got);
 void    argtype(value_t got, list_t* form, const char* fname, type_t expect);
 
 // main interpreter functions -------------------------------------------------
 void    rl_error(value_t cause, list_t* form, const char* fname, const char* fmt, ...);
 value_t rl_read(void);
-value_t rl_eval(value_t v);
+value_t rl_eval(value_t v, environment_t* e);
 void    rl_print(value_t v);
 void    rl_println(value_t v);
 void    rl_repl(void);
@@ -288,12 +291,13 @@ static const char* type_name(type_t type) {
   const char* out;
   
   switch ( type ) {
-    case NUMBER: out = "number";  break;
-    case UNIT:   out = "unit";    break;
-    case NATIVE: out = "native";  break;
-    case SYMBOL: out = "symbol";  break;
-    case LIST:   out = "list";    break;
-    default:     out = "unknown"; break;
+    case NUMBER:      out = "number";      break;
+    case UNIT:        out = "unit";        break;
+    case NATIVE:      out = "native";      break;
+    case ENVIRONMENT: out = "environment"; break;
+    case SYMBOL:      out = "symbol";      break;
+    case LIST:        out = "list";        break;
+    default:          out = "unknown";     break;
   }
 
   return out;
@@ -303,12 +307,13 @@ static size_t type_size(type_t type) {
   size_t out;
 
   switch ( type ) {
-    case NUMBER: out = sizeof(number_t); break;
-    case UNIT:   out = sizeof(value_t);  break;
-    case NATIVE: out = sizeof(native_t); break;
-    case SYMBOL: out = sizeof(symbol_t); break;
-    case LIST:   out = sizeof(list_t);   break;
-    default:     out = 0;                break;
+    case NUMBER:      out = sizeof(number_t);      break;
+    case UNIT:        out = sizeof(value_t);       break;
+    case NATIVE:      out = sizeof(native_t);      break;
+    case ENVIRONMENT: out = sizeof(environment_t); break;
+    case SYMBOL:      out = sizeof(symbol_t);      break;
+    case LIST:        out = sizeof(list_t);        break;
+    default:          out = 0;                     break;
   }
 
   return out;
@@ -481,6 +486,9 @@ list_t EmptyList = {
   .tail=&EmptyList
 };
 
+// special globals ------------------------------------------------------------
+
+
 // special constants ----------------------------------------------------------
 value_t True, False;
 
@@ -565,6 +573,12 @@ static void trace_native(native_t* native) {
   mark(native->name);
 }
 
+static void trace_environment(environment_t* environment) {
+  mark(environment->names);
+  mark(environment->binds);
+  mark(environment->parent);
+}
+
 void trace_object(void* ptr) {
   if ( ptr == NULL )
     return;
@@ -573,10 +587,11 @@ void trace_object(void* ptr) {
   obj->gray     = false;
 
   switch ( obj->type ) {
-    case NATIVE: trace_native(ptr); break;
-    case SYMBOL: trace_symbol(ptr); break;
-    case LIST:   trace_list(ptr);   break;
-    default:                        break;
+    case NATIVE:      trace_native(ptr);      break;
+    case ENVIRONMENT: trace_environment(ptr); break;
+    case SYMBOL:      trace_symbol(ptr);      break;
+    case LIST:        trace_list(ptr);        break;
+    default:                                  break;
   }
 }
 
@@ -852,7 +867,7 @@ value_t mk_number(number_t number) {
 SAFECAST(native_t*, native, as_pointer);
 TYPEP(native, NATIVE);
 
-value_t  mk_native(symbol_t* name, bool special, bool variadic, size_t arity, value_t (*callback)(list_t* form, list_t* args)) {
+value_t  mk_native(symbol_t* name, bool special, bool variadic, size_t arity, native_callback_t callback) {
   native_t* native = mk_object(NATIVE);
   native->name     = name;
   native->special  = special;
@@ -863,7 +878,7 @@ value_t  mk_native(symbol_t* name, bool special, bool variadic, size_t arity, va
   return tag_pointer(native, OBJ);
 }
 
-value_t def_native(const char* fname, bool special, bool variadic, size_t arity, value_t (*callback)(list_t* form, list_t* args)) {
+value_t def_native(const char* fname, bool special, bool variadic, size_t arity, native_callback_t callback) {
   symbol_t* sym  = intern_symbol(fname);
   value_t native = mk_native(sym, special, variadic, arity, callback);
   sym->bind      = native;
@@ -1355,13 +1370,13 @@ static value_t rl_bool(bool test) {
   return test ? True : NUL;
 }
 // special forms --------------------------------------------------------------
-value_t native_quote(list_t* form, list_t* args) {
+value_t native_quote(list_t* form, environment_t* environment, list_t* args) {
   (void)form;
 
   return args->head;
 }
 
-value_t native_do(list_t* form, list_t* args) {
+value_t native_do(list_t* form, environment_t* environment, list_t* args) {
   (void)form;
 
   for ( ; args->arity > 1; args=args->tail )
@@ -1370,7 +1385,7 @@ value_t native_do(list_t* form, list_t* args) {
   return rl_eval(args->head);
 }
 
-value_t native_if(list_t* form, list_t* args) {
+value_t native_if(list_t* form, environment_t* environment, list_t* args) {
   rl_require(args->arity == 2 || args->arity == 3,
              NOTHING,
              form,
@@ -1388,7 +1403,8 @@ value_t native_if(list_t* form, list_t* args) {
 }
 
 // arithmetic -----------------------------------------------------------------
-value_t native_add(list_t* form, list_t* args) {
+value_t native_add(list_t* form, environment_t* environment, list_t* args) {
+  (void)environment;
   number_t out = 0;
 
   for ( ; args->arity; args=args->tail )
@@ -1397,7 +1413,8 @@ value_t native_add(list_t* form, list_t* args) {
   return mk_number(out);
 }
 
-value_t native_sub(list_t* form, list_t* args) {
+value_t native_sub(list_t* form, environment_t* environment, list_t* args) {
+  (void)environment;
   if ( args->arity == 1 )
     return mk_number(-to_number(form, "-", args->head));
 
@@ -1410,7 +1427,8 @@ value_t native_sub(list_t* form, list_t* args) {
   return mk_number(out);
 }
 
-value_t native_mul(list_t* form, list_t* args) {
+value_t native_mul(list_t* form, environment_t* environment, list_t* args) {
+  (void)environment;
   number_t out = to_number(form, "*", args->head);
   args         = args->tail;
 
@@ -1420,7 +1438,8 @@ value_t native_mul(list_t* form, list_t* args) {
   return mk_number(out);
 }
 
-value_t native_div(list_t* form, list_t* args) {
+value_t native_div(list_t* form, environment_t* environment, list_t* args) {
+  (void)environment;
   number_t out = to_number(form, "/", args->head);
 
   if ( args->arity == 1 ) {
@@ -1441,7 +1460,8 @@ value_t native_div(list_t* form, list_t* args) {
   return mk_number(out);
 }
 
-value_t native_eql(list_t* form, list_t* args) {
+value_t native_eql(list_t* form, environment_t* environment, list_t* args) {
+  (void)environment;
   number_t first = to_number(form, "=", args->head);
   value_t out = True;
   args = args->tail;
@@ -1456,12 +1476,14 @@ value_t native_eql(list_t* form, list_t* args) {
   return out;
 }
 
-value_t native_not(list_t* form, list_t* args) {
+value_t native_not(list_t* form, environment_t* environment, list_t* args) {
+  (void)environment;
   (void)form;
   return args->head == NUL ? True : NUL;
 }
 
-value_t native_head(list_t* form, list_t* args) {
+value_t native_head(list_t* form, environment_t* environment, list_t* args) {
+  (void)environment;
   list_t* xs = to_list(form, "head", args->head);
   rl_require(xs->arity > 0,
              NOTHING,
@@ -1472,7 +1494,8 @@ value_t native_head(list_t* form, list_t* args) {
   return xs->head;
 }
 
-value_t native_tail(list_t* form, list_t* args) {
+value_t native_tail(list_t* form, environment_t* environment, list_t* args) {
+  (void)environment;
   list_t* xs = to_list(form, "tail", args->head);
   rl_require(xs->arity > 0,
              NOTHING,
@@ -1483,21 +1506,24 @@ value_t native_tail(list_t* form, list_t* args) {
   return tag_pointer(xs->tail, OBJ);
 }
 
-value_t native_cons(list_t* form, list_t* args) {
+value_t native_cons(list_t* form, environment_t* environment, list_t* args) {
+  (void)environment;
   value_t head = args->head;
   list_t* tail = to_list(form, "cons", args->tail->head);
   return mk_list(head, tail);
 }
 
-value_t native_len(list_t* form, list_t* args) {
+value_t native_len(list_t* form, environment_t* environment, list_t* args) {
+  (void)environment;
   list_t* xs = to_list(form, "len", args->head);
   return mk_number(xs->arity);
 }
 
-#define NATIVE_TYPEP(type)                                   \
-  value_t native_##type##p(list_t* form, list_t* args) {     \
-    (void)form;                                              \
-    return is_##type(args->head) ? True : NUL;               \
+#define NATIVE_TYPEP(type)                                              \
+  value_t native_##type##p(list_t* form, environment_t* environment, list_t* args) {     \
+    (void)environment;                                                  \
+    (void)form;                                                         \
+    return is_##type(args->head) ? True : NUL;                          \
   }
 
 NATIVE_TYPEP(number);
@@ -1506,21 +1532,23 @@ NATIVE_TYPEP(environment);
 NATIVE_TYPEP(symbol);
 NATIVE_TYPEP(list);
 
-value_t native_consp(list_t* form, list_t* args) {
+value_t native_consp(list_t* form, environment_t* environment, list_t* args) {
   (void)form;
+  (void)environment;
   value_t x = args->head;
   return rl_bool(is_list(x) && to_list(form, "cons?", x)->arity > 0);
 }
 
-value_t native_emptyp(list_t* form, list_t* args) {
+value_t native_emptyp(list_t* form, environment_t* environment, list_t* args) {
   (void)form;
+  (void)environment;
   value_t x = args->head;
   return rl_bool(is_list(x) && to_list(form, "empty?", x)->arity == 0);
 }
 
-value_t native_nulp(list_t* form, list_t* args) {
+value_t native_nulp(list_t* form, environment_t* environment, list_t* args) {
   (void)form;
-
+  (void)environment;
   return rl_bool(args->head == NUL);
 }
 
