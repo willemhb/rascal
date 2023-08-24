@@ -289,7 +289,7 @@ static inline value_t tag_pointer(void* p, value_t t) {
 
 static const char* type_name(type_t type) {
   const char* out;
-  
+
   switch ( type ) {
     case NUMBER:      out = "number";      break;
     case UNIT:        out = "unit";        break;
@@ -1227,12 +1227,12 @@ value_t rl_read(void) {
 }
 
 // eval implementation --------------------------------------------------------
-list_t* eval_args(list_t* args) {
+list_t* eval_args(list_t* args, environment_t* environment) {
   size_t offset = push(tag_pointer(args, OBJ));
   size_t n = 0;
 
   for ( ; args->arity; n++, args=args->tail ) {
-    value_t v = rl_eval(args->head);
+    value_t v = rl_eval(args->head, environment);
     push(v);
   }
 
@@ -1241,11 +1241,15 @@ list_t* eval_args(list_t* args) {
   return as_pointer(out);
 }
 
-static value_t eval_symbol(value_t v) {
+static value_t eval_symbol(value_t v, environment_t* environment) {
+  while ( environment != NULL ) {
+    
+  }
+
   return to_symbol(NULL, "eval", v)->bind;
 }
 
-static value_t eval_list(value_t v) {
+static value_t eval_list(value_t v, environment_t* environment) {
   if ( v == tag_pointer(&EmptyList, OBJ) ) // treat empty list as a literal
     return v;
   
@@ -1253,7 +1257,7 @@ static value_t eval_list(value_t v) {
   list_t* form   = to_list(NULL, "eval", v);
   value_t head   = form->head;
   list_t* args   = form->tail;
-  head           = rl_eval(head);
+  head           = rl_eval(head, environment);
 
   argtype(head, form, "eval", NATIVE);
   native_t* native = as_pointer(head);
@@ -1261,30 +1265,30 @@ static value_t eval_list(value_t v) {
   value_t out;
 
   if (!native->special)
-    args = eval_args(args);
+    args = eval_args(args, environment);
 
-  out = native->callback(form, args);
+  out = native->callback(form, environment, args);
 
   pop();                               // remove form from stack
 
   return out;
 }
 
-static value_t eval_literal(value_t v) {
+static value_t eval_literal(value_t v, environment_t* environment) {
+  (void)environment;
   return v;
 }
 
-value_t rl_eval(value_t v) {
+value_t rl_eval(value_t v, environment_t* environment) {
   if ( is_symbol(v) )
-    return eval_symbol(v);
+    return eval_symbol(v, environment);
 
   else if ( is_list(v) )
-    return eval_list(v);
+    return eval_list(v, environment);
 
   else
-    return eval_literal(v);
+    return eval_literal(v, environment);
 }
-
 
 // print implementations ------------------------------------------------------
 static void print_number(value_t val, bool newline) {
