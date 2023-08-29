@@ -1643,6 +1643,8 @@ static void goodbye_message(void) {
   printf(GOODBYE"\n");
 }
 
+
+
 // main -----------------------------------------------------------------------
 int main( const int argc, const char* argv[] ) {
   initialize_rascal();
