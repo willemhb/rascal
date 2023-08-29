@@ -1384,9 +1384,9 @@ value_t native_do(list_t* form, environment_t* environment, list_t* args) {
   (void)form;
 
   for ( ; args->arity > 1; args=args->tail )
-    rl_eval(args->head); // initial subexpressions evaluated for side effects only
+    rl_eval(args->head, environment); // initial subexpressions evaluated for side effects only
 
-  return rl_eval(args->head);
+  return rl_eval(args->head, environment);
 }
 
 value_t native_if(list_t* form, environment_t* environment, list_t* args) {
@@ -1395,13 +1395,13 @@ value_t native_if(list_t* form, environment_t* environment, list_t* args) {
              form,
              "if",
              "expected 2 or 3 inputs, got %zu",
-             args->arity );
+             args->arity);
 
   value_t test = args->head;
   value_t csqt = args->tail->head;
   value_t alt  = args->tail->tail->head;
-  value_t x    = rl_eval(test);
-  value_t v    = x == NUL ? rl_eval(alt) : rl_eval(csqt);
+  value_t x    = rl_eval(test, environment);
+  value_t v    = x == NUL ? rl_eval(alt, environment) : rl_eval(csqt, environment);
 
   return v;
 }
@@ -1570,7 +1570,7 @@ void rl_repl(void) {
 
     printf(PROMPT" ");
     value_t x = rl_read();
-    value_t v = rl_eval(x);
+    value_t v = rl_eval(x, NULL);
     rl_print(v);
     newline();
  }
