@@ -271,6 +271,8 @@ void    rl_repl(void);
 
 #define savepoint() setjmp(Vm.error.jmpbuf)
 
+#define tag_object(p) tag_pointer(p, OBJ)
+
 static inline number_t as_number(value_t val) {
   return ((ieee754_64_t)val).real;
 }
@@ -886,6 +888,50 @@ value_t def_native(const char* fname, bool special, bool variadic, size_t arity,
   return tag_pointer(sym, OBJ);
 }
 
+// environment type -----------------------------------------------------------
+SAFECAST(environment_t*, environment, as_pointer);
+TYPEP(environment, ENVIRONMENT);
+
+environment_t* mk_environment(list_t* names, list_t* binds, environment_t* parent) {
+
+  if ( parent == NULL )
+    pushn(2, tag_object(names), tag_object(binds));
+
+  else
+    pushn(3, tag_object(names), tag_object(binds), tag_object(parent));
+
+  environment_t* out = mk_object(ENVIRONMENT);
+
+  out->names  = names;
+  out->binds  = binds;
+  out->parent = parent;
+  
+  popn(parent == NULL ? 2 : 3);
+
+  return out;
+}
+
+value_t lookup_name(value_t name, environment_t* environment) {
+  value_t out = NOTHING;
+
+  for ( ;out == NOTHING && environment != NULL; environment=environment->parent ) {
+    list_t* names = environment->names;
+    list_t* binds = environment->binds;
+
+    for ( ; out == NOTHING && names->arity > 0; names=names->tail, binds=binds->tail )
+      if ( names->head == name )
+        out = binds->head;
+  }
+
+  if ( out == NOTHING )
+    out = to_symbol(NULL, "<lookup>", name)->bind;
+
+  return out;
+}
+
+value_t define_name(value_t name, value_t value, environment_t* environment);
+value_t assign_name(value_t name, value_t value, environment_t* environment);
+
 // unit type ------------------------------------------------------------------
 TYPEP(unit, UNIT);
 
@@ -1376,7 +1422,7 @@ static value_t rl_bool(bool test) {
 // special forms --------------------------------------------------------------
 value_t native_quote(list_t* form, environment_t* environment, list_t* args) {
   (void)form;
-
+  (void)environment;
   return args->head;
 }
 
