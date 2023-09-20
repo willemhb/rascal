@@ -7,4 +7,7 @@
 
 #define RASCAL_DEBUG
 
+#define MAX_ARITY   0x0000ffffffffffffUL // 48 bits. Also constrains maximum hash value
+#define ARITY_WIDTH 48
+
 #endif
