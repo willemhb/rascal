@@ -60,20 +60,16 @@ core
 core.*
 cores/
 
-# ignore api key
-.secret.txt
-
 # ignore emacs garbage
 *~
 *.el
-#*#
 .#*
 
 # don't ignore .gitignore
 !.gitignore
 
 # don't ignore the emacs mode
-!src/lisp/rascal-mode.el
+!bin/rascal-mode.el
 
 # don't ignore utils??
 !utils/
