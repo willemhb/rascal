@@ -41,4 +41,8 @@ typedef enum {
   STREAM
 } Type;
 
+#include "declare.h"
+
+ARRAY_TYPE(ValuesArray, Value);
+
 #endif
