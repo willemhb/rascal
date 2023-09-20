@@ -3,4 +3,29 @@
 
 #include "common.h"
 
+/* types and procedures for lexing input (initial processing). */
+
+// token type
+typedef enum {
+  NUMBER_TOKEN,
+  IDENTIFIER_TOKEN,
+  ATOM_TOKEN,
+  LPAR_TOKEN,
+  RPAR_TOKEN,
+  PLUS_TOKEN,
+  MINUS_TOKEN,
+  MUL_TOKEN,
+  DIV_TOKEN,
+  EXP_TOKEN,
+  COMMA_TOKEN,
+  EOF_TOKEN
+} TokenType;
+
+typedef struct {
+  char*     value;
+  TokenType type;
+  size_t    start;
+  size_t    stop;
+} Token;
+
 #endif

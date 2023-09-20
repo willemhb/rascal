@@ -16,13 +16,13 @@
  *     | CALL
  *     ;
  *
- * CALL           
+ * CALL
  *     : MULTIPLICATION 
  *     | IDENTIFIER CALL 
  *     | IDENTIFIER '(' ')' 
  *     | IDENTIFIER '(' EXPRESSION [',' EXPRESSION]* ')' 
  *     ;
- * 
+ *
  * MULTIPLICATION 
  *     : MULTIPLICATION ('*' | '/') EXPONENTIATION
  *     | EXPONENTIATION

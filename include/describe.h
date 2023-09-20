@@ -19,7 +19,10 @@
       size_t newCap  = oldCap < 8 ? 8 : oldCap << 1;                    \
       size_t oldSize = oldCap * sizeof(ElType);                         \
       size_t newSize = newCap * sizeof(ElType);                         \
-      array->data    = reallocate(array->data, oldSize, newSize, false); \
+      array->data    = reallocate(array->data,                          \
+                                  oldSize,                              \
+                                  newSize,                              \
+                                  false);                               \
     }                                                                   \
     array->data[array->count++] = x;                                    \
   }                                                                     \
@@ -28,5 +31,22 @@
     deallocate(array->data, array->capacity * sizeof(ElType), false);   \
     init##ArrayType(array);                                             \
   }
+
+#define TABLE_TYPE(TableType, KeyType, ValType,                     \
+                   compareKeys, hashKey, internKey)                 \
+  void init##TableType(TableType* table) {                          \
+    table->table    = NULL;                                         \
+    table->count    = 0;                                            \
+    table->capacity = 0;                                            \
+  }                                                                 \
+                                                                    \
+  void free##TableType(TableType* table) {                          \
+    deallocate(table->table,                                        \
+               table->capacity * sizeof(TableType##Entry),          \
+               false);                                              \
+    init##TableType(table);                                         \
+  }                                                                 \
+                                                                    \
+                                                                    \
 
 #endif
