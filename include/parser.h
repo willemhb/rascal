@@ -2,6 +2,7 @@
 #define rascal_parser_h
 
 #include "common.h"
+#include "lexer.h"
 
 /**
  *
@@ -17,10 +18,10 @@
  *     ;
  *
  * CALL
- *     : MULTIPLICATION 
- *     | IDENTIFIER CALL 
- *     | IDENTIFIER '(' ')' 
- *     | IDENTIFIER '(' EXPRESSION [',' EXPRESSION]* ')' 
+ *     : MULTIPLICATION
+ *     | IDENTIFIER CALL
+ *     | IDENTIFIER '(' ')'
+ *     | IDENTIFIER '(' EXPRESSION [',' EXPRESSION]* ')'
  *     ;
  *
  * MULTIPLICATION 

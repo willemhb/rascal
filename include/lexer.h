@@ -28,4 +28,14 @@ typedef struct {
   size_t    stop;
 } Token;
 
+typedef struct {
+  char*  source;
+  size_t count;
+  size_t offset;
+  Token  current;
+  Token  previous;
+} Scanner;
+
+extern Scanner scanner;
+
 #endif
