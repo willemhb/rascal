@@ -26,6 +26,7 @@ typedef enum {
   NOTYPE,
   NUMBER,
   BOOLEAN,
+  UNIT,
   OBJECT,
   ATOM=OBJECT,
   BITS,
@@ -41,8 +42,25 @@ typedef enum {
   STREAM
 } Type;
 
+// tags and such
+#define QNAN     0x7ff8000000000000UL
+#define SIGN     0x8000000000000000UL
+
+#define NILTAG   0x7ffc000000000000UL
+#define BOOLTAG  0x7ffd000000000000UL
+#define OBJTAG   0x7ffe000000000000UL
+
+#define TAGMASK  0xffff000000000000UL
+#define VALMASK  0x0000ffffffffffffUL
+
+#define AS_OBJ(value) ((Obj*)((value) & VALMASK))
+
 #include "declare.h"
 
 ARRAY_TYPE(ValuesArray, Value);
+
+Type valueType(Value value);
+Type rascalType(Value value);
+Type objectType(Obj* object);
 
 #endif
