@@ -41,8 +41,7 @@
 *** DONE add 'head', 'tail', 'cons', and 'len' native functions
 *** DONE add 'symbol?', 'list?', 'cons?', 'empty?', 'number?', 'native?' and 'nul?' native functions
 ** TODO Version 00.00.09 - environments and definition
-*** TODO add Environment type
-**** TODO add print support for Environment type
+*** DONE add Environment type
 *** TODO add '&envt' special global
 *** TODO add 'def' and 'put' special forms
 *** TODO add 'bound?' and 'environment?' native function

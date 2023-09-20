@@ -1,8 +1,8 @@
-# Thanks to Job Vranish (https://spin.atomicobject.com/2016/08/26/makefile-c-projects/)
+ # Thanks to Job Vranish (https://spin.atomicobject.com/2016/08/26/makefile-c-projects/)
 TARGET_EXEC := rascal
 
 BUILD_DIR := ./build
-SRC_DIRS := ./src/c
+SRC_DIRS := ./src
 INC_DIRS := ./include
 
 # Find all the C and C++ files we want to compile
