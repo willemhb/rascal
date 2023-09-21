@@ -1,2 +1,9 @@
-# rascal
-The first serious version of rascal, a new dialect of lisp inspired by (stealing ideas from) Julia, Scheme, Clojure, Haskell, and Erlang.
+# Rascal
+The first serious version of rascal, a new functional dynamic language inspired by (stealing ideas from) Julia, Elixir, Scheme, and Clojure.
+
+# Features
+* Elixir-inspired syntax.
+* Mostly-hygienic macros.
+* Intrinsic multimethods (every function is generic).
+* Algebraic effects.
+* Others to come.
