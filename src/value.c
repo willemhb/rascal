@@ -1,3 +1,4 @@
+#include "hashing.h"
 #include "object.h"
 #include "value.h"
 
@@ -38,6 +39,7 @@ size_t sizeOfType(Type type) {
     case BOOLEAN: out = sizeof(Boolean); break;
     case UNIT:    out = sizeof(Value);   break;
     case ATOM:    out = sizeof(Atom);    break;
+    case BITS:    out = sizeof(Bits);    break;
     case LIST:    out = sizeof(List);    break;
     case TUPLE:   out = sizeof(Tuple);   break;
     case MAP:     out = sizeof(Map);     break;
@@ -52,4 +54,45 @@ size_t sizeOfType(Type type) {
   }
 
   return out;
+}
+
+char* nameOfType(Type type) {
+  char* out;
+  
+  switch (type) {
+    case NUMBER:  out = "Number";  break;
+    case BOOLEAN: out = "Boolean"; break;
+    case UNIT:    out = "Unit";    break;
+    case ATOM:    out = "Atom";    break;
+    case BITS:    out = "Bits";    break;
+    case LIST:    out = "List";    break;
+    case TUPLE:   out = "Tuple";   break;
+    case MAP:     out = "Map";     break;
+    case NODE:    out = "Node";    break;
+    case LEAF:    out = "Leaf";    break;
+    case CHUNK:   out = "Chunk";   break;
+    case CLOSURE: out = "Closure"; break;
+    case UPVALUE: out = "Upvalue"; break;
+    case NATIVE:  out = "Native";  break;
+    case STREAM:  out = "Stream";  break;
+    default:      out = "Term";    break;
+  }
+
+  return out;
+}
+
+bool equalValues(Value x, Value y) {
+  if (x == y)
+    return true;
+
+  Type xt = rascalType(x), yt = rascalType(y);
+
+  if (xt != yt || xt < ATOM)
+    return false;
+
+  return equalObjects(AS_OBJ(x), AS_OBJ(y));
+}
+
+uint64_t hashValue(Value x) {
+  
 }

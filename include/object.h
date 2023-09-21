@@ -17,12 +17,12 @@ TABLE_TYPE(SymbolTable, symbolTable, char*, Atom*);
 
 struct Obj {
   struct Obj* next;        // live objects list
-  uintptr_t   hash   : 48; // cached object hash
-  uintptr_t   type   :  6; // object's vm type (may be different than the type returned by `typeof`)
-  uintptr_t   flags  :  5; // miscellaneous discretionary flags
-  uintptr_t   hashed :  1; // indicates whether self->hash is valid
-  uintptr_t   black  :  1; // gc marked flag
-  uintptr_t   gray   :  1; // gc traced flag
+  uint64_t    hash;        // cached hash code
+  Type        type;        // object type (duh)
+  uint8_t     hashed;      // hash is valid or needs to be computed
+  uint8_t     flags;       // misc, discretionary
+  uint8_t     black;       // gc mark flag
+  uint8_t     gray;        // gc trace flag
   uint8_t     data[];      // pointer to object's regular data
 };
 

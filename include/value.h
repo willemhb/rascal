@@ -59,10 +59,18 @@ typedef enum {
 #define AS_OBJ(value)  ((Obj*)((value) & VAL_MASK))
 #define AS_NUM(value)  ((Number)wordToDouble(value))
 
-#define IS_NIL(value)  ((value) == NIL_VAL)
-#define IS_BOOL(value) (hasValueType(value, BOOLEAN))
-#define IS_OBJ(value)  (hasValueType(value, OBJECT))
-#define IS_NUM(value)  (((value) & QNAN) != QNAN)
+#define IS_NIL(value)     ((value) == NIL_VAL)
+#define IS_BOOL(value)    hasValueType(value, BOOLEAN)
+#define IS_OBJ(value)     hasValueType(value, OBJECT)
+#define IS_NUM(value)     (((value) & QNAN) != QNAN)
+#define IS_ATOM(value)    hasRascalType(value, ATOM)
+#define IS_BITS(value)    hasRascalType(value, BITS)
+#define IS_LIST(value)    hasRascalType(value, LIST)
+#define IS_TUPLE(value)   hasRascalType(value, TUPLE)
+#define IS_MAP(value)     hasRascalType(value, MAP)
+#define IS_NODE(value)    hasRascalType(value, NODE)
+#define IS_LEAF(value)    hasRascalType(value, LEAF)
+#define IS_CLOSURE(value) hasRascalType(value, CLOSURE)
 
 #include "declare.h"
 
