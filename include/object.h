@@ -105,6 +105,8 @@ struct Stream {
   FILE* ios;
 };
 
+// constructors
 Atom* newAtom(char* name);
+Atom* getAtom(char* token, size_t tokSize);
 
 #endif

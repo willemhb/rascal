@@ -126,7 +126,7 @@
       }                                                                 \
       internKey(entry, key, value);                                     \
     } else {                                                            \
-      *value = entry->val;                                            \
+      *value = entry->val;                                              \
     }                                                                   \
                                                                         \
     return isNewKey;                                                    \

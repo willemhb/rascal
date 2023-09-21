@@ -18,6 +18,10 @@ typedef struct {
   Value*    slots;
 } CallFrame;
 
+// global environment
+#include "declare.h"
+TABLE_TYPE(GlobalEnv, globalEnv, Atom*, Value);
+
 // global interpreter state
 typedef struct {
   // heap state
@@ -34,6 +38,7 @@ typedef struct {
   // globals/symbol table
   uint64_t    symbolCounter;
   SymbolTable symbolTable;
+  GlobalEnv   globalEnv;
 
   // scanner state
   Scanner scanner;
