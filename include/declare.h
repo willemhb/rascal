@@ -9,7 +9,7 @@
     size_t  capacity;                                    \
   } ArrayType;                                           \
                                                          \
-  void init##ArrrayType(ArrayType* array);               \
+  void init##ArrayType(ArrayType* array);                \
   void write##ArrayType(ArrayType* array, ElType x);     \
   void free##ArrayType(ArrayType* array)
 

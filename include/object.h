@@ -6,6 +6,11 @@
 #include "common.h"
 #include "value.h"
 
+// object array (used in various places)
+#include "declare.h"
+
+ARRAY_TYPE(ObjectsArray, Obj*);
+
 struct Obj {
   struct Obj* next;        // live objects list
   uintptr_t   hash   : 48; // cached object hash
@@ -93,5 +98,6 @@ struct Stream {
   Obj   obj;
   FILE* ios;
 };
+
 
 #endif
