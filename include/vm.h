@@ -32,6 +32,8 @@ typedef struct {
   UpValue*   openUpvalues;
 
   // globals/symbol table
+  uint64_t    symbolCounter;
+  SymbolTable symbolTable;
 
   // scanner state
   Scanner scanner;

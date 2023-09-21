@@ -32,7 +32,9 @@
     init##ArrayType(array);                                             \
   }
 
-#define TABLE_TYPE(TableType, KeyType, ValType,                         \
+#define TABLE_MAX_LOAD 0.75
+
+#define TABLE_TYPE(TableType, tableType, KeyType, ValType,              \
                    compareKeys, hashKey, internKey,                     \
                    noKey, noValue)                                      \
   void init##TableType(TableType* table) {                              \
@@ -57,15 +59,15 @@
     TableType##Entry* tombstone = NULL;                                 \
                                                                         \
     for (;;) {                                                          \
-      Entry* entry = &entries[index];                                   \
+      TableType##Entry* entry = &entries[index];                        \
       if (entry->key == noKey) {                                        \
-        if (entry->value == noValue) {                                  \
+        if (entry->val == noValue) {                                    \
           return tombstone != NULL ? tombstone : entry;                 \
         } else {                                                        \
           if (tombstone == NULL)                                        \
             tombstone = entry;                                          \
         }                                                               \
-      } else if (compare(entry->key, key)) {                            \
+      } else if (compareKeys(entry->key, key)) {                        \
         return entry;                                                   \
       } else {                                                          \
         index = (index + 1) & mask;                                     \
@@ -79,12 +81,112 @@
     TableType##Entry* entries = allocate(newSize, false);               \
     /* fill table */                                                    \
     for (size_t i=0; i<capacity; i++) {                                 \
-      entries[i].key   = noKey;                                         \
-      entries[i].value = noValue;                                       \
+      entries[i].key = noKey;                                           \
+      entries[i].val = noValue;                                         \
     }                                                                   \
     /* reset table init count */                                        \
     table->count = 0;                                                   \
+    for (size_t i=0; i<table->capacity; i++) {                          \
+      TableType##Entry* entry = &table->table[i];                       \
+                                                                        \
+      if (entry->key == noKey) {                                        \
+        continue;                                                       \
+      }                                                                 \
+                                                                        \
+      TableType##Entry* dest = find##TableType##Entry(entries,          \
+                                           capacity,                    \
+                                           entry->key);                 \
+      dest->key = entry->key;                                           \
+      dest->val = entry->val;                                           \
+      table->count++;                                                   \
+    }                                                                   \
+    deallocate(table->table,                                            \
+               table->capacity*sizeof(TableType##Entry),                \
+               false);                                                  \
+    table->table = entries;                                             \
+    table->capacity = capacity;                                         \
   }                                                                     \
+                                                                        \
+  bool tableType##Add(TableType* table, KeyType key, ValType* value) {  \
+    if (table->count + 1 > table->capacity * TABLE_MAX_LOAD) {          \
+      size_t capacity = table->capacity < 8 ? 8 : table->capacity << 1; \
+      adjust##TableType##Capacity(table, capacity);                     \
+    }                                                                   \
+                                                                        \
+    TableType##Entry* entry = find##TableType##Entry(table->table,    \
+                                                     table->capacity,   \
+                                                     key);              \
+                                                                        \
+    bool isNewKey = entry->key == noKey;                                \
+                                                                        \
+    if (isNewKey) {                                                     \
+      table->count++;                                                   \
+      if (entry->val == noValue) {                                      \
+        table->count++;                                                 \
+      }                                                                 \
+      internKey(entry, key, value);                                     \
+    }                                                                   \
+                                                                        \
+    return isNewKey;                                                    \
+  }                                                                     \
+                                                                        \
+  bool tableType##Get(TableType* table, KeyType key, ValType* val) {    \
+    if (table->count == 0) {                                            \
+      *val = noValue;                                                   \
+      return false;                                                     \
+    }                                                                   \
+                                                                        \
+    TableType##Entry* entry = find##TableType##Entry(table->table,    \
+                                                     table->capacity,   \
+                                                     key);              \
+                                                                        \
+    if (entry->key == noKey) {                                          \
+      *val = noValue;                                                   \
+      return false;                                                     \
+    }                                                                   \
+                                                                        \
+    *val = entry->val;                                                  \
+    return true;                                                        \
+  }                                                                     \
+                                                                        \
+  bool tableType##Set(TableType* table, KeyType key, ValType value) {   \
+    if (table->count + 1 > table->capacity * TABLE_MAX_LOAD) {          \
+      size_t capacity = table->capacity < 8 ? 8 : table->capacity << 1; \
+      adjust##TableType##Capacity(table, capacity);                     \
+    }                                                                   \
+                                                                        \
+    TableType##Entry* entry = find##TableType##Entry(table->table,    \
+                                                     table->capacity,   \
+                                                     key);              \
+                                                                        \
+    bool isNewKey = entry->key == noKey;                                \
+                                                                        \
+    if (isNewKey && entry->val == noValue) {                            \
+      table->count++;                                                   \
+    }                                                                   \
+                                                                        \
+    entry->key = key;                                                   \
+    entry->val = value;                                                 \
+                                                                        \
+    return isNewKey;                                                    \
+  }                                                                     \
+                                                                        \
+  bool tableType##Delete(TableType* table, KeyType key) {               \
+    if (table->count == 0) {                                            \
+      return false;                                                     \
+    }                                                                   \
+                                                                        \
+    TableType##Entry* entry = find##TableType##Entry(table->table,      \
+                                                     table->capacity,   \
+                                                     key);              \
+                                                                        \
+    if (entry->key == noKey) {                                          \
+      return false;                                                     \
+    }                                                                   \
+                                                                        \
+    entry->key = noKey;                                                 \
+    return true;                                                        \
+  }
 
 
 #endif

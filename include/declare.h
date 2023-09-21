@@ -13,7 +13,7 @@
   void write##ArrayType(ArrayType* array, ElType x);     \
   void free##ArrayType(ArrayType* array)
 
-#define TABLE_TYPE(TableType, KeyType, ValType)                     \
+#define TABLE_TYPE(TableType, tableType, KeyType, ValType)          \
   typedef struct {                                                  \
     KeyType key;                                                    \
     ValType val;                                                    \
@@ -27,8 +27,9 @@
                                                                     \
   void init##TableType(TableType* table);                           \
   void free##TableType(TableType* table);                           \
-  bool TableType##Get(TableType* table, KeyType key, ValType* val); \
-  bool TableType##Set(TableType* table, KeyType key, ValType val);  \
-  bool TableType##Delete(TableType* table, KeyType key)
+  bool tableType##Add(TableType* table, KeyType key, ValType* val); \
+  bool tableType##Get(TableType* table, KeyType key, ValType* val); \
+  bool tableType##Set(TableType* table, KeyType key, ValType val);  \
+  bool tableType##Delete(TableType* table, KeyType key)
 
 #endif

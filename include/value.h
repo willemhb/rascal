@@ -71,9 +71,12 @@ typedef enum {
 
 ARRAY_TYPE(Values, Value);
 
-Type valueType(Value value);
-Type rascalType(Value value);
-Type objectType(Obj* object);
+Type   valueType(Value value);
+Type   rascalType(Value value);
+Type   objectType(Obj* object);
+size_t sizeOfType(Type type);
+char*  nameOfType(Type type);
+bool   equalValues(Value x, Value y);
 
 static inline bool hasValueType(Value value, Type type) {
   return valueType(value) == type;

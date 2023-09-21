@@ -12,7 +12,8 @@ typedef Value (*NativeFn)(size_t argCount, Value* args);
 #include "declare.h"
 
 ARRAY_TYPE(Objects, Obj*);
-ARRAY_TYPE(Bytecode, uint16_t);
+ARRAY_TYPE(ByteCode, uint16_t);
+TABLE_TYPE(SymbolTable, symbolTable, char*, Atom*);
 
 struct Obj {
   struct Obj* next;        // live objects list
@@ -73,7 +74,7 @@ struct Leaf {
 
 struct Chunk {
   Obj      obj;
-  Bytecode instructions;
+  ByteCode instructions;
   Values   constants;
 };
 
@@ -104,5 +105,6 @@ struct Stream {
   FILE* ios;
 };
 
+Atom* newAtom(char* name);
 
 #endif
