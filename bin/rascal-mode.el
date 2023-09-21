@@ -10,7 +10,7 @@
   'rascal-mode
   '("#")
   '("fun" "mac" "struct" "record" ;; binding syntax
-    "union"                       ;; binding syntax (continued)
+    "union" "type"                ;; binding syntax (continued)
     "perform" "handle" "resume"   ;; effect syntax
     "catch" "raise" "yield"       ;; control syntax
     "if" "elif" "else" "case"     ;; branching syntax

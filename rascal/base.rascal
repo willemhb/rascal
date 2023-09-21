@@ -1,0 +1,15 @@
+# a comment
+
+struct Ratio do
+    numer::Number
+    denom::Number
+end
+
+fun ratio(numer, denom) do
+    %Ratio{ numer: numer, denom: denom }
+end
+
+fun x::Integer + y::Ratio do
+    ratio(x, 1) + y
+end
+
