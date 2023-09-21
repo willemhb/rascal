@@ -43,9 +43,6 @@ typedef enum {
 } Type;
 
 // tags and such
-#define QNAN        0x7ff8000000000000UL
-#define SIGN        0x8000000000000000UL
-
 #define NIL_TAG     0x7ffc000000000000UL
 #define BOOL_TAG    0x7ffd000000000000UL
 #define OBJ_TAG     0x7ffe000000000000UL
@@ -71,12 +68,13 @@ typedef enum {
 
 ARRAY_TYPE(Values, Value);
 
-Type   valueType(Value value);
-Type   rascalType(Value value);
-Type   objectType(Obj* object);
-size_t sizeOfType(Type type);
-char*  nameOfType(Type type);
-bool   equalValues(Value x, Value y);
+Type     valueType(Value value);
+Type     rascalType(Value value);
+Type     objectType(Obj* object);
+size_t   sizeOfType(Type type);
+char*    nameOfType(Type type);
+bool     equalValues(Value x, Value y);
+uint64_t hashValue(Value x);
 
 static inline bool hasValueType(Value value, Type type) {
   return valueType(value) == type;

@@ -105,8 +105,21 @@ struct Stream {
   FILE* ios;
 };
 
+// miscellaneous utilities
+uint64_t hashObject(void* ob);
+bool     equalObjects(void* obX, void* obY);
+
 // constructors
-Atom* newAtom(char* name);
-Atom* getAtom(char* token, size_t tokSize);
+Atom*  newAtom(char* name);
+Atom*  getAtom(char* token, size_t tokSize);
+
+List*  newList(Value head, List* tail);
+List*  newList1(Value head);
+List*  newList2(Value arg1, Value arg2);
+List*  newListN(size_t n, Value* args);
+
+Tuple* newTuple(size_t arity, Value* slots);
+Tuple* newPair(Value x, Value y);
+Tuple* newTriple(Value x, Value y, Value z);
 
 #endif
