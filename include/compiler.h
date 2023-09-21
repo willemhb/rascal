@@ -3,4 +3,8 @@
 
 #include "common.h"
 
+typedef struct {
+  
+} Compiler;
+
 #endif

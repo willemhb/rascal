@@ -43,6 +43,9 @@
  *
  **/
 
+typedef struct {
+  
+} Parser;
 
 
 #endif

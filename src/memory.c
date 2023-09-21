@@ -13,22 +13,22 @@ static void manage(void) {}
 void* allocate(size_t nBytes, bool fromHeap) {
   if (fromHeap && checkHeapOverflow(nBytes))
     manage();
-
+  
   void* out = malloc(nBytes);
-
+  
   if (out == NULL)
     exit(1);
-
+  
   memset(out, 0, nBytes);
-
+  
   return out;
 }
 
 void* duplicate(void* pointer, size_t nBytes, bool fromHeap) {
   void* cpy = allocate(nBytes, fromHeap);
-
+  
   memcpy(cpy, pointer, nBytes);
-
+  
   return cpy;
 }
 
@@ -39,15 +39,15 @@ void* reallocate(void* pointer, size_t oldSize, size_t newSize, bool fromHeap) {
     deallocate(pointer, oldSize, fromHeap);
     out = NULL;
   }
-
+  
   else if (newSize > oldSize) {
     size_t diff = newSize - oldSize;
-
+    
     if (fromHeap && checkHeapOverflow(diff))
       manage();
-
+    
     out = realloc(pointer, newSize);
-
+    
     if (out == NULL)
       exit(1);
 

@@ -36,8 +36,6 @@ typedef struct {
   Token  previous;
 } Scanner;
 
-extern Scanner scanner;
-
 
 
 #endif

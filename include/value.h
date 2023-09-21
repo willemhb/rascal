@@ -43,24 +43,44 @@ typedef enum {
 } Type;
 
 // tags and such
-#define QNAN     0x7ff8000000000000UL
-#define SIGN     0x8000000000000000UL
+#define QNAN        0x7ff8000000000000UL
+#define SIGN        0x8000000000000000UL
 
-#define NILTAG   0x7ffc000000000000UL
-#define BOOLTAG  0x7ffd000000000000UL
-#define OBJTAG   0x7ffe000000000000UL
+#define NIL_TAG     0x7ffc000000000000UL
+#define BOOL_TAG    0x7ffd000000000000UL
+#define OBJ_TAG     0x7ffe000000000000UL
 
-#define TAGMASK  0xffff000000000000UL
-#define VALMASK  0x0000ffffffffffffUL
+#define TAG_MASK    0xffff000000000000UL
+#define VAL_MASK    0x0000ffffffffffffUL
 
-#define AS_OBJ(value) ((Obj*)((value) & VALMASK))
+#define TRUE_VAL    (BOOL_TAG | 1UL)
+#define FALSE_VAL   (BOOL_TAG | 0UL)
+#define NIL_VAL     (NIL_TAG  | 0UL)
+#define NOTHING_VAL (NIL_TAG  | 1UL) // invalid value marker
+
+#define AS_BOOL(value) ((value) == TRUE_VAL)
+#define AS_OBJ(value)  ((Obj*)((value) & VAL_MASK))
+#define AS_NUM(value)  ((Number)wordToDouble(value))
+
+#define IS_NIL(value)  ((value) == NIL_VAL)
+#define IS_BOOL(value) (hasValueType(value, BOOLEAN))
+#define IS_OBJ(value)  (hasValueType(value, OBJECT))
+#define IS_NUM(value)  (((value) & QNAN) != QNAN)
 
 #include "declare.h"
 
-ARRAY_TYPE(ValuesArray, Value);
+ARRAY_TYPE(Values, Value);
 
 Type valueType(Value value);
 Type rascalType(Value value);
 Type objectType(Obj* object);
+
+static inline bool hasValueType(Value value, Type type) {
+  return valueType(value) == type;
+}
+
+static inline bool hasRascalType(Value value, Type type) {
+  return rascalType(value) == type;
+}
 
 #endif

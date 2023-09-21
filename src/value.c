@@ -4,14 +4,14 @@
 // array types
 #include "describe.h"
 
-ARRAY_TYPE(ValuesArray, Value);
+ARRAY_TYPE(Values, Value);
 
 Type valueType(Value value) {
-  switch (value & TAGMASK) {
-    case NILTAG:  return UNIT;
-    case BOOLTAG: return BOOLEAN;
-    case OBJTAG:  return OBJECT;
-    default:      return NUMBER;
+  switch (value & TAG_MASK) {
+    case NIL_TAG:  return UNIT;
+    case BOOL_TAG: return BOOLEAN;
+    case OBJ_TAG:  return OBJECT;
+    default:       return NUMBER;
   }
 }
 
