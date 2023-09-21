@@ -81,8 +81,9 @@
     for (size_t i=0; i<capacity; i++) {                                 \
       entries[i].key   = noKey;                                         \
       entries[i].value = noValue;                                       \
-                                                                        \
     }                                                                   \
+    /* reset table init count */                                        \
+    table->count = 0;                                                   \
   }                                                                     \
 
 

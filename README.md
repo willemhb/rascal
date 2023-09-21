@@ -20,9 +20,9 @@ power of other non-Lisps. This has several beneficial implications for macro wri
 * the relationship between source code and parse tree is relatively easy to represent in core data structures.
 
 # Why macros?
-Syntactic macros (macros operating at the level of parse trees, rather than tokens) are perhaps the second most powerful abstraction tool in the history of computer science, after user-defined 
-functions. Though much-maligned throughout their history, the regular inclusion of syntactic macros in new languages suggests that people are coming around to their benefits, and this point doesn't 
-need to be elaborated at length.
+Syntactic macros (macros operating at the level of parse trees) are perhaps the second most powerful abstraction tool in the history of computer science, after user-defined  functions. Though 
+much-maligned throughout their history, the regular inclusion of syntactic macros in new languages suggests that people are coming around to their benefits, and this point doesn't need to be 
+elaborated.
 
 # Why intrinsic multimethods?
 Although efficient implementation of multimethods is quite difficult, and although method resolution and ambiguity create occasional headaches for programmers, intrinsic multimethods (in the style of
