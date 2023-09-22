@@ -21,7 +21,7 @@ typedef struct {
 // global environment
 #include "tpl/declare.h"
 
-TABLE_TYPE(GlobalEnv, globalEnv, Atom*, Value);
+TABLE_TYPE(GlobalEnv, globalEnv, Symbol*, Value);
 
 // global interpreter state
 typedef struct {

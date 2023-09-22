@@ -8,7 +8,7 @@ typedef uintptr_t      Value;   // standard tagged value representation (NaN box
 typedef double         Number;  // common number
 typedef bool           Boolean; // boolean
 typedef struct Obj     Obj;     // generic object
-typedef struct Atom    Atom;    // interned symbol
+typedef struct Symbol  Symbol;  // interned symbol
 typedef struct Bits    Bits;    // compact binary data
 typedef struct List    List;    // immutable linked list
 typedef struct Tuple   Tuple;   // immutable fixed-size collection
@@ -28,7 +28,7 @@ typedef enum {
   BOOLEAN,
   UNIT,
   OBJECT,
-  ATOM=OBJECT,
+  SYMBOL=OBJECT,
   BITS,
   LIST,
   TUPLE,
@@ -58,7 +58,7 @@ typedef enum {
 #define AS_BOOL(value)    ((value) == TRUE_VAL)
 #define AS_NUM(value)     ((Number)wordToDouble(value))
 #define AS_OBJ(value)     ((Obj*)((value) & VAL_MASK))
-#define AS_ATOM(value)    ((Atom*)((value) & VAL_MASK))
+#define AS_SYMBOL(value)  ((Symbol*)((value) & VAL_MASK))
 #define AS_BITS(value)    ((Bits*)((value) & VAL_MASK))
 #define AS_LIST(value)    ((List*)((value) & VAL_MASK))
 #define AS_TUPLE(value)   ((Tuple*)((value) & VAL_MASK))
@@ -75,7 +75,7 @@ typedef enum {
 #define IS_BOOL(value)    hasValueType(value, BOOLEAN)
 #define IS_OBJ(value)     hasValueType(value, OBJECT)
 #define IS_NUM(value)     (((value) & QNAN) != QNAN)
-#define IS_ATOM(value)    hasRascalType(value, ATOM)
+#define IS_SYMBOL(value)  hasRascalType(value, SYMBOL)
 #define IS_BITS(value)    hasRascalType(value, BITS)
 #define IS_LIST(value)    hasRascalType(value, LIST)
 #define IS_TUPLE(value)   hasRascalType(value, TUPLE)

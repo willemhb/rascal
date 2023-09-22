@@ -39,7 +39,7 @@ size_t sizeOfType(Type type) {
     case NUMBER:  out = sizeof(Number);  break;
     case BOOLEAN: out = sizeof(Boolean); break;
     case UNIT:    out = sizeof(Value);   break;
-    case ATOM:    out = sizeof(Atom);    break;
+    case SYMBOL:  out = sizeof(Symbol);  break;
     case BITS:    out = sizeof(Bits);    break;
     case LIST:    out = sizeof(List);    break;
     case TUPLE:   out = sizeof(Tuple);   break;
@@ -64,7 +64,7 @@ char* nameOfType(Type type) {
     case NUMBER:  out = "Number";  break;
     case BOOLEAN: out = "Boolean"; break;
     case UNIT:    out = "Unit";    break;
-    case ATOM:    out = "Atom";    break;
+    case SYMBOL:  out = "Symbol";  break;
     case BITS:    out = "Bits";    break;
     case LIST:    out = "List";    break;
     case TUPLE:   out = "Tuple";   break;
@@ -88,7 +88,7 @@ bool equalValues(Value x, Value y) {
 
   Type xt = rascalType(x), yt = rascalType(y);
 
-  if (xt != yt || xt < ATOM)
+  if (xt != yt || xt < SYMBOL)
     return false;
 
   return equalObjects(AS_OBJ(x), AS_OBJ(y));

@@ -15,8 +15,8 @@ bool compareSymbolTableKeys(char* xs, char* ys) {
   return strcmp(xs, ys) == 0;
 }
 
-void internSymbolTableKey(SymbolTableEntry* entry, char* key, Atom** value) {
-  Atom* atom   = newAtom(key);
+void internSymbolTableKey(SymbolTableEntry* entry, char* key, Symbol** value) {
+  Symbol* atom   = newSymbol(key);
   entry->key   = atom->name;
   entry->val   = atom;
   *value       = atom;
@@ -25,7 +25,7 @@ void internSymbolTableKey(SymbolTableEntry* entry, char* key, Atom** value) {
 TABLE_TYPE(SymbolTable,
            symbolTable,
            char*,
-           Atom*,
+           Symbol*,
            compareSymbolTableKeys,
            hashString,
            internSymbolTableKey,
@@ -38,11 +38,11 @@ static void  initObject(void* pointer, Type type);
 
 // constructors
 // atom
-Atom* newAtom(char* name) {
+Symbol* newSymbol(char* name) {
   size_t n = strlen(name)+1;
 
   char* copy = duplicate(name, n, false);
-  Atom* out  = newObject(ATOM, 0);
+  Symbol* out  = newObject(SYMBOL, 0);
 
   out->name  = copy;
   out->idno  = ++vm.symbolCounter;
@@ -50,12 +50,12 @@ Atom* newAtom(char* name) {
   return out;
 }
 
-Atom* getAtom(char* name, size_t tokSize) {
+Symbol* getSymbol(char* name, size_t tokSize) {
   if (tokSize == 0)
     tokSize = strlen(name);
 
   // copy string in case it comes from non-null terminated token.
-  char buffer[tokSize+1]; Atom* out = NULL;
+  char buffer[tokSize+1]; Symbol* out = NULL;
   strncpy(buffer, name, tokSize);
   buffer[tokSize] = '\0';
 

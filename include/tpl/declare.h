@@ -11,6 +11,7 @@
                                                          \
   void init##ArrayType(ArrayType* array);                \
   void write##ArrayType(ArrayType* array, ElType x);     \
+  void pop##ArrayType(ArrayType* array, ElType x);       \
   void free##ArrayType(ArrayType* array)
 
 #define TABLE_TYPE(TableType, tableType, KeyType, ValType)          \

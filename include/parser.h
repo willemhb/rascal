@@ -24,7 +24,7 @@
  *     | IDENTIFIER '(' EXPRESSION [',' EXPRESSION]* ')'
  *     ;
  *
- * MULTIPLICATION 
+ * MULTIPLICATION
  *     : MULTIPLICATION ('*' | '/') EXPONENTIATION
  *     | EXPONENTIATION
  *     ;

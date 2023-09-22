@@ -9,7 +9,7 @@
 typedef enum {
   NUMBER_TOKEN,
   IDENTIFIER_TOKEN,
-  ATOM_TOKEN,
+  SYMBOL_TOKEN,
   LPAR_TOKEN,
   RPAR_TOKEN,
   PLUS_TOKEN,
@@ -18,25 +18,34 @@ typedef enum {
   DIV_TOKEN,
   EXP_TOKEN,
   COMMA_TOKEN,
-  EOF_TOKEN
+  EOF_TOKEN,
+  ERROR_TOKEN
 } TokenType;
 
 typedef struct {
-  char*     value;
-  TokenType type;
-  size_t    start;
-  size_t    stop;
+  const char* start;
+  size_t      length;
+  TokenType   type;
+  int         lineNo;
 } Token;
-
-typedef struct {
-  char*  source;
-  size_t count;
-  size_t offset;
-  Token  current;
-  Token  previous;
-} Scanner;
 
 #include "tpl/declare.h"
 ARRAY_TYPE(Tokens, Token);
+
+typedef struct {
+  char*  start;
+  char*  current;
+  int    lineNo;
+  bool   hadError;
+  Tokens tokens;
+} Scanner;
+
+// scanner API
+void  initScanner(Scanner* scanner, char* source);
+void  freeScanner(Scanner* scanner);
+Token peekToken(Scanner* scanner, int i);
+
+// lexer API
+bool lexInput(char* source);
 
 #endif

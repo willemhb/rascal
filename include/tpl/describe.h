@@ -138,7 +138,7 @@
       return false;                                                     \
     }                                                                   \
                                                                         \
-    TableType##Entry* entry = find##TableType##Entry(table->table,    \
+    TableType##Entry* entry = find##TableType##Entry(table->table,      \
                                                      table->capacity,   \
                                                      key);              \
                                                                         \
@@ -157,7 +157,7 @@
       adjust##TableType##Capacity(table, capacity);                     \
     }                                                                   \
                                                                         \
-    TableType##Entry* entry = find##TableType##Entry(table->table,    \
+    TableType##Entry* entry = find##TableType##Entry(table->table,      \
                                                      table->capacity,   \
                                                      key);              \
                                                                         \

@@ -13,7 +13,7 @@ typedef Value (*NativeFn)(size_t argCount, Value* args);
 
 ARRAY_TYPE(Objects, Obj*);
 ARRAY_TYPE(ByteCode, uint16_t);
-TABLE_TYPE(SymbolTable, symbolTable, char*, Atom*);
+TABLE_TYPE(SymbolTable, symbolTable, char*, Symbol*);
 
 struct Obj {
   struct Obj* next;        // live objects list
@@ -26,7 +26,7 @@ struct Obj {
   uint8_t     data[];      // pointer to object's regular data
 };
 
-struct Atom {
+struct Symbol {
   Obj       obj;
   char*     name;
   uintptr_t idno; // unique identifier
@@ -110,8 +110,8 @@ uint64_t hashObject(void* ob);
 bool     equalObjects(void* obX, void* obY);
 
 // constructors
-Atom*  newAtom(char* name);
-Atom*  getAtom(char* token, size_t tokSize);
+Symbol* newSymbol(char* name);
+Symbol* getSymbol(char* token, size_t tokSize);
 
 List*  newList(Value head, List* tail);
 List*  newList1(Value head);

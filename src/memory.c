@@ -4,21 +4,37 @@
 #include "vm.h"
 #include "memory.h"
 
-static bool checkHeapOverflow(size_t nBytes) {
-  return nBytes + vm.heapUsed > vm.heapCapacity;
+// internal GC helpers
+static void mark(void)  {}
+static void trace(void) {}
+static void sweep(void) {}
+
+static void manage(void) {
+  mark();
+  trace();
+  sweep();
 }
 
-static void manage(void) {}
+static void manageHeap(size_t nBytesAdded, size_t nBytesRemoved) {
+  if (nBytesAdded > nBytesRemoved) {
+    size_t diff = nBytesAdded - nBytesRemoved;
 
+    if (diff + vm.heapUsed > vm.heapCapacity)
+      manage();
+
+    vm.heapUsed += diff;
+  } else {
+    size_t diff = nBytesRemoved - nBytesAdded;
+    vm.heapUsed -= diff;
+  }
+}
+
+// heap/memory API
 void* allocate(size_t nBytes, bool fromHeap) {
-  if (fromHeap && checkHeapOverflow(nBytes))
-    manage();
+  if (fromHeap)
+    manageHeap(nBytes, 0);
   
-  void* out = malloc(nBytes);
-  
-  if (out == NULL)
-    exit(1);
-  
+  void* out = SAFE_MALLOC(nBytes);
   memset(out, 0, nBytes);
   
   return out;
@@ -40,36 +56,22 @@ void* reallocate(void* pointer, size_t oldSize, size_t newSize, bool fromHeap) {
     out = NULL;
   }
   
-  else if (newSize > oldSize) {
-    size_t diff = newSize - oldSize;
-    
-    if (fromHeap && checkHeapOverflow(diff))
-      manage();
-    
-    out = realloc(pointer, newSize);
-    
-    if (out == NULL)
-      exit(1);
+  else {
+    if (fromHeap)
+      manageHeap(newSize, oldSize);
 
-    memset(out+oldSize, 0, diff);
-    vm.heapUsed += diff;
-  } else {
-    size_t diff  = oldSize - newSize;
+    out = SAFE_REALLOC(pointer, newSize);
 
-    out = realloc(pointer, newSize);
-
-    if (out == NULL)
-      exit(1);
-
-    vm.heapUsed -= diff;
+    if (newSize > oldSize)
+      memset(out+oldSize, 0, newSize-oldSize);
   }
-
+  
   return out;
 }
 
 void deallocate(void* pointer, size_t nBytes, bool fromHeap) {
   if (fromHeap)
-    vm.heapUsed -= nBytes;
+    manageHeap(0, nBytes);
 
   free(pointer);
 }
