@@ -1,4 +1,4 @@
-#include "hashing.h"
+#include "util/hashing.h"
 
 // utilities
 uint64_t ceilPow2(uint64_t word) {

@@ -19,7 +19,8 @@ typedef struct {
 } CallFrame;
 
 // global environment
-#include "declare.h"
+#include "tpl/declare.h"
+
 TABLE_TYPE(GlobalEnv, globalEnv, Atom*, Value);
 
 // global interpreter state

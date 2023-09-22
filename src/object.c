@@ -1,11 +1,12 @@
 #include <string.h>
 
-#include "hashing.h"
+#include "util/hashing.h"
+
 #include "vm.h"
 #include "object.h"
 
 // template implementations
-#include "describe.h"
+#include "tpl/describe.h"
 
 ARRAY_TYPE(Objects, Obj*);
 ARRAY_TYPE(ByteCode, uint16_t);

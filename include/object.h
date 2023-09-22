@@ -9,7 +9,7 @@
 typedef Value (*NativeFn)(size_t argCount, Value* args);
 
 // object array (used in various places)
-#include "declare.h"
+#include "tpl/declare.h"
 
 ARRAY_TYPE(Objects, Obj*);
 ARRAY_TYPE(ByteCode, uint16_t);

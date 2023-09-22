@@ -1,9 +1,10 @@
-#include "hashing.h"
+#include "util/hashing.h"
+
 #include "object.h"
 #include "value.h"
 
 // array types
-#include "describe.h"
+#include "tpl/describe.h"
 
 ARRAY_TYPE(Values, Value);
 
@@ -94,5 +95,10 @@ bool equalValues(Value x, Value y) {
 }
 
 uint64_t hashValue(Value x) {
-  
+  Type xt = rascalType(x);
+
+  if (xt < ATOM)
+    return hashWord(x);
+
+  return hashObject(AS_OBJ(x));
 }

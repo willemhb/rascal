@@ -36,7 +36,7 @@ typedef struct {
   Token  previous;
 } Scanner;
 
-#include "declare.h"
+#include "tpl/declare.h"
 ARRAY_TYPE(Tokens, Token);
 
 #endif

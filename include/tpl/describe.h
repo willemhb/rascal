@@ -1,5 +1,5 @@
-#ifndef rascal_describe_h
-#define rascal_describe_h
+#ifndef rascal_template_describe_h
+#define rascal_template_describe_h
 
 #include "memory.h"
 

@@ -55,9 +55,21 @@ typedef enum {
 #define NIL_VAL     (NIL_TAG  | 0UL)
 #define NOTHING_VAL (NIL_TAG  | 1UL) // invalid value marker
 
-#define AS_BOOL(value) ((value) == TRUE_VAL)
-#define AS_OBJ(value)  ((Obj*)((value) & VAL_MASK))
-#define AS_NUM(value)  ((Number)wordToDouble(value))
+#define AS_BOOL(value)    ((value) == TRUE_VAL)
+#define AS_NUM(value)     ((Number)wordToDouble(value))
+#define AS_OBJ(value)     ((Obj*)((value) & VAL_MASK))
+#define AS_ATOM(value)    ((Atom*)((value) & VAL_MASK))
+#define AS_BITS(value)    ((Bits*)((value) & VAL_MASK))
+#define AS_LIST(value)    ((List*)((value) & VAL_MASK))
+#define AS_TUPLE(value)   ((Tuple*)((value) & VAL_MASK))
+#define AS_MAP(value)     ((Map*)((value) & VAL_MASK))
+#define AS_NODE(value)    ((Node*)((value) & VAL_MASK))
+#define AS_LEAF(value)    ((Leaf*)((value) & VAL_MASK))
+#define AS_CHUNK(value)   ((Chunk*)((value) & VAL_MASK))
+#define AS_CLOSURE(value) ((Closure*)((value) & VAL_MASK))
+#define AS_UPVALUE(value) ((UpValue*)((value) & VAL_MASK))
+#define AS_NATIVE(value)  ((Native*)((value) & VAL_MASK))
+#define AS_STREAM(value)  ((Stream*)((value) & VAL_MASK))
 
 #define IS_NIL(value)     ((value) == NIL_VAL)
 #define IS_BOOL(value)    hasValueType(value, BOOLEAN)
@@ -70,9 +82,13 @@ typedef enum {
 #define IS_MAP(value)     hasRascalType(value, MAP)
 #define IS_NODE(value)    hasRascalType(value, NODE)
 #define IS_LEAF(value)    hasRascalType(value, LEAF)
+#define IS_CHUNK(value)   hasRascalType(value, CHUNK)
 #define IS_CLOSURE(value) hasRascalType(value, CLOSURE)
+#define IS_UPVALUE(value) hasRascalType(value, UPVALUE)
+#define IS_NATIVE(value)  hasRascalType(value, NATIVE)
+#define IS_STREAM(value)  hasRascalType(value, STREAM)
 
-#include "declare.h"
+#include "tpl/declare.h"
 
 ARRAY_TYPE(Values, Value);
 

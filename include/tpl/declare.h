@@ -1,5 +1,5 @@
-#ifndef rascal_declare_h
-#define rascal_declare_h
+#ifndef rascal_template_declare_h
+#define rascal_template_declare_h
 
 #define ARRAY_TYPE(ArrayType, ElType)                    \
                                                          \
