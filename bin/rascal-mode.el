@@ -18,7 +18,7 @@
     "do" "end"                    ;; do notation
     "use" "c-call" "quote"        ;; misc syntax
    )
-  '(("[^:]:[-a-zA-Z?*+0-9/]+" . font-lock-type-face)
+  '(("[^:]:[-_a-zA-Z?*+0-9/]+" . font-lock-type-face)
     ("@[-a-zA-Z?*+0-9/]+" . font-lock-type-face)
     ("::" . font-lock-comment-face)
     ;; special constants

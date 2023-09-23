@@ -6,6 +6,9 @@ module Math do
         denom
     end
 
+    some_list  = ["a string", :a_symbol]
+    some_tuple = (:some, :tuple)
+
     fun add(x, y), do: x + y
 
     fun even?(n) do

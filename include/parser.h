@@ -41,19 +41,18 @@
  * map         -> "{" ( keywords | pairs )? "}" ;
  * tuple       -> "(" ")" | "(" expression "," expressions? ")" ;
  * grouping    -> "(" expression ")" ;
+ **/
 
 struct Parser {
   Token    current;
   Token    previous;
-  size_t   offset;   // offset within scanner.tokens
+  size_t   offset;     // offset within the token stream being parsed
   bool     hadError;
-  Scanner* scanner;
-  Value    expression;
+  Value    expression; // most recently parsed expression
 };
 
 // external API
-void initParser(Parser* parser, Scanner* scanner);
-bool parseInput(Parser* parser);
- **/
+void initParser(Parser* parser);
+bool parseTokens(Parser* parser, Scanner* source);
 
 #endif
