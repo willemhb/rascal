@@ -8,11 +8,13 @@
 
 #define RASCAL_DEBUG
 
-#define MAX_ARITY   0x0000ffffffffffffUL // also maximum hash value
-#define MAX_POW2    0x0000800000000000UL
-#define ARITY_WIDTH 48
-#define QNAN        0x7ff8000000000000UL
-#define SIGN        0x8000000000000000UL
+#define MAX_ARITY    0x0000ffffffffffffUL // also maximum hash value
+#define MAX_POW2     0x0000800000000000UL
+#define ARITY_WIDTH  48
+#define QNAN         0x7ff8000000000000UL
+#define SIGN         0x8000000000000000UL
+#define UINT8_COUNT  (UINT8_MAX+1)
+#define UINT16_COUNT (UINT16_MAX+1)
 
 /**
  *

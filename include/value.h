@@ -15,6 +15,7 @@ typedef struct Tuple   Tuple;   // immutable fixed-size collection
 typedef struct Map     Map;     // HAMT
 typedef struct Node    Node;    // HAMT node
 typedef struct Leaf    Leaf;    // HAMT entry
+typedef struct Module  Module;  // user namespace
 typedef struct Chunk   Chunk;   // compiled bytecode
 typedef struct Closure Closure; // chunk + context
 typedef struct UpValue UpValue; // local variable
@@ -35,12 +36,15 @@ typedef enum {
   MAP,
   NODE,
   LEAF,
+  MODULE,
   CHUNK,
   CLOSURE,
   UPVALUE,
   NATIVE,
   STREAM
 } Type;
+
+#define NUM_TYPES (STREAM+1)
 
 // tags and such
 #define NIL_TAG     0x7ffc000000000000UL
@@ -54,6 +58,10 @@ typedef enum {
 #define FALSE_VAL   (BOOL_TAG | 0UL)
 #define NIL_VAL     (NIL_TAG  | 0UL)
 #define NOTHING_VAL (NIL_TAG  | 1UL) // invalid value marker
+
+#define TAG_BOOL(boolean) ((boolean) ? TRUE_VAL : FALSE_FAL)
+#define TAG_NUM(number)   doubleToWord(number)
+#define TAG_OBJ(pointer)  (((Value)(pointer)) | OBJ_TAG)
 
 #define AS_BOOL(value)    ((value) == TRUE_VAL)
 #define AS_NUM(value)     ((Number)wordToDouble(value))
@@ -99,6 +107,7 @@ size_t   sizeOfType(Type type);
 char*    nameOfType(Type type);
 bool     equalValues(Value x, Value y);
 uint64_t hashValue(Value x);
+uint64_t hashType(Type type);
 
 static inline bool hasValueType(Value value, Type type) {
   return valueType(value) == type;

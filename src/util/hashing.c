@@ -64,3 +64,7 @@ uint64_t hashPtr(const void* pointer) {
 uint64_t hashDouble(double num) {
   return hashWord(doubleToWord(num));
 }
+
+uint64_t mixHashes(uint64_t hx, uint64_t hy) {
+  return hashWord(hx ^ hy);
+}

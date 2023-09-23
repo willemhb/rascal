@@ -2,6 +2,7 @@
 #define rascal_parser_h
 
 #include "common.h"
+#include "value.h"
 #include "lexer.h"
 
 /**
@@ -36,16 +37,24 @@
  *
  * BASIC
  *     : number
+ *     | symbol
  *     | identifier
- *     | atom
  *     | '(' EXPRESSION ')'
  *     ;
  *
  **/
 
 typedef struct {
-  
+  Token    current;
+  Token    previous;
+  size_t   offset;   // offset within scanner.tokens
+  bool     hadError;
+  Scanner* scanner;
+  Value    expression;
 } Parser;
 
+// external API
+void initParser(Parser* parser, Scanner* scanner);
+bool parseInput(Parser* parser);
 
 #endif

@@ -105,13 +105,17 @@ struct Stream {
   FILE* ios;
 };
 
+// global sigletons
+extern List  emptyList;
+extern Tuple emptyTuple;
+
 // miscellaneous utilities
 uint64_t hashObject(void* ob);
-bool     equalObjects(void* obX, void* obY);
+bool     equalObjects(void* obx, void* oby);
 
 // constructors
 Symbol* newSymbol(char* name);
-Symbol* getSymbol(char* token, size_t tokSize);
+Symbol* getSymbol(char* token);
 
 List*  newList(Value head, List* tail);
 List*  newList1(Value head);
@@ -121,5 +125,8 @@ List*  newListN(size_t n, Value* args);
 Tuple* newTuple(size_t arity, Value* slots);
 Tuple* newPair(Value x, Value y);
 Tuple* newTriple(Value x, Value y, Value z);
+
+// toplevel initialization
+void toplevelInitObjects(void);
 
 #endif

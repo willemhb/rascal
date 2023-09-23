@@ -34,7 +34,7 @@ typedef struct {
   // interpreter state
   Value*     sp;
   CallFrame* fp;
-  UpValue*   openUpvalues;
+  UpValue*   openUpValues;
 
   // globals/symbol table
   uint64_t    symbolCounter;
@@ -46,9 +46,6 @@ typedef struct {
 
   // parser state
   Parser parser;
-
-  // compiler state
-  Compiler compiler;
 } Vm;
 
 extern Value theStack[N_STACK];
@@ -56,10 +53,10 @@ extern CallFrame theFrames[N_FRAME];
 extern Vm vm;
 
 // forward declarations
-void  initVm(Vm* vm);
-void  freeVm(Vm* vm);
-void  push(Value value);
-Value pop(void);
-Value peek(int n);
+void   initVm(Vm* vm);
+void   freeVm(Vm* vm);
+void   push(Value value);
+Value  pop(void);
+Value  peek(int n);
 
 #endif

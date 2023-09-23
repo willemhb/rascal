@@ -97,8 +97,19 @@ bool equalValues(Value x, Value y) {
 uint64_t hashValue(Value x) {
   Type xt = rascalType(x);
 
-  if (xt < ATOM)
-    return hashWord(x);
+  uint64_t out;
 
-  return hashObject(AS_OBJ(x));
+  if (xt < SYMBOL)
+    out = mixHashes(hashType(xt), hashWord(x));
+
+  else
+    out = hashObject(AS_OBJ(x));
+
+  return out;
+}
+
+uint64_t hashType(Type type) {
+  static uint64_t cache[NUM_TYPES] = {};
+
+  return cache[type] ? : (cache[type] = hashWord(type));
 }
