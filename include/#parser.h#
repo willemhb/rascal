@@ -63,6 +63,7 @@
  *
  * DO-BLOCK
  *    : "DO" EXPRESSION+ (IDENTIFIER EXPRESSION+)? "END"
+ *    ;
  *
  * NUMBER
  *    : DIGIT+ ('.' DIGIT+ )?
