@@ -8,6 +8,8 @@ module Math do
 
     some_list  = ["a string", :a_symbol]
     some_tuple = (:some, :tuple)
+    some_map   = {x: 1, y: 2, z: 3}
+    some_bits  = <<000, 000, 120, 037>>
 
     fun add(x, y), do: x + y
 
@@ -33,3 +35,7 @@ module Math do
         loop(x, n, 1)
     end
 end
+
+use Math
+
+Math.pow(2, 5) # 32

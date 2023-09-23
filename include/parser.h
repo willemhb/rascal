@@ -48,11 +48,11 @@ struct Parser {
   Token    previous;
   size_t   offset;     // offset within the token stream being parsed
   bool     hadError;
-  Value    expression; // most recently parsed expression
+  bool     panicMode;
 };
 
 // external API
-void initParser(Parser* parser);
-bool parseTokens(Parser* parser, Scanner* source);
+void  initParser(Parser* parser);
+Value parseTokens(Parser* parser, Scanner* source); // returns a syntax tree
 
 #endif

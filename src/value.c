@@ -43,14 +43,15 @@ size_t sizeOfType(Type type) {
     case BITS:    out = sizeof(Bits);    break;
     case LIST:    out = sizeof(List);    break;
     case TUPLE:   out = sizeof(Tuple);   break;
-    case MAP:     out = sizeof(Map);     break;
-    case NODE:    out = sizeof(Node);    break;
-    case LEAF:    out = sizeof(Leaf);    break;
-    case CHUNK:   out = sizeof(Chunk);   break;
-    case CLOSURE: out = sizeof(Closure); break;
-    case UPVALUE: out = sizeof(UpValue); break;
-    case NATIVE:  out = sizeof(Native);  break;
-    case STREAM:  out = sizeof(Stream);  break;
+      /*
+        case MAP:     out = sizeof(Map);     break;
+        case NODE:    out = sizeof(Node);    break;
+        case LEAF:    out = sizeof(Leaf);    break;
+        case CHUNK:   out = sizeof(Chunk);   break;
+        case CLOSURE: out = sizeof(Closure); break;
+        case UPVALUE: out = sizeof(UpValue); break;
+        case NATIVE:  out = sizeof(Native);  break;
+        case STREAM:  out = sizeof(Stream);  break; */
     default:      out = 0;               break;
   }
 
@@ -68,14 +69,15 @@ char* nameOfType(Type type) {
     case BITS:    out = "Bits";    break;
     case LIST:    out = "List";    break;
     case TUPLE:   out = "Tuple";   break;
-    case MAP:     out = "Map";     break;
-    case NODE:    out = "Node";    break;
-    case LEAF:    out = "Leaf";    break;
-    case CHUNK:   out = "Chunk";   break;
-    case CLOSURE: out = "Closure"; break;
-    case UPVALUE: out = "Upvalue"; break;
-    case NATIVE:  out = "Native";  break;
-    case STREAM:  out = "Stream";  break;
+      /*
+        case MAP:     out = "Map";     break;
+        case NODE:    out = "Node";    break;
+        case LEAF:    out = "Leaf";    break;
+        case CHUNK:   out = "Chunk";   break;
+        case CLOSURE: out = "Closure"; break;
+        case UPVALUE: out = "Upvalue"; break;
+        case NATIVE:  out = "Native";  break;
+        case STREAM:  out = "Stream";  break; */
     default:      out = "Term";    break;
   }
 
@@ -92,6 +94,97 @@ bool equalValues(Value x, Value y) {
     return false;
 
   return equalObjects(AS_OBJ(x), AS_OBJ(y));
+}
+
+static void printNumber(FILE* ios, Number num) {
+  fprintf(ios, "%g", num);
+}
+
+static void printBoolean(FILE* ios, Boolean x) {
+  fprintf(ios, x ? "true" : "false");
+}
+
+static void printUnit(FILE* ios, Value x) {
+  (void)x;
+  fprintf(ios, "nil");
+}
+
+static void printSymbol(FILE* ios, Symbol* x) {
+  fprintf(ios, ":%s", x->name);
+}
+
+static void printBits(FILE* ios, Bits* xs) {
+  if (xs->obj.flags)
+    fprintf(ios, "\"%s\"", (char*)xs->data);
+
+  else {
+    fprintf(ios, "<<");
+
+    for (size_t i=0; i<xs->arity; i++) {
+      uint8_t byte = ((uint8_t*)xs->data)[i];
+      
+      fprintf(ios, "%.3d", byte);
+
+      if (i+1 < xs->arity)
+        fprintf(ios, ",");
+    }
+
+    fprintf(ios, ">>");
+  }
+}
+
+static void printList(FILE* ios, List* xs) {
+  fprintf(ios, "[");
+
+  for (; xs->arity; xs=xs->tail ) {
+    printValue(ios, xs->head);
+
+    if (xs->arity > 1)
+      fprintf(ios, ", ");
+  }
+
+  fprintf(ios, "]");
+}
+
+static void printTuple(FILE* ios, Tuple* xs) {
+  if (xs->arity == 0)
+    fprintf(ios, "()");
+
+  else if (xs->arity == 1) {
+    fprintf(ios, "(");
+    printValue(ios, xs->data[0]);
+    fprintf(ios, ",)");
+  } else {
+    fprintf(ios, "(");
+
+    for (size_t i=0; i<xs->arity; i++) {
+      printValue(ios, xs->data[i]);
+
+      if (i+1 < xs->arity)
+        fprintf(ios, ", ");
+    }
+
+    fprintf(ios, ")");
+  }
+}
+
+static void printTerm(FILE* ios, Value x) {
+  const char* tName = nameOfType(rascalType(x));
+
+  fprintf(ios, "#%s<%lx>", tName, x & VAL_MASK);
+}
+
+void printValue(FILE* ios, Value x) {
+  switch (rascalType(x)) {
+    case NUMBER:  printNumber(ios, AS_NUM(x)); break;
+    case BOOLEAN: printBoolean(ios, AS_BOOL(x)); break;
+    case UNIT:    printUnit(ios, x); break;
+    case SYMBOL:  printSymbol(ios, AS_SYMBOL(x)); break;
+    case BITS:    printBits(ios, AS_BITS(x)); break;
+    case LIST:    printList(ios, AS_LIST(x)); break;
+    case TUPLE:   printTuple(ios, AS_TUPLE(x)); break;
+    default:      printTerm(ios, x); break;
+  }
 }
 
 uint64_t hashValue(Value x) {

@@ -50,7 +50,7 @@ typedef enum {
   */
 } Type;
 
-#define NUM_TYPES (STREAM+1)
+#define NUM_TYPES (TUPLE+1)
 
 // tags and such
 #define NIL_TAG     0x7ffc000000000000UL
