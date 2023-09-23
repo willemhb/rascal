@@ -7,6 +7,7 @@
 #include "value.h"
 
 typedef Value (*NativeFn)(size_t argCount, Value* args);
+typedef void  (*CompileFn)(Compiler* state, Tuple* source);
 
 // generics
 #include "tpl/declare.h"
@@ -105,9 +106,10 @@ struct UpValue {
 };
 
 struct Native {
-  Obj      obj;
-  char*    name;
-  NativeFn callback;
+  Obj       obj;
+  Symbol*   name;
+  NativeFn  nativeCallback;
+  CompileFn compileCallback;
 };
 
 struct Stream {

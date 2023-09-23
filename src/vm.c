@@ -55,25 +55,3 @@ Vm vm = {
     .hadError=false
   }
 };
-
-// templates
-#include "tpl/describe.h"
-
-bool compareNameSpaceKeys(Symbol* x, Symbol* y) {
-  return x == y;
-}
-
-void internNameSpaceKey(NameSpaceEntry* entry, Symbol* key, Value* value) {
-  entry->key = key;
-  entry->val = *value == NOTHING_VAL ? NIL_VAL : *value;
-}
-
-TABLE_TYPE(NameSpace,
-           nameSpace,
-           Symbol*,
-           Value,
-           compareNameSpaceKeys,
-           hashObject,
-           internNameSpaceKey,
-           NULL,
-           NOTHING_VAL);

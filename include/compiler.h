@@ -10,8 +10,6 @@ typedef enum {
   CLOSURE_CHUNK   // user function
 } ChunkType;
 
-typedef struct Compiler Compiler;
-
 struct Compiler {
   Compiler* enclosing;
   Chunk*    compiling;

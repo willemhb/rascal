@@ -17,20 +17,20 @@ typedef struct {
 } CallFrame;
 
 // execution state
-typedef struct {
+struct Interpreter {
   Value*     sp;
   CallFrame* fp;
   UpValue*   openUpValues;
-} Interpreter;
+};
 
 // globals
 extern Value     theStack[N_STACK];
 extern CallFrame theFrames[N_FRAME];
 
 // external API
+void   initInterpreter(Interpreter* interpreter, Value* stack, CallFrame* frames);
 void   push(Value value);
 Value  pop(void);
 Value  peep(int n);
-void   initInterpreter(Interpreter* interpreter, Value* stack, CallFrame* frames);
 
 #endif

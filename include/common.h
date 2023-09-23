@@ -43,4 +43,14 @@ static inline double wordToDouble(uintptr_t word) {
   return ((IEEE_754_64)word).number;
 }
 
+// other C types
+// VM state objects
+typedef struct Heap        Heap;
+typedef struct Interpreter Interpreter;
+typedef struct Environment Environment;
+typedef struct Scanner     Scanner;
+typedef struct Parser      Parser;
+typedef struct Compiler    Compiler;
+typedef struct Vm          Vm;
+
 #endif

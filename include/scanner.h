@@ -32,13 +32,13 @@ typedef struct {
 #include "tpl/declare.h"
 ARRAY_TYPE(Tokens, Token);
 
-typedef struct {
+struct Scanner {
   char*  start;
   char*  current;
   int    lineNo;
   bool   hadError;
   Tokens tokens;
-} Scanner;
+};
 
 // scanner API
 void  initScanner(Scanner* scanner, char* source);

@@ -10,18 +10,29 @@
  * formal grammar (for reference)
  *
  * EXPRESSION
- *     : ADDITION
+ *     : ASSIGNMENT
+ *     ;
+ *
+ * ASSIGNMENT
+ *     : ASSIGNMENT '=' COMPARISON
+ *     | COMPARISON
+ *     ;
+ *
+ * COMPARISON
+ *     : COMPARISON ('<' | '>' | '==' | '!=' | '<=' | '>=') ADDITION
+ *     | ADDITION
  *     ;
  *
  * ADDITION
- *     : ADDITION ('+' | '-') CALL 
+ *     : ADDITION ('+' | '-') CALL
  *     | CALL
  *     ;
  *
  * CALL
  *     : MULTIPLICATION
- *     | IDENTIFIER CALL
+ *     | IDENTIFIER EXPRESSIONS
  *     | IDENTIFIER '(' EXPRESSIONS? ')'
+ *     | IDENTIFIER (EXPRESSIONS ',')? KEYWORDS
  *     ;
  *
  * MULTIPLICATION
@@ -29,33 +40,74 @@
  *     | EXPONENTIATION
  *     ;
  * 
- * EXPONENTIATION 
- *     : EXPONENTIATION '^' BASIC 
+ * EXPONENTIATION
+ *     : EXPONENTIATION '^' BASIC
  *     | BASIC
  *     ;
  *
  * BASIC
- *     : number
- *     | symbol
- *     | identifier
- *     | '[' EXPRESSIONS? ']'
- *     | '{' EXPRESSIONS? '}'
+ *     : NUMBER
+ *     | SYMBOL
+ *     | STRING
+ *     | BITS
+ *     | IDENTIFIER
+ *     | LIST
+ *     | MAP
+ *     | TUPLE
  *     | '(' EXPRESSION ')'
  *     ;
  *
  * EXPRESSIONS
- *    : EXPRESSION [',' EXPRESSION ]*
+ *    : EXPRESSION (',' EXPRESSION )*
+ *    ;
  *
+ * KEYWORDS
+ *    : KEYWORD EXPRESSION (',' KEYWORD EXPRESSION)*
+ *    ;
+ *
+ * NUMBER
+ *    : DIGIT+ ('.' DIGIT+ )?
+ *    ;
+ *
+ * SYMBOL
+ *    : ':' IDENTIFIER
+ *    ;
+ *
+ * STRING
+ *    : '"' CHAR* '"'
+ *    ;
+ *
+ * BITS
+ *    : '<<' (DIGIT+ (',' DIGIT+)*)? '>>'
+ *    ;
+ *
+ * IDENTIFIER
+ *    : IDENTIFIER-CHARACTER+
+ *    ;
+ *
+ * IDENTIFIER-CHARACTER
+ *    : ALPHA
+ *    | DIGIT
+ *    | "+" | "-" | "*" | "/" | "^"
+ *    | "!" | "?" | "\" | "@" | "$"
+ *    | "$" | "%" | "&" | "|" | "="
+ *    | "<" | ">" | "~" | "`"
+ *    ;
+ *
+ * LIST
+ *    : '[' EXPRESSIONS? ']'
+ *    
+ *    
  **/
 
-typedef struct {
+struct Parser {
   Token    current;
   Token    previous;
   size_t   offset;   // offset within scanner.tokens
   bool     hadError;
   Scanner* scanner;
   Value    expression;
-} Parser;
+};
 
 // external API
 void initParser(Parser* parser, Scanner* scanner);

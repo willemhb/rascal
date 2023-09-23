@@ -32,6 +32,26 @@ TABLE_TYPE(SymbolTable,
            NULL,
            NULL);
 
+
+bool compareNameSpaceKeys(Symbol* x, Symbol* y) {
+  return x == y;
+}
+
+void internNameSpaceKey(NameSpaceEntry* entry, Symbol* key, Value* value) {
+  entry->key = key;
+  entry->val = *value == NOTHING_VAL ? NIL_VAL : *value;
+}
+
+TABLE_TYPE(NameSpace,
+           nameSpace,
+           Symbol*,
+           Value,
+           compareNameSpaceKeys,
+           hashObject,
+           internNameSpaceKey,
+           NULL,
+           NOTHING_VAL);
+
 // internal forward declarations
 static void  initObject(void* pointer, Type type) {
   Obj* obj  = pointer;
@@ -184,18 +204,13 @@ Symbol* newSymbol(char* name) {
   Symbol* out  = newObject(SYMBOL);
 
   out->name  = copy;
-  out->idno  = ++vm.symbolCounter;
+  out->idno  = ++vm.environment.symbolCounter;
 
   return out;
 }
 
 Symbol* getSymbol(char* buffer) {
-  // copy string in case it comes from non-null terminated token.
-  Symbol* out = NULL;
-
-  symbolTableAdd(&vm.symbolTable, buffer, &out);
-
-  return out;
+  return internSymbol(buffer, &vm.environment);
 }
 
 // list constructors

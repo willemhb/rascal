@@ -5,12 +5,12 @@
 #include "object.h"
 
 // C types
-typedef struct {
+struct Heap {
   Obj*    objects;
   size_t  heapUsed;
   size_t  heapCapacity;
   Objects grays;
-} Heap;
+};
 
 #define SAFE_ALLOC(func, args...)                           \
   ({                                                        \

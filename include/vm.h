@@ -1,16 +1,17 @@
 #ifndef rascal_vm_h
 #define rascal_vm_h
 
-#include "common.h"
 #include "memory.h"
 #include "interpreter.h"
 #include "environment.h"
 #include "scanner.h"
 #include "parser.h"
+#include "compiler.h"
 
 
-// global interpreter state
-typedef struct {
+/* all the global state needed by the interpreter.
+   Really just packages more specialized structs. */
+struct Vm {
   // heap state
   Heap heap;
 
@@ -25,7 +26,10 @@ typedef struct {
 
   // parser state
   Parser parser;
-} Vm;
+
+  // compiler state
+  Compiler compiler;
+};
 
 extern Vm vm;
 

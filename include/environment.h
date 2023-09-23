@@ -5,13 +5,16 @@
 #include "object.h"
 
 // C types
-typedef struct {
+struct Environment {
   uint64_t    symbolCounter;
   SymbolTable symbolTable;
   Module      toplevel;
-} Environment;
+};
 
 // external API
-void initEnvironment(Environment* environment);
+void    initEnvironment(Environment* environment);
+void    freeEnvirionment(Environment* environment);
+Symbol* internSymbol(char* name, Environment* environment);
+bool    defineGlobal(Symbol* name, Environment* environment);
 
 #endif
