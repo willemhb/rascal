@@ -54,6 +54,7 @@ struct Tuple {
   size_t arity;
 };
 
+/* 
 struct Map {
   Obj    obj;
   Node*  root;
@@ -115,7 +116,8 @@ struct Native {
 struct Stream {
   Obj   obj;
   FILE* ios;
-};
+  };
+*/
 
 // global sigletons
 extern List  emptyList;
@@ -129,6 +131,9 @@ void     freeObject(void* ob);
 // constructors
 Symbol* newSymbol(char* name);
 Symbol* getSymbol(char* token);
+
+Bits*   newBits(void* data, size_t count, size_t elSize, Encoding encoding);
+Bits*   newString(char* data, size_t count);
 
 List*  newList(Value head, List* tail);
 List*  newList1(Value head);

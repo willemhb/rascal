@@ -53,11 +53,12 @@ TABLE_TYPE(NameSpace,
            NOTHING_VAL);
 
 // internal forward declarations
-static void  initObject(void* pointer, Type type) {
+static void  initObject(void* pointer, Type type, int flags) {
   Obj* obj  = pointer;
 
   obj->type        = type;
   obj->gray        = true;
+  obj->flags       = flags;
   obj->next        = vm.heap.objects;
   vm.heap.objects = obj;
 }
@@ -65,7 +66,7 @@ static void  initObject(void* pointer, Type type) {
 static void* newObject(Type type) {
   Obj* out  = allocate(sizeOfType(type), true);
 
-  initObject(out, type);
+  initObject(out, type, 0);
 
   return out;
 }
@@ -195,6 +196,10 @@ bool equalObjects(void* obx, void* oby) {
   return out;
 }
 
+void freeObject(void* ob) {
+  (void)ob;
+}
+
 // constructors
 // symbol constructors
 Symbol* newSymbol(char* name) {
@@ -211,6 +216,28 @@ Symbol* newSymbol(char* name) {
 
 Symbol* getSymbol(char* buffer) {
   return internSymbol(buffer, &vm.environment);
+}
+
+// bits constructors
+static void initBits(Bits* bits, void* data, size_t count, size_t elSize) {
+  bits->data       = data;
+  bits->arity      = count;
+  bits->elSize     = elSize;
+}
+
+Bits* newBits(void* data, size_t count, size_t elSize, Encoding encoding) {
+  Bits* out = newObject(BITS);
+  void* spc = allocate((count + !!encoding) * elSize, false);
+
+  memcpy(spc, data, count * elSize);
+  initObject(out, BITS, encoding);
+  initBits(out, spc, count, elSize);
+
+  return out;
+}
+
+Bits* newString(char* data, size_t count) {
+  return newBits(data, count, sizeof(char), ASCII);
 }
 
 // list constructors
@@ -251,7 +278,7 @@ List* newListN(size_t n, Value* args) {
     out = allocate(sizeof(List) * n, true);
 
     for (size_t i=n; i>0; i--) {
-      initObject(&out[i-1], LIST);
+      initObject(&out[i-1], LIST, 0);
       initList(&out[i-1], args[i-1], i == n ? &emptyList : &out[i]);
     }
   }
@@ -276,7 +303,7 @@ Tuple* newTuple(size_t arity, Value* slots) {
 
   else {
     out = newObject(TUPLE);
-    initObject(out, TUPLE);
+    initObject(out, TUPLE, 0);
     initTuple(out, arity, slots);
   }
 

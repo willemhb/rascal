@@ -8,13 +8,11 @@
 struct Environment {
   uint64_t    symbolCounter;
   SymbolTable symbolTable;
-  Module      toplevel;
 };
 
 // external API
 void    initEnvironment(Environment* environment);
-void    freeEnvirionment(Environment* environment);
+void    freeEnvironment(Environment* environment);
 Symbol* internSymbol(char* name, Environment* environment);
-bool    defineGlobal(Symbol* name, Environment* environment);
 
 #endif

@@ -1,9 +1,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+/*
 #include "value.h"
 #include "object.h"
-#include "lexer.h"
+#include "scanner.h"
 #include "parser.h"
 
 // internal API
@@ -83,3 +84,5 @@ void initParser(Parser* parser, Scanner* scanner) {
 bool parseInput(Parser* parser) {
   
 }
+
+*/

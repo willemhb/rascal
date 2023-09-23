@@ -41,7 +41,6 @@
  * map         -> "{" ( keywords | pairs )? "}" ;
  * tuple       -> "(" ")" | "(" expression "," expressions? ")" ;
  * grouping    -> "(" expression ")" ;
- **/
 
 struct Parser {
   Token    current;
@@ -55,5 +54,6 @@ struct Parser {
 // external API
 void initParser(Parser* parser, Scanner* scanner);
 bool parseInput(Parser* parser);
+ **/
 
 #endif

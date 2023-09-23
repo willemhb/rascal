@@ -3,7 +3,7 @@
 
 #include "memory.h"
 #include "scanner.h"
-
+#include "environment.h"
 
 /* all the global state needed by the interpreter.
    Really just packages more specialized structs. */
@@ -13,6 +13,9 @@ struct Vm {
 
   // scanner state
   Scanner scanner;
+
+  // environment state
+  Environment environment;
 };
 
 extern Vm vm;

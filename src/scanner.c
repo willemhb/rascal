@@ -43,6 +43,9 @@ static char advance(Scanner* scanner) {
 }
 
 static void skipWhiteSpace(Scanner* scanner) {
+  if (isAtEnd(scanner))
+    return;
+
   for (;;) {
     char c = peekChar(scanner);
 
@@ -133,13 +136,13 @@ static Token scanToken(Scanner* scanner) {
     token = makeToken(scanner, EOF_TOKEN);
   } else {
     char c = advance(scanner);
-    
+
     switch (c) {
       // atomic literals
       case '0' ... '9': token = scanNumber(scanner); break;
       case ':':         token = scanSymbol(scanner); break;
       case '"':         token = scanString(scanner); break;
-     
+
         // simple delimiters
       case '(':         token = makeToken(scanner, LPAR_TOKEN);   break;
       case ')':         token = makeToken(scanner, RPAR_TOKEN);   break;
@@ -248,7 +251,7 @@ static Token scanString(Scanner* scanner) {
 }
 
 static Token scanIdentifier(Scanner* scanner) {
-  while ( isIdentifierChar(peekChar(scanner)) )
+  while (!isAtEnd(scanner) && isIdentifierChar(peekChar(scanner)))
     advance(scanner);
 
   TokenType type;
@@ -311,8 +314,5 @@ bool lexInput(char* source) {
   while (!isAtEnd(scanner) && !scanner->hadError)
     scanToken(scanner);
 
-  if (!scanner->hadError)
-    writeTokens(&scanner->tokens, makeToken(scanner, EOF_TOKEN));
-
-  return scanner->hadError;
+  return !scanner->hadError;
 }

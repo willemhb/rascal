@@ -1,62 +1,32 @@
-module Core do
-    @doc "Basic convenience macros."
-
-    mac unless(test, exprs) do
-        quote do
-            if unquote(test) do
-                splice(exprs)
-            end
-        end
-    end
-
-    mac try(exprs) do
-        quote do
-            handle do
-            end
-        end
-    end
-end
-
-
-
 module Math do
-    @doc "Rascal math standard library. Mostly for experimenting with syntax right now."
+    # Rascal math standard library. Mostly for experimenting with syntax right now.
 
     struct Ratio do
-        numer::Integer
-        denom::Integer
+        numer
+        denom
     end
 
-    struct 
+    fun add(x, y), do: x + y
 
-    fun even?(n::Number) :: Boolean do
-        @doc "Test for even-ness."
+    fun even?(n) do
+        # Test for even-ness.
         integer?(n) and n % 2 == 0
     end
 
-    fun odd?(n::Number) :: Boolean do
-        @doc "Test for odd-ness."
+    fun odd?(n) do
+        # Test for odd-ness.
         integer?(n) and n % 2 == 1
     end
 
-    fun pow(x::Number, n::Number, acc::Number \\ 1) :: Number do
-        @doc "Standard fast power algorithm."
-        cond do
-            n == 0    -> acc
-            even?(n)  -> pow(x*x, n//2, acc)
-            otherwise -> pow(x, n-1, x*acc)
+    fun pow(x, n) do
+        # Standard fast power algorithm.
+        fun loop(x, n, acc) do
+            cond do
+                n == 0    -> acc
+                even?(n)  -> loop(x*x, n/2, acc)
+                otherwise -> loop(x, n-1, x*acc)
+            end
         end
-    end
-
-    fun factorial(n::Number, acc::Number \\ 1) :: Number do
-        @doc "Standard tail recursive factorial."
-        case n do
-            0 -> acc
-            1 -> acc
-            n -> factorial(n-1, n*acc)
-        end
-    end
-
-    fun gcd(a::Number, b::Number) :: Number do
+        loop(x, n, 1)
     end
 end

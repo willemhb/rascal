@@ -28,7 +28,9 @@ char* readFile(const char* path) {
 size_t fileSize(FILE* ios) {
   size_t pos = ftell(ios);
   rewind(ios);
+  fseek(ios, 0, SEEK_END);
   size_t fend = ftell(ios);
+  rewind(ios);
   fseek(ios, pos, SEEK_SET);
   return fend;
 }

@@ -14,6 +14,8 @@ typedef struct Symbol  Symbol;  // interned symbol
 typedef struct Bits    Bits;    // compact binary data
 typedef struct List    List;    // immutable linked list
 typedef struct Tuple   Tuple;   // immutable fixed-size collection
+
+/*
 typedef struct Map     Map;     // HAMT
 typedef struct Node    Node;    // HAMT node
 typedef struct Leaf    Leaf;    // HAMT entry
@@ -22,7 +24,7 @@ typedef struct Chunk   Chunk;   // compiled bytecode
 typedef struct Closure Closure; // chunk + context
 typedef struct UpValue UpValue; // local variable
 typedef struct Native  Native;  // builtin function
-typedef struct Stream  Stream;  // IO port
+typedef struct Stream  Stream;  // IO port */
 
 // various & sundry enums
 typedef enum {
@@ -35,6 +37,7 @@ typedef enum {
   BITS,
   LIST,
   TUPLE,
+  /* 
   MAP,
   NODE,
   LEAF,
@@ -44,6 +47,7 @@ typedef enum {
   UPVALUE,
   NATIVE,
   STREAM
+  */
 } Type;
 
 #define NUM_TYPES (STREAM+1)
@@ -72,6 +76,8 @@ typedef enum {
 #define AS_BITS(value)    ((Bits*)((value) & VAL_MASK))
 #define AS_LIST(value)    ((List*)((value) & VAL_MASK))
 #define AS_TUPLE(value)   ((Tuple*)((value) & VAL_MASK))
+
+/*
 #define AS_MAP(value)     ((Map*)((value) & VAL_MASK))
 #define AS_NODE(value)    ((Node*)((value) & VAL_MASK))
 #define AS_LEAF(value)    ((Leaf*)((value) & VAL_MASK))
@@ -80,6 +86,7 @@ typedef enum {
 #define AS_UPVALUE(value) ((UpValue*)((value) & VAL_MASK))
 #define AS_NATIVE(value)  ((Native*)((value) & VAL_MASK))
 #define AS_STREAM(value)  ((Stream*)((value) & VAL_MASK))
+*/
 
 #define IS_NIL(value)     ((value) == NIL_VAL)
 #define IS_BOOL(value)    hasValueType(value, BOOLEAN)
@@ -89,6 +96,8 @@ typedef enum {
 #define IS_BITS(value)    hasRascalType(value, BITS)
 #define IS_LIST(value)    hasRascalType(value, LIST)
 #define IS_TUPLE(value)   hasRascalType(value, TUPLE)
+
+/*
 #define IS_MAP(value)     hasRascalType(value, MAP)
 #define IS_NODE(value)    hasRascalType(value, NODE)
 #define IS_LEAF(value)    hasRascalType(value, LEAF)
@@ -97,6 +106,7 @@ typedef enum {
 #define IS_UPVALUE(value) hasRascalType(value, UPVALUE)
 #define IS_NATIVE(value)  hasRascalType(value, NATIVE)
 #define IS_STREAM(value)  hasRascalType(value, STREAM)
+*/
 
 #include "tpl/declare.h"
 
