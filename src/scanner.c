@@ -4,7 +4,7 @@
 #include "util/io.h"
 
 #include "vm.h"
-#include "lexer.h"
+#include "scanner.h"
 
 #define SYMPUNCT "?!_-$%&@~`'\"\\/"
 

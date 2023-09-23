@@ -1,5 +1,5 @@
-#ifndef rascal_lexer_h
-#define rascal_lexer_h
+#ifndef rascal_scanner_h
+#define rascal_scanner_h
 
 #include "common.h"
 

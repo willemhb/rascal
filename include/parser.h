@@ -3,7 +3,7 @@
 
 #include "common.h"
 #include "value.h"
-#include "lexer.h"
+#include "scanner.h"
 
 /**
  *
@@ -21,8 +21,7 @@
  * CALL
  *     : MULTIPLICATION
  *     | IDENTIFIER CALL
- *     | IDENTIFIER '(' ')'
- *     | IDENTIFIER '(' EXPRESSION [',' EXPRESSION]* ')'
+ *     | IDENTIFIER '(' EXPRESSIONS? ')'
  *     ;
  *
  * MULTIPLICATION
@@ -39,8 +38,13 @@
  *     : number
  *     | symbol
  *     | identifier
+ *     | '[' EXPRESSIONS? ']'
+ *     | '{' EXPRESSIONS? '}'
  *     | '(' EXPRESSION ')'
  *     ;
+ *
+ * EXPRESSIONS
+ *    : EXPRESSION [',' EXPRESSION ]*
  *
  **/
 

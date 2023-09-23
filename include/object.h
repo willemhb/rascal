@@ -8,12 +8,13 @@
 
 typedef Value (*NativeFn)(size_t argCount, Value* args);
 
-// object array (used in various places)
+// generics
 #include "tpl/declare.h"
 
 ARRAY_TYPE(Objects, Obj*);
 ARRAY_TYPE(ByteCode, uint16_t);
 TABLE_TYPE(SymbolTable, symbolTable, char*, Symbol*);
+TABLE_TYPE(NameSpace, nameSpace, Symbol*, Value);
 
 struct Obj {
   struct Obj* next;        // live objects list
@@ -72,10 +73,19 @@ struct Leaf {
   Value bind;
 };
 
+struct Module {
+  Obj       obj;
+  Module*   parent;
+  Symbol*   name;
+  Chunk*    body;
+  NameSpace ns;
+};
+
 struct Chunk {
   Obj      obj;
-  ByteCode instructions;
-  Values   constants;
+  Symbol*  name;          // name of the function or module being executed
+  Values   constants;     // constant store
+  ByteCode instructions;  // instruction sequence
 };
 
 struct Closure {
@@ -88,16 +98,16 @@ struct UpValue {
   Obj      obj;
   UpValue* next;
   union {
-    Value  bind;
+    Value  value;
     Value* location;
   };
   bool     open;
 };
 
 struct Native {
-  Obj     obj;
-  char*   name;
-  Value (*callback)(Value* args);
+  Obj      obj;
+  char*    name;
+  NativeFn callback;
 };
 
 struct Stream {

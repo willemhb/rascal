@@ -2,6 +2,15 @@
 #define rascal_memory_h
 
 #include "common.h"
+#include "object.h"
+
+// C types
+typedef struct {
+  Obj*    objects;
+  size_t  heapUsed;
+  size_t  heapCapacity;
+  Objects grays;
+} Heap;
 
 #define SAFE_ALLOC(func, args...)                           \
   ({                                                        \

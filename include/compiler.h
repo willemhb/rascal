@@ -6,7 +6,7 @@
 
 typedef enum {
   TOPLEVEL_CHUNK, // script or repl code
-  MODULE_CHUNK,   // module-level code
+  MODULE_CHUNK,   // module code
   CLOSURE_CHUNK   // user function
 } ChunkType;
 

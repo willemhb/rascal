@@ -36,10 +36,10 @@ TABLE_TYPE(SymbolTable,
 static void  initObject(void* pointer, Type type) {
   Obj* obj  = pointer;
 
-  obj->type  = type;
-  obj->gray  = true;
-  obj->next  = vm.objects;
-  vm.objects = obj;
+  obj->type        = type;
+  obj->gray        = true;
+  obj->next        = vm.heap.objects;
+  vm.heap.objects = obj;
 }
 
 static void* newObject(Type type) {

@@ -59,21 +59,21 @@ Vm vm = {
 // templates
 #include "tpl/describe.h"
 
-bool compareGlobalEnvKeys(Symbol* x, Symbol* y) {
+bool compareNameSpaceKeys(Symbol* x, Symbol* y) {
   return x == y;
 }
 
-void internGlobalEnvKey(GlobalEnvEntry* entry, Symbol* key, Value* value) {
+void internNameSpaceKey(NameSpaceEntry* entry, Symbol* key, Value* value) {
   entry->key = key;
   entry->val = *value == NOTHING_VAL ? NIL_VAL : *value;
 }
 
-TABLE_TYPE(GlobalEnv,
-           globalEnv,
+TABLE_TYPE(NameSpace,
+           nameSpace,
            Symbol*,
            Value,
-           compareGlobalEnvKeys,
+           compareNameSpaceKeys,
            hashObject,
-           internGlobalEnvKey,
+           internNameSpaceKey,
            NULL,
            NOTHING_VAL);
