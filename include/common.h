@@ -53,4 +53,10 @@ typedef struct Parser      Parser;
 typedef struct Compiler    Compiler;
 typedef struct Vm          Vm;
 
+// misc enums
+typedef enum {
+  BINARY,      // not encoded
+  ASCII,       // ascii encoded
+} Encoding;
+
 #endif

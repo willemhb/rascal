@@ -7,113 +7,40 @@
 
 /**
  *
- * formal grammar (for reference)
- *
- * EXPRESSION
- *     : ASSIGNMENT
- *     ;
- *
- * ASSIGNMENT
- *     : ASSIGNMENT ('=' | '->') COMPARISON
- *     | COMPARISON
- *     ;
- *
- * COMPARISON
- *     : COMPARISON ('<' | '>' | '==' | '!=' | '<=' | '>=') ADDITION
- *     | ADDITION
- *     ;
- *
- * ADDITION
- *     : ADDITION ('+' | '-') CALL
- *     | CALL
- *     ;
- *
- * CALL
- *     : MULTIPLICATION
- *     | IDENTIFIER EXPRESSIONS
- *     | IDENTIFIER '(' EXPRESSIONS? ')'
- *     | IDENTIFIER (EXPRESSIONS ',')? KEYWORDS
- *     | IDENTIFIER (EXPRESSIONS ',')? DO-BLOCK
- *     ;
- *
- * MULTIPLICATION
- *     : MULTIPLICATION ('*' | '/') BASIC
- *     | BASIC
- *     ;
- *
- * BASIC
- *     : NUMBER
- *     | SYMBOL
- *     | STRING
- *     | BITS
- *     | IDENTIFIER
- *     | LIST
- *     | MAP
- *     | TUPLE
- *     | '(' EXPRESSION ')'
- *     ;
- *
- * EXPRESSIONS
- *    : EXPRESSION (',' EXPRESSION )*
- *    ;
- *
- * KEYWORDS
- *    : KEYWORD EXPRESSION (',' KEYWORD EXPRESSION)*
- *    ;
- *
- * DO-BLOCK
- *    : "DO" EXPRESSION+ (IDENTIFIER EXPRESSION+)? "END"
- *    ;
- *
- * NUMBER
- *    : DIGIT+ ('.' DIGIT+ )?
- *    ;
- *
- * SYMBOL
- *    : ':' IDENTIFIER
- *    ;
- *
- * STRING
- *    : '"' CHAR* '"'
- *    ;
- *
- * BITS
- *    : '<<' (DIGIT+ (',' DIGIT+)*)? '>>'
- *    ;
- *
- * IDENTIFIER
- *    : IDENTIFIER-CHARACTER+
- *    ;
- *
- * IDENTIFIER-CHARACTER
- *    : ALPHA
- *    | DIGIT
- *    | "+" | "-" | "*" | "/" | "^"
- *    | "!" | "?" | "\" | "@" | "$"
- *    | "$" | "%" | "&" | "|" | "="
- *    | "<" | ">" | "~" | "`"
- *    ;
- *
- * LIST
- *    : '[' (EXPRESSIONS | KEYWORDS)? ']'
- *    ;
+ * Rascal syntactic grammar (for reference. See scanner.h for lexical grammar):
  * 
- * MAP
- *    : '{' (KEYWORDS | ENTRIES)? '}'
- *    ;
- *
- * ENTRIES
- *    : ENTRY (',' ENTRY)*
- *    ;
- *
- * ENTRY
- *    : EXPRESSION '=>' EXPRESSION
- *    ;
- *
- * TUPLE
- *    : '(' ')'
- *    | '(' EXPRESSION ',' EXPRESSIONS? ')'
- *    ;
+ * expression  -> assignment ;
+ * assignment  -> accessor ( ( "=" | "->" ) logical_or )? | logical_or ;
+ * logical_or  -> logical_and ( "or" logical_and )* ;
+ * logical_and -> equality ( "and" equality )* ;
+ * equality    -> comparison ( ( "==" | "!=" ) comparison )? ;
+ * comparison  -> term ( ( ">" | "<" | ">=" | "<=" ) term )? ;
+ * term        -> factor ( ( "+" | "-" ) factor )* ;
+ * factor      -> unary ( ( "/" | "*" ) unary )* ;
+ * unary       -> ( "not" | "-" ) unary | call ;
+ * call        -> accessor
+                | accessor "(" arguments? ")"
+                | accessor arguments
+                | accessor arguments? do-block ;
+ * arguments   -> expressions ( "," keywords )*  | keywords ;
+ * expressions -> expression ( "," expression )* ;
+ * keywords    -> keyword expression ( "," keyword expression )* ;
+ * do-block    -> "do" expression+ ( identifier expression+ )* "end" ;
+ * accessor    -> primary ( "." primary )*
+ * primary     -> number
+ *              | symbol
+ *              | identifier
+ *              | string
+ *              | bits
+ *              | list
+ *              | map
+ *              | tuple
+ *              | grouping ;
+ * bits        -> "<<" ( number ( "," number )* )? ">>" ;
+ * list        -> "[" ( keywords | expressions )? "]" ;
+ * map         -> "{" ( keywords | pairs )? "}" ;
+ * tuple       -> "(" ")" | "(" expression "," expressions? ")" ;
+ * grouping    -> "(" expression ")" ;
  **/
 
 struct Parser {

@@ -3,4 +3,7 @@
 
 #include "common.h"
 
+// external API
+void displayScanner(Scanner* scanner);
+
 #endif

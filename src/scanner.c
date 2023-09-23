@@ -6,11 +6,12 @@
 #include "vm.h"
 #include "scanner.h"
 
-#define SYMPUNCT "?!_-$%&@~`'\"\\/"
+#define DELIMITER "(){}[],. \n\t\v\r"
 
 // forward declarations for reader helpers
 static Token scanNumber(Scanner* scanner);
 static Token scanSymbol(Scanner* scanner);
+static Token scanString(Scanner* scanner);
 static Token scanIdentifier(Scanner* scanner);
 
 // static helpers
@@ -29,8 +30,8 @@ static char peekNextChar(Scanner* scanner) {
   return scanner->current[1];
 }
 
-static bool isSymbolChar(int ch) {
-  return isalnum(ch) || strchr(SYMPUNCT, ch);
+static bool isSep(int ch) {
+  return strchr(DELIMITER, ch);
 }
 
 static char advance(Scanner* scanner) {
@@ -100,24 +101,30 @@ static Token scanToken(Scanner* scanner) {
   scanner->start = scanner->current;
 
   Token token;
-
+  
   if (isAtEnd(scanner)) {
     token = makeToken(scanner, EOF_TOKEN);
   } else {
     char c = advance(scanner);
-
+    
     switch (c) {
-      case '0' ... '9': token = scanNumber(scanner);             break;
-      case ':':         token = scanSymbol(scanner);             break;
-      case '+':         token = makeToken(scanner, PLUS_TOKEN);  break;
-      case '-':         token = makeToken(scanner, MINUS_TOKEN); break;
-      case '*':         token = makeToken(scanner, MUL_TOKEN);   break;
-      case '/':         token = makeToken(scanner, DIV_TOKEN);   break;
-      case '^':         token = makeToken(scanner, EXP_TOKEN);   break;
-      case '(':         token = makeToken(scanner, LPAR_TOKEN);  break;
-      case ')':         token = makeToken(scanner, RPAR_TOKEN);  break;
-      case ',':         token = makeToken(scanner, COMMA_TOKEN); break;
-      default:          token = scanIdentifier(scanner);         break;
+      // atomic literals
+      case '0' ... '9': token = scanNumber(scanner); break;
+      case ':':         token = scanSymbol(scanner); break;
+      case '"':         token = scanString(scanner); break;
+     
+        // delimiters
+      case '(':         token = makeToken(scanner, LPAR_TOKEN);   break;
+      case ')':         token = makeToken(scanner, RPAR_TOKEN);   break;
+      case '[':         token = makeToken(scanner, LBRACK_TOKEN); break;
+      case ']':         token = makeToken(scanner, RBRACK_TOKEN); break;
+      case '{':         token = makeToken(scanner, LBRACE_TOKEN); break;
+      case '}':         token = makeToken(scanner, RBRACE_TOKEN); break;
+      case ',':         token = makeToken(scanner, COMMA_TOKEN);  break;
+      case '.':         token = makeToken(scanner, DOT_TOKEN);    break;
+
+        // fallback
+      default:          token = scanIdentifier(scanner);          break;
     }
   }
 
@@ -142,7 +149,7 @@ static Token scanNumber(Scanner* scanner) {
 static Token scanSymbol(Scanner* scanner) {
   size_t length = 0;
   
-  while (isSymbolChar(peekChar(scanner))) {
+  while (!isSep(peekChar(scanner))) {
     length++;
     advance(scanner);
   }

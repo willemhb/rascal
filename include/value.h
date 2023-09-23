@@ -1,6 +1,8 @@
 #ifndef rascal_value_h
 #define rascal_value_h
 
+#include <stdio.h>
+
 #include "common.h"
 
 // core rascal types
@@ -107,6 +109,7 @@ size_t   sizeOfType(Type type);
 char*    nameOfType(Type type);
 bool     equalValues(Value x, Value y);
 uint64_t hashValue(Value x);
+void     printValue(FILE* ios, Value x);
 uint64_t hashType(Type type);
 
 static inline bool hasValueType(Value value, Type type) {

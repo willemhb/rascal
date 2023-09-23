@@ -3,23 +3,52 @@
 
 #include "common.h"
 
-/* types and procedures for lexing input (initial processing). */
+/**
+ * types and procedures for lexing input (initial processing).
+ *
+ * Rascal lexical grammar (for reference. See parser.h for syntactic grammar):
+ *
+ * number     -> digit ( "." digit )? ;
+ * symbol     -> ":" identifier ;
+ * keyword    -> identifier ":" ;
+ * string     -> '"' character* '"' ;
+ * identifier -> ( alpha | digit | sep | punct | op )+ ;
+ * alpha      -> "a" ... "z" | "A" ... "Z" ;
+ * digit      -> "0" ... "9" ;
+ * sep        -> "-" | "_" ;
+ * punct      -> "!" | "?" ;
+ * op         -> "=" | "<" | ">"
+ *            |  "+" | "-" | "*" | "/"
+ *            |  "^" | "&" | "$" | "%" ;
+ **/
 
 // token type
 typedef enum {
-  NUMBER_TOKEN,
-  IDENTIFIER_TOKEN,
-  SYMBOL_TOKEN,
-  LPAR_TOKEN,
-  RPAR_TOKEN,
-  PLUS_TOKEN,
-  MINUS_TOKEN,
-  MUL_TOKEN,
-  DIV_TOKEN,
-  EXP_TOKEN,
-  COMMA_TOKEN,
-  EOF_TOKEN,
-  ERROR_TOKEN
+  // atoms
+  NUMBER_TOKEN, SYMBOL_TOKEN, KEYWORD_TOKEN, IDENTIFIER_TOKEN,
+
+  // delimiters
+  LPAR_TOKEN,    RPAR_TOKEN,
+  LARROWS_TOKEN, RARROWS_TOKEN,
+  LBRACK_TOKEN,  RBRACK_TOKEN,
+  LBRACE_TOKEN,  RBRACE_TOKEN,
+  DO_TOKEN,      END_TOKEN,
+  COMMA_TOKEN,   DOT_TOKEN,
+
+  // operators
+  // assignment
+  EQUAL_TOKEN, RARROW_TOKEN,
+
+  // comparison
+  LESS_THAN_TOKEN,   GREATER_THAN_TOKEN,
+  EQUAL_EQUAL_TOKEN, NOT_EQUAL_TOKEN,
+  LESS_EQUAL_TOKEN,  GREATER_EQUAL_TOKEN,
+
+  // mathematics
+  PLUS_TOKEN, MINUS_TOKEN, MUL_TOKEN, DIV_TOKEN,
+
+  // misc
+  EOF_TOKEN, ERROR_TOKEN
 } TokenType;
 
 typedef struct {
