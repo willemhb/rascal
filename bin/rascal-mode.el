@@ -9,10 +9,10 @@
 (define-generic-mode
   'rascal-mode
   '("#")
-  '("fun" "mac" "struct" "record" ;; binding syntax
-    "union" "type"                ;; binding syntax (continued)
+  '("module" "fun" "mac" "type"   ;; binding syntax
+    "struct" "record" "union"     ;; binding syntax (continued)
     "perform" "handle" "resume"   ;; effect syntax
-    "catch" "raise" "yield"       ;; control syntax
+    "try" "catch" "raise" "yield" ;; control syntax
     "if" "elif" "else" "case"     ;; branching syntax
     "cond" "and" "or" "not"       ;; branching syntax (continued)
     "do" "end"                    ;; do notation
