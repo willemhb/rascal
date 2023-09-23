@@ -2,34 +2,59 @@
 #include <string.h>
 
 #include "vm.h"
+#include "object.h"
 #include "memory.h"
 
 // internal GC helpers
-static void mark(void)  {}
-static void trace(void) {}
-static void sweep(void) {}
+static void mark(void)   {}
+static void trace(void)  {}
+static void sweep(void)  {}
+static void resize(void) { vm.heap.heapCapacity <<= 1; }
 
 static void manage(void) {
   mark();
   trace();
   sweep();
+  resize();
 }
 
 static void manageHeap(size_t nBytesAdded, size_t nBytesRemoved) {
   if (nBytesAdded > nBytesRemoved) {
     size_t diff = nBytesAdded - nBytesRemoved;
 
-    if (diff + vm.heapUsed > vm.heapCapacity)
+    if (diff + vm.heap.heapUsed > vm.heap.heapCapacity)
       manage();
 
-    vm.heapUsed += diff;
+    vm.heap.heapUsed += diff;
   } else {
     size_t diff = nBytesRemoved - nBytesAdded;
-    vm.heapUsed -= diff;
+    vm.heap.heapUsed -= diff;
   }
 }
 
 // heap/memory API
+#define N_HEAP (UINT16_COUNT * sizeof(Value))
+
+void initHeap(Heap* heap) {
+  heap->objects      = NULL;
+  heap->heapUsed     = 0;
+  heap->heapCapacity = N_HEAP;
+  initObjects(&heap->grays);
+}
+
+void freeHeap(Heap* heap) {
+  freeObjects(&heap->grays);
+
+  Obj* obj = heap->objects,* tmp;
+
+  while (obj != NULL) {
+    tmp = obj;
+    obj = obj->next;
+    
+    freeObject(tmp);
+  }
+}
+
 void* allocate(size_t nBytes, bool fromHeap) {
   if (fromHeap)
     manageHeap(nBytes, 0);

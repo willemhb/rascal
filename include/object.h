@@ -124,6 +124,7 @@ extern Tuple emptyTuple;
 // miscellaneous utilities
 uint64_t hashObject(void* ob);
 bool     equalObjects(void* obx, void* oby);
+void     freeObject(void* ob);
 
 // constructors
 Symbol* newSymbol(char* name);

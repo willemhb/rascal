@@ -34,6 +34,10 @@ static bool isSep(int ch) {
   return strchr(DELIMITER, ch);
 }
 
+static bool isIdentifierChar(int ch) {
+  return isalnum(ch) || strchr("_!?", ch);
+}
+
 static char advance(Scanner* scanner) {
   return *(scanner->current++);
 }
@@ -69,6 +73,29 @@ static void skipWhiteSpace(Scanner* scanner) {
     }
   }
 }
+
+
+static TokenType checkKeyword(Scanner* scanner, int start, int length,
+    const char* rest, TokenType type) {
+  if (scanner->current - scanner->start == start + length &&
+      memcmp(scanner->start + start, rest, length) == 0) {
+    return type;
+  }
+
+  return IDENTIFIER_TOKEN;
+}
+
+static bool match(Scanner* scanner, char expect) {
+  if (isAtEnd(scanner))
+    return false;
+
+  if (*scanner->current != expect)
+    return false;
+  
+  scanner->current++;
+  return true;
+}
+
 
 static Token makeToken(Scanner* scanner, TokenType type) {
   Token token;
@@ -113,7 +140,7 @@ static Token scanToken(Scanner* scanner) {
       case ':':         token = scanSymbol(scanner); break;
       case '"':         token = scanString(scanner); break;
      
-        // delimiters
+        // simple delimiters
       case '(':         token = makeToken(scanner, LPAR_TOKEN);   break;
       case ')':         token = makeToken(scanner, RPAR_TOKEN);   break;
       case '[':         token = makeToken(scanner, LBRACK_TOKEN); break;
@@ -122,6 +149,59 @@ static Token scanToken(Scanner* scanner) {
       case '}':         token = makeToken(scanner, RBRACE_TOKEN); break;
       case ',':         token = makeToken(scanner, COMMA_TOKEN);  break;
       case '.':         token = makeToken(scanner, DOT_TOKEN);    break;
+
+        // tricky delimiters
+      case '<':
+        if (match(scanner, '<'))
+          token = makeToken(scanner, LARROWS_TOKEN);
+
+        else if (match(scanner, '='))
+          token = makeToken(scanner, LESS_EQUAL_TOKEN);
+
+        else
+          token = makeToken(scanner, LESS_THAN_TOKEN);
+
+        break;
+
+      case '>':
+        if (match(scanner, '>'))
+          token = makeToken(scanner, RARROWS_TOKEN);
+
+        else if (match(scanner, '='))
+          token = makeToken(scanner, GREATER_EQUAL_TOKEN);
+
+        else
+          token = makeToken(scanner, GREATER_THAN_TOKEN);
+
+        break;
+
+        // simple operators
+      case '+':         token = makeToken(scanner, PLUS_TOKEN);   break;
+      case '*':         token = makeToken(scanner, MUL_TOKEN);    break;
+      case '/':         token = makeToken(scanner, DIV_TOKEN);    break;
+      case '%':         token = makeToken(scanner, REM_TOKEN);    break;
+
+        // tricky operators
+      case '-':
+        if (match(scanner, '>'))
+          token = makeToken(scanner, MATCH_TOKEN);
+        else
+          token = makeToken(scanner, MINUS_TOKEN);
+        break;
+
+      case '=':
+        if (match(scanner, '='))
+          token = makeToken(scanner, EQUAL_EQUAL_TOKEN);
+        else
+          token = makeToken(scanner, EQUAL_TOKEN);
+        break;
+
+      case '!':
+        if (match(scanner, '='))
+          token = makeToken(scanner, NOT_EQUAL_TOKEN);
+        else
+          token = scanIdentifier(scanner);
+        break;
 
         // fallback
       default:          token = scanIdentifier(scanner);          break;
@@ -146,31 +226,60 @@ static Token scanNumber(Scanner* scanner) {
   return makeToken(scanner, NUMBER_TOKEN);
 }
 
-static Token scanSymbol(Scanner* scanner) {
-  size_t length = 0;
-  
-  while (!isSep(peekChar(scanner))) {
-    length++;
+static Token scanSymbol(Scanner* scanner) {  
+  while (!isSep(peekChar(scanner)))
     advance(scanner);
-  }
 
-  if (length == 0)
-    return errorToken(scanner, "Illegal empty symbol token.\n");
-
-  scanner->start++; // clear the initial ':'
   return makeToken(scanner, SYMBOL_TOKEN);
 }
 
+static Token scanString(Scanner* scanner) {
+  while (peekChar(scanner) != '"' && !isAtEnd(scanner)) {
+    if (peekChar(scanner) == '\n') scanner->lineNo++;
+    advance(scanner);
+  }
+
+  if (isAtEnd(scanner))
+    return errorToken(scanner, "Unterminated string.");
+
+  // The closing quote.
+  advance(scanner);
+  return makeToken(scanner, STRING_TOKEN);
+}
+
 static Token scanIdentifier(Scanner* scanner) {
-  while (isSymbolChar(peekChar(scanner)))
+  while ( isIdentifierChar(peekChar(scanner)) )
     advance(scanner);
 
-  return makeToken(scanner, IDENTIFIER_TOKEN);
+  TokenType type;
+
+  if (match(scanner, ':'))
+    type = KEYWORD_TOKEN;
+
+  else {
+    switch (scanner->start[0]) {
+      case 'a': type = checkKeyword(scanner, 1, 2, "nd", AND_TOKEN); break;
+      case 'd': type = checkKeyword(scanner, 1, 1, "o", DO_TOKEN); break;
+      case 'e': type = checkKeyword(scanner, 1, 2, "nd", END_TOKEN); break;
+      case 'f': type = checkKeyword(scanner, 1, 4, "alse", FALSE_TOKEN); break;
+      case 'n':
+        switch (scanner->start[1]) {
+          case 'i': type = checkKeyword(scanner, 1, 1, "l", NIL_TOKEN); break;
+          case 'o': type = checkKeyword(scanner, 1, 1, "t", NOT_TOKEN); break;
+          default:  type = IDENTIFIER_TOKEN; break;
+        }
+        break;
+      case 'o': type = checkKeyword(scanner, 1, 1, "r", OR_TOKEN); break;
+      case 't': type = checkKeyword(scanner, 1, 3, "rue", TRUE_TOKEN); break;
+      default:  type = IDENTIFIER_TOKEN; break;
+    }
+  }
+
+  return makeToken(scanner, type);
 }
 
 // generics
 #include "tpl/describe.h"
-
 ARRAY_TYPE(Tokens, Token);
 
 void initScanner(Scanner* scanner, char* source) {
@@ -201,6 +310,9 @@ bool lexInput(char* source) {
 
   while (!isAtEnd(scanner) && !scanner->hadError)
     scanToken(scanner);
+
+  if (!scanner->hadError)
+    writeTokens(&scanner->tokens, makeToken(scanner, EOF_TOKEN));
 
   return scanner->hadError;
 }

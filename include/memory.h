@@ -31,6 +31,8 @@ struct Heap {
 #define SAFE_MALLOC(nBytes)           SAFE_ALLOC(malloc, nBytes)
 #define SAFE_REALLOC(pointer, nBytes) SAFE_ALLOC(realloc, pointer, nBytes)
 
+void  initHeap(Heap* heap);
+void  freeHeap(Heap* heap);
 void* allocate(size_t nBytes, bool fromHeap);
 void* duplicate(void* pointer, size_t nBytes, bool fromHeap);
 void* reallocate(void* pointer, size_t oldSize, size_t newSize, bool fromHeap);
