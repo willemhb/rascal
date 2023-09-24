@@ -88,17 +88,36 @@ static TokenType checkKeyword(Scanner* scanner, int start, int length,
   return IDENTIFIER_TOKEN;
 }
 
-static bool match(Scanner* scanner, char expect) {
+static bool matchChar(Scanner* scanner, char expect, bool consume) {
   if (isAtEnd(scanner))
     return false;
-
+  
   if (*scanner->current != expect)
     return false;
-  
-  scanner->current++;
+
+  if (consume)
+    scanner->current++;
+
   return true;
 }
 
+static bool matchStr(Scanner* scanner, char* expect, bool consume) {
+  if (isAtEnd(scanner))
+    return false;
+
+  size_t n = strlen(expect);
+
+  if (memcmp(scanner->current, expect, n))
+    return false;
+
+  
+  if (consume)
+    scanner->current +=n;
+
+  return true;
+}
+
+#define match(s, e, c) _Generic((e), int:matchChar, char*:matchStr)(s, e, c)
 
 static Token makeToken(Scanner* scanner, TokenType type) {
   Token token;
@@ -142,7 +161,7 @@ static Token scanToken(Scanner* scanner) {
         break;
 
       case ':':
-        if (match(scanner, ':'))
+        if (match(scanner, ':', true))
           token = makeToken(scanner, COLON_COLON_TOKEN);
         else
           scanSymbol(scanner);
@@ -187,18 +206,18 @@ static Token scanToken(Scanner* scanner) {
 
         // tricky delimiters
       case '<':
-        if (match(scanner, '<'))
+        if (match(scanner, '<', true))
           token = makeToken(scanner, LARROWS_TOKEN);
-        else if (match(scanner, '='))
+        else if (match(scanner, '=', true))
           token = makeToken(scanner, LESS_EQUAL_TOKEN);
         else
           token = makeToken(scanner, LESS_THAN_TOKEN);
         break;
 
       case '>':
-        if (match(scanner, '>'))
+        if (match(scanner, '>', true))
           token = makeToken(scanner, RARROWS_TOKEN);
-        else if (match(scanner, '='))
+        else if (match(scanner, '=', true))
           token = makeToken(scanner, GREATER_EQUAL_TOKEN);
         else
           token = makeToken(scanner, GREATER_THAN_TOKEN);
@@ -225,23 +244,27 @@ static Token scanToken(Scanner* scanner) {
         token = makeToken(scanner, APOSTROPHE_TOKEN);
         break;
 
+      case '|':
+        token = makeToken(scanner, BAR_TOKEN);
+        break;
+
         // tricky operators
       case '-':
-        if (match(scanner, '>'))
+        if (match(scanner, '>', true))
           token = makeToken(scanner, MATCH_TOKEN);
         else
           token = makeToken(scanner, MINUS_TOKEN);
         break;
 
       case '=':
-        if (match(scanner, '='))
+        if (match(scanner, '=', true))
           token = makeToken(scanner, EQUAL_EQUAL_TOKEN);
         else
           token = makeToken(scanner, EQUAL_TOKEN);
         break;
 
       case '!':
-        if (match(scanner, '='))
+        if (match(scanner, '=', true))
           token = makeToken(scanner, NOT_EQUAL_TOKEN);
         else
           token = scanIdentifier(scanner);
@@ -299,7 +322,10 @@ static Token scanIdentifier(Scanner* scanner) {
 
   TokenType type;
 
-  if (match(scanner, ':'))
+  if (match(scanner, "::", false)) // type assertion is separate infix operator
+    type = IDENTIFIER_TOKEN;
+
+  else if (match(scanner, ':', true))
     type = KEYWORD_TOKEN;
 
   else {
@@ -310,7 +336,7 @@ static Token scanIdentifier(Scanner* scanner) {
       case 'f': type = checkKeyword(scanner, 1, 4, "alse", FALSE_TOKEN); break;
       case 'n':
         switch (scanner->start[1]) {
-          case 'i': type = checkKeyword(scanner, 1, 1, "l", NIL_TOKEN); break;
+          case 'i': type = checkKeyword(scanner, 1, 1, "l", NUL_TOKEN); break;
           case 'o': type = checkKeyword(scanner, 1, 1, "t", NOT_TOKEN); break;
           default:  type = IDENTIFIER_TOKEN; break;
         }
@@ -327,7 +353,6 @@ static Token scanIdentifier(Scanner* scanner) {
 // generics
 #include "tpl/describe.h"
 ARRAY_TYPE(Tokens, Token, Token);
-
 
 void initScanner(Scanner* scanner, char* source) {
   scanner->start    = source;

@@ -10,7 +10,7 @@ ARRAY_TYPE(Values, Value, Value);
 
 Type valueType(Value value) {
   switch (value & TAG_MASK) {
-    case NIL_TAG:  return UNIT;
+    case NUL_TAG:  return UNIT;
     case BOOL_TAG: return BOOLEAN;
     case OBJ_TAG:  return OBJECT;
     default:       return NUMBER;

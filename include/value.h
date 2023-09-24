@@ -53,7 +53,7 @@ typedef enum {
 #define NUM_TYPES (TUPLE+1)
 
 // tags and such
-#define NIL_TAG     0x7ffc000000000000UL
+#define NUL_TAG     0x7ffc000000000000UL
 #define BOOL_TAG    0x7ffd000000000000UL
 #define OBJ_TAG     0x7ffe000000000000UL
 
@@ -62,8 +62,8 @@ typedef enum {
 
 #define TRUE_VAL    (BOOL_TAG | 1UL)
 #define FALSE_VAL   (BOOL_TAG | 0UL)
-#define NIL_VAL     (NIL_TAG  | 0UL)
-#define NOTHING_VAL (NIL_TAG  | 1UL) // invalid value marker
+#define NUL_VAL     (NUL_TAG  | 0UL)
+#define NOTHING_VAL (NUL_TAG  | 1UL) // invalid value marker
 
 #define TAG_BOOL(boolean) ((boolean) ? TRUE_VAL : FALSE_FAL)
 #define TAG_NUM(number)   doubleToWord(number)
@@ -88,7 +88,7 @@ typedef enum {
 #define AS_STREAM(value)  ((Stream*)((value) & VAL_MASK))
 */
 
-#define IS_NIL(value)     ((value) == NIL_VAL)
+#define IS_NUL(value)     ((value) == NUL_VAL)
 #define IS_BOOL(value)    hasValueType(value, BOOLEAN)
 #define IS_OBJ(value)     hasValueType(value, OBJECT)
 #define IS_NUM(value)     (((value) & QNAN) != QNAN)

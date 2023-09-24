@@ -15,7 +15,7 @@ static const char* tokenTypeName(TokenType type) {
     case IDENTIFIER_TOKEN:    out = "identifier-token";  break;
     case TRUE_TOKEN:          out = "true-token";        break;
     case FALSE_TOKEN:         out = "false-token";       break;
-    case NIL_TOKEN:           out = "nil-token";         break;
+    case NUL_TOKEN:           out = "nil-token";         break;
     case LPAR_TOKEN:          out = "left-parenthesis";  break;
     case RPAR_TOKEN:          out = "right-parenthesis"; break;
     case LARROWS_TOKEN:       out = "left-arrows";       break;
@@ -41,6 +41,7 @@ static const char* tokenTypeName(TokenType type) {
     case GREATER_EQUAL_TOKEN: out = "greater-or-equal";  break;
     case PLUS_TOKEN:          out = "plus";              break;
     case MINUS_TOKEN:         out = "minus";             break;
+    case BAR_TOKEN:           out = "bar";               break;
     case MUL_TOKEN:           out = "multiply";          break;
     case DIV_TOKEN:           out = "divide";            break;
     case REM_TOKEN:           out = "remainder";         break;

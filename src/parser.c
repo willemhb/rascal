@@ -62,7 +62,7 @@ ParseRule rules[] = {
   [IDENTIFIER_TOKEN]    = { identifier, NULL, NO_PRECEDENCE         },
   [TRUE_TOKEN]          = { atomic,     NULL, NO_PRECEDENCE         },
   [FALSE_TOKEN]         = { atomic,     NULL, NO_PRECEDENCE         },
-  [NIL_TOKEN]           = { atomic,     NULL, NO_PRECEDENCE         },
+  [NUL_TOKEN]           = { atomic,     NULL, NO_PRECEDENCE         },
   [LPAR_TOKEN]          = { grouping,   NULL, NO_PRECEDENCE         },
   [RPAR_TOKEN]          = { NULL,       NULL, NO_PRECEDENCE         },
   [LARROWS_TOKEN]       = { NULL,       NULL, NO_PRECEDENCE         },
@@ -75,9 +75,9 @@ ParseRule rules[] = {
   [DOT_TOKEN]           = { NULL,       NULL, ACCESSOR_PRECEDENCE   },
   [EQUAL_TOKEN]         = { NULL,       NULL, ASSIGNMENT_PRECEDENCE },
   [MATCH_TOKEN]         = { NULL,       NULL, ASSIGNMENT_PRECEDENCE },
+  [COLON_COLON_TOKEN]   = { NULL,       NULL, ASSIGNMENT_PRECEDENCE },
   [OR_TOKEN]            = { NULL,       NULL, OR_PRECEDENCE         },
   [AND_TOKEN]           = { NULL,       NULL, AND_PRECEDENCE        },
-  [NOT_TOKEN]           = { NULL,       NULL, UNARY_PRECEDENCE      },
   [EQUAL_EQUAL_TOKEN]   = { NULL,       NULL, EQUALITY_PRECEDENCE   },
   [NOT_EQUAL_TOKEN]     = { NULL,       NULL, EQUALITY_PRECEDENCE   }, 
   [LESS_THAN_TOKEN]     = { NULL,       NULL, COMPARISON_PRECEDENCE },
@@ -86,9 +86,12 @@ ParseRule rules[] = {
   [GREATER_EQUAL_TOKEN] = { NULL,       NULL, COMPARISON_PRECEDENCE },
   [PLUS_TOKEN]          = { NULL,       NULL, TERM_PRECEDENCE       },
   [MINUS_TOKEN]         = { NULL,       NULL, TERM_PRECEDENCE       },
+  [BAR_TOKEN]           = { NULL,       NULL, TERM_PRECEDENCE       },
   [MUL_TOKEN]           = { NULL,       NULL, FACTOR_PRECEDENCE     },
   [DIV_TOKEN]           = { NULL,       NULL, FACTOR_PRECEDENCE     },
   [REM_TOKEN]           = { NULL,       NULL, FACTOR_PRECEDENCE     },
+  [APOSTROPHE_TOKEN]    = { NULL,       NULL, UNARY_PRECEDENCE      },
+  [NOT_TOKEN]           = { NULL,       NULL, UNARY_PRECEDENCE      },
   [ERROR_TOKEN]         = { NULL,       NULL, NO_PRECEDENCE         },
   [EOF_TOKEN]           = { NULL,       NULL, NO_PRECEDENCE         }
 };
@@ -193,8 +196,8 @@ static Value atomic(Parser* parser) {
   else if (token.type == FALSE_TOKEN)
     val = FALSE_VAL;
 
-  else if (token.type == NIL_TOKEN)
-    val = NIL_VAL;
+  else if (token.type == NUL_TOKEN)
+    val = NUL_VAL;
 
   else
     val = errorAtCurrent(parser, "Unreadable atomic token.");

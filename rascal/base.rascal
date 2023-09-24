@@ -1,13 +1,13 @@
 
 module Enum do
-    fun map(f::Function, xs::List, accum \\ []) do
+    fun map(f::Function, xs::List, accum = []) do
         case xs do
             []     -> reverse accum
             [x|xs] -> map(f, xs, f(x) | accum)
         end
     end
 
-    fun map(f::Function, xs::Bits, accum \\ <<>>) do
+    fun map(f::Function, xs::Bits, accum = <<>>) do
         case xs do
             <<>>     -> accum
             <<x|xs>> -> map(f, xs, f(x) | accum)
@@ -42,19 +42,19 @@ module Math do
     some_map   = {x: 1, y: 2, z: 3}
     some_bits  = <<000, 000, 120, 037>>
 
-    fun deriv(f::Function, h \\ 0.00001) do
+    fun deriv(f::Function, h = 0.00001) do
         # Numerical method.
         fun (x::Number), do: (f(x+h) - f(x)) / h
     end
 
     fun sqr(x::Number), do: x*x
 
-    fun deriv(x::Number, f::Function, h \\ 0.00001) do
+    fun deriv(x::Number, f::Function, h = 0.00001) do
         # Numerical method.
         (f(x+h) - f(x)) / h
     end
 
-    fun sqrt(x, e \\ 0.00001) do
+    fun sqrt(x, e = 0.00001) do
         # Newton's method.
         fun loop(y) do
             if abs(x - sqr(y)) <= e do
@@ -66,10 +66,10 @@ module Math do
 
         loop(x)
     end
-    
 
     fun sum(xs::List),  do: reduce '+, xs, 0
     fun prod(xs::List), do: reduce '*, xs, 1
+    fun mean(xs::List), do: sum(xs) / xs.length
     fun hypot(x, y),    do: sqrt x*x + y*y
 
     fun add(x, y), do: x + y

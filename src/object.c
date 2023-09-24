@@ -39,7 +39,7 @@ bool compareNameSpaceKeys(Symbol* x, Symbol* y) {
 
 void internNameSpaceKey(NameSpaceEntry* entry, Symbol* key, Value* value) {
   entry->key = key;
-  entry->val = *value == NOTHING_VAL ? NIL_VAL : *value;
+  entry->val = *value == NOTHING_VAL ? NUL_VAL : *value;
 }
 
 TABLE_TYPE(NameSpace,
@@ -335,7 +335,7 @@ List emptyList = {
   },
   .tail =&emptyList,
   .arity=0,
-  .head =NIL_VAL
+  .head =NUL_VAL
 };
 
 Tuple emptyTuple = {
