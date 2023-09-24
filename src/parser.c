@@ -23,7 +23,7 @@ typedef enum {
   PRIMARY_PRECEDENCE
 } Precedence;
 
-typedef Value (*ParseFn)(Parser* parser, Scanner* source);
+typedef Value (*ParseFn)(Parser* parser);
 
 typedef struct {
   ParseFn    prefix;
@@ -34,46 +34,24 @@ typedef struct {
 // miscellaneous helpers
 static bool isAtEnd(Parser* parser);
 
-static Token* lastToken(Parser* parser) {
-  if ( parser->offset == 0 )
-    return NULL;
-
-  return &parser->source->tokens.data[parser->offset-1];
-}
-
-static Token* thisToken(Parser* parser) {
-  return &parser->source->tokens.data[parser->offset];
-}
-
-static Token* nextToken(Parser* parser) {
-  if (isAtEnd(parser))
-    return thisToken(parser);
-
-  return &parser->source->tokens.data[parser->offset+1];
-}
-
-static bool isAtEnd(Parser* parser) {
-  return thisToken(parser)->type == EOF_TOKEN;
-}
-
 // error helpers
 static Value error(Parser* parser, const char* message);
 static Value errorAt(Token* token, Parser* parser, const char* message);
 static Value errorAtCurrent(Parser* parser, const char* message);
 
 // parse rule declarations
-static Value number(Parser* parser, Scanner* source);
-static Value symbol(Parser* parser, Scanner* source);
-static Value string(Parser* parser, Scanner* source);
-static Value keyword(Parser* parser, Scanner* source);
-static Value identifier(Parser* parser, Scanner* source);
-static Value atomic(Parser* parser, Scanner* source);
-static Value grouping(Parser* parser, Scanner* source);
-static Value list(Parser* parser, Scanner* source);
-static Value bits(Parser* parser, Scanner* source);
-static Value infix(Parser* parser, Scanner* source);
-static Value prefix(Parser* parser, Scanner* source);
-static Value expression(Parser* parser, Scanner* source);
+static Value number(Parser* parser);
+static Value symbol(Parser* parser);
+static Value string(Parser* parser);
+static Value keyword(Parser* parser);
+static Value identifier(Parser* parser);
+static Value atomic(Parser* parser);
+static Value grouping(Parser* parser);
+static Value list(Parser* parser);
+static Value bits(Parser* parser);
+static Value infix(Parser* parser);
+static Value prefix(Parser* parser);
+static Value expression(Parser* parser);
 
 // globals
 ParseRule rules[] = {
@@ -91,28 +69,77 @@ ParseRule rules[] = {
   [EOF_TOKEN]        = { NULL,       NULL, NO_PRECEDENCE }
 };
 
+
 static ParseRule* getRule(TokenType type) {
   return &rules[type];
 }
 
+// misc helpers implementations
+static Token* previous(Parser* parser) {
+  if ( parser->offset == 0 )
+    return NULL;
+
+  return &parser->source->tokens.data[parser->offset-1];
+}
+
+static Token* this(Parser* parser) {
+  return &parser->source->tokens.data[parser->offset];
+}
+
+static Token* next(Parser* parser) {
+  if (isAtEnd(parser))
+    return this(parser);
+
+  return &parser->source->tokens.data[parser->offset+1];
+}
+
+static bool isAtEnd(Parser* parser) {
+  return this(parser)->type == EOF_TOKEN;
+}
+
+static void advance(Parser* parser) {
+  if (isAtEnd(parser))
+    return;
+
+  for (;;) {
+    parser->offset++;
+    if (this(parser)->type != ERROR_TOKEN)
+      break;
+
+    errorAtCurrent(parser, this(parser)->start);
+  }
+}
+
 // error helper implementations
 static Value error(Parser* parser, const char* message) {
-  return errorAt(lastToken(parser), parser, message);
+  return errorAt(previous(parser), parser, message);
 }
 static Value errorAt(Token* token, Parser* parser, const char* message) {
-  fprintf(stderr, )
+  fprintf(stderr, "[line %d] Error", token->lineNo);
+
+  if (token->type == EOF_TOKEN) {
+    fprintf(stderr, " at end");
+  } else if (token->type == ERROR_TOKEN) {
+    // Nothing.
+  } else {
+    fprintf(stderr, " at '%.*s'", (int)token->length, token->start);
+  }
+
+  fprintf(stderr, ": %s\n", message);
+  parser->hadError  = true;
+  parser->panicMode = true;
+
+  return NOTHING_VAL;
 }
 
 static Value errorAtCurrent(Parser* parser, const char* message) {
-  return errorAt(thisToken(parser), parser, message);
+  return errorAt(this(parser), parser, message);
 }
 
 
 // parse rule implementations
-static Value number(Parser* parser, Scanner* source) {
-  (void)source;
-
-  Token token = parser->current;
+static Value number(Parser* parser) {
+  Token token = *this(parser);
 
   assert(token.type == NUMBER_TOKEN);
 
@@ -127,10 +154,8 @@ static Value number(Parser* parser, Scanner* source) {
   return TAG_NUM(val);
 }
 
-static Value symbol(Parser* parser, Scanner* source) {
-  (void)source;
-
-  Token token = parser->current;
+static Value symbol(Parser* parser) {
+  Token token = *this(parser);
 
   assert(token.type == SYMBOL_TOKEN);
 
@@ -144,10 +169,8 @@ static Value symbol(Parser* parser, Scanner* source) {
   return TAG_OBJ(val);
 }
 
-static Value string(Parser* parser, Scanner* source) {
-  (void)source;
-
-  Token token = currentToken(parser);
+static Value string(Parser* parser) {
+  Token token = *this(parser);
 
   // copy token value, ommitting opening and closing '"'
   char buffer[token.length-1];
@@ -159,12 +182,13 @@ static Value string(Parser* parser, Scanner* source) {
   return TAG_OBJ(val);
 }
 
-static Value keyword(Parser* parser, Scanner* scanner) {
+static Value keyword(Parser* parser) {
   
 }
 
 // external API
-void initParser(Parser* parser, Scanner*) {
+void initParser(Parser* parser, Scanner* source) {
+  parser->source     = source;
   parser->offset     = 0;
   parser->hadError   = false;
   parser->panicMode  = false;

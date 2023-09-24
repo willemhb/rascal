@@ -4,6 +4,7 @@
 #include "common.h"
 #include "object.h"
 
+/*
 typedef enum {
   TOPLEVEL_CHUNK, // script or repl code
   MODULE_CHUNK,   // module code
@@ -25,5 +26,6 @@ struct Compiler {
 void      initCompiler(Compiler* enclosing, Chunk* compiling, ChunkType type);
 Compiler* freeCompiler(Compiler* compiler);
 bool      compileTree(Compiler* toplevel, Tuple* parseTree);
+*/
 
 #endif

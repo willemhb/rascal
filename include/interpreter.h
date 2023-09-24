@@ -4,6 +4,8 @@
 #include "common.h"
 #include "object.h"
 
+/*
+
 // init parameters
 #define N_STACK UINT16_COUNT
 #define N_FRAME 8192
@@ -32,5 +34,7 @@ void   initInterpreter(Interpreter* interpreter, Value* stack, CallFrame* frames
 void   push(Value value);
 Value  pop(void);
 Value  peep(int n);
+
+*/
 
 #endif
