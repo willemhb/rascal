@@ -52,6 +52,7 @@ struct Parser {
 
 // external API
 void  initParser(Parser* parser, Scanner* source);
+void  freeParser(Parser* parser);
 Value parse(Parser* parser, Scanner* source);
 
 #endif

@@ -6,7 +6,7 @@
 // version information
 #define MAJOR 0
 #define MINOR 0
-#define PATCH 1
+#define PATCH 2
 #define DEV   "a"
 #define VFMT "%.2d.%.2d.%2d.%s"
 
@@ -36,7 +36,7 @@ static void finalizeRascal(void) {
 
 static void lexFile(const char* fname) {
   char* source = readFile(fname);
-  lexInput(source);
+  scan(&vm.scanner, source);
   displayScanner(&vm.scanner);
 }
 

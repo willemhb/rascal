@@ -43,9 +43,11 @@ typedef enum {
   // logical
   OR_TOKEN, AND_TOKEN, NOT_TOKEN,
 
+  // equality
+  EQUAL_EQUAL_TOKEN, NOT_EQUAL_TOKEN,
+
   // comparison
   LESS_THAN_TOKEN,   GREATER_THAN_TOKEN,
-  EQUAL_EQUAL_TOKEN, NOT_EQUAL_TOKEN,
   LESS_EQUAL_TOKEN,  GREATER_EQUAL_TOKEN,
 
   // mathematics
