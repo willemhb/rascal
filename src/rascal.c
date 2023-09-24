@@ -1,12 +1,16 @@
+#include <stdlib.h>
+#include <stdio.h>
+
 #include "util/io.h"
 
 #include "debug.h"
 #include "vm.h"
+#include "interpreter.h"
 
 // version information
 #define MAJOR 0
 #define MINOR 0
-#define PATCH 2
+#define PATCH 3
 #define DEV   "a"
 #define VFMT "%.2d.%.2d.%2d.%s"
 
@@ -34,18 +38,13 @@ static void finalizeRascal(void) {
   goodbyeMessage();
 }
 
-static void lexFile(const char* fname) {
-  char* source = readFile(fname);
-  scan(&vm.scanner, source);
-  displayScanner(&vm.scanner);
-}
-
 int main(const int argc, const char* argv[]) {
   (void)argc;
   (void)argv;
 
   initRascal();
-  lexFile("/home/willem/Programming/C/rascal/rascal/base.rascal");
+  // runFile("/home/willem/Programming/C/rascal/rascal/base.rascal");
+  repl(&vm);
   finalizeRascal();
 
   return 0;

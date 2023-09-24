@@ -46,6 +46,7 @@ static bool       isAtLineBreak(Parser* parser);
 static void       advance(Parser* parser);
 static void       consume(Parser* parser, TokenType type, const char* message);
 static Symbol*    tokenToSymbol(Token token);
+static bool       match(Parser* parser, TokenType type, bool consumep);
 
 #define saveXpr(p, x)                           \
   _Generic((x),                                 \
@@ -57,6 +58,7 @@ static Symbol*    tokenToSymbol(Token token);
 static void error(Parser* parser, const char* message);
 static void errorAt(Token* token, Parser* parser, const char* message);
 static void errorAtCurrent(Parser* parser, const char* message);
+static void synchronize(Parser* parser);
 
 // parse rule declarations
 static void number(Parser* parser);
@@ -67,6 +69,8 @@ static void identifier(Parser* parser);
 static void unary(Parser* parser);
 static void binary(Parser* parser);
 static void grouping(Parser* parser);
+static void list(Parser* parser);
+static void call(Parser* parser);
 static void expression(Parser* parser);
 
 // toplevel parse helpers
@@ -82,11 +86,11 @@ ParseRule rules[] = {
   [TRUE_TOKEN]          = { atomic,     NULL,   NO_PRECEDENCE         },
   [FALSE_TOKEN]         = { atomic,     NULL,   NO_PRECEDENCE         },
   [NUL_TOKEN]           = { atomic,     NULL,   NO_PRECEDENCE         },
-  [LPAR_TOKEN]          = { grouping,   NULL,   CALL_PRECEDENCE       },
+  [LPAR_TOKEN]          = { grouping,   call,   CALL_PRECEDENCE       },
   [RPAR_TOKEN]          = { NULL,       NULL,   NO_PRECEDENCE         },
   [LARROWS_TOKEN]       = { NULL,       NULL,   NO_PRECEDENCE         },
   [RARROWS_TOKEN]       = { NULL,       NULL,   NO_PRECEDENCE         },
-  [LBRACK_TOKEN]        = { NULL,       NULL,   NO_PRECEDENCE         },
+  [LBRACK_TOKEN]        = { list,       NULL,   NO_PRECEDENCE         },
   [RBRACE_TOKEN]        = { NULL,       NULL,   NO_PRECEDENCE         },
   [DO_TOKEN]            = { NULL,       NULL,   NO_PRECEDENCE         },
   [END_TOKEN]           = { NULL,       NULL,   NO_PRECEDENCE         },
@@ -140,14 +144,14 @@ static Token* next(Parser* parser) {
 
 static Value peekXpr(Parser* parser, int i) {
   if (i < 0)
-    i += parser->subExpressions.count;
+    i += parser->subXprs.count;
 
-  assert(i > 0 && i < (int)parser->subExpressions.count);
-  return parser->subExpressions.data[i];
+  assert(i >= 0 && i < (int)parser->subXprs.count);
+  return parser->subXprs.data[i];
 }
 
 static void consumeXpr(Parser* parser, size_t n) {
-  popValuesN(&parser->subExpressions, n);
+  popValuesN(&parser->subXprs, n);
 }
 
 static void saveNum(Parser* parser, Number val) {
@@ -159,7 +163,7 @@ static void saveObj(Parser* parser, void* val) {
 }
 
 static void saveVal(Parser* parser, Value val) {
-  writeValues(&parser->subExpressions, val);
+  writeValues(&parser->subXprs, val);
 }
 
 static bool isAtEnd(Parser* parser) {
@@ -197,6 +201,17 @@ static Symbol* tokenToSymbol(Token token) {
   return getSymbol(buffer);
 }
 
+static bool match(Parser* parser, TokenType type, bool consumep) {
+  if (this(parser)->type == type) {
+    if (consumep)
+      advance(parser);
+
+    return true;
+  }
+
+  return false;
+}
+
 // error helper implementations
 static void error(Parser* parser, const char* message) {
   errorAt(last(parser), parser, message);
@@ -224,9 +239,17 @@ static void errorAtCurrent(Parser* parser, const char* message) {
   errorAt(this(parser), parser, message);
 }
 
+static void synchronize(Parser* parser) {
+  parser->panicMode = false;
+
+  while (this(parser)->type != EOF_TOKEN) {
+    advance(parser);
+  }
+}
+
 // parse rule implementations
 static void number(Parser* parser) {
-  Token token = *this(parser);
+  Token token = *last(parser);
 
   // copy token value
   char buffer[token.length+1];
@@ -238,7 +261,7 @@ static void number(Parser* parser) {
 }
 
 static void atomic(Parser* parser) {
-  Token token = *this(parser);
+  Token token = *last(parser);
   Value val;
 
   if (token.type == TRUE_TOKEN)
@@ -281,7 +304,7 @@ static void identifier(Parser* parser) {
   // copy token value
   char buffer[token.length+1];
   buffer[token.length] = '\0';
-  memcpy(buffer, token.start, token.length-1);
+  memcpy(buffer, token.start, token.length);
   Symbol* name = getSymbol(buffer);
   saveXpr(parser, newTriple(TAG_OBJ(name), EMPTY_LIST(), NUL_VAL));
 }
@@ -307,12 +330,50 @@ static void binary(Parser* parser) {
 }
 
 static void grouping(Parser* parser) {
-  expression(parser);
-  consume(parser, RPAR_TOKEN, "Expect ')' after expression.");
+  // has to distinguish between the empty tuple, simple grouping, and non-empty tuples
+  if (match(parser, RPAR_TOKEN, true))
+    saveXpr(parser, EMPTY_TUPLE());
+    
+  else {
+    expression(parser);
+
+    if (match(parser, COMMA_TOKEN, true)) {
+      size_t n = 1;
+
+      while (!match(parser, RPAR_TOKEN, true)) {
+        if (isAtEnd(parser)) {
+          errorAtCurrent(parser, "Unmatched '(' to close tuple literal.");
+          return;
+        }
+
+        expression(parser);
+        n++;
+        if (!match(parser, RPAR_TOKEN, false))
+          consume(parser, COMMA_TOKEN, "Expect ',' between Tuple members.");
+      }
+
+      Tuple* tuple = newTuple(n, &parser->subXprs.data[parser->subXprs.count-n]);
+      consumeXpr(parser, n);
+      saveXpr(parser, tuple);
+    }
+    else
+      consume(parser, RPAR_TOKEN, "Expect ')' after expression."); 
+  }
+}
+
+static void list(Parser* parser) {
+  advance(parser); // clear opening '['
+
+  size_t n = 0;
+
+  while (!match(parser, LBRACK_TOKEN, ))
 }
 
 static void expression(Parser* parser) {
   parsePrecedence(parser, ASSIGNMENT_PRECEDENCE);
+
+  if (parser->panicMode)
+    synchronize(parser);
 }
 
 static void parsePrecedence(Parser* parser, Precedence precedence) {
@@ -339,11 +400,11 @@ void initParser(Parser* parser, Scanner* source) {
   parser->offset     = 0;
   parser->hadError   = false;
   parser->panicMode  = false;
-  initValues(&parser->subExpressions);
+  initValues(&parser->subXprs);
 }
 
 void freeParser(Parser* parser) {
-  freeValues(&parser->subExpressions);
+  freeValues(&parser->subXprs);
 }
 
 Value parse(Parser* parser, Scanner* source) {

@@ -42,8 +42,8 @@
                                      false);                            \
         array->capacity = newCap;                                       \
       }                                                                 \
-      array->count    = newCount;                                       \
     }                                                                   \
+    array->count    = newCount;                                         \
     return oldCount;                                                    \
   }                                                                     \
                                                                         \

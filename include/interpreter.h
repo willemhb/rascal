@@ -37,4 +37,8 @@ Value  peep(int n);
 
 */
 
+void  runFile(Vm* vm, const char* fname);
+Value eval(Vm* vm, char* source);
+void  repl(Vm* vm);
+
 #endif

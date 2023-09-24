@@ -4,6 +4,7 @@
 #include "util/io.h"
 
 #include "vm.h"
+#include "debug.h"
 #include "scanner.h"
 
 #define DELIMITER "(){}[]:,. \n\t\v\r"
@@ -77,7 +78,6 @@ static void skipWhiteSpace(Scanner* scanner) {
   }
 }
 
-
 static TokenType checkKeyword(Scanner* scanner, int start, int length,
     const char* rest, TokenType type) {
   if (scanner->current - scanner->start == start + length &&
@@ -110,7 +110,6 @@ static bool matchStr(Scanner* scanner, char* expect, bool consume) {
   if (memcmp(scanner->current, expect, n))
     return false;
 
-  
   if (consume)
     scanner->current +=n;
 
@@ -164,7 +163,7 @@ static Token scanToken(Scanner* scanner) {
         if (match(scanner, ':', true))
           token = makeToken(scanner, COLON_COLON_TOKEN);
         else
-          scanSymbol(scanner);
+          token = scanSymbol(scanner);
         break;
         
       case '"':
@@ -282,7 +281,7 @@ static Token scanToken(Scanner* scanner) {
 }
 
 static Token scanNumber(Scanner* scanner) {
-  while (isdigit(peekChar(scanner)))
+  while (!isAtEnd(scanner) && isdigit(peekChar(scanner)))
     advance(scanner);
 
   if (peekChar(scanner) == '.' && isdigit(peekNextChar(scanner))) {
@@ -295,16 +294,18 @@ static Token scanNumber(Scanner* scanner) {
   return makeToken(scanner, NUMBER_TOKEN);
 }
 
-static Token scanSymbol(Scanner* scanner) {  
-  while (!isSep(peekChar(scanner)))
+static Token scanSymbol(Scanner* scanner) {
+  while (!isAtEnd(scanner) && !isSep(peekChar(scanner))) {
     advance(scanner);
+  }
 
   return makeToken(scanner, SYMBOL_TOKEN);
 }
 
 static Token scanString(Scanner* scanner) {
-  while (peekChar(scanner) != '"' && !isAtEnd(scanner)) {
-    if (peekChar(scanner) == '\n') scanner->lineNo++;
+  while (!isAtEnd(scanner) && peekChar(scanner) != '"') {
+    if (peekChar(scanner) == '\n')
+      scanner->lineNo++;
     advance(scanner);
   }
 
@@ -336,8 +337,8 @@ static Token scanIdentifier(Scanner* scanner) {
       case 'f': type = checkKeyword(scanner, 1, 4, "alse", FALSE_TOKEN); break;
       case 'n':
         switch (scanner->start[1]) {
-          case 'i': type = checkKeyword(scanner, 1, 1, "l", NUL_TOKEN); break;
-          case 'o': type = checkKeyword(scanner, 1, 1, "t", NOT_TOKEN); break;
+          case 'u': type = checkKeyword(scanner, 2, 1, "l", NUL_TOKEN); break;
+          case 'o': type = checkKeyword(scanner, 2, 1, "t", NOT_TOKEN); break;
           default:  type = IDENTIFIER_TOKEN; break;
         }
         break;
@@ -362,6 +363,8 @@ void initScanner(Scanner* scanner, char* source) {
 }
 
 void freeScanner(Scanner* scanner) {
+  scanner->start   = NULL;
+  scanner->current = NULL;
   freeTokens(&scanner->tokens);
 }
 
@@ -379,4 +382,9 @@ void scan(Scanner* scanner, char* source) {
 
   while (!isAtEnd(scanner))
     scanToken(scanner);
+
+  #ifdef DEBUG_SCANNER 
+  displayScanner(scanner);
+  #endif
+
 }

@@ -45,7 +45,7 @@
 
 struct Parser {
   Scanner* source;
-  Values   subExpressions;
+  Values   subXprs;
   size_t   offset;         // offset within this.source
   bool     hadError;
   bool     panicMode;
