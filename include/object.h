@@ -6,9 +6,6 @@
 #include "common.h"
 #include "value.h"
 
-typedef Value (*NativeFn)(size_t argCount, Value* args);
-typedef void  (*CompileFn)(Compiler* state, Tuple* source);
-
 // generics
 #include "tpl/declare.h"
 
@@ -122,6 +119,9 @@ struct Stream {
 // global sigletons
 extern List  emptyList;
 extern Tuple emptyTuple;
+
+#define EMPTY_LIST()  TAG_OBJ(&emptyList)
+#define EMPTY_TUPLE() TAG_OBJ(&emptyTuple)
 
 // miscellaneous utilities
 uint64_t hashObject(void* ob);

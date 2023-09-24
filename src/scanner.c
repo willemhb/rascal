@@ -374,7 +374,7 @@ Token peekToken(Scanner* scanner, int i) {
   return scanner->tokens.data[i];
 }
 
-void lexInput(Scanner* scanner, char* source) {
+void scan(Scanner* scanner, char* source) {
   initScanner(scanner, source);
 
   while (!isAtEnd(scanner))
