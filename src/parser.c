@@ -57,6 +57,10 @@ ParseRule rules[] = {
   [EOF_TOKEN]        = { NULL,       NULL, NO_PRECEDENCE }
 };
 
+static ParseRule* getRule(TokenType type) {
+  return &rules[type];
+}
+
 // parse rule implementations
 static Value number(Parser* parser, Scanner* source) {
   (void)source;
@@ -91,6 +95,12 @@ static Value symbol(Parser* parser, Scanner* source) {
   Symbol* val = getSymbol(buffer);
 
   return TAG_OBJ(val);
+}
+
+static Value string(Parser* parser, Scanner* source) {
+  (void)source;
+
+  
 }
 
 
