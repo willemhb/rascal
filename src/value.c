@@ -6,7 +6,7 @@
 // array types
 #include "tpl/describe.h"
 
-ARRAY_TYPE(Values, Value);
+ARRAY_TYPE(Values, Value, Value);
 
 Type valueType(Value value) {
   switch (value & TAG_MASK) {

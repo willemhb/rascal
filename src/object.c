@@ -8,8 +8,8 @@
 // template implementations
 #include "tpl/describe.h"
 
-ARRAY_TYPE(Objects, Obj*);
-ARRAY_TYPE(ByteCode, uint16_t);
+ARRAY_TYPE(Objects, Obj*, Obj*);
+ARRAY_TYPE(ByteCode, uint16_t, int);
 
 bool compareSymbolTableKeys(char* xs, char* ys) {
   return strcmp(xs, ys) == 0;

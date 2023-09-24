@@ -21,10 +21,28 @@
   '(("[^:]:[-_a-zA-Z?*+0-9/]+" . font-lock-type-face)
     ("@[-a-zA-Z?*+0-9/]+" . font-lock-type-face)
     ("::" . font-lock-comment-face)
+    ("\\\\" . font-lock-comment-face)
+
     ;; special constants
     ("\\_<nul\\_>" . font-lock-constant-face)
     ("\\_<true\\_>" . font-lock-constant-face)
     ("\\_<false\\_>" . font-lock-constant-face)
+
+    ;; types
+    ("\\_<Any\\_>" . font-lock-type-face)
+    ("\\_<None\\_>" . font-lock-type-face)
+    ("\\_<Unit\\_>" . font-lock-type-face)
+    ("\\_<Term\\_>" . font-lock-type-face)
+    ("\\_<Number\\_>" . font-lock-type-face)
+    ("\\_<Boolean\\_>" . font-lock-type-face)
+    ("\\_<Symbol\\_>" . font-lock-type-face)
+    ("\\_<Bits\\_>" . font-lock-type-face)
+    ("\\_<List\\_>" . font-lock-type-face)
+    ("\\_<Tuple\\_>" . font-lock-type-face)
+    ("\\_<Map\\_>" . font-lock-type-face)
+    ("\\_<Function\\_>" . font-lock-type-face)
+    ("\\_<Stream\\_>" . font-lock-type-face)
+    ("\\_<Type\\_>" . font-lock-type-face)
     ;; syntax
     ("\\_<otherwise\\_>" . font-lock-function-name-face)
     ("\\_<&\\_>" . font-lock-function-name-face)
@@ -34,5 +52,5 @@
   (list 'rainbow-delimiters-mode)
   "A major mode for rascal2 files.")
 
-(provide 'rascal2-mode)
-;;; rascal2-mode.el ends here
+(provide 'rascal-mode)
+;;; rascal-mode.el ends here

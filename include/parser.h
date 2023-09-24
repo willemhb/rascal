@@ -10,14 +10,14 @@
  * Rascal syntactic grammar (for reference. See scanner.h for lexical grammar):
  * 
  * expression  -> assignment ;
- * assignment  -> accessor ( ( "=" | "->" ) logical_or )? | logical_or ;
+ * assignment  -> accessor ( ( "=" | "->" | "::" ) logical_or )? | logical_or ;
  * logical_or  -> logical_and ( "or" logical_and )* ;
  * logical_and -> equality ( "and" equality )* ;
  * equality    -> comparison ( ( "==" | "!=" ) comparison )? ;
  * comparison  -> term ( ( ">" | "<" | ">=" | "<=" ) term )? ;
- * term        -> factor ( ( "+" | "-" ) factor )* ;
+ * term        -> factor ( ( "+" | "-" | "|" ) factor )* ;
  * factor      -> unary ( ( "/" | "*" ) unary )* ;
- * unary       -> ( "not" | "-" ) unary | call ;
+ * unary       -> ( "'" | "not" | "-" ) unary | call ;
  * call        -> accessor
                 | accessor "(" arguments? ")"
                 | accessor arguments
@@ -45,7 +45,8 @@
 
 struct Parser {
   Scanner* source;
-  size_t   offset;     // offset within the token stream being parsed
+  Values   subExpressions;
+  size_t   offset;         // offset within this.source
   bool     hadError;
   bool     panicMode;
 };

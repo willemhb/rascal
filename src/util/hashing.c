@@ -1,24 +1,5 @@
 #include "util/hashing.h"
 
-// utilities
-uint64_t ceilPow2(uint64_t word) {
-  // stolen from femtolisp
-
-  if (word == 0)
-    return 1;
-
-  if ((word & (word - 1)) == 0)
-    return word;
-
-  if (word & SIGN)
-    return SIGN;
-
-  while (word & (word-1))
-    word = word & (word-1);
-
-  return word;
-}
-
 // hashing functions
 #define FNV_PRIME_64  0x00000100000001B3UL
 #define FNV_OFFSET_64 0xCBF29CE484222325UL

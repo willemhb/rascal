@@ -1,36 +1,83 @@
 #ifndef rascal_template_describe_h
 #define rascal_template_describe_h
 
+#include <string.h>
+#include <stdarg.h>
+
+#include "util/number.h"
+
 #include "memory.h"
 
 #undef ARRAY_TYPE
 #undef TABLE_TYPE
 
-#define ARRAY_TYPE(ArrayType, ElType)                                   \
+#define ARRAY_TYPE(ArrayType, ElType, VaType)                           \
   void init##ArrayType(ArrayType* array) {                              \
     array->data     = NULL;                                             \
     array->count    = 0;                                                \
     array->capacity = 0;                                                \
   }                                                                     \
                                                                         \
-  void write##ArrayType(ArrayType* array, ElType x) {                   \
-    if (array->capacity < array->count + 1) {                           \
-      size_t oldCap   = array->capacity;                                \
-      size_t newCap   = oldCap < 8 ? 8 : oldCap << 1;                   \
-      size_t oldSize  = oldCap * sizeof(ElType);                        \
-      size_t newSize  = newCap * sizeof(ElType);                        \
-      array->data     = reallocate(array->data,                         \
-                                  oldSize,                              \
-                                  newSize,                              \
-                                  false);                               \
-      array->capacity = newCap;                                         \
-    }                                                                   \
-    array->data[array->count++] = x;                                    \
-  }                                                                     \
-                                                                        \
   void free##ArrayType(ArrayType* array) {                              \
     deallocate(array->data, array->capacity * sizeof(ElType), false);   \
     init##ArrayType(array);                                             \
+  }                                                                     \
+                                                                        \
+  size_t resize##ArrayType(ArrayType* array, size_t newCount) {         \
+    size_t oldCount = array->count;                                     \
+    if (newCount == 0) {                                                \
+      if (array->count != 0)                                            \
+        free##ArrayType(array);                                         \
+    } else if (newCount > array->capacity ||                            \
+               (newCount < (array->capacity >> 1))) {                   \
+      size_t oldCap   = array->capacity;                                \
+      size_t newCap   = max(8u, ceilPow2(newCount));                    \
+                                                                        \
+      if (oldCap != newCap) {                                           \
+        size_t oldSize  = oldCap * sizeof(ElType);                      \
+        size_t newSize  = newCap * sizeof(ElType);                      \
+        array->data     = reallocate(array->data,                       \
+                                     oldSize,                           \
+                                     newSize,                           \
+                                     false);                            \
+        array->capacity = newCap;                                       \
+      }                                                                 \
+      array->count    = newCount;                                       \
+    }                                                                   \
+    return oldCount;                                                    \
+  }                                                                     \
+                                                                        \
+  void write##ArrayType(ArrayType* array, ElType x) {                   \
+    size_t offset = resize##ArrayType(array, array->count+1);           \
+    array->data[offset] = x;                                            \
+  }                                                                     \
+                                                                        \
+  void write##ArrayType##N(ArrayType* array, size_t n, ElType* data) {  \
+    size_t offset = resize##ArrayType(array, array->count+n);           \
+    memcpy(array->data+offset, data, n*sizeof(ElType));                 \
+  }                                                                     \
+                                                                        \
+  void write##ArrayType##V(ArrayType* array, size_t n, ...) {           \
+    size_t offset = resize##ArrayType(array, array->count+n);           \
+    va_list va; va_start(va, n);                                        \
+                                                                        \
+    for (size_t i=offset; i<array->count; i++)                          \
+      array->data[i] = va_arg(va, VaType);                              \
+                                                                        \
+    va_end(va);                                                         \
+  }                                                                     \
+                                                                        \
+  ElType pop##ArrayType(ArrayType* array) {                             \
+    assert(array->count > 0);                                           \
+    ElType x = array->data[array->count-1];                             \
+    resize##ArrayType(array, array->count-1);                           \
+    return x;                                                           \
+  }                                                                     \
+                                                                        \
+  void pop##ArrayType##N(ArrayType* array, size_t n) {                  \
+    assert(n <= array->count);                                          \
+    if (array->count > 0 && n > 0)                                      \
+      resize##ArrayType(array, array->count-n);                         \
   }
 
 #define TABLE_MAX_LOAD 0.75
@@ -190,6 +237,5 @@
     entry->key = noKey;                                                 \
     return true;                                                        \
   }
-
 
 #endif

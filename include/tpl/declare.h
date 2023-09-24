@@ -1,18 +1,21 @@
 #ifndef rascal_template_declare_h
 #define rascal_template_declare_h
 
-#define ARRAY_TYPE(ArrayType, ElType)                    \
-                                                         \
-  typedef struct {                                       \
-    ElType* data;                                        \
-    size_t  count;                                       \
-    size_t  capacity;                                    \
-  } ArrayType;                                           \
-                                                         \
-  void init##ArrayType(ArrayType* array);                \
-  void write##ArrayType(ArrayType* array, ElType x);     \
-  void pop##ArrayType(ArrayType* array, ElType x);       \
-  void free##ArrayType(ArrayType* array)
+#define ARRAY_TYPE(ArrayType, ElType)                                   \
+                                                                        \
+  typedef struct {                                                      \
+    ElType* data;                                                       \
+    size_t  count;                                                      \
+    size_t  capacity;                                                   \
+  } ArrayType;                                                          \
+                                                                        \
+  void   init##ArrayType(ArrayType* array);                             \
+  void   free##ArrayType(ArrayType* array);                             \
+  size_t resize##ArrayType(ArrayType* array, size_t newCount);          \
+  void   write##ArrayType(ArrayType* array, ElType x);                  \
+  void   write##ArrayType##N(ArrayType* array, size_t n, ElType* data); \
+  ElType pop##ArrayType(ArrayType* array);                              \
+  void   pop##ArrayType##N(ArrayType* array, size_t n)
 
 #define TABLE_TYPE(TableType, tableType, KeyType, ValType)          \
   typedef struct {                                                  \

@@ -243,10 +243,19 @@ static Value keyword(Parser* parser) {
   return TAG_OBJ(val);
 }
 
+static Value grouping(Parser* parser) {
+  Value val = expression(parser);
+}
+
 // external API
 void initParser(Parser* parser, Scanner* source) {
   parser->source     = source;
   parser->offset     = 0;
   parser->hadError   = false;
   parser->panicMode  = false;
+  initValues(&parser->subExpressions);
+}
+
+void freeParser(Parser* parser) {
+  freeValues(&parser->subExpressions);
 }

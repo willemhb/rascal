@@ -6,7 +6,7 @@
 #include "vm.h"
 #include "scanner.h"
 
-#define DELIMITER "(){}[],. \n\t\v\r"
+#define DELIMITER "(){}[]:,. \n\t\v\r"
 
 // forward declarations for reader helpers
 static Token scanNumber(Scanner* scanner);
@@ -137,50 +137,93 @@ static Token scanToken(Scanner* scanner) {
 
     switch (c) {
       // atomic literals
-      case '0' ... '9': token = scanNumber(scanner); break;
-      case ':':         token = scanSymbol(scanner); break;
-      case '"':         token = scanString(scanner); break;
+      case '0' ... '9':
+        token = scanNumber(scanner);
+        break;
+
+      case ':':
+        if (match(scanner, ':'))
+          token = makeToken(scanner, COLON_COLON_TOKEN);
+        else
+          scanSymbol(scanner);
+        break;
+        
+      case '"':
+        token = scanString(scanner);
+        break;
 
         // simple delimiters
-      case '(':         token = makeToken(scanner, LPAR_TOKEN);   break;
-      case ')':         token = makeToken(scanner, RPAR_TOKEN);   break;
-      case '[':         token = makeToken(scanner, LBRACK_TOKEN); break;
-      case ']':         token = makeToken(scanner, RBRACK_TOKEN); break;
-      case '{':         token = makeToken(scanner, LBRACE_TOKEN); break;
-      case '}':         token = makeToken(scanner, RBRACE_TOKEN); break;
-      case ',':         token = makeToken(scanner, COMMA_TOKEN);  break;
-      case '.':         token = makeToken(scanner, DOT_TOKEN);    break;
+      case '(':
+        token = makeToken(scanner, LPAR_TOKEN);
+        break;
+
+      case ')':
+        token = makeToken(scanner, RPAR_TOKEN);
+        break;
+
+      case '[':
+        token = makeToken(scanner, LBRACK_TOKEN);
+        break;
+
+      case ']':
+        token = makeToken(scanner, RBRACK_TOKEN);
+        break;
+
+      case '{':
+        token = makeToken(scanner, LBRACE_TOKEN);
+        break;
+
+      case '}':
+        token = makeToken(scanner, RBRACE_TOKEN);
+        break;
+
+      case ',':
+        token = makeToken(scanner, COMMA_TOKEN);
+        break;
+
+      case '.':
+        token = makeToken(scanner, DOT_TOKEN);
+        break;
 
         // tricky delimiters
       case '<':
         if (match(scanner, '<'))
           token = makeToken(scanner, LARROWS_TOKEN);
-
         else if (match(scanner, '='))
           token = makeToken(scanner, LESS_EQUAL_TOKEN);
-
         else
           token = makeToken(scanner, LESS_THAN_TOKEN);
-
         break;
 
       case '>':
         if (match(scanner, '>'))
           token = makeToken(scanner, RARROWS_TOKEN);
-
         else if (match(scanner, '='))
           token = makeToken(scanner, GREATER_EQUAL_TOKEN);
-
         else
           token = makeToken(scanner, GREATER_THAN_TOKEN);
-
         break;
 
         // simple operators
-      case '+':         token = makeToken(scanner, PLUS_TOKEN);   break;
-      case '*':         token = makeToken(scanner, MUL_TOKEN);    break;
-      case '/':         token = makeToken(scanner, DIV_TOKEN);    break;
-      case '%':         token = makeToken(scanner, REM_TOKEN);    break;
+      case '+':
+        token = makeToken(scanner, PLUS_TOKEN);
+        break;
+
+      case '*':
+        token = makeToken(scanner, MUL_TOKEN);
+        break;
+
+      case '/':
+        token = makeToken(scanner, DIV_TOKEN);
+        break;
+
+      case '%':
+        token = makeToken(scanner, REM_TOKEN);
+        break;
+
+      case '\'':
+        token = makeToken(scanner, APOSTROPHE_TOKEN);
+        break;
 
         // tricky operators
       case '-':
@@ -205,7 +248,9 @@ static Token scanToken(Scanner* scanner) {
         break;
 
         // fallback
-      default:          token = scanIdentifier(scanner);          break;
+      default:
+        token = scanIdentifier(scanner);
+        break;
     }
   }
 
@@ -281,7 +326,8 @@ static Token scanIdentifier(Scanner* scanner) {
 
 // generics
 #include "tpl/describe.h"
-ARRAY_TYPE(Tokens, Token);
+ARRAY_TYPE(Tokens, Token, Token);
+
 
 void initScanner(Scanner* scanner, char* source) {
   scanner->start    = source;

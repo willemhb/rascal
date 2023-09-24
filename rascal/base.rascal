@@ -1,3 +1,34 @@
+
+module Enum do
+    fun map(f::Function, xs::List, accum \\ []) do
+        case xs do
+            []     -> reverse accum
+            [x|xs] -> map(f, xs, f(x) | accum)
+        end
+    end
+
+    fun map(f::Function, xs::Bits, accum \\ <<>>) do
+        case xs do
+            <<>>     -> accum
+            <<x|xs>> -> map(f, xs, f(x) | accum)
+        end
+    end
+
+    fun reduce(f, xs::List) do
+        case xs do
+            []     -> nul
+            [x|xs] -> reduce(f, xs, x)
+        end
+    end
+
+    fun reduce(f, xs::List, accum) do
+        case xs do
+            []     -> accum
+            [x|xs] -> reduce f, xs, f(accum, x)
+        end
+    end
+end
+
 module Math do
     # Rascal math standard library. Mostly for experimenting with syntax right now.
 
@@ -10,6 +41,36 @@ module Math do
     some_tuple = (:some, :tuple)
     some_map   = {x: 1, y: 2, z: 3}
     some_bits  = <<000, 000, 120, 037>>
+
+    fun deriv(f::Function, h \\ 0.00001) do
+        # Numerical method.
+        fun (x::Number), do: (f(x+h) - f(x)) / h
+    end
+
+    fun sqr(x::Number), do: x*x
+
+    fun deriv(x::Number, f::Function, h \\ 0.00001) do
+        # Numerical method.
+        (f(x+h) - f(x)) / h
+    end
+
+    fun sqrt(x, e \\ 0.00001) do
+        # Newton's method.
+        fun loop(y) do
+            if abs(x - sqr(y)) <= e do
+                y
+            else
+                loop y - sqr(y) / y
+            end
+        end
+
+        loop(x)
+    end
+    
+
+    fun sum(xs::List),  do: reduce '+, xs, 0
+    fun prod(xs::List), do: reduce '*, xs, 1
+    fun hypot(x, y),    do: sqrt x*x + y*y
 
     fun add(x, y), do: x + y
 
@@ -36,6 +97,17 @@ module Math do
     end
 end
 
-use Math
+module People do
+    record Person do
+        name
+        age
+        gender
+        student?
+    end
+end
 
+use Enum, Math, People
+
+# some example instructions
 Math.pow(2, 5) # 32
+person = People.Person("Will", 34, :male, false)

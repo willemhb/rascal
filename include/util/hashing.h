@@ -3,9 +3,6 @@
 
 #include "common.h"
 
-// utilities
-uint64_t ceilPow2(uint64_t word);
-
 // hashing functions
 uint64_t hashString(const char* chars);
 uint64_t hashBytes(const uint8_t* bytes, size_t n);

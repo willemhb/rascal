@@ -38,10 +38,10 @@ typedef enum {
 
   // operators
   // assignment
-  EQUAL_TOKEN, MATCH_TOKEN,
+  EQUAL_TOKEN, MATCH_TOKEN, COLON_COLON_TOKEN,
 
-  // logical
-  OR_TOKEN, AND_TOKEN, NOT_TOKEN,
+  // and/or
+  OR_TOKEN, AND_TOKEN,
 
   // equality
   EQUAL_EQUAL_TOKEN, NOT_EQUAL_TOKEN,
@@ -50,8 +50,14 @@ typedef enum {
   LESS_THAN_TOKEN,   GREATER_THAN_TOKEN,
   LESS_EQUAL_TOKEN,  GREATER_EQUAL_TOKEN,
 
-  // mathematics
-  PLUS_TOKEN, MINUS_TOKEN, MUL_TOKEN, DIV_TOKEN, REM_TOKEN,
+  // term
+  PLUS_TOKEN, MINUS_TOKEN,
+
+  // factor
+  MUL_TOKEN, DIV_TOKEN, REM_TOKEN,
+
+  // unary
+  APOSTROPHE_TOKEN, NOT_TOKEN,
 
   // misc
   EOF_TOKEN, ERROR_TOKEN

@@ -30,13 +30,13 @@ static const char* tokenTypeName(TokenType type) {
     case DOT_TOKEN:           out = "dot";               break;
     case EQUAL_TOKEN:         out = "equal";             break;
     case MATCH_TOKEN:         out = "match";             break;
+    case COLON_COLON_TOKEN:   out = "type-assert";       break;
     case OR_TOKEN:            out = "or";                break;
     case AND_TOKEN:           out = "and";               break;
-    case NOT_TOKEN:           out = "not";               break;
-    case LESS_THAN_TOKEN:     out = "less-than";         break;
-    case GREATER_THAN_TOKEN:  out = "greater-than";      break;
     case EQUAL_EQUAL_TOKEN:   out = "equals";            break;
     case NOT_EQUAL_TOKEN:     out = "not-equal";         break;
+    case LESS_THAN_TOKEN:     out = "less-than";         break;
+    case GREATER_THAN_TOKEN:  out = "greater-than";      break;
     case LESS_EQUAL_TOKEN:    out = "less-or-equal";     break;
     case GREATER_EQUAL_TOKEN: out = "greater-or-equal";  break;
     case PLUS_TOKEN:          out = "plus";              break;
@@ -44,6 +44,8 @@ static const char* tokenTypeName(TokenType type) {
     case MUL_TOKEN:           out = "multiply";          break;
     case DIV_TOKEN:           out = "divide";            break;
     case REM_TOKEN:           out = "remainder";         break;
+    case APOSTROPHE_TOKEN:    out = "apostrophe";        break;
+    case NOT_TOKEN:           out = "not";               break;
     case EOF_TOKEN:           out = "end-of-input";      break;
     case ERROR_TOKEN:         out = "error";             break;
   }
