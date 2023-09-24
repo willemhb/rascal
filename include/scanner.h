@@ -69,7 +69,6 @@ struct Scanner {
   char*  start;
   char*  current;
   int    lineNo;
-  bool   hadError;
   Tokens tokens;
 };
 
@@ -79,6 +78,6 @@ void  freeScanner(Scanner* scanner);
 Token peekToken(Scanner* scanner, int i);
 
 // lexer API
-bool lexInput(char* source);
+void scan(Scanner* scanner, char* source);
 
 #endif

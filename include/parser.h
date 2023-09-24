@@ -44,15 +44,14 @@
  **/
 
 struct Parser {
-  Token    current;
-  Token    previous;
+  Scanner* source;
   size_t   offset;     // offset within the token stream being parsed
   bool     hadError;
   bool     panicMode;
 };
 
 // external API
-void  initParser(Parser* parser);
-Value parseTokens(Parser* parser, Scanner* source); // returns a syntax tree
+void  initParser(Parser* parser, Scanner* source);
+Value parse(Parser* parser, Scanner* source);
 
 #endif

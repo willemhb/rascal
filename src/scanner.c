@@ -119,8 +119,6 @@ static Token errorToken(Scanner* scanner, const char* message) {
   token.type   = ERROR_TOKEN;
   token.lineNo = scanner->lineNo;
 
-  scanner->hadError = true;
-
   return token;
 }
 
@@ -289,7 +287,6 @@ void initScanner(Scanner* scanner, char* source) {
   scanner->start    = source;
   scanner->current  = source;
   scanner->lineNo   = 1;
-  scanner->hadError = false;
   initTokens(&scanner->tokens);
 }
 
@@ -306,13 +303,9 @@ Token peekToken(Scanner* scanner, int i) {
   return scanner->tokens.data[i];
 }
 
-bool lexInput(char* source) {
-  Scanner* scanner = &vm.scanner;
-
+void lexInput(Scanner* scanner, char* source) {
   initScanner(scanner, source);
 
-  while (!isAtEnd(scanner) && !scanner->hadError)
+  while (!isAtEnd(scanner))
     scanToken(scanner);
-
-  return !scanner->hadError;
 }
