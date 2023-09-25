@@ -1,3 +1,4 @@
+#include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -45,7 +46,6 @@ static bool       isAtLineBreak(Parser* parser);
 static void       incOffset(Parser* parser);
 static void       decOffset(Parser* parser);
 static void       advance(Parser* parser);
-static void       consume(Parser* parser, TokenType type, const char* message);
 static Symbol*    tokenToSymbol(Token token);
 static bool       check(Parser* parser, TokenType type);
 static bool       match(Parser* parser, TokenType type);
@@ -57,9 +57,11 @@ static bool       match(Parser* parser, TokenType type);
            default:saveObj)(p, x)
 
 // error helpers
-static void error(Parser* parser, const char* message);
-static void errorAt(Token* token, Parser* parser, const char* message);
-static void errorAtCurrent(Parser* parser, const char* message);
+static void consume(Parser* parser, TokenType type, const char* fmt, ...);
+static void errorAt(Token* token, Parser* parser, const char* fmt, ...);
+static void errorAtCurrent(Parser* parser, const char* fmt, ...);
+static void error(Parser* parser, const char* fmt, ...);
+static void verrorAt(Token* token, Parser* parser, const char* fmt, va_list va);
 static void synchronize(Parser* parser);
 
 // parse rule declarations
@@ -77,7 +79,7 @@ static void call(Parser* parser);
 static void expression(Parser* parser);
 
 // toplevel parse helpers
-static size_t arguments(Parser* parser, bool explicit);
+static size_t arguments(Parser* parser, TokenType terminal);
 static size_t keywords(Parser* parser, TokenType terminal);
 static void   parsePrecedence(Parser* parser, Precedence precedence);
 
@@ -202,14 +204,6 @@ static void advance(Parser* parser) {
   }
 }
 
-static void consume(Parser* parser, TokenType type, const char* message) {
-  if (this(parser)->type == type)
-    advance(parser);
-
-  else
-    errorAtCurrent(parser, message);
-}
-
 static Symbol* tokenToSymbol(Token token) {
   bool  isSymbol   = token.type == SYMBOL_TOKEN;
 
@@ -233,30 +227,54 @@ static bool match(Parser* parser, TokenType type) {
 }
 
 // error helper implementations
-static void error(Parser* parser, const char* message) {
-  errorAt(last(parser), parser, message);
-}
-
-static void errorAt(Token* token, Parser* parser, const char* message) {
-  if (!parser->panicMode) {  
-    parser->panicMode = true;
-    fprintf(stderr, "[line %d] Error", token->lineNo);
-
-    if (token->type == EOF_TOKEN) {
-      fprintf(stderr, " at end");
-    } else if (token->type == ERROR_TOKEN) {
-      // Nothing.
-    } else {
-      fprintf(stderr, " at '%.*s'", (int)token->length, token->start);
-    }
-
-    fprintf(stderr, ": %s\n", message);
-    parser->hadError = true;
+static void consume(Parser* parser, TokenType type, const char* fmt, ...) {
+  if (this(parser)->type == type)
+    advance(parser);
+  else {
+    va_list va;
+    va_start(va, fmt);
+    verrorAt(this(parser), parser, fmt, va);
+    va_end(va);
   }
 }
 
-static void errorAtCurrent(Parser* parser, const char* message) {
-  errorAt(this(parser), parser, message);
+static void errorAt(Token* token, Parser* parser, const char* fmt, ...) {
+  va_list va;
+  va_start(va, fmt);
+  verrorAt(token, parser, fmt, va);
+  va_end(va);
+}
+
+static void errorAtCurrent(Parser* parser, const char* fmt, ...) {
+  va_list va;
+  va_start(va, fmt);
+  verrorAt(this(parser), parser, fmt, va);
+  va_end(va);
+}
+
+static void error(Parser* parser, const char* fmt, ...) {
+  va_list va;
+  va_start(va, fmt);
+  verrorAt(last(parser), parser, fmt, va);
+  va_end(va);
+}
+
+static void verrorAt(Token* token, Parser* parser, const char* fmt, va_list va) {
+    if (!parser->panicMode) {
+      parser->panicMode = true;
+      fprintf(stderr, "[line %d] Error", token->lineNo);
+      if (token->type == EOF_TOKEN) {
+        fprintf(stderr, " at end");
+      } else if (token->type == ERROR_TOKEN) {
+        /* Nothing. */
+      } else {
+        fprintf(stderr, " at '%.*s'", (int)token->length, token->start);
+      }
+      fprintf(stderr, ": ");
+      vfprintf(stderr,  fmt, va);
+      fprintf(stderr, ".\n");
+      parser->hadError = true;
+    }
 }
 
 static void synchronize(Parser* parser) {
@@ -402,20 +420,8 @@ static void grouping(Parser* parser) {
 }
 
 static void list(Parser* parser) {
-  size_t n = 0;
   List* xpr = &emptyList;
-
-  while (!parser->hadError && !match(parser, RBRACK_TOKEN)) {
-    if (isAtEnd(parser))
-      errorAtCurrent(parser, "Unmatched '[' to close list literal.");
-
-    else {
-      expression(parser);
-      n++;
-      if (!check(parser, RBRACK_TOKEN))
-        consume(parser, COMMA_TOKEN, "Expect ',' between List members.");
-    }
-  }
+  size_t n = arguments(parser, RBRACK_TOKEN);
 
   if (!parser->hadError) {
     if (n > 0) {
@@ -428,8 +434,8 @@ static void list(Parser* parser) {
 }
 
 static void call(Parser* parser) {
-  bool explicit = last(parser)->type == LPAR_TOKEN;
-  size_t argc = arguments(parser, explicit);
+  TokenType term = last(parser)->type == LPAR_TOKEN ? RPAR_TOKEN : NO_TOKEN;
+  size_t argc = arguments(parser, term);
 
   if (!parser->hadError) {
     List* args = newListN(argc, &parser->subXprs.data[parser->subXprs.count-argc]);
@@ -440,32 +446,44 @@ static void call(Parser* parser) {
   }
 }
 
-static size_t arguments(Parser* parser, bool explicit) {
+static size_t arguments(Parser* parser, TokenType terminal) {
   size_t argc = 0;
 
-  if (explicit) {
+  if (terminal != NO_TOKEN) {
     while(!parser->hadError &&
           !isAtEnd(parser) &&
-          !check(parser, RPAR_TOKEN)) {
+          !check(parser, terminal)) {
+
+      if (check(parser, KEYWORD_TOKEN)) {
+        argc += keywords(parser, terminal);
+        break;
+      }
+
       expression(parser);
       argc++;
-      if (!check(parser, RPAR_TOKEN))
-        consume(parser, COMMA_TOKEN, "Expected ',' between arguments.");
+      if (!check(parser, terminal))
+        consume(parser, COMMA_TOKEN, "Expected ',' between members.");
     }
 
     if (!parser->hadError)
-      consume(parser, RPAR_TOKEN, "Expected ')' closing list of call arguments.");
+      consume(parser, terminal, "Expected %s at end.", tokenRepr(terminal));
 
   } else {
     decOffset(parser);
     while (!parser->hadError &&
            !isAtEnd(parser) &&
            !isAtLineBreak(parser)) {
+
+      if (check(parser, KEYWORD_TOKEN)) {
+        argc += keywords(parser, terminal);
+        break;
+      }
+
       expression(parser);
       argc++;
 
       if (!isAtEnd(parser) && !isAtLineBreak(parser))
-        consume(parser, COMMA_TOKEN, "Expected ',' between arguments.");
+        consume(parser, COMMA_TOKEN, "Expected ',' between members.");
     }
   }
 
