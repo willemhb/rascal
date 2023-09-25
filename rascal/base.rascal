@@ -11,11 +11,7 @@ module Std do
     fun inc(x::Number),   do: x + 1
     fun dec(x::Number),   do: x - 1
     fun sqr(x::Number),   do: x * x
-
-    fun abs(x::Number), do:
-        if x < 0,
-           do: -x,
-           else: x
+    fun abs(x::Number),   do: if x < 0, do: -x, else: x
 
     # Standard fast power algorithm (tail recursive)
     fun pow(x::Number, n::Number), do: pow(x, n, 1)
@@ -47,9 +43,9 @@ module Std do
 
     # Iteration & enumeration.
     fun empty?(xs::List),  do: xs == []
-    fun empty?(xs::Tuple), do: xs == ()
+    fun empty?(xs::Tuple), do: xs == {}
     fun empty?(xs::Bits),  do: xs == <<>>
-    fun empty?(xs::Map),   do: xs == {}
+    fun empty?(xs::Map),   do: xs == %{}
 
     fun map(fn::Function, xs::List), do: map(fn, xs, [])
 
@@ -73,13 +69,8 @@ module Std do
     end
 
     # Common numeric functions on collections.
-    fun sum(xs::List), do:
-        reduce('+, xs, 0)
-
-    fun prod(xs:List), do:
-        reduce('*, xs, 1)
-
-    fun norm(xs::List), do:
-       map(sqr, xs) |> sum |> sqrt
+    fun sum(xs::List),  do: reduce('+, xs, 0)
+    fun prod(xs:List),  do: reduce('*, xs, 1)
+    fun norm(xs::List), do: map(sqr, xs) |> sum |> sqrt
 
 end
