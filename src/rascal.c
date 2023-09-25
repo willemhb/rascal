@@ -10,9 +10,9 @@
 // version information
 #define MAJOR 0
 #define MINOR 0
-#define PATCH 3
+#define PATCH 4
 #define DEV   "a"
-#define VFMT "%.2d.%.2d.%2d.%s"
+#define VFMT "%.2d.%.2d.%.2d.%s"
 
 static void welcomeMessage(void) {
   fprintf(stdout,

@@ -32,7 +32,6 @@ TABLE_TYPE(SymbolTable,
            NULL,
            NULL);
 
-
 bool compareNameSpaceKeys(Symbol* x, Symbol* y) {
   return x == y;
 }

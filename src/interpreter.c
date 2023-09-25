@@ -17,7 +17,6 @@ void runFile(Vm* vm, const char* fname) {
 Value eval(Vm* vm, char* source) {
   scan(&vm->scanner, source);
   Value out = parse(&vm->parser, &vm->scanner);
-  
   return out;
 }
 
@@ -42,5 +41,7 @@ void repl(Vm* vm) {
     if (xpr != NOTHING_VAL)
       printValue(stdout, xpr);
     fprintf(stdout, "\n");
+    freeScanner(&vm->scanner);
+    freeParser(&vm->parser);
   }
 }

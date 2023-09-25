@@ -112,6 +112,8 @@ typedef enum {
 
 ARRAY_TYPE(Values, Value);
 
+void     printValues(FILE* ios, Values* values);
+
 Type     valueType(Value value);
 Type     rascalType(Value value);
 Type     objectType(Obj* object);

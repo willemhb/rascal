@@ -31,19 +31,23 @@
     } else if (newCount > array->capacity ||                            \
                (newCount < (array->capacity >> 1))) {                   \
       size_t oldCap   = array->capacity;                                \
-      size_t newCap   = max(8u, ceilPow2(newCount));                    \
+      size_t newCap   = max(8u, ceilPow2(newCount+1));                  \
                                                                         \
       if (oldCap != newCap) {                                           \
         size_t oldSize  = oldCap * sizeof(ElType);                      \
         size_t newSize  = newCap * sizeof(ElType);                      \
-        array->data     = reallocate(array->data,                       \
-                                     oldSize,                           \
-                                     newSize,                           \
-                                     false);                            \
+        if (array->data == NULL)                                        \
+          array->data = allocate(newSize, false);                       \
+        else                                                            \
+          array->data = reallocate(array->data,                         \
+                                   oldSize,                             \
+                                   newSize,                             \
+                                   false);                              \
         array->capacity = newCap;                                       \
       }                                                                 \
     }                                                                   \
-    array->count    = newCount;                                         \
+    array->count = newCount;                                            \
+    assert(array->capacity >= array->count);                            \
     return oldCount;                                                    \
   }                                                                     \
                                                                         \
@@ -134,23 +138,25 @@
     }                                                                   \
     /* reset table init count */                                        \
     table->count = 0;                                                   \
-    for (size_t i=0; i<table->capacity; i++) {                          \
-      TableType##Entry* entry = &table->table[i];                       \
+    if (table->table != NULL) {                                         \
+      for (size_t i=0; i<table->capacity; i++) {                        \
+        TableType##Entry* entry = &table->table[i];                     \
                                                                         \
-      if (entry->key == noKey) {                                        \
-        continue;                                                       \
+        if (entry->key == noKey) {                                      \
+          continue;                                                     \
+        }                                                               \
+                                                                        \
+        TableType##Entry* dest = find##TableType##Entry(entries,        \
+                                                        capacity,       \
+                                                        entry->key);    \
+        dest->key = entry->key;                                         \
+        dest->val = entry->val;                                         \
+        table->count++;                                                 \
       }                                                                 \
-                                                                        \
-      TableType##Entry* dest = find##TableType##Entry(entries,          \
-                                           capacity,                    \
-                                           entry->key);                 \
-      dest->key = entry->key;                                           \
-      dest->val = entry->val;                                           \
-      table->count++;                                                   \
+      deallocate(table->table,                                          \
+                 table->capacity*sizeof(TableType##Entry),              \
+                 false);                                                \
     }                                                                   \
-    deallocate(table->table,                                            \
-               table->capacity*sizeof(TableType##Entry),                \
-               false);                                                  \
     table->table = entries;                                             \
     table->capacity = capacity;                                         \
   }                                                                     \

@@ -65,7 +65,10 @@ static void displayToken(Token token) {
 }
 
 void displayScanner(Scanner* scanner) {
-  fprintf(stdout, "Scan result:\n");
+  fprintf(stdout,
+          "Scan result (count=%zu) (capacity=%zu):\n",
+          scanner->tokens.count,
+          scanner->tokens.capacity);
 
   for (size_t i=0; i<scanner->tokens.count; i++)
     displayToken(peekToken(scanner, i));

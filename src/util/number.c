@@ -16,5 +16,5 @@ uint64_t ceilPow2(uint64_t word) {
   while (word & (word-1))
     word = word & (word-1);
 
-  return word;
+  return word<<1;
 }

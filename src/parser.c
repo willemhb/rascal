@@ -35,7 +35,6 @@ typedef struct {
 static ParseRule* getRule(TokenType type);
 static Token*     last(Parser* parser);
 static Token*     this(Parser* parser);
-static Token*     next(Parser* parser);
 static Value      peekXpr(Parser* parser, int i);
 static void       saveNum(Parser* parser, Number val);
 static void       saveObj(Parser* parser, void* val);
@@ -43,10 +42,12 @@ static void       saveVal(Parser* parser, Value val);
 static void       consumeXpr(Parser* parser, size_t n);
 static bool       isAtEnd(Parser* parser);
 static bool       isAtLineBreak(Parser* parser);
+static void       incOffset(Parser* parser);
 static void       advance(Parser* parser);
 static void       consume(Parser* parser, TokenType type, const char* message);
 static Symbol*    tokenToSymbol(Token token);
-static bool       match(Parser* parser, TokenType type, bool consumep);
+static bool       check(Parser* parser, TokenType type);
+static bool       match(Parser* parser, TokenType type);
 
 #define saveXpr(p, x)                           \
   _Generic((x),                                 \
@@ -74,7 +75,7 @@ static void call(Parser* parser);
 static void expression(Parser* parser);
 
 // toplevel parse helpers
-static void parsePrecedence(Parser* parser, Precedence precedence);
+static void   parsePrecedence(Parser* parser, Precedence precedence);
 
 // globals
 ParseRule rules[] = {
@@ -132,14 +133,10 @@ static Token* last(Parser* parser) {
 }
 
 static Token* this(Parser* parser) {
-  return &parser->source->tokens.data[parser->offset];
-}
-
-static Token* next(Parser* parser) {
   if (isAtEnd(parser))
-    return this(parser);
+    return last(parser);
 
-  return &parser->source->tokens.data[parser->offset+1];
+  return &parser->source->tokens.data[parser->offset];
 }
 
 static Value peekXpr(Parser* parser, int i) {
@@ -164,19 +161,30 @@ static void saveObj(Parser* parser, void* val) {
 
 static void saveVal(Parser* parser, Value val) {
   writeValues(&parser->subXprs, val);
+  #ifdef DEBUG_PARSER
+  //  printValues(stdout, &parser->subXprs);
+  #endif
 }
 
 static bool isAtEnd(Parser* parser) {
-  return this(parser)->type == EOF_TOKEN;
+  return parser->offset == parser->source->tokens.count;
 }
 
 static bool isAtLineBreak(Parser* parser) {
   return parser->offset > 0 && last(parser)->lineNo < this(parser)->lineNo;
 }
 
-static void advance(Parser* parser) {
-  while (!isAtEnd(parser)) { // don't advance past end of input
+static void incOffset(Parser* parser) {
+  if (parser->offset < parser->source->tokens.count)
     parser->offset++;
+}
+
+static void advance(Parser* parser) {
+  if (isAtEnd(parser))
+    return;
+
+  for(;;) {
+    incOffset(parser);
     if (this(parser)->type != ERROR_TOKEN)
       break;
 
@@ -201,15 +209,17 @@ static Symbol* tokenToSymbol(Token token) {
   return getSymbol(buffer);
 }
 
-static bool match(Parser* parser, TokenType type, bool consumep) {
-  if (this(parser)->type == type) {
-    if (consumep)
-      advance(parser);
+static bool check(Parser* parser, TokenType type) {
+  return this(parser)->type == type;
+}
 
-    return true;
-  }
+static bool match(Parser* parser, TokenType type) {
+  bool out = check(parser, type);
 
-  return false;
+  if (out)
+    advance(parser);
+
+  return out;
 }
 
 // error helper implementations
@@ -331,30 +341,30 @@ static void binary(Parser* parser) {
 
 static void grouping(Parser* parser) {
   // has to distinguish between the empty tuple, simple grouping, and non-empty tuples
-  if (match(parser, RPAR_TOKEN, true))
+  if (match(parser, RPAR_TOKEN))
     saveXpr(parser, EMPTY_TUPLE());
     
   else {
     expression(parser);
 
-    if (match(parser, COMMA_TOKEN, true)) {
+    if (match(parser, COMMA_TOKEN)) {
       size_t n = 1;
 
-      while (!match(parser, RPAR_TOKEN, true)) {
+      while (!match(parser, RPAR_TOKEN)) {
         if (isAtEnd(parser)) {
-          errorAtCurrent(parser, "Unmatched '(' to close tuple literal.");
+          errorAtCurrent(parser, "Unmatched '(' to close Tuple literal.");
           return;
         }
 
         expression(parser);
         n++;
-        if (!match(parser, RPAR_TOKEN, false))
+        if (!check(parser, RPAR_TOKEN))
           consume(parser, COMMA_TOKEN, "Expect ',' between Tuple members.");
       }
 
-      Tuple* tuple = newTuple(n, &parser->subXprs.data[parser->subXprs.count-n]);
+      Tuple* xpr = newTuple(n, &parser->subXprs.data[parser->subXprs.count-n]);
       consumeXpr(parser, n);
-      saveXpr(parser, tuple);
+      saveXpr(parser, xpr);
     }
     else
       consume(parser, RPAR_TOKEN, "Expect ')' after expression."); 
@@ -362,11 +372,45 @@ static void grouping(Parser* parser) {
 }
 
 static void list(Parser* parser) {
-  advance(parser); // clear opening '['
-
   size_t n = 0;
+  List* xpr = &emptyList;
 
-  while (!match(parser, LBRACK_TOKEN, ))
+  while (!match(parser, RBRACK_TOKEN)) {
+    if (isAtEnd(parser)) {
+      errorAtCurrent(parser, "Unmatched '[' to close list literal.");
+      return;
+    }
+
+    expression(parser);
+    n++;
+    if (!check(parser, RBRACK_TOKEN))
+      consume(parser, COMMA_TOKEN, "Expect ',' between List members.");
+  }
+
+  if (n > 0) {
+    xpr = newListN(n, &parser->subXprs.data[parser->subXprs.count-n]);
+    consumeXpr(parser, n);
+  }
+
+  saveXpr(parser, xpr);
+}
+
+static void call(Parser* parser) {
+  size_t argc = 0;
+
+  while(!isAtEnd(parser) && !check(parser, RPAR_TOKEN)) {
+    expression(parser);
+    argc++;
+    if (!check(parser, RPAR_TOKEN))
+      consume(parser, COMMA_TOKEN, "Expected comma separating elements of argument list.");
+  }
+
+  consume(parser, RPAR_TOKEN, "Expected ')' closing list of call arguments.");
+
+  List* args = newListN(argc, &parser->subXprs.data[parser->subXprs.count-argc]);
+  Tuple* xpr = newTriple(peekXpr(parser, -argc-1), EMPTY_LIST(), TAG_OBJ(args));
+  consumeXpr(parser, argc+1);
+  saveXpr(parser, xpr);
 }
 
 static void expression(Parser* parser) {
