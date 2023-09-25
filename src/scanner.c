@@ -58,13 +58,13 @@ static void skipWhiteSpace(Scanner* scanner) {
       case '\v':
         advance(scanner);
         break;
-        
+
         /* newline */
       case '\n':
         scanner->lineNo++;
         advance(scanner);
         break;
-        
+
         /* line comment */
       case '#':
         while (peekChar(scanner) != '\n' && !isAtEnd(scanner)) {
@@ -355,6 +355,59 @@ static Token scanIdentifier(Scanner* scanner) {
 #include "tpl/describe.h"
 ARRAY_TYPE(Tokens, Token, Token);
 
+// miscellaneous utilities
+const char* tokenRepr(TokenType type) {
+  const char* out;
+
+  switch (type) {
+    case NO_TOKEN:            out = "nothing"; break;
+    case NUMBER_TOKEN:        out = "number"; break;
+    case STRING_TOKEN:        out = "string"; break;
+    case SYMBOL_TOKEN:        out = "symbol"; break;
+    case KEYWORD_TOKEN:       out = "keyword"; break;
+    case IDENTIFIER_TOKEN:    out = "identifier"; break;
+    case TRUE_TOKEN:          out = "'true'"; break;
+    case FALSE_TOKEN:         out = "'false'"; break;
+    case NUL_TOKEN:           out = "'nul'"; break;
+    case LPAR_TOKEN:          out = "'('"; break;
+    case RPAR_TOKEN:          out = "')'"; break;
+    case LARROWS_TOKEN:       out = "'<<'"; break;
+    case RARROWS_TOKEN:       out = "'>>'"; break;
+    case LBRACK_TOKEN:        out = "'['"; break;
+    case RBRACK_TOKEN:        out = "']'"; break;
+    case LBRACE_TOKEN:        out = "'{'"; break;
+    case RBRACE_TOKEN:        out = "'}'"; break;
+    case DO_TOKEN:            out = "'do'"; break;
+    case END_TOKEN:           out = "'end'"; break;
+    case COMMA_TOKEN:         out = "','"; break;
+    case DOT_TOKEN:           out = "'.'"; break;
+    case EQUAL_TOKEN:         out = "'='"; break;
+    case MATCH_TOKEN:         out = "'->'"; break;
+    case COLON_COLON_TOKEN:   out = "'::'"; break;
+    case OR_TOKEN:            out = "'or'"; break;
+    case AND_TOKEN:           out = "'and'"; break;
+    case EQUAL_EQUAL_TOKEN:   out = "'=='"; break;
+    case NOT_EQUAL_TOKEN:     out = "'!='"; break;
+    case LESS_THAN_TOKEN:     out = "'<'"; break;
+    case GREATER_THAN_TOKEN:  out = "'>'"; break;
+    case LESS_EQUAL_TOKEN:    out = "'<='"; break;
+    case GREATER_EQUAL_TOKEN: out = "'>='"; break;
+    case PLUS_TOKEN:          out = "'+'"; break;
+    case MINUS_TOKEN:         out = "'-'"; break;
+    case BAR_TOKEN:           out = "'|'"; break;
+    case MUL_TOKEN:           out = "'*'"; break;
+    case DIV_TOKEN:           out = "'/'"; break;
+    case REM_TOKEN:           out = "'%'"; break;
+    case APOSTROPHE_TOKEN:    out = "'''"; break;
+    case NOT_TOKEN:           out = "'not'"; break;
+    case EOF_TOKEN:           out = "eof"; break;
+    case ERROR_TOKEN:         out = "error"; break;
+  }
+
+  return out;
+}
+
+// scanner API
 void initScanner(Scanner* scanner, char* source) {
   scanner->start    = source;
   scanner->current  = source;
@@ -377,6 +430,7 @@ Token peekToken(Scanner* scanner, int i) {
   return scanner->tokens.data[i];
 }
 
+// lexer API
 void scan(Scanner* scanner, char* source) {
   initScanner(scanner, source);
 
@@ -384,6 +438,6 @@ void scan(Scanner* scanner, char* source) {
     scanToken(scanner);
 
   #ifdef DEBUG_SCANNER 
-  // displayScanner(scanner);
+  displayScanner(scanner);
   #endif
 }

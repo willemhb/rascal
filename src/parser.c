@@ -78,10 +78,12 @@ static void expression(Parser* parser);
 
 // toplevel parse helpers
 static size_t arguments(Parser* parser, bool explicit);
+static size_t keywords(Parser* parser, TokenType terminal);
 static void   parsePrecedence(Parser* parser, Precedence precedence);
 
 // globals
 ParseRule rules[] = {
+  [NO_TOKEN]            = { NULL,       NULL,   NO_PRECEDENCE         },
   [NUMBER_TOKEN]        = { number,     call,   CALL_PRECEDENCE       },
   [SYMBOL_TOKEN]        = { symbol,     call,   CALL_PRECEDENCE       },
   [STRING_TOKEN]        = { string,     call,   CALL_PRECEDENCE       },
@@ -117,8 +119,8 @@ ParseRule rules[] = {
   [MUL_TOKEN]           = { NULL,       binary, FACTOR_PRECEDENCE     },
   [DIV_TOKEN]           = { NULL,       binary, FACTOR_PRECEDENCE     },
   [REM_TOKEN]           = { NULL,       binary, FACTOR_PRECEDENCE     },
-  [APOSTROPHE_TOKEN]    = { quote,      NULL,   UNARY_PRECEDENCE      },
-  [NOT_TOKEN]           = { unary,      NULL,   UNARY_PRECEDENCE      },
+  [APOSTROPHE_TOKEN]    = { quote,      call,   UNARY_PRECEDENCE      },
+  [NOT_TOKEN]           = { unary,      call,   UNARY_PRECEDENCE      },
   [ERROR_TOKEN]         = { NULL,       NULL,   NO_PRECEDENCE         },
   [EOF_TOKEN]           = { NULL,       NULL,   NO_PRECEDENCE         }
 };
@@ -165,7 +167,7 @@ static void saveObj(Parser* parser, void* val) {
 static void saveVal(Parser* parser, Value val) {
   writeValues(&parser->subXprs, val);
   #ifdef DEBUG_PARSER
-  // printValues(stdout, &parser->subXprs);
+  printValues(stdout, &parser->subXprs);
   #endif
 }
 
@@ -403,27 +405,26 @@ static void list(Parser* parser) {
   size_t n = 0;
   List* xpr = &emptyList;
 
-  while (!match(parser, RBRACK_TOKEN) && !parser->hadError) {
-    if (isAtEnd(parser)) {
+  while (!parser->hadError && !match(parser, RBRACK_TOKEN)) {
+    if (isAtEnd(parser))
       errorAtCurrent(parser, "Unmatched '[' to close list literal.");
-      return;
+
+    else {
+      expression(parser);
+      n++;
+      if (!check(parser, RBRACK_TOKEN))
+        consume(parser, COMMA_TOKEN, "Expect ',' between List members.");
+    }
+  }
+
+  if (!parser->hadError) {
+    if (n > 0) {
+      xpr = newListN(n, &parser->subXprs.data[parser->subXprs.count-n]);
+      consumeXpr(parser, n);
     }
 
-    expression(parser);
-    n++;
-    if (!check(parser, RBRACK_TOKEN))
-      consume(parser, COMMA_TOKEN, "Expect ',' between List members.");
+    saveXpr(parser, xpr); 
   }
-
-  if (parser->hadError)
-    return;
-
-  if (n > 0) {
-    xpr = newListN(n, &parser->subXprs.data[parser->subXprs.count-n]);
-    consumeXpr(parser, n);
-  }
-
-  saveXpr(parser, xpr);
 }
 
 static void call(Parser* parser) {
@@ -443,27 +444,44 @@ static size_t arguments(Parser* parser, bool explicit) {
   size_t argc = 0;
 
   if (explicit) {
-    while(!isAtEnd(parser) && !check(parser, RPAR_TOKEN) && !parser->hadError) {
+    while(!parser->hadError &&
+          !isAtEnd(parser) &&
+          !check(parser, RPAR_TOKEN)) {
       expression(parser);
       argc++;
       if (!check(parser, RPAR_TOKEN))
-        consume(parser, COMMA_TOKEN, "Expected ',' separating elements of argument list.");
+        consume(parser, COMMA_TOKEN, "Expected ',' between arguments.");
     }
 
     if (!parser->hadError)
       consume(parser, RPAR_TOKEN, "Expected ')' closing list of call arguments.");
+
   } else {
     decOffset(parser);
-    while (!isAtEnd(parser) && !isAtLineBreak(parser) && !parser->hadError) {
+    while (!parser->hadError &&
+           !isAtEnd(parser) &&
+           !isAtLineBreak(parser)) {
       expression(parser);
       argc++;
 
       if (!isAtEnd(parser) && !isAtLineBreak(parser))
-        consume(parser, COMMA_TOKEN, "Expected ',' separating elements of argument list.");
+        consume(parser, COMMA_TOKEN, "Expected ',' between arguments.");
     }
   }
 
   return argc;
+}
+
+static size_t keywords(Parser* parser, TokenType terminal) {
+  size_t argc = 0;
+
+  if (terminal != NO_TOKEN) {
+    while (!parser->hadError &&
+           !isAtEnd(parser) &&
+           !check(parser, terminal)) {
+      
+    }
+  }
 }
 
 static void expression(Parser* parser) {
@@ -471,10 +489,6 @@ static void expression(Parser* parser) {
 
   if (parser->panicMode)
     synchronize(parser);
-
-  // treat juxtapositions as implicit function calls
-  // else if (!isAtEnd(parser) && !isAtLineBreak(parser) && this(parser)->type != COMMA_TOKEN)
-  //  call(parser);
 }
 
 static void parsePrecedence(Parser* parser, Precedence precedence) {
@@ -487,10 +501,15 @@ static void parsePrecedence(Parser* parser, Precedence precedence) {
   else {
     prefixRule(parser);
 
-    while (precedence <= getRule(this(parser)->type)->precedence) {
+    while (!parser->hadError &&
+           precedence <= getRule(this(parser)->type)->precedence) {
       advance(parser);
       ParseFn infixRule = getRule(last(parser)->type)->infix;
-      infixRule(parser);
+
+      if (infixRule == NULL)
+        error(parser, "Expected expression.");
+      else
+        infixRule(parser);
     }
   }
 }

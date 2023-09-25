@@ -24,6 +24,9 @@
 
 // token type
 typedef enum {
+  // not a token (used to signify no token type when token type is optional)
+  NO_TOKEN,
+
   // atoms
   NUMBER_TOKEN, STRING_TOKEN, SYMBOL_TOKEN, KEYWORD_TOKEN,
   IDENTIFIER_TOKEN, TRUE_TOKEN, FALSE_TOKEN, NUL_TOKEN,
@@ -79,6 +82,9 @@ struct Scanner {
   int    lineNo;
   Tokens tokens;
 };
+
+// miscellaneous utilities
+const char* tokenRepr(TokenType type);
 
 // scanner API
 void  initScanner(Scanner* scanner, char* source);

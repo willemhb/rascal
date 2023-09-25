@@ -6,9 +6,9 @@
 #include <stdint.h>
 #include <assert.h>
 
-#define RASCAL_DEBUG
-#define DEBUG_SCANNER
-#define DEBUG_PARSER
+#define DEBUG_RASCAL
+// #define DEBUG_SCANNER
+// #define DEBUG_PARSER
 
 #define MAX_ARITY    0x0000ffffffffffffUL // also maximum hash value
 #define MAX_POW2     0x0000800000000000UL

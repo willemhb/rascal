@@ -4,33 +4,21 @@ module Std do
     # Rascal standard library.
 
     # Numeric utilities.
-    fun zero?(x::Number) do
-        x == 0
-    end
+    # Extremely basic.
+    fun zero?(x::Number), do: x == 0
+    fun even?(x::Number), do: integer?(x) and x % 2 == 0
+    fun odd?(x::Number),  do: integer?(x) and x % 2 == 1
+    fun inc(x::Number),   do: x + 1
+    fun dec(x::Number),   do: x - 1
+    fun sqr(x::Number),   do: x * x
 
-    fun even?(x::Number) do
-        integer?(x) and x % 2 == 0
-    end
+    fun abs(x::Number), do:
+        if x < 0,
+           do: -x,
+           else: x
 
-    fun odd?(x::Number) do
-        integer?(x) and x % 2 == 1
-    end
-
-    fun inc(x::Number) do
-        x + 1
-    end
-
-    fun dec(x::Number) do
-        x - 1
-    end
-
-    fun sqr(x::Number) do
-        x * x
-    end
-
-    fun pow(x::Number, n::Number) do
-        pow(x, n, 1)
-    end
+    # Standard fast power algorithm (tail recursive)
+    fun pow(x::Number, n::Number), do: pow(x, n, 1)
 
     fun pow(x::Number, n::Number, acc::Number) do
         cond do
@@ -40,22 +28,58 @@ module Std do
         end
     end
 
-    fun map(fn::Function, xs::List) do
-        map(fn, xs, [])
+    # Numeric derivative.
+    fun diff(x::Number, fn::Function) do
+        a = 0.00001
+        (fn(x+a) - fn(x)) / a
     end
+
+    # Newton's method.
+    fun sqrt(x::Number) do
+        fun loop(xn::Number) do
+            if abs(x - sqr(xn)) <= 0.00001 do # Should be parameterizable.
+                xn
+            else
+                loop(xn - sqr(x) / diff(xn, sqr))
+            end
+        loop(x)
+    end
+
+    # Iteration & enumeration.
+    fun empty?(xs::List),  do: xs == []
+    fun empty?(xs::Tuple), do: xs == ()
+    fun empty?(xs::Bits),  do: xs == <<>>
+    fun empty?(xs::Map),   do: xs == {}
+
+    fun map(fn::Function, xs::List), do: map(fn, xs, [])
 
     fun map(fn::Function, xs::List, acc::List) do
         case xs do
             []     -> reverse(acc)
             [x|xs] -> map(fn, xs, fn(x)|xs)
         end
-
-    fun reduce(fn::Function, xs::List) do
-        
     end
 
-    fun norm(xs::List) do
+    fun reduce(fn::Function, xs::List), do:
+        if empty?(xs),
+           do: nul,
+           else: reduce(fn, tl(xs), hd(xs))
+
+    fun reduce(fn::Function, xs::List, acc::Any) do
+        case xs do
+            []     -> acc
+            [x|xs] -> reduce(fn, xs, fn(acc, x))
+        end
+    end
+
+    # Common numeric functions on collections.
+    fun sum(xs::List), do:
+        reduce('+, xs, 0)
+
+    fun prod(xs:List), do:
+        reduce('*, xs, 1)
+
+    fun norm(xs::List), do:
        map(sqr, xs) |> sum |> sqrt
-    end
-end
 
+end

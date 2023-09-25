@@ -8,6 +8,7 @@ static const char* tokenTypeName(TokenType type) {
   const char* out;
 
   switch (type) {
+    case NO_TOKEN:            out = "no-token";          break;
     case NUMBER_TOKEN:        out = "number-token";      break;
     case STRING_TOKEN:        out = "string-token";      break;
     case SYMBOL_TOKEN:        out = "symbol-token";      break;
