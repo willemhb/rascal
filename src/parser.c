@@ -171,9 +171,9 @@ static void saveObj(Parser* parser, void* val) {
 
 static void saveVal(Parser* parser, Value val) {
   writeValues(&parser->subXprs, val);
-  #ifdef DEBUG_PARSER
+#ifdef DEBUG_PARSER
   printValues(stdout, &parser->subXprs);
-  #endif
+#endif
 }
 
 static bool isAtEnd(Parser* parser) {
@@ -221,7 +221,7 @@ static Symbol* tokenToSymbol(Token token) {
     buffer[token.length-1] = '\0';
     memcpy(buffer, token.start, token.length-1); // ommit terminal ':'
     out = getSymbol(buffer);
-    
+
   } else {
     char buffer[token.length+1];
     buffer[token.length] = '\0';
@@ -413,15 +413,21 @@ static void grouping(Parser* parser) {
 
 static void list(Parser* parser) {
   List* xpr = &emptyList;
-  size_t n = arguments(parser, RBRACK_TOKEN);
 
-  if (!parser->hadError) {
-    if (n > 0) {
-      xpr = newListN(n, &parser->subXprs.data[parser->subXprs.count-n]);
-      consumeXpr(parser, n);
+  if (check(parser, KEYWORD_TOKEN))
+    keywords(parser, RBRACK_TOKEN);
+  
+  else {
+    size_t n = arguments(parser, RBRACK_TOKEN);
+
+    if (!parser->hadError) {
+      if (n > 0) {
+        xpr = newListN(n, &parser->subXprs.data[parser->subXprs.count-n]);
+        consumeXpr(parser, n);
+      }
+      
+      saveXpr(parser, xpr); 
     }
-
-    saveXpr(parser, xpr); 
   }
 }
 
@@ -520,16 +526,13 @@ static size_t keywords(Parser* parser, TokenType terminal) {
         keyword(parser);
         argc++;
 
-        if (!check(parser, terminal)) {
+        if (!check(parser, terminal))
           consume(parser, COMMA_TOKEN, "Expect ',' between pairs");
-          
-        } else {
-          error(parser, "Expect keyword");
-        }
+      } else {
+        error(parser, "Expect keyword");
       }
-      
-      consume(parser, terminal, "Expect %s at end", tokenRepr(terminal));
     }
+    consume(parser, terminal, "Expect %s at end", tokenRepr(terminal));
   } else {    
     while (!parser->hadError &&
            !isAtEnd(parser) &&
@@ -537,7 +540,7 @@ static size_t keywords(Parser* parser, TokenType terminal) {
       if (check(parser, KEYWORD_TOKEN)) {
         keyword(parser);
         argc++;
-
+        
         if (!isAtEnd(parser) && !isAtLineBreak(parser))
           consume(parser, COMMA_TOKEN, "Expect ',' between pairs");
       } else {
