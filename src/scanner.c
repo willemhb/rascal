@@ -437,7 +437,7 @@ void scan(Scanner* scanner, char* source) {
   while (!isAtEnd(scanner))
     scanToken(scanner);
 
-  #ifdef DEBUG_SCANNER 
+  #ifdef DEBUG_SCANNER
   displayScanner(scanner);
   #endif
 }

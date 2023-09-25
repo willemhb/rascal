@@ -175,23 +175,19 @@ static void printTuple(FILE* ios, Tuple* xs, int indent) {
   int childIndent = pretty ? indent+1 : -1;
 
   if (xs->arity == 0)
-    fprintf(ios, "%.*s()", indent, "  ");
+    fprintf(ios, "%.*s{}", indent, " ");
 
-  else if (xs->arity == 1) {
-    fprintf(ios, "%.*s(%s", indent, "  ", term);
-    printValue(ios, xs->data[0], childIndent);
-    fprintf(ios, "%.*s,)%s", indent, "  ", term);
-  } else {
-    fprintf(ios, "%.*s(%s", indent, "  ", term);
+  else {
+    fprintf(ios, "%.*s{%s", indent, " ", term);
 
-    for (size_t i=0; i<xs->arity; i++) {
+    for (size_t i=0; i < xs->arity; i++ ) {
       printValue(ios, xs->data[i], childIndent);
-
-      if (i+1 < xs->arity)
-        fprintf(ios, ",%s", sep);
+      
+    if (i + 1 < xs->arity)
+      fprintf(ios, ",%s", sep);
     }
 
-    fprintf(ios, "%.*s)%s", indent, "  ", term);
+    fprintf(ios, "%.*s}%s", indent, " ", term);
   }
 }
 

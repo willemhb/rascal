@@ -75,6 +75,7 @@ static void quote(Parser* parser);
 static void binary(Parser* parser);
 static void grouping(Parser* parser);
 static void list(Parser* parser);
+static void tuple(Parser* parser);
 static void call(Parser* parser);
 static void expression(Parser* parser);
 
@@ -99,6 +100,8 @@ ParseRule rules[] = {
   [LARROWS_TOKEN]       = { NULL,       NULL,   NO_PRECEDENCE         },
   [RARROWS_TOKEN]       = { NULL,       NULL,   NO_PRECEDENCE         },
   [LBRACK_TOKEN]        = { list,       call,   CALL_PRECEDENCE       },
+  [RBRACK_TOKEN]        = { NULL,       NULL,   NO_PRECEDENCE         },
+  [LBRACE_TOKEN]        = { tuple,      call,   CALL_PRECEDENCE       },
   [RBRACE_TOKEN]        = { NULL,       NULL,   NO_PRECEDENCE         },
   [DO_TOKEN]            = { NULL,       NULL,   NO_PRECEDENCE         },
   [END_TOKEN]           = { NULL,       NULL,   NO_PRECEDENCE         },
@@ -205,12 +208,28 @@ static void advance(Parser* parser) {
 }
 
 static Symbol* tokenToSymbol(Token token) {
-  bool  isSymbol   = token.type == SYMBOL_TOKEN;
+  Symbol* out;
 
-  char buffer[token.length+!isSymbol];
-  buffer[token.length-isSymbol] = '\0';
-  memcpy(buffer, token.start+isSymbol, token.length-isSymbol);
-  return getSymbol(buffer);
+  if (token.type == SYMBOL_TOKEN) {   
+  char buffer[token.length];
+  buffer[token.length-1] = '\0';
+  memcpy(buffer, token.start+1, token.length-1); // ommit initial ':'
+  out = getSymbol(buffer);
+
+  } else if (token.type == KEYWORD_TOKEN) {
+    char buffer[token.length];
+    buffer[token.length-1] = '\0';
+    memcpy(buffer, token.start, token.length-1); // ommit terminal ':'
+    out = getSymbol(buffer);
+    
+  } else {
+    char buffer[token.length+1];
+    buffer[token.length] = '\0';
+    memcpy(buffer, token.start, token.length);
+    out = getSymbol(buffer);
+  }
+
+  return out;
 }
 
 static bool check(Parser* parser, TokenType type) {
@@ -388,35 +407,8 @@ static void binary(Parser* parser) {
 }
 
 static void grouping(Parser* parser) {
-  // has to distinguish between the empty tuple, simple grouping, and non-empty tuples
-  if (match(parser, RPAR_TOKEN))
-    saveXpr(parser, EMPTY_TUPLE());
-
-  else {
-    expression(parser);
-
-    if (match(parser, COMMA_TOKEN)) {
-      size_t n = 1;
-
-      while (!match(parser, RPAR_TOKEN)) {
-        if (isAtEnd(parser)) {
-          errorAtCurrent(parser, "Unmatched '(' to close Tuple literal.");
-          return;
-        }
-
-        expression(parser);
-        n++;
-        if (!check(parser, RPAR_TOKEN))
-          consume(parser, COMMA_TOKEN, "Expect ',' between Tuple members.");
-      }
-
-      Tuple* xpr = newTuple(n, &parser->subXprs.data[parser->subXprs.count-n]);
-      consumeXpr(parser, n);
-      saveXpr(parser, xpr);
-    }
-    else
-      consume(parser, RPAR_TOKEN, "Expect ')' after expression.");
-  }
+  expression(parser);
+  consume(parser, RPAR_TOKEN, "Expect ')' at end of group");
 }
 
 static void list(Parser* parser) {
@@ -430,6 +422,20 @@ static void list(Parser* parser) {
     }
 
     saveXpr(parser, xpr); 
+  }
+}
+
+static void tuple(Parser* parser) {
+  Tuple* xpr = &emptyTuple;
+  size_t n   = arguments(parser, RBRACE_TOKEN);
+
+  if (!parser->hadError) {
+    if (n > 0) {
+      xpr = newTuple(n, &parser->subXprs.data[parser->subXprs.count-n]);
+      consumeXpr(parser, n);
+    }
+
+    saveXpr(parser, xpr);
   }
 }
 
@@ -455,27 +461,28 @@ static size_t arguments(Parser* parser, TokenType terminal) {
           !check(parser, terminal)) {
 
       if (check(parser, KEYWORD_TOKEN)) {
-        argc += keywords(parser, terminal);
+        keywords(parser, terminal);
+        argc++;
         break;
       }
 
       expression(parser);
       argc++;
       if (!check(parser, terminal))
-        consume(parser, COMMA_TOKEN, "Expected ',' between members.");
+        consume(parser, COMMA_TOKEN, "Expect ',' between members");
     }
 
     if (!parser->hadError)
-      consume(parser, terminal, "Expected %s at end.", tokenRepr(terminal));
+      consume(parser, terminal, "Expect %s at end", tokenRepr(terminal));
 
   } else {
     decOffset(parser);
     while (!parser->hadError &&
            !isAtEnd(parser) &&
            !isAtLineBreak(parser)) {
-
       if (check(parser, KEYWORD_TOKEN)) {
-        argc += keywords(parser, terminal);
+        keywords(parser, terminal);
+        argc++;
         break;
       }
 
@@ -483,11 +490,23 @@ static size_t arguments(Parser* parser, TokenType terminal) {
       argc++;
 
       if (!isAtEnd(parser) && !isAtLineBreak(parser))
-        consume(parser, COMMA_TOKEN, "Expected ',' between members.");
+        consume(parser, COMMA_TOKEN, "Expect ',' between members");
     }
   }
 
   return argc;
+}
+
+static void keyword(Parser* parser) {
+  Token kwt = *this(parser);
+  assert(kwt.type == KEYWORD_TOKEN);
+  Symbol* kw = tokenToSymbol(kwt);
+  saveXpr(parser, kw);
+  advance(parser);
+  expression(parser);
+  Tuple* kv = newPair(peekXpr(parser, -2), peekXpr(parser, -1));
+  consumeXpr(parser, 2);
+  saveXpr(parser, kv);
 }
 
 static size_t keywords(Parser* parser, TokenType terminal) {
@@ -497,9 +516,43 @@ static size_t keywords(Parser* parser, TokenType terminal) {
     while (!parser->hadError &&
            !isAtEnd(parser) &&
            !check(parser, terminal)) {
+      if (check(parser, KEYWORD_TOKEN)) {
+        keyword(parser);
+        argc++;
+
+        if (!check(parser, terminal)) {
+          consume(parser, COMMA_TOKEN, "Expect ',' between pairs");
+          
+        } else {
+          error(parser, "Expect keyword");
+        }
+      }
       
+      consume(parser, terminal, "Expect %s at end", tokenRepr(terminal));
+    }
+  } else {    
+    while (!parser->hadError &&
+           !isAtEnd(parser) &&
+           !isAtLineBreak(parser)) {
+      if (check(parser, KEYWORD_TOKEN)) {
+        keyword(parser);
+        argc++;
+
+        if (!isAtEnd(parser) && !isAtLineBreak(parser))
+          consume(parser, COMMA_TOKEN, "Expect ',' between pairs");
+      } else {
+        error(parser, "Expect keyword");
+      }
     }
   }
+
+  if (!parser->hadError) {
+    List* xpr = newListN(argc, &parser->subXprs.data[parser->subXprs.count-argc]);
+    consumeXpr(parser, argc);
+    saveXpr(parser, xpr);
+  }
+
+  return argc;
 }
 
 static void expression(Parser* parser) {
@@ -514,7 +567,7 @@ static void parsePrecedence(Parser* parser, Precedence precedence) {
   ParseFn prefixRule = getRule(last(parser)->type)->prefix;
 
   if (prefixRule == NULL)
-    error(parser, "Expect expression.");
+    error(parser, "Expect expression");
 
   else {
     prefixRule(parser);
@@ -525,7 +578,7 @@ static void parsePrecedence(Parser* parser, Precedence precedence) {
       ParseFn infixRule = getRule(last(parser)->type)->infix;
 
       if (infixRule == NULL)
-        error(parser, "Expected expression.");
+        error(parser, "Expected expression");
       else
         infixRule(parser);
     }

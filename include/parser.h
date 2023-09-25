@@ -38,8 +38,8 @@
  *              | grouping ;
  * bits        -> "<<" ( number ( "," number )* )? ">>" ;
  * list        -> "[" ( keywords | expressions )? "]" ;
- * map         -> "{" ( keywords | pairs )? "}" ;
- * tuple       -> "(" ")" | "(" expression "," expressions? ")" ;
+ * map         -> "%{" ( keywords | pairs )? "}" ;
+ * tuple       -> "{" "expressions? "}" ;
  * grouping    -> "(" expression ")" ;
  **/
 
