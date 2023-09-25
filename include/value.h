@@ -113,7 +113,6 @@ typedef enum {
 ARRAY_TYPE(Values, Value);
 
 void     printValues(FILE* ios, Values* values);
-
 Type     valueType(Value value);
 Type     rascalType(Value value);
 Type     objectType(Obj* object);
@@ -121,7 +120,7 @@ size_t   sizeOfType(Type type);
 char*    nameOfType(Type type);
 bool     equalValues(Value x, Value y);
 uint64_t hashValue(Value x);
-void     printValue(FILE* ios, Value x);
+void     printValue(FILE* ios, Value x, int indent);
 uint64_t hashType(Type type);
 
 static inline bool hasValueType(Value value, Type type) {

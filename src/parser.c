@@ -43,6 +43,7 @@ static void       consumeXpr(Parser* parser, size_t n);
 static bool       isAtEnd(Parser* parser);
 static bool       isAtLineBreak(Parser* parser);
 static void       incOffset(Parser* parser);
+static void       decOffset(Parser* parser);
 static void       advance(Parser* parser);
 static void       consume(Parser* parser, TokenType type, const char* message);
 static Symbol*    tokenToSymbol(Token token);
@@ -68,6 +69,7 @@ static void symbol(Parser* parser);
 static void string(Parser* parser);
 static void identifier(Parser* parser);
 static void unary(Parser* parser);
+static void quote(Parser* parser);
 static void binary(Parser* parser);
 static void grouping(Parser* parser);
 static void list(Parser* parser);
@@ -75,46 +77,47 @@ static void call(Parser* parser);
 static void expression(Parser* parser);
 
 // toplevel parse helpers
+static size_t arguments(Parser* parser, bool explicit);
 static void   parsePrecedence(Parser* parser, Precedence precedence);
 
 // globals
 ParseRule rules[] = {
-  [NUMBER_TOKEN]        = { number,     NULL,   NO_PRECEDENCE         },
-  [SYMBOL_TOKEN]        = { symbol,     NULL,   NO_PRECEDENCE         },
-  [STRING_TOKEN]        = { string,     NULL,   NO_PRECEDENCE         },
+  [NUMBER_TOKEN]        = { number,     call,   CALL_PRECEDENCE       },
+  [SYMBOL_TOKEN]        = { symbol,     call,   CALL_PRECEDENCE       },
+  [STRING_TOKEN]        = { string,     call,   CALL_PRECEDENCE       },
   [KEYWORD_TOKEN]       = { NULL,       NULL,   NO_PRECEDENCE         },
-  [IDENTIFIER_TOKEN]    = { identifier, NULL,   NO_PRECEDENCE         },
-  [TRUE_TOKEN]          = { atomic,     NULL,   NO_PRECEDENCE         },
-  [FALSE_TOKEN]         = { atomic,     NULL,   NO_PRECEDENCE         },
-  [NUL_TOKEN]           = { atomic,     NULL,   NO_PRECEDENCE         },
+  [IDENTIFIER_TOKEN]    = { identifier, call,   CALL_PRECEDENCE       },
+  [TRUE_TOKEN]          = { atomic,     call,   CALL_PRECEDENCE       },
+  [FALSE_TOKEN]         = { atomic,     call,   CALL_PRECEDENCE       },
+  [NUL_TOKEN]           = { atomic,     call,   CALL_PRECEDENCE       },
   [LPAR_TOKEN]          = { grouping,   call,   CALL_PRECEDENCE       },
   [RPAR_TOKEN]          = { NULL,       NULL,   NO_PRECEDENCE         },
   [LARROWS_TOKEN]       = { NULL,       NULL,   NO_PRECEDENCE         },
   [RARROWS_TOKEN]       = { NULL,       NULL,   NO_PRECEDENCE         },
-  [LBRACK_TOKEN]        = { list,       NULL,   NO_PRECEDENCE         },
+  [LBRACK_TOKEN]        = { list,       call,   CALL_PRECEDENCE       },
   [RBRACE_TOKEN]        = { NULL,       NULL,   NO_PRECEDENCE         },
   [DO_TOKEN]            = { NULL,       NULL,   NO_PRECEDENCE         },
   [END_TOKEN]           = { NULL,       NULL,   NO_PRECEDENCE         },
   [COMMA_TOKEN]         = { NULL,       NULL,   NO_PRECEDENCE         },
-  [DOT_TOKEN]           = { identifier, binary, ACCESSOR_PRECEDENCE   },
-  [EQUAL_TOKEN]         = { identifier, binary, ASSIGNMENT_PRECEDENCE },
-  [MATCH_TOKEN]         = { identifier, binary, ASSIGNMENT_PRECEDENCE },
-  [COLON_COLON_TOKEN]   = { identifier, binary, ASSIGNMENT_PRECEDENCE },
-  [OR_TOKEN]            = { identifier, binary, OR_PRECEDENCE         },
-  [AND_TOKEN]           = { identifier, binary, AND_PRECEDENCE        },
-  [EQUAL_EQUAL_TOKEN]   = { identifier, binary, EQUALITY_PRECEDENCE   },
-  [NOT_EQUAL_TOKEN]     = { identifier, binary, EQUALITY_PRECEDENCE   }, 
-  [LESS_THAN_TOKEN]     = { identifier, binary, COMPARISON_PRECEDENCE },
-  [GREATER_THAN_TOKEN]  = { identifier, binary, COMPARISON_PRECEDENCE },
-  [LESS_EQUAL_TOKEN]    = { identifier, binary, COMPARISON_PRECEDENCE },
-  [GREATER_EQUAL_TOKEN] = { identifier, binary, COMPARISON_PRECEDENCE },
-  [PLUS_TOKEN]          = { identifier, binary, TERM_PRECEDENCE       },
-  [MINUS_TOKEN]         = { identifier, binary, TERM_PRECEDENCE       },
-  [BAR_TOKEN]           = { identifier, binary, TERM_PRECEDENCE       },
-  [MUL_TOKEN]           = { identifier, binary, FACTOR_PRECEDENCE     },
-  [DIV_TOKEN]           = { identifier, binary, FACTOR_PRECEDENCE     },
-  [REM_TOKEN]           = { identifier, binary, FACTOR_PRECEDENCE     },
-  [APOSTROPHE_TOKEN]    = { unary,      NULL,   UNARY_PRECEDENCE      },
+  [DOT_TOKEN]           = { NULL,       binary, ACCESSOR_PRECEDENCE   },
+  [EQUAL_TOKEN]         = { NULL,       binary, ASSIGNMENT_PRECEDENCE },
+  [MATCH_TOKEN]         = { NULL,       binary, ASSIGNMENT_PRECEDENCE },
+  [COLON_COLON_TOKEN]   = { NULL,       binary, ASSIGNMENT_PRECEDENCE },
+  [OR_TOKEN]            = { NULL,       binary, OR_PRECEDENCE         },
+  [AND_TOKEN]           = { NULL,       binary, AND_PRECEDENCE        },
+  [EQUAL_EQUAL_TOKEN]   = { NULL,       binary, EQUALITY_PRECEDENCE   },
+  [NOT_EQUAL_TOKEN]     = { NULL,       binary, EQUALITY_PRECEDENCE   }, 
+  [LESS_THAN_TOKEN]     = { NULL,       binary, COMPARISON_PRECEDENCE },
+  [GREATER_THAN_TOKEN]  = { NULL,       binary, COMPARISON_PRECEDENCE },
+  [LESS_EQUAL_TOKEN]    = { NULL,       binary, COMPARISON_PRECEDENCE },
+  [GREATER_EQUAL_TOKEN] = { NULL,       binary, COMPARISON_PRECEDENCE },
+  [PLUS_TOKEN]          = { NULL,       binary, TERM_PRECEDENCE       },
+  [MINUS_TOKEN]         = { NULL,       binary, TERM_PRECEDENCE       },
+  [BAR_TOKEN]           = { NULL,       binary, TERM_PRECEDENCE       },
+  [MUL_TOKEN]           = { NULL,       binary, FACTOR_PRECEDENCE     },
+  [DIV_TOKEN]           = { NULL,       binary, FACTOR_PRECEDENCE     },
+  [REM_TOKEN]           = { NULL,       binary, FACTOR_PRECEDENCE     },
+  [APOSTROPHE_TOKEN]    = { quote,      NULL,   UNARY_PRECEDENCE      },
   [NOT_TOKEN]           = { unary,      NULL,   UNARY_PRECEDENCE      },
   [ERROR_TOKEN]         = { NULL,       NULL,   NO_PRECEDENCE         },
   [EOF_TOKEN]           = { NULL,       NULL,   NO_PRECEDENCE         }
@@ -162,7 +165,7 @@ static void saveObj(Parser* parser, void* val) {
 static void saveVal(Parser* parser, Value val) {
   writeValues(&parser->subXprs, val);
   #ifdef DEBUG_PARSER
-  //  printValues(stdout, &parser->subXprs);
+  // printValues(stdout, &parser->subXprs);
   #endif
 }
 
@@ -177,6 +180,11 @@ static bool isAtLineBreak(Parser* parser) {
 static void incOffset(Parser* parser) {
   if (parser->offset < parser->source->tokens.count)
     parser->offset++;
+}
+
+static void decOffset(Parser* parser) {
+  if (parser->offset > 0)
+    parser->offset--;
 }
 
 static void advance(Parser* parser) {
@@ -319,6 +327,26 @@ static void identifier(Parser* parser) {
   saveXpr(parser, newTriple(TAG_OBJ(name), EMPTY_LIST(), NUL_VAL));
 }
 
+static void quote(Parser* parser) {
+  if (isAtLineBreak(parser)) {
+    error(parser, "Expected name given to quote.");
+  }
+
+  advance(parser);
+
+  if (isAtEnd(parser)) {
+    error(parser, "Expected name given to quote.");
+  }
+
+  if (last(parser)->type > DOT_TOKEN && last(parser)->type < EOF_TOKEN)
+    identifier(parser);
+
+  else { // ignore
+    decOffset(parser);
+    expression(parser);
+  }
+}
+
 static void unary(Parser* parser) {
   Symbol* head = tokenToSymbol(*last(parser));
   parsePrecedence(parser, UNARY_PRECEDENCE);
@@ -343,7 +371,7 @@ static void grouping(Parser* parser) {
   // has to distinguish between the empty tuple, simple grouping, and non-empty tuples
   if (match(parser, RPAR_TOKEN))
     saveXpr(parser, EMPTY_TUPLE());
-    
+
   else {
     expression(parser);
 
@@ -367,7 +395,7 @@ static void grouping(Parser* parser) {
       saveXpr(parser, xpr);
     }
     else
-      consume(parser, RPAR_TOKEN, "Expect ')' after expression."); 
+      consume(parser, RPAR_TOKEN, "Expect ')' after expression.");
   }
 }
 
@@ -375,7 +403,7 @@ static void list(Parser* parser) {
   size_t n = 0;
   List* xpr = &emptyList;
 
-  while (!match(parser, RBRACK_TOKEN)) {
+  while (!match(parser, RBRACK_TOKEN) && !parser->hadError) {
     if (isAtEnd(parser)) {
       errorAtCurrent(parser, "Unmatched '[' to close list literal.");
       return;
@@ -387,6 +415,9 @@ static void list(Parser* parser) {
       consume(parser, COMMA_TOKEN, "Expect ',' between List members.");
   }
 
+  if (parser->hadError)
+    return;
+
   if (n > 0) {
     xpr = newListN(n, &parser->subXprs.data[parser->subXprs.count-n]);
     consumeXpr(parser, n);
@@ -396,21 +427,43 @@ static void list(Parser* parser) {
 }
 
 static void call(Parser* parser) {
+  bool explicit = last(parser)->type == LPAR_TOKEN;
+  size_t argc = arguments(parser, explicit);
+
+  if (!parser->hadError) {
+    List* args = newListN(argc, &parser->subXprs.data[parser->subXprs.count-argc]);
+    consumeXpr(parser, argc);
+    Tuple* xpr = newTriple(peekXpr(parser, -1), EMPTY_LIST(), TAG_OBJ(args));
+    consumeXpr(parser, 1);
+    saveXpr(parser, xpr);
+  }
+}
+
+static size_t arguments(Parser* parser, bool explicit) {
   size_t argc = 0;
 
-  while(!isAtEnd(parser) && !check(parser, RPAR_TOKEN)) {
-    expression(parser);
-    argc++;
-    if (!check(parser, RPAR_TOKEN))
-      consume(parser, COMMA_TOKEN, "Expected comma separating elements of argument list.");
+  if (explicit) {
+    while(!isAtEnd(parser) && !check(parser, RPAR_TOKEN) && !parser->hadError) {
+      expression(parser);
+      argc++;
+      if (!check(parser, RPAR_TOKEN))
+        consume(parser, COMMA_TOKEN, "Expected ',' separating elements of argument list.");
+    }
+
+    if (!parser->hadError)
+      consume(parser, RPAR_TOKEN, "Expected ')' closing list of call arguments.");
+  } else {
+    decOffset(parser);
+    while (!isAtEnd(parser) && !isAtLineBreak(parser) && !parser->hadError) {
+      expression(parser);
+      argc++;
+
+      if (!isAtEnd(parser) && !isAtLineBreak(parser))
+        consume(parser, COMMA_TOKEN, "Expected ',' separating elements of argument list.");
+    }
   }
 
-  consume(parser, RPAR_TOKEN, "Expected ')' closing list of call arguments.");
-
-  List* args = newListN(argc, &parser->subXprs.data[parser->subXprs.count-argc]);
-  Tuple* xpr = newTriple(peekXpr(parser, -argc-1), EMPTY_LIST(), TAG_OBJ(args));
-  consumeXpr(parser, argc+1);
-  saveXpr(parser, xpr);
+  return argc;
 }
 
 static void expression(Parser* parser) {
@@ -418,6 +471,10 @@ static void expression(Parser* parser) {
 
   if (parser->panicMode)
     synchronize(parser);
+
+  // treat juxtapositions as implicit function calls
+  // else if (!isAtEnd(parser) && !isAtLineBreak(parser) && this(parser)->type != COMMA_TOKEN)
+  //  call(parser);
 }
 
 static void parsePrecedence(Parser* parser, Precedence precedence) {
@@ -454,7 +511,12 @@ void freeParser(Parser* parser) {
 Value parse(Parser* parser, Scanner* source) {
   initParser(parser, source);
   expression(parser);
-  Value out = peekXpr(parser, -1);
-  consumeXpr(parser, 1);
+  Value out = NUL_VAL;
+
+  if (!parser->hadError) {
+    out = peekXpr(parser, -1);
+    consumeXpr(parser, 1);
+  }
+
   return out;
 }

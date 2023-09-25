@@ -384,7 +384,6 @@ void scan(Scanner* scanner, char* source) {
     scanToken(scanner);
 
   #ifdef DEBUG_SCANNER 
-  displayScanner(scanner);
+  // displayScanner(scanner);
   #endif
-
 }

@@ -1,113 +1,61 @@
+use Base
 
-module Enum do
-    fun map(f::Function, xs::List, accum = []) do
-        case xs do
-            []     -> reverse accum
-            [x|xs] -> map(f, xs, f(x) | accum)
+module Std do
+    # Rascal standard library.
+
+    # Numeric utilities.
+    fun zero?(x::Number) do
+        x == 0
+    end
+
+    fun even?(x::Number) do
+        integer?(x) and x % 2 == 0
+    end
+
+    fun odd?(x::Number) do
+        integer?(x) and x % 2 == 1
+    end
+
+    fun inc(x::Number) do
+        x + 1
+    end
+
+    fun dec(x::Number) do
+        x - 1
+    end
+
+    fun sqr(x::Number) do
+        x * x
+    end
+
+    fun pow(x::Number, n::Number) do
+        pow(x, n, 1)
+    end
+
+    fun pow(x::Number, n::Number, acc::Number) do
+        cond do
+            x == 0    -> acc
+            odd?(x)   -> pow(x, n-1, x*acc)
+            otherwise -> pow(x*x, n/2, acc)
         end
     end
 
-    fun map(f::Function, xs::Bits, accum = <<>>) do
-        case xs do
-            <<>>     -> accum
-            <<x|xs>> -> map(f, xs, f(x) | accum)
-        end
+    fun map(fn::Function, xs::List) do
+        map(fn, xs, [])
     end
 
-    fun reduce(f, xs::List) do
+    fun map(fn::Function, xs::List, acc::List) do
         case xs do
-            []     -> nul
-            [x|xs] -> reduce(f, xs, x)
+            []     -> reverse(acc)
+            [x|xs] -> map(fn, xs, fn(x)|xs)
         end
+
+    fun reduce(fn::Function, xs::List) do
+        
     end
 
-    fun reduce(f, xs::List, accum) do
-        case xs do
-            []     -> accum
-            [x|xs] -> reduce f, xs, f(accum, x)
-        end
+    fun norm(xs::List) do
+       map(sqr, xs) |> sum |> sqrt
     end
 end
 
-module Math do
-    # Rascal math standard library. Mostly for experimenting with syntax right now.
-
-    struct Ratio do
-        numer
-        denom
-    end
-
-    some_list  = ["a string", :a_symbol]
-    some_tuple = (:some, :tuple)
-    some_map   = {x: 1, y: 2, z: 3}
-    some_bits  = <<000, 000, 120, 037>>
-
-    fun deriv(f::Function, h = 0.00001) do
-        # Numerical method.
-        fun (x::Number), do: (f(x+h) - f(x)) / h
-    end
-
-    fun sqr(x::Number), do: x*x
-
-    fun deriv(x::Number, f::Function, h = 0.00001) do
-        # Numerical method.
-        (f(x+h) - f(x)) / h
-    end
-
-    fun sqrt(x, e = 0.00001) do
-        # Newton's method.
-        fun loop(y) do
-            if abs(x - sqr(y)) <= e do
-                y
-            else
-                loop y - sqr(y) / y
-            end
-        end
-
-        loop(x)
-    end
-
-    fun sum(xs::List),  do: reduce '+, xs, 0
-    fun prod(xs::List), do: reduce '*, xs, 1
-    fun mean(xs::List), do: sum(xs) / xs.length
-    fun hypot(x, y),    do: sqrt x*x + y*y
-
-    fun add(x, y), do: x + y
-
-    fun even?(n) do
-        # Test for even-ness.
-        integer?(n) and n % 2 == 0
-    end
-
-    fun odd?(n) do
-        # Test for odd-ness.
-        integer?(n) and n % 2 == 1
-    end
-
-    fun pow(x, n) do
-        # Standard fast power algorithm.
-        fun loop(x, n, acc) do
-            cond do
-                n == 0    -> acc
-                even?(n)  -> loop(x*x, n/2, acc)
-                otherwise -> loop(x, n-1, x*acc)
-            end
-        end
-        loop(x, n, 1)
-    end
-end
-
-module People do
-    record Person do
-        name
-        age
-        gender
-        student?
-    end
-end
-
-use Enum, Math, People
-
-# some example instructions
-Math.pow(2, 5) # 32
-person = People.Person("Will", 34, :male, false)

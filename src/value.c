@@ -12,7 +12,7 @@ void printValues(FILE* ios, Values* values) {
   fprintf(ios, "Contents of values: \n");
   for (size_t i=0; i<values->count; i++) {
     fprintf(ios, "    ");
-    printValue(ios, values->data[i]);
+    printValue(ios, values->data[i], -1);
     fprintf(ios, "\n");
   }
 }
@@ -105,29 +105,34 @@ bool equalValues(Value x, Value y) {
   return equalObjects(AS_OBJ(x), AS_OBJ(y));
 }
 
-static void printNumber(FILE* ios, Number num) {
-  fprintf(ios, "%g", num);
+static void printNumber(FILE* ios, Number num, int indent) {
+  indent = max(indent, 0);
+  fprintf(ios, "%.*s%g", indent, "  ", num);
 }
 
-static void printBoolean(FILE* ios, Boolean x) {
-  fprintf(ios, x ? "true" : "false");
+static void printBoolean(FILE* ios, Boolean x, int indent) {
+  indent = max(indent, 0);
+  fprintf(ios, "%.*s%s", indent, "  ", x ? "true" : "false");
 }
 
-static void printUnit(FILE* ios, Value x) {
+static void printUnit(FILE* ios, Value x, int indent) {
   (void)x;
-  fprintf(ios, "nil");
+  indent = max(indent, 0);
+  fprintf(ios, "%.*s%s", indent, "  ", "nul");
 }
 
-static void printSymbol(FILE* ios, Symbol* x) {
-  fprintf(ios, ":%s", x->name);
+static void printSymbol(FILE* ios, Symbol* x, int indent) {
+  indent = max(indent, 0);
+  fprintf(ios, "%.*s:%s", indent, "  ", x->name);
 }
 
-static void printBits(FILE* ios, Bits* xs) {
+static void printBits(FILE* ios, Bits* xs, int indent) {
+  indent = max(indent, 0);
   if (xs->obj.flags)
-    fprintf(ios, "\"%s\"", (char*)xs->data);
+    fprintf(ios, "%.*s\"%s\"", indent, "  ", (char*)xs->data);
 
   else {
-    fprintf(ios, "<<");
+    fprintf(ios, "%.*s<<", indent, "  ");
 
     for (size_t i=0; i<xs->arity; i++) {
       uint8_t byte = ((uint8_t*)xs->data)[i];
@@ -142,57 +147,71 @@ static void printBits(FILE* ios, Bits* xs) {
   }
 }
 
-static void printList(FILE* ios, List* xs) {
-  fprintf(ios, "[");
+static void printList(FILE* ios, List* xs, int indent) {
+  bool pretty = indent > -1; indent = max(0, indent);
+  char* sep = pretty ? "\n" : " ", *term = pretty ? "\n" : "";
+  int childIndent = pretty ? indent+1 : -1;
 
-  for (; xs->arity; xs=xs->tail ) {
-    printValue(ios, xs->head);
-
-    if (xs->arity > 1)
-      fprintf(ios, ", ");
-  }
-
-  fprintf(ios, "]");
-}
-
-static void printTuple(FILE* ios, Tuple* xs) {
   if (xs->arity == 0)
-    fprintf(ios, "()");
+    fprintf(ios, "%.*s[]", indent, " ");
 
-  else if (xs->arity == 1) {
-    fprintf(ios, "(");
-    printValue(ios, xs->data[0]);
-    fprintf(ios, ",)");
-  } else {
-    fprintf(ios, "(");
+  else {
+    fprintf(ios, "%.*s[%s", indent, " ", term);
 
-    for (size_t i=0; i<xs->arity; i++) {
-      printValue(ios, xs->data[i]);
-
-      if (i+1 < xs->arity)
-        fprintf(ios, ", ");
+    for (; xs->arity; xs=xs->tail ) {
+      printValue(ios, xs->head, childIndent);
+      
+    if (xs->arity > 1)
+      fprintf(ios, ",%s", sep);
     }
 
-    fprintf(ios, ")");
+    fprintf(ios, "%.*s]%s", indent, " ", term);
   }
 }
 
-static void printTerm(FILE* ios, Value x) {
-  const char* tName = nameOfType(rascalType(x));
+static void printTuple(FILE* ios, Tuple* xs, int indent) {
+  bool pretty = indent > -1; indent = max(indent, 0);
+  char* sep = pretty ? "\n" : " ", *term = pretty ? "\n" : "";
+  int childIndent = pretty ? indent+1 : -1;
 
-  fprintf(ios, "#%s<%lx>", tName, x & VAL_MASK);
+  if (xs->arity == 0)
+    fprintf(ios, "%.*s()", indent, "  ");
+
+  else if (xs->arity == 1) {
+    fprintf(ios, "%.*s(%s", indent, "  ", term);
+    printValue(ios, xs->data[0], childIndent);
+    fprintf(ios, "%.*s,)%s", indent, "  ", term);
+  } else {
+    fprintf(ios, "%.*s(%s", indent, "  ", term);
+
+    for (size_t i=0; i<xs->arity; i++) {
+      printValue(ios, xs->data[i], childIndent);
+
+      if (i+1 < xs->arity)
+        fprintf(ios, ",%s", sep);
+    }
+
+    fprintf(ios, "%.*s)%s", indent, "  ", term);
+  }
 }
 
-void printValue(FILE* ios, Value x) {
+static void printTerm(FILE* ios, Value x, int indent) {
+  indent = max(indent, 0);
+  const char* tName = nameOfType(rascalType(x));
+
+  fprintf(ios, "%.*s#%s<%lx>", indent, "  ", tName, x & VAL_MASK);
+}
+
+void printValue(FILE* ios, Value x, int indent) {
   switch (rascalType(x)) {
-    case NUMBER:  printNumber(ios, AS_NUM(x)); break;
-    case BOOLEAN: printBoolean(ios, AS_BOOL(x)); break;
-    case UNIT:    printUnit(ios, x); break;
-    case SYMBOL:  printSymbol(ios, AS_SYMBOL(x)); break;
-    case BITS:    printBits(ios, AS_BITS(x)); break;
-    case LIST:    printList(ios, AS_LIST(x)); break;
-    case TUPLE:   printTuple(ios, AS_TUPLE(x)); break;
-    default:      printTerm(ios, x); break;
+    case NUMBER:  printNumber(ios, AS_NUM(x), indent); break;
+    case BOOLEAN: printBoolean(ios, AS_BOOL(x), indent); break;
+    case UNIT:    printUnit(ios, x, indent); break;
+    case SYMBOL:  printSymbol(ios, AS_SYMBOL(x), indent); break;
+    case BITS:    printBits(ios, AS_BITS(x), indent); break;
+    case LIST:    printList(ios, AS_LIST(x), indent); break;
+    case TUPLE:   printTuple(ios, AS_TUPLE(x), indent); break;
+    default:      printTerm(ios, x, indent); break;
   }
 }
 

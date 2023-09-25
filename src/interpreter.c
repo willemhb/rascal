@@ -39,7 +39,7 @@ void repl(Vm* vm) {
     fprintf(stdout, "\n");
     Value xpr = eval(vm, buffer);
     if (xpr != NOTHING_VAL)
-      printValue(stdout, xpr);
+      printValue(stdout, xpr, -1);
     fprintf(stdout, "\n");
     freeScanner(&vm->scanner);
     freeParser(&vm->parser);
