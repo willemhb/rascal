@@ -178,7 +178,7 @@ static Token scanToken(Scanner* scanner) {
         else
           token = scanSymbol(scanner);
         break;
-        
+
       case '"':
         token = scanString(scanner);
         break;
