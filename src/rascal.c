@@ -43,7 +43,12 @@ int main(const int argc, const char* argv[]) {
   (void)argv;
 
   initRascal();
-  // runFile("/home/willem/Programming/C/rascal/rascal/base.rascal");
+  #ifdef DEBUG_PARSER
+  Value testParse = runFile(&vm, "/home/willem/Programming/C/rascal/rascal/syntax.rascal");
+  fprintf(stdout, "result of test parse: ");
+  printValue(stdout, testParse, -1);
+  fprintf(stdout, "\n\n");
+  #endif
   repl(&vm);
   finalizeRascal();
 

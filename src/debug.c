@@ -29,6 +29,7 @@ static const char* tokenTypeName(TokenType type) {
     case END_TOKEN:           out = "do-block-end";      break;
     case COMMA_TOKEN:         out = "comma";             break;
     case DOT_TOKEN:           out = "dot";               break;
+    case LINEFEED_TOKEN:      out = "linefeed";          break;
     case EQUAL_TOKEN:         out = "equal";             break;
     case MATCH_TOKEN:         out = "match";             break;
     case COLON_COLON_TOKEN:   out = "type-assert";       break;
@@ -57,12 +58,16 @@ static const char* tokenTypeName(TokenType type) {
 
 static void displayToken(Token token) {
   static const char* fmt = "  %-20s [%.3d] - %-40s\n";
-  char buffer[token.length+1];
-  memcpy(buffer, token.start, token.length);
-  buffer[token.length] = '\0';
   const char* type = tokenTypeName(token.type);
 
-  fprintf(stdout, fmt, type, token.lineNo, buffer);
+  if (token.type != LINEFEED_TOKEN) {
+    char buffer[token.length+1];
+    memcpy(buffer, token.start, token.length);
+    buffer[token.length] = '\0';
+    fprintf(stdout, fmt, type, token.lineNo, buffer); 
+  } else {
+    fprintf(stdout, fmt, type, token.lineNo, "\\n");
+  }
 }
 
 void displayScanner(Scanner* scanner) {

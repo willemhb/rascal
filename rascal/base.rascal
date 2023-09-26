@@ -1,40 +1,40 @@
 module Base do
-    @doc "Core Rascal syntax."
+  @doc "Core Rascal syntax."
 
-    mac raise(exc_type::Symbol) do
-        quote do
-            perform {[:exception, unquote(exc_type)]}
-        end
+  # try/catch/finally error handling idiom.
+  mac raise(exc_type::Symbol) do
+    @doc "Simplest case."
+    quote, do: perform {[:exception, unquote(exc_type)]}
+  end
+
+  mac raise(args::Tuple{Symbol, ..}) do
+    @doc "More complex: tuple of arguments passed."
+    quote, do: perform {[:exception, unquote(fst(args))], splice(rst(args))}
+  end
+
+  mac raise(args::Tuple{List, ..}) do
+    @doc "More complex yet: tuple of arguments passed, exception type namespaced."
+    quote, do: perform {[:exception, splice(fst(args))], splice(rst(args))}
+  end
+
+  mac try(do: try_block, catch: catch_block) do
+    @doc "Most complex macro in try/catch/finally probably???"
+
+    fun expand_catch_clause(clause) do
+      case clause do
+       {:->, c, {[..e], ..r}} -> {:->, c, {[:exception, ..e], ..r}}
+       {:->, c, {e, ..r}}     -> {:->, c, {[:exception, e], ..r}}
+       {:->, c, [..e]}        -> {:->, c, [:exception, ..e]}
+       {:->, c, e}            -> {:->, c, [:exception, e]}
+      end
     end
 
-    mac raise(args::Tuple{Symbol}) do
-        exc_type = fst(args)
-        args     = assoc(args, 0, [:exception, exc_type])
-        quote, do: perform unquote(args)
+    quote do
+      begin do
+        splice(try_block)
+      handle
+        splice(map(expand_catch_clause, catch_block))
+      end
     end
-
-    mac try(do: try_body, catch: catch_body) do
-        @doc "Common error handling idiom (wraps effect system)."
-
-        fun transform_catch_clause(clause) do
-            
-        end
-
-        quote do
-            begin do
-                splice(try_body)
-            handle
-                
-            end
-        end
-    end
-
-    fun save_divide(x::Number, y::Number) do
-        @doc "Example of try/catch usage."
-        if y == 0 do
-            raise {:zero_division, x, y}
-        else
-            
-        end
-    end
+  end
 end

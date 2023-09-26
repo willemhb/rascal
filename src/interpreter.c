@@ -7,11 +7,14 @@
 #include "debug.h"
 #include "interpreter.h"
 
-void runFile(Vm* vm, const char* fname) {
+Value runFile(Vm* vm, const char* fname) {
   char* source = readFile(fname);
   scan(&vm->scanner, source);
+  Value result = parse(&vm->parser, &vm->scanner);
+  freeParser(&vm->parser);
   freeScanner(&vm->scanner);
   free(source);
+  return result;
 }
 
 Value eval(Vm* vm, char* source) {

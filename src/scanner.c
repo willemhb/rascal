@@ -51,7 +51,11 @@ static void skipWhiteSpace(Scanner* scanner) {
     char c = peekChar(scanner);
 
     switch (c) {
-      /* common whitespace */
+      /* common whitespace.
+         newlines are delimiters,
+         so they get tokenized
+         (but might be ignored). */
+      case '\r':
       case ' ':
         advance(scanner);
         scanner->indent++;
@@ -60,20 +64,6 @@ static void skipWhiteSpace(Scanner* scanner) {
       case '\t':
         advance(scanner);
         scanner->indent += 4; // treat as 4 spaces??
-        break;
-
-        /* newline */
-      case '\r':              // assume windows line break???
-        scanner->lineNo++;
-        scanner->indent = 0;
-        advance(scanner);
-        advance(scanner);
-        break;
-          
-      case '\n':
-        scanner->lineNo++;
-        scanner->indent = 0;
-        advance(scanner);
         break;
 
         /* line comment */
@@ -138,6 +128,11 @@ static Token makeToken(Scanner* scanner, TokenType type) {
   token.lineNo = scanner->lineNo;
   token.indent = scanner->indent;
 
+  if (type == LINEFEED_TOKEN) {
+    scanner->lineNo++;
+    scanner->indent = 0;
+  }
+
   return token;
 }
 
@@ -160,7 +155,7 @@ static Token scanToken(Scanner* scanner) {
   scanner->start = scanner->current;
 
   Token token;
-  
+
   if (isAtEnd(scanner)) {
     token = makeToken(scanner, EOF_TOKEN);
   } else {
@@ -214,6 +209,10 @@ static Token scanToken(Scanner* scanner) {
 
       case '.':
         token = makeToken(scanner, DOT_TOKEN);
+        break;
+
+      case '\n':
+        token = makeToken(scanner, LINEFEED_TOKEN);
         break;
 
         // tricky delimiters
@@ -394,6 +393,7 @@ const char* tokenRepr(TokenType type) {
     case END_TOKEN:           out = "'end'"; break;
     case COMMA_TOKEN:         out = "','"; break;
     case DOT_TOKEN:           out = "'.'"; break;
+    case LINEFEED_TOKEN:      out = "'\\n'"; break;
     case EQUAL_TOKEN:         out = "'='"; break;
     case MATCH_TOKEN:         out = "'->'"; break;
     case COLON_COLON_TOKEN:   out = "'::'"; break;
@@ -449,6 +449,12 @@ void scan(Scanner* scanner, char* source) {
 
   while (!isAtEnd(scanner))
     scanToken(scanner);
+
+  // stupid hack, should actually figure this out.
+  if (peekToken(scanner, -1).type != EOF_TOKEN) {
+    Token eoft = makeToken(scanner, EOF_TOKEN);
+    writeTokens(&scanner->tokens, eoft);
+  }
 
   #ifdef DEBUG_SCANNER
   displayScanner(scanner);

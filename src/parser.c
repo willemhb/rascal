@@ -33,7 +33,7 @@ typedef struct {
 } ParseRule;
 
 // miscellaneous helpers
-static ParseRule* getRule(TokenType type);
+static ParseRule* rule(TokenType type);
 static Token*     last(Parser* parser);
 static Token*     this(Parser* parser);
 static Value      peekXpr(Parser* parser, int i);
@@ -57,7 +57,7 @@ static bool       match(Parser* parser, TokenType type);
            default:saveObj)(p, x)
 
 // error helpers
-static void consume(Parser* parser, TokenType type, const char* fmt, ...);
+static void consume(Parser* parser, bool optional, TokenType type, const char* fmt, ...);
 static void errorAt(Token* token, Parser* parser, const char* fmt, ...);
 static void errorAtCurrent(Parser* parser, const char* fmt, ...);
 static void error(Parser* parser, const char* fmt, ...);
@@ -77,6 +77,8 @@ static void grouping(Parser* parser);
 static void list(Parser* parser);
 static void tuple(Parser* parser);
 static void call(Parser* parser);
+static void block(Parser* parser);
+static void ignore(Parser* parser);
 static void expression(Parser* parser);
 
 // toplevel parse helpers
@@ -103,10 +105,11 @@ ParseRule rules[] = {
   [RBRACK_TOKEN]        = { NULL,       NULL,   NO_PRECEDENCE         },
   [LBRACE_TOKEN]        = { tuple,      call,   CALL_PRECEDENCE       },
   [RBRACE_TOKEN]        = { NULL,       NULL,   NO_PRECEDENCE         },
-  [DO_TOKEN]            = { NULL,       NULL,   NO_PRECEDENCE         },
+  [DO_TOKEN]            = { NULL,       call,   CALL_PRECEDENCE       },
   [END_TOKEN]           = { NULL,       NULL,   NO_PRECEDENCE         },
   [COMMA_TOKEN]         = { NULL,       NULL,   NO_PRECEDENCE         },
   [DOT_TOKEN]           = { NULL,       binary, ACCESSOR_PRECEDENCE   },
+  [LINEFEED_TOKEN]      = { ignore,     NULL,   NO_PRECEDENCE         },
   [EQUAL_TOKEN]         = { NULL,       binary, ASSIGNMENT_PRECEDENCE },
   [MATCH_TOKEN]         = { NULL,       binary, ASSIGNMENT_PRECEDENCE },
   [COLON_COLON_TOKEN]   = { NULL,       binary, ASSIGNMENT_PRECEDENCE },
@@ -119,7 +122,7 @@ ParseRule rules[] = {
   [LESS_EQUAL_TOKEN]    = { NULL,       binary, COMPARISON_PRECEDENCE },
   [GREATER_EQUAL_TOKEN] = { NULL,       binary, COMPARISON_PRECEDENCE },
   [PLUS_TOKEN]          = { NULL,       binary, TERM_PRECEDENCE       },
-  [MINUS_TOKEN]         = { NULL,       binary, TERM_PRECEDENCE       },
+  [MINUS_TOKEN]         = { unary,      binary, TERM_PRECEDENCE       },
   [BAR_TOKEN]           = { NULL,       binary, TERM_PRECEDENCE       },
   [MUL_TOKEN]           = { NULL,       binary, FACTOR_PRECEDENCE     },
   [DIV_TOKEN]           = { NULL,       binary, FACTOR_PRECEDENCE     },
@@ -130,7 +133,7 @@ ParseRule rules[] = {
   [EOF_TOKEN]           = { NULL,       NULL,   NO_PRECEDENCE         }
 };
 
-static ParseRule* getRule(TokenType type) {
+static ParseRule* rule(TokenType type) {
   return &rules[type];
 }
 
@@ -246,10 +249,12 @@ static bool match(Parser* parser, TokenType type) {
 }
 
 // error helper implementations
-static void consume(Parser* parser, TokenType type, const char* fmt, ...) {
+static void consume(Parser* parser, bool optional, TokenType type, const char* fmt, ...) {
   if (this(parser)->type == type)
     advance(parser);
-  else {
+  else if (optional) {
+    /* do nothing. */
+  } else {
     va_list va;
     va_start(va, fmt);
     verrorAt(this(parser), parser, fmt, va);
@@ -398,8 +403,8 @@ static void unary(Parser* parser) {
 static void binary(Parser* parser) {
   Token token = *last(parser);
   Symbol* head = tokenToSymbol(token);
-  ParseRule* rule = getRule(token.type);
-  parsePrecedence(parser, (Precedence)(rule->precedence + 1));
+  ParseRule* r = rule(token.type);
+  parsePrecedence(parser, (Precedence)(r->precedence + 1));
   List* subx = newList2(peekXpr(parser, -2), peekXpr(parser, -1));
   Tuple* ast = newTriple(TAG_OBJ(head), EMPTY_LIST(), TAG_OBJ(subx));
   consumeXpr(parser, 2);
@@ -408,7 +413,7 @@ static void binary(Parser* parser) {
 
 static void grouping(Parser* parser) {
   expression(parser);
-  consume(parser, RPAR_TOKEN, "Expect ')' at end of group");
+  consume(parser, false, RPAR_TOKEN, "Expect ')' at end of group");
 }
 
 static void list(Parser* parser) {
@@ -446,7 +451,7 @@ static void tuple(Parser* parser) {
 }
 
 static void call(Parser* parser) {
-  TokenType term = last(parser)->type == LPAR_TOKEN ? RPAR_TOKEN : NO_TOKEN;
+  TokenType term = last(parser)->type == LPAR_TOKEN ? RPAR_TOKEN : LINEFEED_TOKEN;
   size_t argc = arguments(parser, term);
 
   if (!parser->hadError) {
@@ -461,45 +466,31 @@ static void call(Parser* parser) {
 static size_t arguments(Parser* parser, TokenType terminal) {
   size_t argc = 0;
 
-  if (terminal != NO_TOKEN) {
-    while(!parser->hadError &&
-          !isAtEnd(parser) &&
-          !check(parser, terminal)) {
-
-      if (check(parser, KEYWORD_TOKEN)) {
-        keywords(parser, terminal);
-        argc++;
-        break;
-      }
-
-      expression(parser);
-      argc++;
-      if (!check(parser, terminal))
-        consume(parser, COMMA_TOKEN, "Expect ',' between members");
-    }
-
-    if (!parser->hadError)
-      consume(parser, terminal, "Expect %s at end", tokenRepr(terminal));
-
-  } else {
+  if (terminal == LINEFEED_TOKEN && !check(parser, DO_TOKEN))
     decOffset(parser);
-    while (!parser->hadError &&
-           !isAtEnd(parser) &&
-           !isAtLineBreak(parser)) {
-      if (check(parser, KEYWORD_TOKEN)) {
-        keywords(parser, terminal);
-        argc++;
-        break;
-      }
 
+  while(!parser->hadError && !isAtEnd(parser) && !check(parser, terminal)) {
+    if (check(parser, DO_TOKEN)) {
+      block(parser);
+      argc++;
+      break;
+    } else if (check(parser, KEYWORD_TOKEN)) {
+      keywords(parser, terminal);
+      argc++;
+      break;
+    } else {
       expression(parser);
       argc++;
-
-      if (!isAtEnd(parser) && !isAtLineBreak(parser))
-        consume(parser, COMMA_TOKEN, "Expect ',' between members");
+      if (!check(parser, terminal)) {
+        consume(parser, false, COMMA_TOKEN, "Expect ',' between members");
+        consume(parser, true, LINEFEED_TOKEN, "");
+      }
     }
   }
-
+  
+  if (!parser->hadError)
+    consume(parser, terminal, false, "Expect %s at end", tokenRepr(terminal));
+  
   return argc;
 }
 
@@ -518,44 +509,87 @@ static void keyword(Parser* parser) {
 static size_t keywords(Parser* parser, TokenType terminal) {
   size_t argc = 0;
 
-  if (terminal != NO_TOKEN) {
-    while (!parser->hadError &&
-           !isAtEnd(parser) &&
-           !check(parser, terminal)) {
-      if (check(parser, KEYWORD_TOKEN)) {
-        keyword(parser);
-        argc++;
-
-        if (!check(parser, terminal))
-          consume(parser, COMMA_TOKEN, "Expect ',' between pairs");
-      } else {
-        error(parser, "Expect keyword");
+  if (terminal == LINEFEED_TOKEN)
+    decOffset(parser);
+  
+  while (!parser->hadError && !isAtEnd(parser) && !check(parser, terminal)) {
+    if (check(parser, KEYWORD_TOKEN)) {
+      keyword(parser);
+      argc++;
+      
+      if (!check(parser, terminal)) {
+        consume(parser, false, COMMA_TOKEN, "Expect ',' between pairs");
+        consume(parser, true, LINEFEED_TOKEN, "");
       }
-    }
-    consume(parser, terminal, "Expect %s at end", tokenRepr(terminal));
-  } else {    
-    while (!parser->hadError &&
-           !isAtEnd(parser) &&
-           !isAtLineBreak(parser)) {
-      if (check(parser, KEYWORD_TOKEN)) {
-        keyword(parser);
-        argc++;
-        
-        if (!isAtEnd(parser) && !isAtLineBreak(parser))
-          consume(parser, COMMA_TOKEN, "Expect ',' between pairs");
-      } else {
-        error(parser, "Expect keyword");
-      }
+    } else {
+      error(parser, "Expect keyword");
     }
   }
+
+  consume(parser, false, terminal, "Expect %s at end", tokenRepr(terminal));
 
   if (!parser->hadError) {
     List* xpr = newListN(argc, &parser->subXprs.data[parser->subXprs.count-argc]);
     consumeXpr(parser, argc);
     saveXpr(parser, xpr);
   }
-
+  
   return argc;
+}
+
+static void block(Parser* parser) {
+  size_t nBlocks = 0;
+  int baseIndent = this(parser)->indent;
+  TokenType terminal = END_TOKEN;
+
+  while (!parser->hadError && !isAtEnd(parser) && !check(parser, terminal)) {
+    if (!(check(parser, DO_TOKEN) || check(parser, IDENTIFIER_TOKEN))) {
+      errorAtCurrent(parser, "Expected an identifier");
+    } else {
+      Symbol* head = tokenToSymbol(*this(parser));
+      advance(parser);
+      saveXpr(parser, head);
+      size_t nBlockMembers = 0;
+
+      while (!parser->hadError
+             && !isAtEnd(parser)
+             && !check(parser, terminal)
+             && this(parser)->indent > baseIndent) {
+        expression(parser);
+        consume(parser,
+                false,
+                LINEFEED_TOKEN,
+                "Expected block members on separate lines");
+        nBlockMembers++;
+      }
+      // list of block constituents
+      List* blockMembers = newListN(nBlockMembers,
+                                    &parser->subXprs.data[parser->subXprs.count-nBlockMembers]);
+      consumeXpr(parser, nBlockMembers);
+      saveXpr(parser, blockMembers);
+      // block label
+      Tuple* blockPair = newPair(peekXpr(parser, -2), peekXpr(parser, -1));
+      consumeXpr(parser, 2);
+      saveXpr(parser, blockPair);
+      nBlocks++;
+    }
+  }
+
+  if (!parser->hadError) {
+    consume(parser, false, END_TOKEN, "Expect 'end' at end of block");
+
+    if (!parser->hadError) {
+      List* blocks = newListN(nBlocks,
+                              &parser->subXprs.data[parser->subXprs.count-nBlocks]);
+      consumeXpr(parser, nBlocks);
+      saveXpr(parser, blocks);
+    }
+  }
+}
+
+static void ignore(Parser* parser) {
+  advance(parser);
+  expression(parser);
 }
 
 static void expression(Parser* parser) {
@@ -567,7 +601,7 @@ static void expression(Parser* parser) {
 
 static void parsePrecedence(Parser* parser, Precedence precedence) {
   advance(parser);
-  ParseFn prefixRule = getRule(last(parser)->type)->prefix;
+  ParseFn prefixRule = rule(last(parser)->type)->prefix;
 
   if (prefixRule == NULL)
     error(parser, "Expect expression");
@@ -575,10 +609,9 @@ static void parsePrecedence(Parser* parser, Precedence precedence) {
   else {
     prefixRule(parser);
 
-    while (!parser->hadError &&
-           precedence <= getRule(this(parser)->type)->precedence) {
+    while (!parser->hadError && precedence <= rule(this(parser)->type)->precedence) {
       advance(parser);
-      ParseFn infixRule = getRule(last(parser)->type)->infix;
+      ParseFn infixRule = rule(last(parser)->type)->infix;
 
       if (infixRule == NULL)
         error(parser, "Expected expression");
