@@ -34,7 +34,17 @@ module Base do
         if y == 0 do
             raise {:zero_division, x, y}
         else
-            
+            x / y
+        end
+    end
+
+    fun use_save_divide(x::Number, y::Number) do
+        @doc "Example of try/catch usage."
+        try do
+            safe_divide(11, 0)
+        catch
+            {:zero_division, x, y} -> IO.print("Zero division in #{x} / #{y}.\n")
+            _                      -> 
         end
     end
 end
