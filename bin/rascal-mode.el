@@ -9,14 +9,17 @@
 (define-generic-mode
   'rascal-mode
   '("#")
-  '("module" "fun" "mac" "type"   ;; binding syntax
-    "struct" "record" "union"     ;; binding syntax (continued)
-    "perform" "handle" "resume"   ;; effect syntax
-    "try" "catch" "raise" "yield" ;; control syntax
-    "if" "elif" "else" "case"     ;; branching syntax
-    "cond" "and" "or" "not"       ;; branching syntax (continued)
-    "do" "end"                    ;; do notation
-    "use" "c-call" "quote"        ;; misc syntax
+  '("module" "fun" "mac" "type" ;; binding syntax
+    "struct" "record" "union"   ;; binding syntax (continued)
+    "begin" "handle"            ;; effect syntax
+    "perform" "resume"          ;; effect syntax (continued)
+    "try" "catch" "finally"     ;; control syntax
+    "raise" "yield"             ;; control syntax (continued)
+    "async" "sync" "await"      ;; control syntax (continued)
+    "if" "elif" "else" "case"   ;; branching syntax
+    "cond" "and" "or" "not"     ;; branching syntax (continued)
+    "do" "end"                  ;; do notation
+    "use" "c-call" "quote"      ;; miscellaneous syntax
    )
   '(("[^:]:[-_a-zA-Z?*+0-9/]+" . font-lock-type-face)
     ("@[-a-zA-Z?*+0-9/]+" . font-lock-type-face)
@@ -32,7 +35,6 @@
     ("\\_<Any\\_>" . font-lock-type-face)
     ("\\_<None\\_>" . font-lock-type-face)
     ("\\_<Unit\\_>" . font-lock-type-face)
-    ("\\_<Term\\_>" . font-lock-type-face)
     ("\\_<Number\\_>" . font-lock-type-face)
     ("\\_<Boolean\\_>" . font-lock-type-face)
     ("\\_<Symbol\\_>" . font-lock-type-face)

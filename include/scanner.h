@@ -71,6 +71,7 @@ typedef struct {
   size_t      length;
   TokenType   type;
   int         lineNo;
+  int         indent;
 } Token;
 
 #include "tpl/declare.h"
@@ -79,7 +80,8 @@ ARRAY_TYPE(Tokens, Token);
 struct Scanner {
   char*  start;
   char*  current;
-  int    lineNo;
+  int    lineNo;   // current line in source code
+  int    indent;   // offset of start of current line
   Tokens tokens;
 };
 
