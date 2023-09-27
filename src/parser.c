@@ -548,6 +548,7 @@ static void block(Parser* parser) {
     } else {
       Symbol* head = tokenToSymbol(*this(parser));
       advance(parser);
+      advance(parser);
       saveXpr(parser, head);
       size_t nBlockMembers = 0;
 

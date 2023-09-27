@@ -38,3 +38,77 @@ module Base do
     end
   end
 end
+
+module Enum do
+  @doc "Iteration and enumeration utilities."
+  fun empty?(xs::List),  do: xs == []
+  fun empty?(xs::Tuple), do: xs == {}
+  fun empty?(xs::Map),   do: xs == %{}
+  fun empty?(xs::Bits),  do: xs == <<>>
+
+  fun fold(fn::Function, xs::List) do
+    if empty?(xs) do
+      nul
+    else
+      fold(fn, tl(xs), hd(xs))
+    end
+  end
+
+  fun fold(fn::Function, xs::List, acc) do
+    case xs do
+      []     -> acc
+      [x|xs] -> fold(fn, xs, fn(acc, x))
+    end
+  end
+end
+
+module Math do
+  @doc "Various utilities to flesh out the standard library."
+
+  # Basic value tests.
+  fun zero?(x::Number), do: x == 0
+  fun one?(x::Number),  do: x == 1
+  fun even?(x::Number), do: zero?(x % 2)
+  fun odd?(x::Number),  do: one?(x % 2)
+  
+  fun divides?(a::Number, b::Number) do
+    b % a == 0
+  end
+
+  # Common operations.
+  fun sqr(x::Number), do: x * x
+  fun cub(x::Number), do: x * x * x
+  fun inc(x::Number), do: x + 1
+  fun dec(x::Number), do: x - 1
+
+  # Standard fast power algorithm (tail recursive version).
+  fun pow(x::Number, n::Number) do
+    fun loop(x::Number, n::Number, acc::Number) do
+      if n == 0 do
+        acc
+      elif even?(n)
+        loop(x*x, n/2, acc)
+      else
+        loop(x, n-1, x*acc)
+      end
+    end
+
+    loop(x, n, 1)
+  end
+
+  # Euclid's algorithm.
+  fun gcd(a::Number, b::Number) do
+    if b > a do
+      gcd(b, a)
+    elif divides?(b, a)
+      b
+    else
+      gcd(b, a % b)
+    end
+  end
+
+  # Operations on collections.
+  fun sum(xs::List),  do: fold('+, xs, 0)
+  fun prod(xs::List), do: fold('*, xs, 1)
+
+end
