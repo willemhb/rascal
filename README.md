@@ -27,7 +27,7 @@ here.
 # Why intrinsic multimethods?
 Although efficient implementation of multimethods is quite difficult, and although method resolution and ambiguity create occasional headaches for programmers, intrinsic 
 multimethods (in the style of Julia) are a vastly simpler and more powerful abstraction tool than the object oriented constructs that have become pervasive in industry and 
-languages. This video does a better job explaining it than I can. 
+languages. [This video does a better job explaining it than I can](https://www.youtube.com/watch?v=kc9HwsxE1OY). 
 
 # why algebraic effects?
 The central goal of Rascal is to fully realize the original promise of Lisp: a language that gives users complete power to implement constructs that don't already exist. While macros 
