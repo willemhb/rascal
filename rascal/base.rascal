@@ -156,7 +156,7 @@ module Math do
   end
 
   # Euclid's algorithm.
-  fun gcd(a::Number, b::Number) do
+  fun gcd(a::Integer, b::Integer) do
     if b > a do
       gcd(b, a)
     elif divides?(b, a)
