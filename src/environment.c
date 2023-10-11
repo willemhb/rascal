@@ -37,6 +37,19 @@ size_t defineGlobal(Environment* environment, Symbol* name, Value init) {
   return offset;
 }
 
+bool lookupGlobal(Environment* environment, Symbol* name, Value* buf) {
+  size_t offset = 0;
+  bool out      = nameSpaceGet(&environment->globalNs, name, &offset);
+
+  if (out)
+    *buf = NUL_VAL;
+
+  else
+    *buf = environment->globalVals.data[offset];
+
+  return out;
+}
+
 Value defineSpecial(char* name, CompileFn compile) {
   Symbol* sym = getSymbol(name);
   assert(sym->special == NULL);

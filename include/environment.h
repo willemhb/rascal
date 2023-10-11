@@ -18,6 +18,7 @@ void    freeEnvironment(Environment* environment);
 
 Symbol* internSymbol(Environment* environment, char* name);
 size_t  defineGlobal(Environment* environment, Symbol* name, Value init);
+bool    lookupGlobal(Environment* environment, Symbol* name, Value* buf);
 Value   defineSpecial(char* name, CompileFn compile);
 
 #endif

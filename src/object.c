@@ -50,7 +50,7 @@ TABLE_TYPE(NameSpace,
            hashObject,
            internNameSpaceKey,
            NULL,
-           NOTHING_VAL);
+           UINT64_MAX);
 
 // internal forward declarations
 static void  initObject(void* pointer, Type type, int flags) {

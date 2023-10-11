@@ -26,9 +26,15 @@ struct Vm {
   Interpreter interpreter;
 };
 
+// globals
 extern Vm vm;
 
+// external API
 void   initVm(Vm* vm);
 void   freeVm(Vm* vm);
+
+Value  exec(Vm* vm, Chunk* code);
+Value  eval(Vm* vm, Value val);
+void   repl(Vm* vm);
 
 #endif

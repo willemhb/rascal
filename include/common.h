@@ -46,12 +46,13 @@ static inline double wordToDouble(uintptr_t word) {
 
 // other C types
 // VM state objects
-typedef struct Heap        Heap;
-typedef struct Interpreter Interpreter;
-typedef struct Environment Environment;
-typedef struct Reader      Reader;
-typedef struct Compiler    Compiler;
-typedef struct Vm          Vm;
+typedef struct Heap        Heap;         // allocation state
+typedef struct Context     Context;      // error and execution context sate
+typedef struct Interpreter Interpreter;  // execution state
+typedef struct Environment Environment;  // namespace & symbol table
+typedef struct Reader      Reader;       // reader state
+typedef struct Compiler    Compiler;     // compiler state
+typedef struct Vm          Vm;           // composite state object (bundles all of the above)
 
 // misc enums
 typedef enum {
