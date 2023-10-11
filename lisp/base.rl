@@ -163,6 +163,7 @@
         ((0 _)       ())
         ((i (h & t)) (loop (dec i) t (cons h acc))))))
 
+
   (fun drop ((Function p?) (List xs))
     (case (xs)
       ((())      ())
