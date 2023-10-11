@@ -7,8 +7,7 @@
 #include <assert.h>
 
 #define DEBUG_RASCAL
-#define DEBUG_SCANNER
-#define DEBUG_PARSER
+#define DEBUG_READER
 
 #define MAX_ARITY    0x0000ffffffffffffUL // also maximum hash value
 #define MAX_POW2     0x0000800000000000UL
@@ -50,8 +49,7 @@ static inline double wordToDouble(uintptr_t word) {
 typedef struct Heap        Heap;
 typedef struct Interpreter Interpreter;
 typedef struct Environment Environment;
-typedef struct Scanner     Scanner;
-typedef struct Parser      Parser;
+typedef struct Reader      Reader;
 typedef struct Compiler    Compiler;
 typedef struct Vm          Vm;
 

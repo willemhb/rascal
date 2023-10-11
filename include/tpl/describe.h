@@ -11,7 +11,7 @@
 #undef ARRAY_TYPE
 #undef TABLE_TYPE
 
-#define ARRAY_TYPE(ArrayType, ElType, VaType)                           \
+#define ARRAY_TYPE(ArrayType, ElType, VaType, encodep)                  \
   void init##ArrayType(ArrayType* array) {                              \
     array->data     = NULL;                                             \
     array->count    = 0;                                                \
@@ -28,10 +28,10 @@
     if (newCount == 0) {                                                \
       if (array->count != 0)                                            \
         free##ArrayType(array);                                         \
-    } else if (newCount > array->capacity ||                            \
-               (newCount < (array->capacity >> 1))) {                   \
+    } else if ((newCount+encodep)  > array->capacity ||                 \
+               ((newCount+encodep) < (array->capacity >> 1))) {         \
       size_t oldCap   = array->capacity;                                \
-      size_t newCap   = max(8u, ceilPow2(newCount+1));                  \
+      size_t newCap   = max(8u, ceilPow2(newCount+encodep+1));          \
                                                                         \
       if (oldCap != newCap) {                                           \
         size_t oldSize  = oldCap * sizeof(ElType);                      \
@@ -51,17 +51,20 @@
     return oldCount;                                                    \
   }                                                                     \
                                                                         \
-  void write##ArrayType(ArrayType* array, ElType x) {                   \
+  size_t write##ArrayType(ArrayType* array, ElType x) {                 \
     size_t offset = resize##ArrayType(array, array->count+1);           \
     array->data[offset] = x;                                            \
+    return array->count-1;                                              \
   }                                                                     \
                                                                         \
-  void write##ArrayType##N(ArrayType* array, size_t n, ElType* data) {  \
+  size_t write##ArrayType##N(ArrayType* array, size_t n, ElType* data) { \
     size_t offset = resize##ArrayType(array, array->count+n);           \
-    memcpy(array->data+offset, data, n*sizeof(ElType));                 \
+    if (data != NULL)                                                   \
+      memcpy(array->data+offset, data, n*sizeof(ElType));               \
+    return offset;                                                      \
   }                                                                     \
                                                                         \
-  void write##ArrayType##V(ArrayType* array, size_t n, ...) {           \
+  size_t write##ArrayType##V(ArrayType* array, size_t n, ...) {         \
     size_t offset = resize##ArrayType(array, array->count+n);           \
     va_list va; va_start(va, n);                                        \
                                                                         \
@@ -69,6 +72,7 @@
       array->data[i] = va_arg(va, VaType);                              \
                                                                         \
     va_end(va);                                                         \
+    return offset;                                                      \
   }                                                                     \
                                                                         \
   ElType pop##ArrayType(ArrayType* array) {                             \
@@ -178,7 +182,7 @@
       if (entry->val == noValue) {                                      \
         table->count++;                                                 \
       }                                                                 \
-      internKey(entry, key, value);                                     \
+      internKey(table, entry, key, value);                              \
     } else {                                                            \
       *value = entry->val;                                              \
     }                                                                   \

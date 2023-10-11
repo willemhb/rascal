@@ -3,8 +3,9 @@
 
 #include "memory.h"
 #include "environment.h"
-#include "scanner.h"
-#include "parser.h"
+#include "reader.h"
+#include "compiler.h"
+#include "interpreter.h"
 
 /* all the global state needed by the interpreter.
    Really just packages more specialized structs. */
@@ -15,16 +16,18 @@ struct Vm {
   // environment state
   Environment environment;
 
-  // scanner state
-  Scanner scanner;
+  // reader state
+  Reader reader;
 
-  // parser state
-  Parser parser;
+  // compiler state
+  Compiler compiler;
+
+  // interpreter state
+  Interpreter interpreter;
 };
 
 extern Vm vm;
 
-// forward declarations
 void   initVm(Vm* vm);
 void   freeVm(Vm* vm);
 

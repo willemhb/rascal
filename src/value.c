@@ -6,20 +6,7 @@
 // array types
 #include "tpl/describe.h"
 
-ARRAY_TYPE(Values, Value, Value);
-
-void printValues(FILE* ios, Values* values) {
-  fprintf(ios,
-          "Contents of values (count=%zu) (capacity=%zu): \n",
-          values->count,
-          values->capacity);
-
-  for (size_t i=0; i<values->count; i++) {
-    fprintf(ios, "    ");
-    printValue(ios, values->data[i], -1);
-    fprintf(ios, "\n");
-  }
-}
+ARRAY_TYPE(Values, Value, Value, false);
 
 Type valueType(Value value) {
   switch (value & TAG_MASK) {
@@ -47,7 +34,7 @@ Type objectType(Obj* object) {
 
 size_t sizeOfType(Type type) {
   size_t out;
-  
+
   switch (type) {
     case NUMBER:  out = sizeof(Number);  break;
     case BOOLEAN: out = sizeof(Boolean); break;
@@ -55,16 +42,7 @@ size_t sizeOfType(Type type) {
     case SYMBOL:  out = sizeof(Symbol);  break;
     case BITS:    out = sizeof(Bits);    break;
     case LIST:    out = sizeof(List);    break;
-    case TUPLE:   out = sizeof(Tuple);   break;
-      /*
-        case MAP:     out = sizeof(Map);     break;
-        case NODE:    out = sizeof(Node);    break;
-        case LEAF:    out = sizeof(Leaf);    break;
-        case CHUNK:   out = sizeof(Chunk);   break;
-        case CLOSURE: out = sizeof(Closure); break;
-        case UPVALUE: out = sizeof(UpValue); break;
-        case NATIVE:  out = sizeof(Native);  break;
-        case STREAM:  out = sizeof(Stream);  break; */
+    case CHUNK:   out = sizeof(Chunk);   break;
     default:      out = 0;               break;
   }
 
@@ -81,16 +59,6 @@ char* nameOfType(Type type) {
     case SYMBOL:  out = "Symbol";  break;
     case BITS:    out = "Bits";    break;
     case LIST:    out = "List";    break;
-    case TUPLE:   out = "Tuple";   break;
-      /*
-        case MAP:     out = "Map";     break;
-        case NODE:    out = "Node";    break;
-        case LEAF:    out = "Leaf";    break;
-        case CHUNK:   out = "Chunk";   break;
-        case CLOSURE: out = "Closure"; break;
-        case UPVALUE: out = "Upvalue"; break;
-        case NATIVE:  out = "Native";  break;
-        case STREAM:  out = "Stream";  break; */
     default:      out = "Term";    break;
   }
 
@@ -109,34 +77,29 @@ bool equalValues(Value x, Value y) {
   return equalObjects(AS_OBJ(x), AS_OBJ(y));
 }
 
-static void printNumber(FILE* ios, Number num, int indent) {
-  indent = max(indent, 0);
-  fprintf(ios, "%.*s%g", indent, "  ", num);
+static void printNumber(FILE* ios, Number num) {
+  fprintf(ios, "%g", num);
 }
 
-static void printBoolean(FILE* ios, Boolean x, int indent) {
-  indent = max(indent, 0);
-  fprintf(ios, "%.*s%s", indent, "  ", x ? "true" : "false");
+static void printBoolean(FILE* ios, Boolean x) {
+  fprintf(ios, x ? "true" : "false");
 }
 
-static void printUnit(FILE* ios, Value x, int indent) {
+static void printUnit(FILE* ios, Value x) {
   (void)x;
-  indent = max(indent, 0);
-  fprintf(ios, "%.*s%s", indent, "  ", "nul");
+  fprintf(ios, "nul");
 }
 
-static void printSymbol(FILE* ios, Symbol* x, int indent) {
-  indent = max(indent, 0);
-  fprintf(ios, "%.*s:%s", indent, "  ", x->name);
+static void printSymbol(FILE* ios, Symbol* x) {
+  fprintf(ios, "%s", x->name);
 }
 
-static void printBits(FILE* ios, Bits* xs, int indent) {
-  indent = max(indent, 0);
+static void printBits(FILE* ios, Bits* xs) {
   if (xs->obj.flags)
-    fprintf(ios, "%.*s\"%s\"", indent, "  ", (char*)xs->data);
+    fprintf(ios, "\"%s\"", (char*)xs->data);
 
   else {
-    fprintf(ios, "%.*s<<", indent, "  ");
+    fprintf(ios, "<<");
 
     for (size_t i=0; i<xs->arity; i++) {
       uint8_t byte = ((uint8_t*)xs->data)[i];
@@ -144,74 +107,41 @@ static void printBits(FILE* ios, Bits* xs, int indent) {
       fprintf(ios, "%.3d", byte);
 
       if (i+1 < xs->arity)
-        fprintf(ios, ",");
+        fprintf(ios, " ");
     }
 
     fprintf(ios, ">>");
   }
 }
 
-static void printList(FILE* ios, List* xs, int indent) {
-  bool pretty = indent > -1; indent = max(0, indent);
-  char* sep = pretty ? "\n" : " ", *term = pretty ? "\n" : "";
-  int childIndent = pretty ? indent+1 : -1;
+static void printList(FILE* ios, List* xs) {
+  fprintf(ios, "(");
+  
+  for (; xs->arity > 0; xs=xs->tail ) {
+    printValue(ios, xs->head);
 
-  if (xs->arity == 0)
-    fprintf(ios, "%.*s[]", indent, " ");
-
-  else {
-    fprintf(ios, "%.*s[%s", indent, " ", term);
-
-    for (; xs->arity; xs=xs->tail ) {
-      printValue(ios, xs->head, childIndent);
-      
     if (xs->arity > 1)
-      fprintf(ios, ",%s", sep);
-    }
-
-    fprintf(ios, "%.*s]%s", indent, " ", term);
+      fprintf(ios, " ");
   }
+
+  fprintf(ios, ")");
 }
 
-static void printTuple(FILE* ios, Tuple* xs, int indent) {
-  bool pretty = indent > -1; indent = max(indent, 0);
-  char* sep = pretty ? "\n" : " ", *term = pretty ? "\n" : "";
-  int childIndent = pretty ? indent+1 : -1;
-
-  if (xs->arity == 0)
-    fprintf(ios, "%.*s{}", indent, " ");
-
-  else {
-    fprintf(ios, "%.*s{%s", indent, " ", term);
-
-    for (size_t i=0; i < xs->arity; i++ ) {
-      printValue(ios, xs->data[i], childIndent);
-      
-    if (i + 1 < xs->arity)
-      fprintf(ios, ",%s", sep);
-    }
-
-    fprintf(ios, "%.*s}%s", indent, " ", term);
-  }
-}
-
-static void printTerm(FILE* ios, Value x, int indent) {
-  indent = max(indent, 0);
+static void printTerm(FILE* ios, Value x) {
   const char* tName = nameOfType(rascalType(x));
 
-  fprintf(ios, "%.*s#%s<%lx>", indent, "  ", tName, x & VAL_MASK);
+  fprintf(ios, "#%s<%lx>", tName, x & VAL_MASK);
 }
 
-void printValue(FILE* ios, Value x, int indent) {
+void printValue(FILE* ios, Value x) {
   switch (rascalType(x)) {
-    case NUMBER:  printNumber(ios, AS_NUM(x), indent); break;
-    case BOOLEAN: printBoolean(ios, AS_BOOL(x), indent); break;
-    case UNIT:    printUnit(ios, x, indent); break;
-    case SYMBOL:  printSymbol(ios, AS_SYMBOL(x), indent); break;
-    case BITS:    printBits(ios, AS_BITS(x), indent); break;
-    case LIST:    printList(ios, AS_LIST(x), indent); break;
-    case TUPLE:   printTuple(ios, AS_TUPLE(x), indent); break;
-    default:      printTerm(ios, x, indent); break;
+    case NUMBER:  printNumber(ios, AS_NUM(x)); break;
+    case BOOLEAN: printBoolean(ios, AS_BOOL(x)); break;
+    case UNIT:    printUnit(ios, x); break;
+    case SYMBOL:  printSymbol(ios, AS_SYMBOL(x)); break;
+    case BITS:    printBits(ios, AS_BITS(x)); break;
+    case LIST:    printList(ios, AS_LIST(x)); break;
+    default:      printTerm(ios, x); break;
   }
 }
 

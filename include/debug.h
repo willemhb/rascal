@@ -1,9 +1,10 @@
 #ifndef rascal_debug_h
 #define rascal_debug_h
 
-#include "common.h"
+#include "value.h"
+#include "object.h"
 
 // external API
-void displayScanner(Scanner* scanner);
+void displayValues(FILE* ios, Values* vals);
 
 #endif

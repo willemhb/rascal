@@ -1,4 +1,4 @@
- # Thanks to Job Vranish (https://spin.atomicobject.com/2016/08/26/makefile-c-projects/)
+# Thanks to Job Vranish (https://spin.atomicobject.com/2016/08/26/makefile-c-projects/)
 TARGET_EXEC := rascal
 
 BUILD_DIR := ./build
@@ -20,11 +20,11 @@ DEPS := $(OBJS:.o=.d)
 # Add a prefix to INC_DIRS. So moduleA would become -ImoduleA. GCC understands this -I flag
 INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 
-LDFLAGS := -Wall -g3 -fsanitize=address -lm
+LDFLAGS := -g -lm
 
 # The -MMD and -MP flags together generate Makefiles for us!
 # These files will have .d instead of .o as the output.
-CFLAGS   := $(INC_FLAGS) -Wall -g3 -fsanitize=address -lm
+CFLAGS   := $(INC_FLAGS) -g -lm
 # CPPFLAGS := $(INC_FLAGS) -MMD -MP
 
 # The final build step.

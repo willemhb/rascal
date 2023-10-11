@@ -8,14 +8,15 @@
 // template implementations
 #include "tpl/describe.h"
 
-ARRAY_TYPE(Objects, Obj*, Obj*);
-ARRAY_TYPE(ByteCode, uint16_t, int);
+ARRAY_TYPE(Objects, Obj*, Obj*, false);
+ARRAY_TYPE(ByteCode, uint16_t, int, false);
 
 bool compareSymbolTableKeys(char* xs, char* ys) {
   return strcmp(xs, ys) == 0;
 }
 
-void internSymbolTableKey(SymbolTableEntry* entry, char* key, Symbol** value) {
+void internSymbolTableKey(SymbolTable* table, SymbolTableEntry* entry, char* key, Symbol** value) {
+  (void)table;
   Symbol* atom   = newSymbol(key);
   entry->key   = atom->name;
   entry->val   = atom;
@@ -36,9 +37,9 @@ bool compareNameSpaceKeys(Symbol* x, Symbol* y) {
   return x == y;
 }
 
-void internNameSpaceKey(NameSpaceEntry* entry, Symbol* key, Value* value) {
+void internNameSpaceKey(NameSpace* table, NameSpaceEntry* entry, Symbol* key, size_t* val) {
   entry->key = key;
-  entry->val = *value == NOTHING_VAL ? NUL_VAL : *value;
+  entry->val = *val = table->count;
 }
 
 TABLE_TYPE(NameSpace,
@@ -113,23 +114,6 @@ static void hashList(List* list) {
   }
 }
 
-static void hashTuple(Tuple* tuple) {
-  uint64_t accumHash = 0;
-
-  for (size_t i=tuple->arity; i>0; i--) {
-    uint64_t elHash = hashValue(tuple->data[i-1]);
-
-    if (i == 0)
-      accumHash = elHash;
-
-    else
-      accumHash = mixHashes(elHash, accumHash);
-  }
-
-  tuple->obj.hash   = accumHash;
-  tuple->obj.hashed = true;
-}
-
 static bool equalBits(Bits* xs, Bits* ys) {
   return
     xs->arity  == ys->arity  &&
@@ -148,15 +132,6 @@ static bool equalLists(List* xs, List* ys) {
   return out;
 }
 
-static bool equalTuples(Tuple* xs, Tuple* ys) {
-  bool out = xs->arity == ys->arity;
-
-  for (size_t i=0; out && i<xs->arity; i++ )
-    out = equalValues(xs->data[i], ys->data[i]);
-
-  return out;
-}
-
 uint64_t hashObject(void* ob) {
   assert(ob != NULL);
 
@@ -167,7 +142,6 @@ uint64_t hashObject(void* ob) {
       case SYMBOL: hashSymbol(ob);          break;
       case BITS:   hashBits(ob);            break;
       case LIST:   hashList(ob);            break;
-      case TUPLE:  hashTuple(ob);           break;
       default:     hashObjectIdentity(obj); break;
   }
 
@@ -187,7 +161,6 @@ bool equalObjects(void* obx, void* oby) {
       switch (tx) {
         case BITS:  out = equalBits(obx, oby);   break;
         case LIST:  out = equalLists(obx, oby);  break;
-        case TUPLE: out = equalTuples(obx, oby); break;
         default:                                 break;
       }
   }
@@ -214,7 +187,17 @@ Symbol* newSymbol(char* name) {
 }
 
 Symbol* getSymbol(char* buffer) {
-  return internSymbol(buffer, &vm.environment);
+  return internSymbol(&vm.environment, buffer);
+}
+
+// chunk constructors
+Chunk* newChunk(void) {
+  Chunk* out = newObject(CHUNK);
+
+  initValues(&out->vals);
+  initByteCode(&out->code);
+
+  return out;
 }
 
 // bits constructors
@@ -285,77 +268,6 @@ List* newListN(size_t n, Value* args) {
   return out;
 }
 
-// tuple constructors
-static void initTuple(Tuple* tuple, size_t arity, Value* slots) {
-  size_t dataSize = arity*sizeof(Value);
-  tuple->data     = allocate(dataSize, false);
-  tuple->arity    = arity;
-
-  memcpy(tuple->data, slots, dataSize);
-}
-
-Tuple* newTuple(size_t arity, Value* slots) {
-  Tuple* out;
-
-  if (arity == 0)
-    out = &emptyTuple;
-
-  else {
-    out = newObject(TUPLE);
-    initObject(out, TUPLE, 0);
-    initTuple(out, arity, slots);
-  }
-
-  return out;
-}
-
-Tuple* newPair(Value x, Value y) {
-  Value slots[] = { x, y };
-
-  return newTuple(2, slots);
-}
-
-Tuple* newTriple(Value x, Value y, Value z) {
-  Value slots[] = { x, y, z };
-
-  return newTuple(3, slots);
-}
-
-// global objects
-List emptyList = {
-  .obj={
-    .next  =NULL,
-    .hash  =0,
-    .type  =LIST,
-    .hashed=false,
-    .flags =0,
-    .black =false,
-    .gray  =true
-  },
-  .tail =&emptyList,
-  .arity=0,
-  .head =NUL_VAL
-};
-
-Tuple emptyTuple = {
-  .obj={
-    .next  =NULL,
-    .hash  =0,
-    .type  =TUPLE,
-    .hashed=false,
-    .flags =0,
-    .black =false,
-    .gray  =true
-  },
-  .data =NULL,
-  .arity=0
-};
-
-// toplevel initialization
-void toplevelInitObjects(void) {
-  // initialize hashes for global singletons
-  emptyList.obj.hash   = hashPtr(&emptyList);
-  emptyList.obj.hashed = true;
-  emptyTuple.obj.hash  = hashPtr(&emptyTuple);
-  emptyList.obj.hashed = true;
+Value mkListN(size_t n, Value* args) {
+  return TAG_OBJ(newListN(n, args));
 }

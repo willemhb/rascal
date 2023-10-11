@@ -12,23 +12,39 @@
 ARRAY_TYPE(Objects, Obj*);
 ARRAY_TYPE(ByteCode, uint16_t);
 TABLE_TYPE(SymbolTable, symbolTable, char*, Symbol*);
-TABLE_TYPE(NameSpace, nameSpace, Symbol*, Value);
+TABLE_TYPE(NameSpace, nameSpace, Symbol*, size_t);
 
 struct Obj {
-  struct Obj* next;        // live objects list
-  uint64_t    hash;        // cached hash code
-  Type        type;        // object type (duh)
-  uint8_t     hashed;      // hash is valid or needs to be computed
-  uint8_t     flags;       // misc, discretionary
-  uint8_t     black;       // gc mark flag
-  uint8_t     gray;        // gc trace flag
-  uint8_t     data[];      // pointer to object's regular data
+  Obj*     next;   // live objects list
+  uint64_t hash;   // cached hash code
+  Type     type;   // VM type of this object (doesn't distinguish struct or record types)
+  uint8_t  flags;  // miscellaneous flags
+  uint8_t  hashed; // indicates whether self->hash is valid
+  uint8_t  gray;   // gc mark flag
+  uint8_t  black;  // gc trace flag
+  uint8_t  data[]; // pointer to object's regular data
 };
+
+typedef size_t (*CompileFn)(Compiler* state, List* form);
 
 struct Symbol {
   Obj       obj;
   char*     name;
-  uintptr_t idno; // unique identifier
+  uintptr_t idno;    // unique identifier
+  CompileFn special; // special form associated with this symbol
+};
+
+typedef Value  (*NativeFn)(size_t nArgs, Value* args);
+
+struct Native {
+  Obj      obj;
+  NativeFn callBack;
+};
+
+struct Chunk {
+  Obj      obj;
+  Values   vals;
+  ByteCode code;
 };
 
 struct Bits {
@@ -45,83 +61,10 @@ struct List {
   Value  head;
 };
 
-struct Tuple {
-  Obj    obj;
-  Value* data;
-  size_t arity;
-};
-
-/* 
-struct Map {
-  Obj    obj;
-  Node*  root;
-  size_t arity;
-};
-
-struct Node {
-  Obj    obj;
-  Obj**  chidren;
-  size_t bitmap;
-  size_t offset;
-};
-
-struct Leaf {
-  Obj   obj;
-  Leaf* next; // handles collisions, mostly unused, simple but wastes space.
-  Value key;
-  Value bind;
-};
-
-struct Module {
-  Obj       obj;
-  Module*   parent;
-  Symbol*   name;
-  Chunk*    body;
-  NameSpace ns;
-};
-
-struct Chunk {
-  Obj      obj;
-  Symbol*  name;          // name of the function or module being executed
-  Values   constants;     // constant store
-  ByteCode instructions;  // instruction sequence
-};
-
-struct Closure {
-  Obj     obj;
-  Chunk*  code;
-  Objects upvalues;
-};
-
-struct UpValue {
-  Obj      obj;
-  UpValue* next;
-  union {
-    Value  value;
-    Value* location;
-  };
-  bool     open;
-};
-
-struct Native {
-  Obj       obj;
-  Symbol*   name;
-  NativeFn  nativeCallback;
-  CompileFn compileCallback;
-};
-
-struct Stream {
-  Obj   obj;
-  FILE* ios;
-  };
-*/
-
 // global sigletons
 extern List  emptyList;
-extern Tuple emptyTuple;
 
 #define EMPTY_LIST()  TAG_OBJ(&emptyList)
-#define EMPTY_TUPLE() TAG_OBJ(&emptyTuple)
 
 // miscellaneous utilities
 uint64_t hashObject(void* ob);
@@ -132,6 +75,8 @@ void     freeObject(void* ob);
 Symbol* newSymbol(char* name);
 Symbol* getSymbol(char* token);
 
+Chunk* newChunk(void);
+
 Bits*   newBits(void* data, size_t count, size_t elSize, Encoding encoding);
 Bits*   newString(char* data, size_t count);
 
@@ -139,12 +84,6 @@ List*  newList(Value head, List* tail);
 List*  newList1(Value head);
 List*  newList2(Value arg1, Value arg2);
 List*  newListN(size_t n, Value* args);
-
-Tuple* newTuple(size_t arity, Value* slots);
-Tuple* newPair(Value x, Value y);
-Tuple* newTriple(Value x, Value y, Value z);
-
-// toplevel initialization
-void toplevelInitObjects(void);
+Value  mkListN(size_t n, Value* args);
 
 #endif

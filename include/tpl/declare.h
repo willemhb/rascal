@@ -12,8 +12,9 @@
   void   init##ArrayType(ArrayType* array);                             \
   void   free##ArrayType(ArrayType* array);                             \
   size_t resize##ArrayType(ArrayType* array, size_t newCount);          \
-  void   write##ArrayType(ArrayType* array, ElType x);                  \
-  void   write##ArrayType##N(ArrayType* array, size_t n, ElType* data); \
+  size_t write##ArrayType(ArrayType* array, ElType x);                  \
+  size_t write##ArrayType##N(ArrayType* array, size_t n, ElType* data); \
+  size_t write##ArrayType##V(ArrayType* array, size_t n, ...);          \
   ElType pop##ArrayType(ArrayType* array);                              \
   void   pop##ArrayType##N(ArrayType* array, size_t n)
 

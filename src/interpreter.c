@@ -5,22 +5,29 @@
 
 #include "vm.h"
 #include "debug.h"
+#include "reader.h"
 #include "interpreter.h"
 
-Value runFile(Vm* vm, const char* fname) {
-  char* source = readFile(fname);
-  scan(&vm->scanner, source);
-  Value result = parse(&vm->parser, &vm->scanner);
-  freeParser(&vm->parser);
-  freeScanner(&vm->scanner);
-  free(source);
-  return result;
+
+Value eval(Vm* vm, Value expr) {
+  
+  return expr;
 }
 
-Value eval(Vm* vm, char* source) {
-  scan(&vm->scanner, source);
-  Value out = parse(&vm->parser, &vm->scanner);
-  return out;
+
+// external API
+void initInterpreter(Interpreter* interpreter, Chunk* code) {
+  interpreter->sp   = TheStack;
+  interpreter->code = code;
+
+  if (code != NULL)
+    interpreter->ip = code->code.data;
+}
+
+void freeInterpreter(Interpreter* interpreter) {
+  interpreter->sp   = TheStack;
+  interpreter->code = NULL;
+  interpreter->ip   = NULL;
 }
 
 void repl(Vm* vm) {
@@ -28,23 +35,12 @@ void repl(Vm* vm) {
 
   static const char*  prompt  = "rascal>";
 
-  char   buffer[REPL_BUFFER_SIZE];
-
   for (;;) {
     fprintf(stdout, "%s ", prompt);
-    char* source = fgets(buffer, REPL_BUFFER_SIZE, stdin);
-
-    if (source == NULL) {
-      fprintf(stderr, "fgets() failed for no obvious reason.\n");
-      exit(74);
-    }
-
+    Value xpr = read(&vm->reader);
     fprintf(stdout, "\n");
-    Value xpr = eval(vm, buffer);
-    if (xpr != NOTHING_VAL)
-      printValue(stdout, xpr, -1);
+    Value val = eval(vm, xpr);
+    printValue(stdout, val);
     fprintf(stdout, "\n");
-    freeScanner(&vm->scanner);
-    freeParser(&vm->parser);
   }
 }

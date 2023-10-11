@@ -1,17 +1,17 @@
 #include "vm.h"
 
-Vm vm;
-
 void initVm(Vm* vm) {
   initHeap(&vm->heap);
-  initScanner(&vm->scanner, NULL);
   initEnvironment(&vm->environment);
-  initParser(&vm->parser, &vm->scanner);
+  initReader(&vm->reader);
+  initCompiler(&vm->compiler, NOTHING_VAL);
+  initInterpreter(&vm->interpreter, NULL);
 }
 
 void freeVm(Vm* vm) {
   freeHeap(&vm->heap);
-  freeScanner(&vm->scanner);
   freeEnvironment(&vm->environment);
-  freeParser(&vm->parser);
+  freeReader(&vm->reader);
+  freeCompiler(&vm->compiler);
+  freeInterpreter(&vm->interpreter);
 }
