@@ -128,6 +128,10 @@ static Value unsaveXpr(Vm* vm) {
 }
 
 // special forms
+size_t compileQuote(Vm* vm, List* form);
+size_t compileDo(Vm* vm, List* form);
+size_t compileVar(Vm* vm, List* form);
+size_t compileIf(Vm* vm, List* form);
 
 // external API
 void initCompiler(Compiler* compiler) {
