@@ -17,7 +17,7 @@
     "guard" "raise" "finally"       ;; exception syntax
     "yield" "async" "sync" "await"  ;; concurrency syntax
     "if" "and" "or" "not"           ;; branching syntax
-    "case" "cond" "stx"             ;; branching syntax (continued)
+    "case" "cond"                   ;; branching syntax (continued)
     "let" "label" "loop"            ;; block syntax
     "quote" "backquote"             ;; quote syntax
     "unquote" "splice"              ;; quote syntax (continued)

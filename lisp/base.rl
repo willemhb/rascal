@@ -1,13 +1,8 @@
 (module Base
   "Core language syntax."
-  (mac guard (handlers .. body)
-    (fun expand-handler (handler)
-      (stx handler
-        (((.. exception-type) .. body)
-         ((:exception .. exception-type) .. body))
-        (((.. exception-type (.. args)) .. body)
-         ((:exception .. exception-type (.. args)) .. body))))
-    `(handle ~(map expand-handler handlers) ~@body))
+
+  (mac guard (handlers & body)
+    `())
 
   (mac raise (exception-type)
     "Syntactic sugar for perform."
@@ -160,9 +155,8 @@
     (loop ((i i) (xs xs) (acc ()))
       (case (i xs)
         ((_ ())      ())
-        ((0 _)       ())
+        ((0 __)      ())
         ((i (h & t)) (loop (dec i) t (cons h acc))))))
-
 
   (fun drop ((Function p?) (List xs))
     (case (xs)
@@ -171,7 +165,7 @@
                    xs
                    (drop p? t)))))
 
-  (fun drop ((Integer i) (List xs)) 
+  (fun drop ((Integer i) (List xs))
     (case (i xs)
       ((_ ())      ())
       ((0 _)       xs)
