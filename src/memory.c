@@ -1,6 +1,3 @@
-#include <stdlib.h>
-#include <string.h>
-
 #include "vm.h"
 #include "object.h"
 #include "memory.h"
@@ -30,16 +27,20 @@ static void manage(Vm* vm) {
 }
 
 static void manageHeap(Vm* vm, size_t nBytesAdded, size_t nBytesRemoved) {
+  assert(vm != NULL);
+
+  Heap* heap = &vm->heap;
+  
   if (nBytesAdded > nBytesRemoved) {
     size_t diff = nBytesAdded - nBytesRemoved;
 
-    if (diff + heapUsed(vm) > heapCapacity(vm))
+    if (diff + heap->used > heap->capacity)
       manage(vm);
 
-    heap(vm)->used += diff;
+    heap->used += diff;
   } else {
     size_t diff = nBytesRemoved - nBytesAdded;
-    heap(vm)->used -= diff;
+    heap->used -= diff;
   }
 }
 

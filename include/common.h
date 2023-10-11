@@ -1,10 +1,15 @@
 #ifndef rascal_common_h
 #define rascal_common_h
 
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <assert.h>
+#include <stdarg.h>
+#include <setjmp.h>
 
 #define DEBUG_RASCAL
 #define DEBUG_READER

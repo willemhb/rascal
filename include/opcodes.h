@@ -14,8 +14,10 @@ typedef enum OpCode {
   OP_VALUE,   // load value from constant store
   OP_CALL,    // call a function
   OP_JUMP,    // unconditional jump
-  OP_JUMPF,   // conditional jump
-  OP_JUMPT
+  OP_JUMPF,   // conditional jump (jump if TOS is `false` or `nul`)
+  OP_JUMPT,   // conditional jump (jump if TOS is not `false` or `nul`)
+  OP_GETGL,   // load value of global variable with offset `i`
+  OP_PUTGL,   // store TOS in global variable with offset `i`
 } OpCode;
 
 // external API

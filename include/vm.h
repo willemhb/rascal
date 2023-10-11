@@ -14,7 +14,7 @@ struct Vm {
   // heap state
   Heap heap;
 
-  // context state
+  // exception context
   Context context;
 
   // environment state
@@ -31,38 +31,10 @@ struct Vm {
 };
 
 // globals
-extern Vm vm;
+extern Vm RlVm;
 
 // external API
 // vm accessors
-Heap*        heap(Vm* vm);
-Obj*         heapObjects(Vm* vm);
-size_t       heapUsed(Vm* vm);
-size_t       heapCapacity(Vm* vm);
-Objects*     heapGrays(Vm* vm);
-Context*     context(Vm* vm);
-bool         panicking(Vm* vm);
-Environment* environment(Vm* vm);
-size_t       nSymbols(Vm* vm);
-SymbolTable* symbols(Vm* vm);
-NameSpace*   globalNs(Vm* vm);
-Values*      globalVals(Vm* vm);
-Reader*      reader(Vm* vm);
-FILE*        source(Vm* vm);
-ReaderState  readState(Vm* vm);
-TextBuffer*  readBuffer(Vm* vm);
-char*        token(Vm* vm);
-ReadTable*   readTable(Vm* vm);
-Values*      readStack(Vm* vm);
-Compiler*    compiler(Vm* vm);
-Chunk*       compilerChunk(Vm* vm);
-Values*      compilerStack(Vm* vm);
-Interpreter* interpreter(Vm* vm);
-Value*       sp(Vm* vm);
-Value*       vp(Vm* vm);
-Value*       ep(Vm* vm);
-uint16_t*    ip(Vm* vm);
-Chunk*       code(Vm* vm);
 
 void initVm(Vm* vm);
 void freeVm(Vm* vm);

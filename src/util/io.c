@@ -1,5 +1,3 @@
-#include <stdlib.h>
-#include <string.h>
 #include <errno.h>
 
 #include "util/io.h"
@@ -16,12 +14,17 @@ int fpeekc(FILE* ios) {
   return out;
 }
 
-char* readFile(const char* path) {
+char* readPath(const char* path) {
   FILE*  file   = SAFE_OPEN(path, "rb");
-  size_t fSize  = fileSize(file);
-  char*  buffer = SAFE_MALLOC(fSize+1);
+  return readFile(path, file);
+}
 
-  SAFE_READ(path, buffer, char, fSize, file);
+char* readFile(const char* path, FILE* ios) {
+  size_t fSize  = fileSize(ios);
+  char*  buffer = SAFE_MALLOC(fSize+1);
+  
+  SAFE_READ(path, buffer, char, fSize, ios);
+  fclose(ios);
   return buffer;
 }
 

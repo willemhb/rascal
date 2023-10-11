@@ -1,8 +1,6 @@
 #ifndef rascal_object_h
 #define rascal_object_h
 
-#include <stdio.h>
-
 #include "common.h"
 #include "value.h"
 
@@ -25,7 +23,7 @@ struct Obj {
   uint8_t  data[]; // pointer to object's regular data
 };
 
-typedef size_t (*CompileFn)(Compiler* state, List* form);
+typedef size_t (*CompileFn)(Vm* vm, List* form);
 
 struct Symbol {
   Obj       obj;

@@ -26,6 +26,7 @@ void  syncInterpreter(Interpreter* interpreter);
 void  push(Vm* vm, Value value);
 void  pushn(Vm* vm, size_t n);
 Value pop(Vm* vm);
+Value peek(Vm* vm, int i);
 
 Value  exec(Vm* vm, Chunk* code);
 Value  eval(Vm* vm, Value val);

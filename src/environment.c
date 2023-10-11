@@ -18,21 +18,24 @@ void freeEnvironment(Environment* environment) {
 Symbol* internSymbol(Vm* vm, char* name) {
   Symbol* out = NULL;
 
-  symbolTableAdd(symbols(vm), name, &out);
+  symbolTableAdd(&vm->environment.symbols, name, &out);
 
   return out;
 }
 
 size_t defineGlobal(Vm* vm, Symbol* name, Value init) {
   size_t offset = 0;
+  Environment* env = &vm->environment;
+  NameSpace* ns = &env->globalNs;
+  Values* vals = &env->globalVals;
 
-  nameSpaceAdd(globalNs(vm), name, &offset);
+  nameSpaceAdd(ns, name, &offset);
 
-  if (offset == globalVals(vm)->count) { // name was added
-    if (init == NOTHING_VAL)
-      init = NUL_VAL;
+  if (offset == vals->count) { // name was added
+    if (init == NOTHING)
+      init = NUL;
 
-    writeValues(globalVals(vm), init);
+    writeValues(vals, init);
   }
 
   return offset;
@@ -40,13 +43,16 @@ size_t defineGlobal(Vm* vm, Symbol* name, Value init) {
 
 bool lookupGlobal(Vm* vm, Symbol* name, Value* buf) {
   size_t offset = 0;
-  bool out      = nameSpaceGet(globalNs(vm), name, &offset);
+  Environment* env = &vm->environment;
+  NameSpace* ns = &env->globalNs;
+  Values* vals = &env->globalVals;
+  bool out = nameSpaceGet(ns, name, &offset);
 
-  if (out)
-    *buf = NUL_VAL;
+  if (!out)
+    *buf = NUL;
 
   else
-    *buf = globalVals(vm)->data[offset];
+    *buf = vals->data[offset];
 
   return out;
 }

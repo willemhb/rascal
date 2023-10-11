@@ -1,5 +1,3 @@
-#include <stdarg.h>
-
 #include "opcodes.h"
 #include "vm.h"
 #include "compiler.h"
@@ -7,8 +5,7 @@
 // internal API
 // declarations
 // helpers
-static ByteCode* bytecode(Vm* vm);
-static Values*   values(Vm* vm);
+static bool      isSpecialForm(List* form);
 static size_t    emitInstruction(Vm* vm, OpCode op, ...);
 static size_t    addValue(Vm* vm, Value value);
 static size_t    compileValue(Vm* vm, Value value);
@@ -26,31 +23,36 @@ size_t compileVar(Vm* vm, List* form);
 size_t compileIf(Vm* vm, List* form);
 
 // implementations
-static ByteCode* bytecode(Vm* vm) {
-  return &compilerChunk(vm)->code;
-}
-
-static Values* values(Vm* vm) {
-  return &compilerChunk(vm)->vals;
+static bool isSpecialForm(List* form) {
+  return form->arity > 0
+    &&   IS_SYMBOL(form->head)
+    &&   AS_SYMBOL(form->head)->special != NULL;
 }
 
 static size_t emitInstruction(Vm* vm, OpCode op, ...) {
+  Compiler* comp = &vm->compiler;
+  Chunk* chunk = comp->chunk;
+  ByteCode* code = &chunk->code;
   size_t argc = opCodeArgc(op);
   va_list va;
   va_start(va, op);
 
-  writeByteCode(bytecode(vm), op);
+  writeByteCode(code, op);
 
   if (argc > 0)
-    writeByteCode(bytecode(vm), va_arg(va, int));
+    writeByteCode(code, va_arg(va, int));
 
   va_end(va);
 
-  return bytecode(vm)->count;
+  return code->count;
 }
 
 static size_t addValue(Vm* vm, Value value) {
-  return writeValues(values(vm), value);
+  Compiler* comp = &vm->compiler;
+  Chunk* chunk = comp->chunk;
+  Values* vals = &chunk->vals;
+
+  return writeValues(vals, value);
 }
 
 static size_t compileValue(Vm* vm, Value value) {
@@ -75,13 +77,21 @@ static size_t compileValue(Vm* vm, Value value) {
 }
 
 static size_t compileCall(Vm* vm, List* comb) {
-  
-  size_t argc = saveXprs(vm, comb->tail, true);
+  size_t out;
 
-  compileExpression(vm);
-  compileExpressions(vm, argc, true);
+  if (isSpecialForm(comb))
+    out = AS_SYMBOL(comb->head)->special(vm, comb);
 
-  return emitInstruction(vm, OP_CALL, argc);
+  else {
+    size_t argc = saveXprs(vm, comb->tail, true);
+
+    compileExpression(vm);
+    compileExpressions(vm, argc, true);
+
+    out = emitInstruction(vm, OP_CALL, argc);
+  }
+
+  return out;
 }
 
 static size_t compileExpression(Vm* vm) {
@@ -106,32 +116,53 @@ static size_t compileExpressions(Vm* vm, size_t n, bool accumulate) {
       emitInstruction(vm, OP_POP);
   }
 
-  return bytecode(vm)->count;
+  return vm->compiler.chunk->code.count;
 }
 
 static size_t saveXprs(Vm* vm, List* xprs, bool keepHead) {
+  Compiler* comp = &vm->compiler;
+  Values* stack = &comp->stack;
   size_t out    = xprs->arity;
-  size_t offset = writeValuesN(values(vm), out+keepHead, NULL);
+  size_t offset = writeValuesN(stack, out+keepHead, NULL);
 
   for (size_t i=out+keepHead; i > 0; i--, xprs=xprs->tail)
-    values(vm)->data[offset+i-1] = xprs->head;
+    stack->data[offset+i-1] = xprs->head;
 
   return out;
 }
 
 static void saveXpr(Vm* vm, Value xpr) {
-  writeValues(values(vm), xpr);
+  Compiler* comp = &vm->compiler;
+  Values* stack = &comp->stack;
+  writeValues(stack, xpr);
 }
 
 static Value unsaveXpr(Vm* vm) {
-  return popValues(compilerStack(vm));
+  Compiler* comp = &vm->compiler;
+  Values* stk = &comp->stack;
+
+  return popValues(stk);
 }
 
 // special forms
-size_t compileQuote(Vm* vm, List* form);
-size_t compileDo(Vm* vm, List* form);
+size_t compileQuote(Vm* vm, List* form) {
+  argco(2, form->arity, "quote");
+
+  return compileValue(vm, form->tail->head);
+}
+
+size_t compileDo(Vm* vm, List* form) {
+  size_t arity = vargco(1, form->tail->arity, "do");
+
+  if (arity == 1)
+    
+}
+
 size_t compileVar(Vm* vm, List* form);
-size_t compileIf(Vm* vm, List* form);
+size_t compileIf(Vm* vm, List* form) {
+  size_t argc = argcos(2, form->tail->arity, "if", 2, 3);
+  
+}
 
 // external API
 void initCompiler(Compiler* compiler) {

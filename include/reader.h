@@ -37,7 +37,7 @@ void  freeReader(Reader* reader);
 void  resetReader(Reader* reader);
 void  syncReader(Reader* reader);
 
-// main logic
 Value read(Vm* vm);
+Value readLine(Vm* vm);
 
 #endif
