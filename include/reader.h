@@ -7,7 +7,7 @@
 // generics
 #include "tpl/declare.h"
 
-typedef void (*ReadFn)(Reader* state, int dispatch);
+typedef void (*ReadFn)(Vm* vm, int dispatch);
 
 ARRAY_TYPE(TextBuffer, char);
 TABLE_TYPE(ReadTable, readTable, int, ReadFn);
@@ -23,7 +23,6 @@ typedef enum ReaderState {
 struct Reader {
   FILE*       source;
   ReaderState state;
-  bool        panicking;
   TextBuffer  buffer;
   ReadTable   table;
   Values      stack;
@@ -33,12 +32,12 @@ struct Reader {
 extern Value QuoteSym;
 
 // external API
-// initialization
 void  initReader(Reader* reader);
 void  freeReader(Reader* reader);
 void  resetReader(Reader* reader);
+void  syncReader(Reader* reader);
 
 // main logic
-Value read(Reader* reader);
+Value read(Vm* vm);
 
 #endif

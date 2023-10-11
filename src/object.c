@@ -64,7 +64,7 @@ static void  initObject(void* pointer, Type type, int flags) {
 }
 
 static void* newObject(Type type) {
-  Obj* out  = allocate(sizeOfType(type), true);
+  Obj* out  = allocate(&vm, sizeOfType(type));
 
   initObject(out, type, 0);
 
@@ -177,7 +177,7 @@ void freeObject(void* ob) {
 Symbol* newSymbol(char* name) {
   size_t n = strlen(name)+1;
 
-  char* copy = duplicate(name, n, false);
+  char* copy = duplicate(NULL, name, n);
   Symbol* out  = newObject(SYMBOL);
 
   out->name  = copy;
@@ -187,7 +187,7 @@ Symbol* newSymbol(char* name) {
 }
 
 Symbol* getSymbol(char* buffer) {
-  return internSymbol(&vm.environment, buffer);
+  return internSymbol(&vm, buffer);
 }
 
 // chunk constructors
@@ -209,7 +209,7 @@ static void initBits(Bits* bits, void* data, size_t count, size_t elSize) {
 
 Bits* newBits(void* data, size_t count, size_t elSize, Encoding encoding) {
   Bits* out = newObject(BITS);
-  void* spc = allocate((count + !!encoding) * elSize, false);
+  void* spc = allocate(NULL, (count + !!encoding) * elSize);
 
   memcpy(spc, data, count * elSize);
   initObject(out, BITS, encoding);
@@ -257,7 +257,7 @@ List* newListN(size_t n, Value* args) {
     out = newList2(args[0], args[1]);
 
   else {
-    out = allocate(sizeof(List) * n, true);
+    out = allocate(&vm, sizeof(List) * n);
 
     for (size_t i=n; i>0; i--) {
       initObject(&out[i-1], LIST, 0);

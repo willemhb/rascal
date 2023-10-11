@@ -19,10 +19,16 @@ extern Value TheStack[N_STACK];
 // external API
 void  initInterpreter(Interpreter* interpreter, Value* vals, size_t nStack);
 void  freeInterpreter(Interpreter* interpreter);
-void  resetInterpreter(Interpreter* interpreter, Chunk* code);
+void  startInterpreter(Interpreter* interpreter, Chunk* code);
+void  resetInterpreter(Interpreter* interpreter);
+void  syncInterpreter(Interpreter* interpreter);
 
-void  push(Interpreter* interpreter, Value value);
-void  pushn(Interpreter* interpreter, size_t n);
-Value pop(Interpreter* interpreter);
+void  push(Vm* vm, Value value);
+void  pushn(Vm* vm, size_t n);
+Value pop(Vm* vm);
+
+Value  exec(Vm* vm, Chunk* code);
+Value  eval(Vm* vm, Value val);
+void   repl(Vm* vm);
 
 #endif

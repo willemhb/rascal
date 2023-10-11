@@ -6,29 +6,40 @@
 #include "memory.h"
 
 // internal GC helpers
-static void mark(void)   {}
-static void trace(void)  {}
-static void sweep(void)  {}
-static void resize(void) { vm.heap.heapCapacity <<= 1; }
-
-static void manage(void) {
-  mark();
-  trace();
-  sweep();
-  resize();
+static void mark(Vm* vm) {
+  (void)vm;
 }
 
-static void manageHeap(size_t nBytesAdded, size_t nBytesRemoved) {
+static void trace(Vm* vm) {
+  (void)vm;
+}
+
+static void sweep(Vm* vm) {
+  (void)vm; 
+}
+
+static void resize(Vm* vm) {
+  vm->heap.capacity <<= 1;
+}
+
+static void manage(Vm* vm) {
+  mark(vm);
+  trace(vm);
+  sweep(vm);
+  resize(vm);
+}
+
+static void manageHeap(Vm* vm, size_t nBytesAdded, size_t nBytesRemoved) {
   if (nBytesAdded > nBytesRemoved) {
     size_t diff = nBytesAdded - nBytesRemoved;
 
-    if (diff + vm.heap.heapUsed > vm.heap.heapCapacity)
-      manage();
+    if (diff + heapUsed(vm) > heapCapacity(vm))
+      manage(vm);
 
-    vm.heap.heapUsed += diff;
+    heap(vm)->used += diff;
   } else {
     size_t diff = nBytesRemoved - nBytesAdded;
-    vm.heap.heapUsed -= diff;
+    heap(vm)->used -= diff;
   }
 }
 
@@ -36,9 +47,9 @@ static void manageHeap(size_t nBytesAdded, size_t nBytesRemoved) {
 #define N_HEAP (UINT16_COUNT * sizeof(Value))
 
 void initHeap(Heap* heap) {
-  heap->objects      = NULL;
-  heap->heapUsed     = 0;
-  heap->heapCapacity = N_HEAP;
+  heap->objects  = NULL;
+  heap->used     = 0;
+  heap->capacity = N_HEAP;
   initObjects(&heap->grays);
 }
 
@@ -50,14 +61,14 @@ void freeHeap(Heap* heap) {
   while (obj != NULL) {
     tmp = obj;
     obj = obj->next;
-    
+
     freeObject(tmp);
   }
 }
 
-void* allocate(size_t nBytes, bool fromHeap) {
-  if (fromHeap)
-    manageHeap(nBytes, 0);
+void* allocate(Vm* vm, size_t nBytes) {
+  if (vm)
+    manageHeap(vm, nBytes, 0);
   
   void* out = SAFE_MALLOC(nBytes);
   memset(out, 0, nBytes);
@@ -65,25 +76,25 @@ void* allocate(size_t nBytes, bool fromHeap) {
   return out;
 }
 
-void* duplicate(void* pointer, size_t nBytes, bool fromHeap) {
-  void* cpy = allocate(nBytes, fromHeap);
+void* duplicate(Vm* vm, void* pointer, size_t nBytes) {
+  void* cpy = allocate(vm, nBytes);
   
   memcpy(cpy, pointer, nBytes);
   
   return cpy;
 }
 
-void* reallocate(void* pointer, size_t oldSize, size_t newSize, bool fromHeap) {
+void* reallocate(Vm* vm, void* pointer, size_t oldSize, size_t newSize) {
   void* out;
   
   if (newSize == 0) {
-    deallocate(pointer, oldSize, fromHeap);
+    deallocate(vm, pointer, oldSize);
     out = NULL;
   }
   
   else {
-    if (fromHeap)
-      manageHeap(newSize, oldSize);
+    if (vm)
+      manageHeap(vm, newSize, oldSize);
 
     out = SAFE_REALLOC(pointer, newSize);
 
@@ -94,9 +105,9 @@ void* reallocate(void* pointer, size_t oldSize, size_t newSize, bool fromHeap) {
   return out;
 }
 
-void deallocate(void* pointer, size_t nBytes, bool fromHeap) {
-  if (fromHeap)
-    manageHeap(0, nBytes);
+void deallocate(Vm* vm, void* pointer, size_t nBytes) {
+  if (vm)
+    manageHeap(vm, 0, nBytes);
 
   free(pointer);
 }

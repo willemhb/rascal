@@ -1,147 +1,161 @@
 #include <stdarg.h>
 
 #include "opcodes.h"
+#include "vm.h"
 #include "compiler.h"
 
 // internal API
 // declarations
 // helpers
-static size_t emitInstruction(Compiler* compiler, OpCode op, ...);
-static size_t addValue(Compiler* compiler, Value value);
-static size_t compileValue(Compiler* compiler, Value value);
-static size_t compileCall(Compiler* compiler, List* comb);
-static size_t compileExpression(Compiler* compiler);
-static size_t compileExpressions(Compiler* compiler, size_t n, bool accumulate);
-static void   saveXpr(Compiler* compiler, Value xpr);
-static size_t saveXprs(Compiler* compiler, List* xprs, bool keepHead);
-static Value  unsaveXpr(Compiler* compiler);
+static ByteCode* bytecode(Vm* vm);
+static Values*   values(Vm* vm);
+static size_t    emitInstruction(Vm* vm, OpCode op, ...);
+static size_t    addValue(Vm* vm, Value value);
+static size_t    compileValue(Vm* vm, Value value);
+static size_t    compileCall(Vm* vm, List* comb);
+static size_t    compileExpression(Vm* vm);
+static size_t    compileExpressions(Vm* vm, size_t n, bool accumulate);
+static void      saveXpr(Vm* vm, Value xpr);
+static size_t    saveXprs(Vm* vm, List* xprs, bool keepHead);
+static Value     unsaveXpr(Vm* vm);
 
 // special forms
-size_t compileQuote(Compiler* compiler, List* form);
-size_t compileDo(Compiler* compiler, List* form);
-size_t compileVar(Compiler* compiler, List* form);
+size_t compileQuote(Vm* vm, List* form);
+size_t compileDo(Vm* vm, List* form);
+size_t compileVar(Vm* vm, List* form);
+size_t compileIf(Vm* vm, List* form);
 
 // implementations
-static size_t emitInstruction(Compiler* compiler, OpCode op, ...) {
+static ByteCode* bytecode(Vm* vm) {
+  return &compilerChunk(vm)->code;
+}
+
+static Values* values(Vm* vm) {
+  return &compilerChunk(vm)->vals;
+}
+
+static size_t emitInstruction(Vm* vm, OpCode op, ...) {
   size_t argc = opCodeArgc(op);
   va_list va;
   va_start(va, op);
 
-  writeByteCode(&compiler->chunk->code, op);
+  writeByteCode(bytecode(vm), op);
 
   if (argc > 0)
-    writeByteCode(&compiler->chunk->code, va_arg(va, int));
+    writeByteCode(bytecode(vm), va_arg(va, int));
 
   va_end(va);
 
-  return compiler->chunk->code.count;
+  return bytecode(vm)->count;
 }
 
-static size_t addValue(Compiler* compiler, Value value) {
-  return writeValues(&compiler->chunk->vals, value);
+static size_t addValue(Vm* vm, Value value) {
+  return writeValues(values(vm), value);
 }
 
-static size_t compileValue(Compiler* compiler, Value value) {
+static size_t compileValue(Vm* vm, Value value) {
   size_t out;
 
-  if (value == NUL_VAL)
-    out = emitInstruction(compiler, OP_NUL);
+  if (value == NUL)
+    out = emitInstruction(vm, OP_NUL);
 
-  else if (value == TRUE_VAL)
-    out = emitInstruction(compiler, OP_TRUE);
+  else if (value == TRUE)
+    out = emitInstruction(vm, OP_TRUE);
 
-  else if (value == FALSE_VAL)
-    out = emitInstruction(compiler, OP_FALSE);
+  else if (value == FALSE)
+    out = emitInstruction(vm, OP_FALSE);
 
   else if (value == EMPTY_LIST())
-    out = emitInstruction(compiler, OP_EMPTY);
+    out = emitInstruction(vm, OP_EMPTY);
 
   else
-    out = emitInstruction(compiler, OP_VALUE, addValue(compiler, value));
+    out = emitInstruction(vm, OP_VALUE, addValue(vm, value));
 
   return out;
 }
 
-static size_t compileCall(Compiler* compiler, List* comb) {
+static size_t compileCall(Vm* vm, List* comb) {
   
-  size_t argc = saveXprs(compiler, comb->tail, true);
+  size_t argc = saveXprs(vm, comb->tail, true);
 
-  compileExpression(compiler);
-  compileExpressions(compiler, argc, true);
+  compileExpression(vm);
+  compileExpressions(vm, argc, true);
 
-  return emitInstruction(compiler, OP_CALL, argc);
+  return emitInstruction(vm, OP_CALL, argc);
 }
 
-static size_t compileExpression(Compiler* compiler) {
+static size_t compileExpression(Vm* vm) {
   size_t out;
 
-  Value xpr = unsaveXpr(compiler);
+  Value xpr = unsaveXpr(vm);
 
   if (IS_LIST(xpr) && xpr != EMPTY_LIST())
-    out = compileCall(compiler, AS_LIST(xpr));
+    out = compileCall(vm, AS_LIST(xpr));
 
   else
-    out = compileValue(compiler, xpr);
+    out = compileValue(vm, xpr);
 
   return out;
 }
 
-static size_t compileExpressions(Compiler* compiler, size_t n, bool accumulate) {
+static size_t compileExpressions(Vm* vm, size_t n, bool accumulate) {
   for (size_t i=0; i<n; i++ ) {
-    compileExpression(compiler);
+    compileExpression(vm);
 
     if (!accumulate && i+1 < n)
-      emitInstruction(compiler, OP_POP);
+      emitInstruction(vm, OP_POP);
   }
 
-  return compiler->chunk->code.count;
+  return bytecode(vm)->count;
 }
 
-static size_t saveXprs(Compiler* compiler, List* xprs, bool keepHead) {
+static size_t saveXprs(Vm* vm, List* xprs, bool keepHead) {
   size_t out    = xprs->arity;
-  size_t offset = writeValuesN(&compiler->chunk->vals, out+keepHead, NULL);
+  size_t offset = writeValuesN(values(vm), out+keepHead, NULL);
 
   for (size_t i=out+keepHead; i > 0; i--, xprs=xprs->tail)
-    compiler->chunk->vals.data[offset+i-1] = xprs->head;
+    values(vm)->data[offset+i-1] = xprs->head;
 
   return out;
 }
 
-static void saveXpr(Compiler* compiler, Value xpr) {
-  writeValues(&compiler->exprs, xpr);
+static void saveXpr(Vm* vm, Value xpr) {
+  writeValues(values(vm), xpr);
 }
 
-static Value unsaveXpr(Compiler* compiler) {
-  return popValues(&compiler->exprs);
+static Value unsaveXpr(Vm* vm) {
+  return popValues(compilerStack(vm));
 }
 
 // special forms
 
 // external API
-void initCompiler(Compiler* compiler, Value expression) {
-  initValues(&compiler->exprs);
+void initCompiler(Compiler* compiler) {
+  compiler->chunk = NULL;
 
-  if (expression != NOTHING_VAL) {
-    saveXpr(compiler, expression);
-    compiler->chunk = newChunk();
-  } else {
-    compiler->chunk = NULL;
-  }
+  initValues(&compiler->stack);
 }
 
 void freeCompiler(Compiler* compiler) {
-  freeValues(&compiler->exprs);
-  initCompiler(compiler, NOTHING_VAL);
+  freeValues(&compiler->stack);
 }
 
-Chunk* compile(Compiler* compiler, Value expression) {
-  Chunk* out;
+void startCompiler(Compiler* compiler, Value xpr) {
+  writeValues(&compiler->stack, xpr);
 
-  initCompiler(compiler, expression);
-  compileExpression(compiler);
-  emitInstruction(compiler, OP_RETURN);
-  out = compiler->chunk;
+  compiler->chunk = newChunk();
+}
+
+void resetCompiler(Compiler* compiler) {
   freeCompiler(compiler);
+  initCompiler(compiler);
+}
 
-  return out;
+Chunk* compile(Vm* vm, Value xpr) {
+  resetCompiler(compiler(vm));
+  startCompiler(compiler(vm), xpr);
+  compileExpression(vm);
+  emitInstruction(vm, OP_RETURN);
+
+  return compiler(vm)->chunk;
 }

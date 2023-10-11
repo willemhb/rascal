@@ -40,16 +40,16 @@ typedef enum {
 #define TAG_MASK    0xffff000000000000UL
 #define VAL_MASK    0x0000ffffffffffffUL
 
-#define TRUE_VAL    (BOOL_TAG | 1UL)
-#define FALSE_VAL   (BOOL_TAG | 0UL)
-#define NUL_VAL     (NUL_TAG  | 0UL)
-#define NOTHING_VAL (NUL_TAG  | 1UL) // invalid value marker
+#define TRUE        (BOOL_TAG | 1UL)
+#define FALSE       (BOOL_TAG | 0UL)
+#define NUL         (NUL_TAG  | 0UL)
+#define NOTHING     (NUL_TAG  | 1UL) // invalid value marker
 
-#define TAG_BOOL(boolean) ((boolean) ? TRUE_VAL : FALSE_FAL)
+#define TAG_BOOL(boolean) ((boolean) ? TRUE : FALSE)
 #define TAG_NUM(number)   doubleToWord(number)
 #define TAG_OBJ(pointer)  (((Value)(pointer)) | OBJ_TAG)
 
-#define AS_BOOL(value)    ((value) == TRUE_VAL)
+#define AS_BOOL(value)    ((value) == TRUE)
 #define AS_NUM(value)     ((Number)wordToDouble(value))
 #define AS_OBJ(value)     ((Obj*)((value) & VAL_MASK))
 #define AS_SYMBOL(value)  ((Symbol*)((value) & VAL_MASK))
@@ -58,7 +58,7 @@ typedef enum {
 #define AS_BITS(value)    ((Bits*)((value) & VAL_MASK))
 #define AS_LIST(value)    ((List*)((value) & VAL_MASK))
 
-#define IS_NUL(value)     ((value) == NUL_VAL)
+#define IS_NUL(value)     ((value) == NUL)
 #define IS_BOOL(value)    hasValueType(value, BOOLEAN)
 #define IS_OBJ(value)     hasValueType(value, OBJECT)
 #define IS_NUM(value)     (((value) & QNAN) != QNAN)

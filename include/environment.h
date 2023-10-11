@@ -6,8 +6,8 @@
 
 // C types
 struct Environment {
-  uint64_t    symbolCounter;
-  SymbolTable symbolTable;
+  uint64_t    nSymbols;
+  SymbolTable symbols;
   NameSpace   globalNs;
   Values      globalVals;
 };
@@ -16,9 +16,9 @@ struct Environment {
 void    initEnvironment(Environment* environment);
 void    freeEnvironment(Environment* environment);
 
-Symbol* internSymbol(Environment* environment, char* name);
-size_t  defineGlobal(Environment* environment, Symbol* name, Value init);
-bool    lookupGlobal(Environment* environment, Symbol* name, Value* buf);
+Symbol* internSymbol(Vm* vm, char* name);
+size_t  defineGlobal(Vm* vm, Symbol* name, Value init);
+bool    lookupGlobal(Vm* vm, Symbol* name, Value* buf);
 Value   defineSpecial(char* name, CompileFn compile);
 
 #endif

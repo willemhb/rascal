@@ -19,7 +19,7 @@
   }                                                                     \
                                                                         \
   void free##ArrayType(ArrayType* array) {                              \
-    deallocate(array->data, array->capacity * sizeof(ElType), false);   \
+    deallocate(NULL, array->data, array->capacity * sizeof(ElType));    \
     init##ArrayType(array);                                             \
   }                                                                     \
                                                                         \
@@ -37,12 +37,12 @@
         size_t oldSize  = oldCap * sizeof(ElType);                      \
         size_t newSize  = newCap * sizeof(ElType);                      \
         if (array->data == NULL)                                        \
-          array->data = allocate(newSize, false);                       \
+          array->data = allocate(NULL, newSize);                        \
         else                                                            \
-          array->data = reallocate(array->data,                         \
+          array->data = reallocate(NULL,                                \
+                                   array->data,                         \
                                    oldSize,                             \
-                                   newSize,                             \
-                                   false);                              \
+                                   newSize);                            \
         array->capacity = newCap;                                       \
       }                                                                 \
     }                                                                   \
@@ -100,9 +100,9 @@
   }                                                                     \
                                                                         \
   void free##TableType(TableType* table) {                              \
-    deallocate(table->table,                                            \
-               table->capacity * sizeof(TableType##Entry),              \
-               false);                                                  \
+    deallocate(NULL,                                                    \
+               table->table,                                            \
+               table->capacity * sizeof(TableType##Entry));             \
     init##TableType(table);                                             \
   }                                                                     \
                                                                         \
@@ -134,7 +134,7 @@
   static void adjust##TableType##Capacity(TableType* table,             \
                                           size_t capacity) {            \
     size_t newSize = capacity * sizeof(TableType##Entry);               \
-    TableType##Entry* entries = allocate(newSize, false);               \
+    TableType##Entry* entries = allocate(NULL, newSize);                \
     /* fill table */                                                    \
     for (size_t i=0; i<capacity; i++) {                                 \
       entries[i].key = noKey;                                           \
@@ -157,9 +157,9 @@
         dest->val = entry->val;                                         \
         table->count++;                                                 \
       }                                                                 \
-      deallocate(table->table,                                          \
-                 table->capacity*sizeof(TableType##Entry),              \
-                 false);                                                \
+      deallocate(NULL,                                                  \
+                 table->table,                                          \
+                 table->capacity*sizeof(TableType##Entry));             \
     }                                                                   \
     table->table = entries;                                             \
     table->capacity = capacity;                                         \

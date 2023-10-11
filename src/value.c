@@ -40,9 +40,10 @@ size_t sizeOfType(Type type) {
     case BOOLEAN: out = sizeof(Boolean); break;
     case UNIT:    out = sizeof(Value);   break;
     case SYMBOL:  out = sizeof(Symbol);  break;
+    case NATIVE:  out = sizeof(Native);  break;
+    case CHUNK:   out = sizeof(Chunk);   break;
     case BITS:    out = sizeof(Bits);    break;
     case LIST:    out = sizeof(List);    break;
-    case CHUNK:   out = sizeof(Chunk);   break;
     default:      out = 0;               break;
   }
 
@@ -57,6 +58,8 @@ char* nameOfType(Type type) {
     case BOOLEAN: out = "Boolean"; break;
     case UNIT:    out = "Unit";    break;
     case SYMBOL:  out = "Symbol";  break;
+    case NATIVE:  out = "Native";  break;
+    case CHUNK:   out = "Chunk";   break;
     case BITS:    out = "Bits";    break;
     case LIST:    out = "List";    break;
     default:      out = "Term";    break;

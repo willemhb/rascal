@@ -7,15 +7,19 @@
 // C types
 struct Compiler {
   Chunk* chunk;
-  Values exprs;
+  Values stack;
 };
 
 // globals
-extern Value DoSym, QuoteSym, VarSym;
+extern Value DoSym, QuoteSym, VarSym, IfSym;
 
 // external API
-void   initCompiler(Compiler* compiler, Value expression);
-void   freeCompiler(Compiler* compiler);
-Chunk* compile(Compiler* compiler, Value expression);
+void initCompiler(Compiler* compiler);
+void freeCompiler(Compiler* compiler);
+void startCompiler(Compiler* compiler, Value xpr);
+void resetCompiler(Compiler* compiler);
+void syncCompiler(Compiler* compiler);
+
+Chunk* compile(Vm* vm, Value xpr);
 
 #endif

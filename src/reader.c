@@ -2,6 +2,7 @@
 #include <ctype.h>
 #include <stdarg.h>
 
+#include "vm.h"
 #include "reader.h"
 
 // character classes
@@ -48,162 +49,150 @@ TABLE_TYPE(ReadTable,
 // declarations
 // helpers
 // reader interface
-static bool   reof(Reader* state);
-static int    getChar(Reader* state);
-static int    ungetChar(Reader* state, int ch);
-static int    peekChar(Reader* state);
-static int    accumChar(Reader* state, int ch, bool consume);
-static ReadFn getReadFn(Reader* state, int dispatch);
-static char*  token(Reader* state);
-static void   saveExpression(Reader* reader, Value expression);
-static void   giveExpression(Reader* reader, Value expression, ReaderState state);
-static Value  consumeExpressions(Reader* reader, size_t n, Value (*ctor)(size_t n, Value* args));
-static Value  peekExpression(Reader* reader);
-static Value  popExpression(Reader* reader);
-static Value  takeExpression(Reader* reader);
+static bool   reof(Vm* vm);
+static int    getCh(Vm* vm);
+static int    ungetCh(Vm* vm, int ch);
+static int    peekCh(Vm* vm);
+static void   takeCh(Vm* vm, int ch);
+static int    accumCh(Vm* vm, int ch, bool consume);
+static ReadFn getReadFn(Vm* vm, int dispatch);
+static void   saveExpression(Vm* vm, Value expression);
+static void   giveExpression(Vm* vm, Value expression, ReaderState state);
+static Value  consumeExpressions(Vm* vm, size_t n, Value (*ctor)(size_t n, Value* args));
+static Value  popExpression(Vm* vm);
+static Value  takeExpression(Vm* vm);
 
 // errors
-static void readError(Reader* state, const char* fmt, ...);
+static void readError(Vm* vm, const char* fmt, ...);
 
 // predicates and tests
 static bool isRlSpace(int ch);
 static bool isSymChar(int ch);
-static bool isAtomicTerminal(int ch);
-static bool tokenMatches(Reader* state, const char* match);
+static bool tokenMatches(Vm* vm, const char* match);
 
 // toplevel read helper
-static Value readExpression(Reader* state);
+static Value readExpression(Vm* vm);
 
 // adding dispatch handlers
 static void addReaderDispatch(Reader* reader, int dispatch, ReadFn handler);
 static void addReaderDispatches(Reader* reader, const char* dispatches, ReadFn handler);
 
 // reader dispatches
-void readEOF(Reader* state, int dispatch);
-void readQuote(Reader* state, int dispatch);
-void readSpace(Reader* state, int dispatch);
-void readComment(Reader* state, int dispatch);
-void readAtom(Reader* state, int dispatch);
-void readString(Reader* state, int dispatch);
-void readList(Reader* state, int dispatch);
-void readBits(Reader* state, int dispatch);
-void readNumber(Reader* state, int dispatch);
+void readEOF(Vm* vm, int dispatch);
+void readQuote(Vm* vm, int dispatch);
+void readSpace(Vm* vm, int dispatch);
+void readComment(Vm* vm, int dispatch);
+void readAtom(Vm* vm, int dispatch);
+void readString(Vm* vm, int dispatch);
+void readList(Vm* vm, int dispatch);
+void readBits(Vm* vm, int dispatch);
+void readNumber(Vm* vm, int dispatch);
 
 // implementations
-static bool reof(Reader* state) {
-  return feof(state->source);
+static bool reof(Vm* vm) {
+  return feof(source(vm));
 }
 
-static int getChar(Reader* state) {
-  if (reof(state))
+static int getCh(Vm* vm) {
+  if (reof(vm))
     return EOF;
 
-  return fgetc(state->source);
+  return fgetc(source(vm));
 }
 
-static int ungetChar(Reader* state, int ch) {
+static int ungetCh(Vm* vm, int ch) {
   if (ch != EOF)
-    ungetc(ch, state->source);
+    ungetc(ch, source(vm));
 
   return ch;
 }
 
-static int peekChar(Reader* state) {
-  int next = getChar(state);
+static int peekCh(Vm* vm) {
+  int next = getCh(vm);
 
   if (next != EOF)
-    ungetChar(state, next);
+    ungetCh(vm, next);
 
   return next;
 }
 
-static int accumChar(Reader* state, int ch, bool consume) {
+static void takeCh(Vm* vm, int ch) {
+  int next = peekCh(vm);
+  assert(next == ch);
+  getCh(vm);
+}
+
+static int accumCh(Vm* vm, int ch, bool consume) {
   assert(ch != EOF);
   assert(ch != '\0');
-  writeTextBuffer(&state->buffer, ch);
+  writeTextBuffer(readBuffer(vm), ch);
 
   if (consume) {
-    getChar(state);
-    ch = peekChar(state);
+    getCh(vm);
+    ch = peekCh(vm);
   }
 
   return ch;
 }
 
-static ReadFn getReadFn(Reader* state, int dispatch) {
+static ReadFn getReadFn(Vm* vm, int dispatch) {
   ReadFn out;
-  readTableGet(&state->table, dispatch, &out);
+  readTableGet(readTable(vm), dispatch, &out);
   return out;
 }
 
-static char* token(Reader* state) {
-  return state->buffer.data;
-}
-
-static void  giveExpression(Reader* reader, Value expression, ReaderState state) {
-  assert(reader->state == READER_READY);
+static void  giveExpression(Vm* vm, Value expression, ReaderState status) {
+  assert(readState(vm) == READER_READY);
   
   if (expression != NOTHING_VAL)
-    saveExpression(reader, expression);
+    saveExpression(vm, expression);
 
-  reader->state = state;
-
-  if (state == READER_ERROR) {
-    int dispatch = peekChar(reader);
-
-    while (dispatch != EOF)
-      dispatch = getChar(reader);
-  }
+  reader(vm)->state = status;
 }
 
-static void saveExpression(Reader* reader, Value expression) {
-  writeValues(&reader->stack, expression);
+static void saveExpression(Vm* vm, Value expression) {
+  writeValues(readStack(vm), expression);
 }
 
-static Value  consumeExpressions(Reader* reader, size_t n, Value (*ctor)(size_t n, Value* args)) {
-  Value* args = &reader->stack.data[reader->stack.count-n];
+static Value  consumeExpressions(Vm* vm, size_t n, Value (*ctor)(size_t n, Value* args)) {
+  Value* data = readStack(vm)->data;
+  Value* args = &data[readStack(vm)->count-n];
   Value  out  = ctor(n, args);
 
-  popValuesN(&reader->stack, n);
+  popValuesN(readStack(vm), n);
   return out;
 }
 
-static Value peekExpression(Reader* reader) {
-  assert(reader->stack.count > 0);
-
-  return reader->stack.data[reader->stack.count-1];
+static Value popExpression(Vm* vm) {
+  assert(readStack(vm)->count > 0);
+  return popValues(readStack(vm));
 }
 
-static Value popExpression(Reader* reader) {
-  assert(reader->stack.count > 0);
-  return popValues(&reader->stack);
-}
-
-static Value takeExpression(Reader* reader) {
-  if (reader->state == READER_DONE || reader->state == READER_ERROR)
+static Value takeExpression(Vm* vm) {
+  if (readState(vm) == READER_DONE || readState(vm) == READER_ERROR)
     return NUL_VAL;
 
-  freeTextBuffer(&reader->buffer);
+  freeTextBuffer(readBuffer(vm));
 
-  Value out         = popExpression(reader);
-  reader->state     = READER_READY;
-  reader->panicking = false;
+  Value out         = popExpression(vm);
+  reader(vm)->state = READER_READY;
 
   return out;
 }
 
 // errors
-static void readError(Reader* reader, const char* fmt, ...) {
-  // print the error
+static void readError(Vm* vm, const char* fmt, ...) {
+  if (panicking(vm))
+    return;
+
+  // indicate error
+  reader(vm)->state = READER_ERROR;
+
+  // panic
   va_list va;
   va_start(va, fmt);
-  fprintf(stderr, "read-error: ");
-  vfprintf(stderr, fmt, va);
-  fprintf(stderr, ".\n");
+  vpanic(vm, NOTHING_VAL, NULL, fmt, va);
   va_end(va);
-
-  // set reader state
-  giveExpression(reader, NOTHING_VAL, READER_ERROR);
 }
 
 // predicates and tests
@@ -215,26 +204,22 @@ static bool isSymChar(int ch) {
   return strchr(UPPER LOWER DIGIT PUNCT, ch);
 }
 
-static bool isAtomicTerminal(int ch) {
-  return ch == EOF || strchr(RLSPC DELIM ";", ch);
+static bool tokenMatches(Vm* vm, const char* match) {
+  return strcmp(token(vm), match) == 0;
 }
 
-static bool tokenMatches(Reader* state, const char* match) {
-  return strcmp(token(state), match) == 0;
-}
-
-static Value readExpression(Reader* reader) {
-  while (!reader->state) {
-    int dispatch  = peekChar(reader);
-    ReadFn readfn = getReadFn(reader, dispatch);
+static Value readExpression(Vm* vm) {
+  while (!readState(vm)) {
+    int dispatch  = peekCh(vm);
+    ReadFn readfn = getReadFn(vm, dispatch);
 
     if (readfn == NULL)
-      readError(reader, "Unreadable character %c", dispatch);
+      readError(vm, "Unreadable character %c", dispatch);
     else
-      readfn(reader, dispatch);
+      readfn(vm, dispatch);
   }
 
-  return takeExpression(reader);
+  return takeExpression(vm);
 }
 
 // adding dispatch handlers
@@ -248,121 +233,114 @@ static void addReaderDispatches(Reader* reader, const char* dispatches, ReadFn h
 }
 
 // reader dispatches
-void readEOF(Reader* state, int dispatch) {
+void readEOF(Vm* vm, int dispatch) {
   (void)dispatch;
-  giveExpression(state, NOTHING_VAL, READER_DONE);
+  giveExpression(vm, NOTHING_VAL, READER_DONE);
 }
 
-void readQuote(Reader* state, int dispatch) {
+void readQuote(Vm* vm, int dispatch) {
   (void)dispatch;
 
-  getChar(state); // clear initial '.
+  getCh(vm); // clear initial '.
 
-  Value quoted   = read(state);
+  Value quoted   = read(vm);
   List* expanded = newList2(QuoteSym, quoted);
-  giveExpression(state, TAG_OBJ(expanded), READER_EXPRESSION);
+  giveExpression(vm, TAG_OBJ(expanded), READER_EXPRESSION);
 }
 
-void readSpace(Reader* state, int dispatch) {
+void readSpace(Vm* vm, int dispatch) {
   while (isRlSpace(dispatch))
-    dispatch = getChar(state);
+    dispatch = getCh(vm);
 
-  ungetChar(state, dispatch);
+  ungetCh(vm, dispatch);
 }
 
-void readComment(Reader* state, int dispatch) {
+void readComment(Vm* vm, int dispatch) {
   while (dispatch != EOF && dispatch != '\n')
-    dispatch = getChar(state);
+    dispatch = getCh(vm);
 
   if (dispatch != EOF)
-    getChar(state);
+    getCh(vm);
 }
 
-void readAtom(Reader* state, int dispatch) {
+void readAtom(Vm* vm, int dispatch) {
   while (isSymChar(dispatch))
-    dispatch = accumChar(state, dispatch, true);
+    dispatch = accumCh(vm, dispatch, true);
 
-  if (tokenMatches(state, "true"))
-    giveExpression(state, TRUE_VAL, READER_EXPRESSION);
+  if (tokenMatches(vm, "true"))
+    giveExpression(vm, TRUE_VAL, READER_EXPRESSION);
 
-  else if (tokenMatches(state, "false"))
-    giveExpression(state, FALSE_VAL, READER_EXPRESSION);
+  else if (tokenMatches(vm, "false"))
+    giveExpression(vm, FALSE_VAL, READER_EXPRESSION);
 
-  else if (tokenMatches(state, "nul"))
-    giveExpression(state, NUL_VAL, READER_EXPRESSION);
+  else if (tokenMatches(vm, "nul"))
+    giveExpression(vm, NUL_VAL, READER_EXPRESSION);
 
   else {
-    Symbol* sym = getSymbol(token(state));
-    giveExpression(state, TAG_OBJ(sym), READER_EXPRESSION);
+    Symbol* sym = getSymbol(token(vm));
+    giveExpression(vm, TAG_OBJ(sym), READER_EXPRESSION);
   }
 }
 
-void readString(Reader* state, int dispatch) {
-  getChar(state); // clear opening '"'
+void readString(Vm* vm, int dispatch) {
+  getCh(vm); // clear opening '"'
   
   while (dispatch != '"') {
     if (dispatch == EOF) {
-      readError(state, "Unexpected EOF reading String");
+      readError(vm, "Unexpected EOF reading String");
       break;
     }
 
-    dispatch = accumChar(state, dispatch, true);
+    dispatch = accumCh(vm, dispatch, true);
   }
 
-  if (!state->panicking) {
-    assert(dispatch == '"');
-    getChar(state); // consume closing '"'
-    Bits* b = newString(token(state), state->buffer.count);
-    giveExpression(state, TAG_OBJ(b), READER_EXPRESSION);
+  if (!panicking(vm)) {
+    takeCh(vm, '"'); // consume closing '"'
+    giveExpression(vm, TAG_OBJ(newString(token(vm), readBuffer(vm)->count)), READER_EXPRESSION);
   }
 }
 
-void readList(Reader* state, int dispatch) {
+void readList(Vm* vm, int dispatch) {
   size_t i = 0;
 
-  for (dispatch=getChar(state); dispatch != ')'; i++, dispatch=peekChar(state) ) {
+  for (dispatch=getCh(vm); dispatch != ')'; i++, dispatch=peekCh(vm) ) {
     if (dispatch == EOF) {
-      readError(state, "Unexpected EOF reading List");
+      readError(vm, "Unexpected EOF reading List");
       break;
     }
 
-    Value element = readExpression(state);
-    saveExpression(state, element);
+    Value element = readExpression(vm);
+    saveExpression(vm, element);
   }
 
-  if (!state->panicking) {
-    assert(dispatch == ')');
-    getChar(state); // consume closing ')'
-    Value list = consumeExpressions(state, i, mkListN);
-    giveExpression(state, list, READER_EXPRESSION);
+  if (!panicking(vm)) {
+    takeCh(vm, ')'); // consume closing ')'
+    giveExpression(vm, consumeExpressions(vm, i, mkListN), READER_EXPRESSION);
   }
 }
 
-void readNumber(Reader* state, int dispatch) {
+void readNumber(Vm* vm, int dispatch) {
   while (isdigit(dispatch))
-    dispatch = accumChar(state, dispatch, true);
+    dispatch = accumCh(vm, dispatch, true);
 
   if (dispatch == '.') {
-    dispatch = accumChar(state, dispatch, true);
+    dispatch = accumCh(vm, dispatch, true);
 
     while (isdigit(dispatch))
-      dispatch = accumChar(state, dispatch, true);
+      dispatch = accumCh(vm, dispatch, true);
   }
 
   if (isSymChar(dispatch))
-    readAtom(state, dispatch);
+    readAtom(vm, dispatch);
 
-  else {
-    Number num = strtod(token(state), NULL);
-    giveExpression(state, TAG_NUM(num), READER_EXPRESSION);
-  }
+  else
+    giveExpression(vm, TAG_NUM(strtod(token(vm), NULL)), READER_EXPRESSION);
 }
 
 // external API
 void  initReader(Reader* reader) {
   reader->source    = stdin;
   reader->state     = READER_READY;
-  reader->panicking = false;
 
   initReadTable(&reader->table);
   initTextBuffer(&reader->buffer);
@@ -387,14 +365,20 @@ void freeReader(Reader* reader) {
 }
 
 void resetReader(Reader* reader) {
-  reader->state     = READER_READY;
-  reader->panicking = false;
-  
+  reader->state = READER_READY;
+
   freeTextBuffer(&reader->buffer);
   freeValues(&reader->stack);
 }
 
-Value read(Reader* reader) {
-  resetReader(reader);
-  return readExpression(reader);
+void syncReader(Reader* reader) {
+  FILE* ios = reader->source;
+
+  while (!feof(ios))
+    fgetc(ios);
+}
+
+Value read(Vm* vm) {
+  resetReader(&vm->reader);
+  return readExpression(vm);
 }

@@ -1,51 +1,52 @@
+#include "vm.h"
 #include "environment.h"
 
 // external API
 void initEnvironment(Environment* environment) {
-  environment->symbolCounter = 0;
-  initSymbolTable(&environment->symbolTable);
+  environment->nSymbols = 0;
+  initSymbolTable(&environment->symbols);
   initNameSpace(&environment->globalNs);
   initValues(&environment->globalVals);
 }
 
 void freeEnvironment(Environment* environment) {
-  freeSymbolTable(&environment->symbolTable);
+  freeSymbolTable(&environment->symbols);
   freeNameSpace(&environment->globalNs);
   freeValues(&environment->globalVals);
 }
 
-Symbol* internSymbol(Environment* environment, char* name) {
+Symbol* internSymbol(Vm* vm, char* name) {
   Symbol* out = NULL;
- 
-  symbolTableAdd(&environment->symbolTable, name, &out);
+
+  symbolTableAdd(symbols(vm), name, &out);
 
   return out;
 }
 
-size_t defineGlobal(Environment* environment, Symbol* name, Value init) {
+size_t defineGlobal(Vm* vm, Symbol* name, Value init) {
   size_t offset = 0;
 
-  nameSpaceAdd(&environment->globalNs, name, &offset);
+  nameSpaceAdd(globalNs(vm), name, &offset);
 
-  if (offset == environment->globalVals.count) { // name was added
+  if (offset == globalVals(vm)->count) { // name was added
     if (init == NOTHING_VAL)
       init = NUL_VAL;
 
-    writeValues(&environment->globalVals, init);
+    writeValues(globalVals(vm), init);
   }
 
   return offset;
 }
 
-bool lookupGlobal(Environment* environment, Symbol* name, Value* buf) {
+bool lookupGlobal(Vm* vm, Symbol* name, Value* buf) {
   size_t offset = 0;
-  bool out      = nameSpaceGet(&environment->globalNs, name, &offset);
+  bool out      = nameSpaceGet(globalNs(vm), name, &offset);
 
   if (out)
     *buf = NUL_VAL;
 
   else
-    *buf = environment->globalVals.data[offset];
+    *buf = globalVals(vm)->data[offset];
 
   return out;
 }

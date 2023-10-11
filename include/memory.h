@@ -7,8 +7,8 @@
 // C types
 struct Heap {
   Obj*    objects;
-  size_t  heapUsed;
-  size_t  heapCapacity;
+  size_t  used;
+  size_t  capacity;
   Objects grays;
 };
 
@@ -33,9 +33,10 @@ struct Heap {
 
 void  initHeap(Heap* heap);
 void  freeHeap(Heap* heap);
-void* allocate(size_t nBytes, bool fromHeap);
-void* duplicate(void* pointer, size_t nBytes, bool fromHeap);
-void* reallocate(void* pointer, size_t oldSize, size_t newSize, bool fromHeap);
-void  deallocate(void* pointer, size_t nBytes, bool fromHeap);
+
+void* allocate(Vm* vm, size_t nBytes);
+void* duplicate(Vm* vm, void* pointer, size_t nBytes);
+void* reallocate(Vm* vm, void* pointer, size_t oldSize, size_t newSize);
+void  deallocate(Vm* vm, void* pointer, size_t nBytes);
 
 #endif

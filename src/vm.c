@@ -1,85 +1,135 @@
 #include "opcodes.h"
 #include "vm.h"
 
-// internal API
-static bool isLiteral(Value x) {
-  if (IS_SYMBOL(x))
-    return *AS_SYMBOL(x)->name == ':';
-
-  if (IS_LIST(x))
-    return AS_LIST(x)->arity == 0;
-
-  return false;
+// external API
+Heap* heap(Vm* vm) {
+  return &vm->heap;
 }
 
-// external API
+Obj* heapObjects(Vm* vm) {
+  return heap(vm)->objects;
+}
+
+size_t heapUsed(Vm* vm) {
+  return heap(vm)->used;
+}
+
+size_t heapCapacity(Vm* vm) {
+  return heap(vm)->capacity;
+}
+
+Objects* heapGrays(Vm* vm) {
+  return &heap(vm)->grays;
+}
+
+Context* context(Vm* vm) {
+  return &vm->context;
+}
+
+bool panicking(Vm* vm) {
+  return context(vm)->panicking;
+}
+
+Environment* environment(Vm* vm) {
+  return &vm->environment;
+}
+
+size_t nSymbols(Vm* vm) {
+  return environment(vm)->nSymbols;
+}
+
+SymbolTable* symbols(Vm* vm) {
+  return &environment(vm)->symbols;
+}
+
+NameSpace* globalNs(Vm* vm) {
+  return &environment(vm)->globalNs;
+}
+
+Values* globalVals(Vm* vm) {
+  return &environment(vm)->globalVals;
+}
+
+Reader* reader(Vm* vm) {
+  return &vm->reader;
+}
+
+FILE* source(Vm* vm) {
+  return reader(vm)->source;
+}
+
+ReaderState readState(Vm* vm) {
+  return reader(vm)->state;
+}
+
+TextBuffer* readBuffer(Vm* vm) {
+  return &reader(vm)->buffer;
+}
+
+char* token(Vm* vm) {
+  return readBuffer(vm)->data;
+}
+
+ReadTable* readTable(Vm* vm) {
+  return &reader(vm)->table;
+}
+
+Values* readStack(Vm* vm) {
+  return &reader(vm)->stack;
+}
+
+Compiler* compiler(Vm* vm) {
+  return &vm->compiler;
+}
+
+Chunk* compilerChunk(Vm* vm) {
+  return compiler(vm)->chunk;
+}
+
+Values* compilerStack(Vm* vm) {
+  return &compiler(vm)->stack;
+}
+
+Interpreter* interpreter(Vm* vm) {
+  return &vm->interpreter;
+}
+
+Value* sp(Vm* vm) {
+  return interpreter(vm)->sp;
+}
+
+Value* vp(Vm* vm) {
+  return interpreter(vm)->vp;
+}
+
+Value* ep(Vm* vm) {
+  return interpreter(vm)->ep;
+}
+
+Chunk* code(Vm* vm) {
+  return interpreter(vm)->code;
+}
+
 void initVm(Vm* vm) {
-  initHeap(&vm->heap);
-  initEnvironment(&vm->environment);
-  initReader(&vm->reader);
-  initCompiler(&vm->compiler, NOTHING_VAL);
-  initInterpreter(&vm->interpreter, NULL);
+  initHeap(heap(vm));
+  initContext(context(vm));
+  initEnvironment(environment(vm));
+  initReader(reader(vm));
+  initCompiler(compiler(vm));
+  initInterpreter(interpreter(vm), TheStack, N_STACK);
 }
 
 void freeVm(Vm* vm) {
-  freeHeap(&vm->heap);
-  freeEnvironment(&vm->environment);
-  freeReader(&vm->reader);
-  freeCompiler(&vm->compiler);
-  freeInterpreter(&vm->interpreter);
+  freeHeap(heap(vm));
+  freeContext(context(vm));
+  freeEnvironment(environment(vm));
+  freeReader(reader(vm));
+  freeCompiler(compiler(vm));
+  freeInterpreter(interpreter(vm));
 }
 
-
-Value eval(Vm* vm, Value xpr) {
-  Value val; Chunk* code;
-  
-  if (isLiteral(xpr))
-    val = xpr;
-
-  else if (IS_SYMBOL(xpr))
-    lookupGlobal(&vm->environment, AS_SYMBOL(xpr), &val);
-
-  else {
-    code = compile(&vm->compiler, xpr);
-
-    if (code == NULL) // error occured
-      val = NUL_VAL;
-    else
-      val = exec(vm, code);
-  }
-
-  return val;
-}
-
-void repl(Vm* vm) {
-  static const char*  prompt  = "rascal>";
-
-  for (;;) {
-    fprintf(stdout, "%s ", prompt);
-    Value xpr = read(&vm->reader);
-    fprintf(stdout, "\n");
-    Value val = eval(vm, xpr);
-    printValue(stdout, val);
-    fprintf(stdout, "\n");
-  }
-}
-
-Value exec(Vm* vm, Chunk* code) {
-  static void* labels[] = {
-    [OP_NOTHING] = &&op_nothing,
-    [OP_POP]     = &&op_pop,
-    [OP_RETURN]  = &&op_return,
-    [OP_NUL]     = &&op_nul,
-    [OP_TRUE]    = &&op_true,
-    [OP_FALSE]   = &&op_false,
-    [OP_EMPTY]   = &&op_empty,
-    
-  };
-
- dispatch:
-  
- op_nothing:
-
- op_pop:
-  
+void syncVm(Vm* vm) {
+  syncReader(reader(vm));
+  syncCompiler(compiler(vm));
+  syncInterpreter(interpreter(vm));
 }
