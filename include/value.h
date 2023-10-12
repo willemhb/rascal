@@ -4,15 +4,16 @@
 #include "common.h"
 
 // core rascal types
-typedef uintptr_t       Value;    // standard tagged value representation (NaN boxed)
-typedef double          Number;   // common number
-typedef bool            Boolean;  // boolean
-typedef struct Obj      Obj;      // generic object
-typedef struct Symbol   Symbol;   // interned symbol
-typedef struct Native   Native;   // native function or special form
-typedef struct Chunk    Chunk;    // compiled code
-typedef struct Bits     Bits;     // compact binary data
-typedef struct List     List;     // immutable linked list
+typedef uintptr_t       Value;   // standard tagged value representation (NaN boxed)
+typedef double          Number;  // common number
+typedef bool            Boolean; // boolean
+typedef struct Obj      Obj;     // generic object
+typedef struct Symbol   Symbol;  // interned symbol
+typedef struct Native   Native;  // native function or special form
+typedef struct Chunk    Chunk;   // compiled code
+typedef struct Closure  Closure; // packages a chunk/namespace with names
+typedef struct Bits     Bits;    // compact binary data
+typedef struct List     List;    // immutable linked list
 
 // various & sundry enums
 typedef enum {
@@ -24,6 +25,7 @@ typedef enum {
   SYMBOL=OBJECT,
   NATIVE,
   CHUNK,
+  CLOSURE,
   BITS,
   LIST,
 } Type;

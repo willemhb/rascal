@@ -16,7 +16,7 @@
     "if" "and" "or" "case"       ;; branching syntax
     "let" "with" "label" "loop"  ;; block syntax
     "quote" "lmb" "use" "c-call" ;; miscellaneous syntax
-    "do" "do*" "meta"            ;; miscellaneous syntax (continued)
+    "annot" "do" "do*"           ;; miscellaneous syntax (continued)
    )
   '(("[^:]:[-a-zA-Z?*+0-9/]+" . font-lock-type-face)
     ("@[-a-zA-Z?*+0-9/]+" . font-lock-type-face)

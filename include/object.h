@@ -39,10 +39,28 @@ struct Native {
   NativeFn callBack;
 };
 
+typedef struct Scope Scope;
+
+struct Scope {
+  Scope*    parent;
+  NameSpace names;
+  Values    binds;
+  Objects   annot;
+  bool      topLevel;
+  bool      private;
+};
+
 struct Chunk {
   Obj      obj;
-  Values   vals;
-  ByteCode code;
+  Obj*     name;  // readable name of the code object. Probably a function name (symbol), but might be a script name (string)
+  Scope    scope; // name context
+  Values   vals;  // constant store
+  ByteCode code;  // instructions
+};
+
+struct Closure {
+  Obj      obj;
+  Chunk*   code;
 };
 
 struct Bits {

@@ -4,12 +4,17 @@
 #include "common.h"
 #include "object.h"
 
+// generics
+#include "tpl/declare.h"
+
+TABLE_TYPE(LoadCache, loadCache, Bits*, Value);
+
 // C types
 struct Environment {
   uint64_t    nSymbols;
   SymbolTable symbols;
-  NameSpace   globalNs;
-  Values      globalVals;
+  LoadCache   used;
+  Scope       globals;
 };
 
 // external API
