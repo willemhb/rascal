@@ -65,6 +65,9 @@ cores/
 *.el
 .#*
 
+# don't ignore core.rl
+!core.rl
+
 # don't ignore .gitignore
 !.gitignore
 
