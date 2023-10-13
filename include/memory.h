@@ -10,6 +10,7 @@ struct Heap {
   size_t  used;
   size_t  capacity;
   Objects grays;
+  Values  saved;
 };
 
 #define SAFE_ALLOC(func, args...)                           \
@@ -33,6 +34,9 @@ struct Heap {
 
 void  initHeap(Heap* heap);
 void  freeHeap(Heap* heap);
+
+void  save(Value value);
+void  unsave(size_t n);
 
 void* allocate(Vm* vm, size_t nBytes);
 void* duplicate(Vm* vm, void* pointer, size_t nBytes);

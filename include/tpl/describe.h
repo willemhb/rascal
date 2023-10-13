@@ -57,14 +57,14 @@
     return array->count-1;                                              \
   }                                                                     \
                                                                         \
-  size_t write##ArrayType##N(ArrayType* array, size_t n, ElType* data) { \
+  size_t nWrite##ArrayType(ArrayType* array, size_t n, ElType* data) {  \
     size_t offset = resize##ArrayType(array, array->count+n);           \
     if (data != NULL)                                                   \
       memcpy(array->data+offset, data, n*sizeof(ElType));               \
     return offset;                                                      \
   }                                                                     \
                                                                         \
-  size_t write##ArrayType##V(ArrayType* array, size_t n, ...) {         \
+  size_t vWrite##ArrayType(ArrayType* array, size_t n, ...) {           \
     size_t offset = resize##ArrayType(array, array->count+n);           \
     va_list va; va_start(va, n);                                        \
                                                                         \
@@ -82,7 +82,7 @@
     return x;                                                           \
   }                                                                     \
                                                                         \
-  void pop##ArrayType##N(ArrayType* array, size_t n) {                  \
+  void nPop##ArrayType(ArrayType* array, size_t n) {                    \
     assert(n <= array->count);                                          \
     if (array->count > 0 && n > 0)                                      \
       resize##ArrayType(array, array->count-n);                         \

@@ -36,15 +36,16 @@ size_t sizeOfType(Type type) {
   size_t out;
 
   switch (type) {
-    case NUMBER:  out = sizeof(Number);  break;
-    case BOOLEAN: out = sizeof(Boolean); break;
-    case UNIT:    out = sizeof(Value);   break;
-    case SYMBOL:  out = sizeof(Symbol);  break;
-    case NATIVE:  out = sizeof(Native);  break;
-    case CHUNK:   out = sizeof(Chunk);   break;
-    case BITS:    out = sizeof(Bits);    break;
-    case LIST:    out = sizeof(List);    break;
-    default:      out = 0;               break;
+    case NUMBER:   out = sizeof(Number);   break;
+    case BOOLEAN:  out = sizeof(Boolean);  break;
+    case UNIT:     out = sizeof(Value);    break;
+    case SYMBOL:   out = sizeof(Symbol);   break;
+    case FUNCTION: out = sizeof(Function); break;
+    case NATIVE:   out = sizeof(Native);   break;
+    case CHUNK:    out = sizeof(Chunk);    break;
+    case BITS:     out = sizeof(Bits);     break;
+    case LIST:     out = sizeof(List);     break;
+    default:       out = 0;                break;
   }
 
   return out;

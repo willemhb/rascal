@@ -30,7 +30,7 @@ static void manageHeap(Vm* vm, size_t nBytesAdded, size_t nBytesRemoved) {
   assert(vm != NULL);
 
   Heap* heap = &vm->heap;
-  
+
   if (nBytesAdded > nBytesRemoved) {
     size_t diff = nBytesAdded - nBytesRemoved;
 
@@ -65,6 +65,14 @@ void freeHeap(Heap* heap) {
 
     freeObject(tmp);
   }
+}
+
+void save(Value value) {
+  writeValues(&RlVm.heap.saved, value);
+}
+
+void unsave(size_t n) {
+  nPopValues(&RlVm.heap.saved, n);
 }
 
 void* allocate(Vm* vm, size_t nBytes) {

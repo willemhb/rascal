@@ -9,14 +9,13 @@
 (define-generic-mode
   'rascal-mode
   '(";" ("#|" . "|#"))
-  '("fun" "mac" "var"            ;; binding syntax
-    "record" "union"             ;; binding syntax (continued)
-    "handle" "perform" "resume"  ;; effect syntax
-    "guard" "raise" "finally"    ;; exception syntax
-    "if" "and" "or" "case"       ;; branching syntax
-    "let" "with" "label" "loop"  ;; block syntax
-    "quote" "lmb" "use" "c-call" ;; miscellaneous syntax
-    "annot" "do"                 ;; miscellaneous syntax (continued)
+  '("fun" "mac" "var"           ;; binding syntax
+    "record" "type" "union"     ;; binding syntax (continued)
+    "handle" "perform" "resume" ;; effect syntax
+    "guard" "raise" "finally"   ;; exception syntax
+    "if" "and" "or" "case"      ;; branching syntax
+    "let" "with" "label" "loop" ;; block syntax
+    "quote" "do" "use" "c-call" ;; miscellaneous syntax
    )
   '(("[^:]:[-a-zA-Z?*+0-9/]+" . font-lock-type-face)
     ("@[-a-zA-Z?*+0-9/]+" . font-lock-type-face)
@@ -27,22 +26,44 @@
     ("\\_<false\\_>" . font-lock-constant-face)
     ;; user types
     ("\\_<Unit\\_>" . font-lock-type-face)
-    ("\\_<Number\\_>" . font-lock-type-face)
+    ("\\_<Float\\_>" . font-lock-type-face)
+    ("\\_<Small\\_>" . font-lock-type-face)
     ("\\_<Boolean\\_>" . font-lock-type-face)
     ("\\_<Glyph\\_>" . font-lock-type-face)
     ("\\_<Symbol\\_>" . font-lock-type-face)
+    ("\\_<Big\\_>" . font-lock-type-face)
     ("\\_<Function\\_>" . font-lock-type-face)
     ("\\_<Stream\\_>" . font-lock-type-face)
     ("\\_<List\\_>" . font-lock-type-face)
     ("\\_<Vector\\_>" . font-lock-type-face)
     ("\\_<Map\\_>" . font-lock-type-face)
     ("\\_<Bits\\_>" . font-lock-type-face)
+    ;; numeric types
+    ("\\_<Ratio\\_>" . font-lock-type-face)
+    ("\\_<Complex\\_>" . font-lock-type-face)
+    ("\\_<Integer\\_>" . font-lock-type-face)
+    ("\\_<Rational\\_>" . font-lock-type-face)
+    ("\\_<Real\\_>" . font-lock-type-face)
+    ("\\_<Number\\_>" . font-lock-type-face)
+    ;; internal types
+    ;; functions & methods
+    ("\\_<Chunk\\_>" . font-lock-type-face)
+    ("\\_<Closure\\_>" . font-lock-type-face)
+    ("\\_<Native\\_>" . font-lock-type-face)
+    ("\\_<MethodTable\\_>" . font-lock-type-face)
+    ("\\_<Method\\_>" . font-lock-type-face)
+    ;; environments & variables
+    ("\\_<Scope\\_>" . font-lock-type-face)
+    ("\\_<Environment\\_>" . font-lock-type-face)
+    ("\\_<Binding\\_>" . font-lock-type-face)
+    ("\\_<UpValue\\_>" . font-lock-type-face)
     ;; fucked up types
     ("\\_<Type\\_>" . font-lock-type-face)
     ("\\_<Record\\_>" . font-lock-type-face)
     ("\\_<Union\\_>" . font-lock-type-face)
     ("\\_<Any\\_>" . font-lock-type-face)
     ("\\_<None\\_>" . font-lock-type-face)
+    ("\\_<Term\\_>" . font-lock-type-face)
     ;; syntax
     ("\\_<otherwise\\_>" . font-lock-function-name-face)
     ("\\_<&\\_>" . font-lock-function-name-face)
