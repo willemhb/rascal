@@ -13,8 +13,6 @@
 ;;                           binding is created for `n` and initialized to a new empty
 ;;                           function object.
 ;;
-;;                           
-;;
 ;; (mac n (& as) & xs)    => 
 ;;
 ;; (put n v)              => Sets the value of `n` to `v`. `n` must be a symbol, and
@@ -97,3 +95,26 @@
 ;;                           `parms` matches `arg` according to the same procedure
 ;;                           used to match method calls.
 
+(with
+  ((fun walk ;; temporary shittier version of `walk`.
+     (xform coll)
+     (if (empty? coll) ()
+         otherwise     (cons (xform (head coll))
+                             (walk xform (tail coll)))))
+
+   (mac let ;; temporary shittier version of `let`.
+     (binds & body)
+     `((fun ~(map  first binds) ~@body) ~@(map second binds))))
+
+  (mac val
+    @doc "Establishes an immutable binding."
+     (name bind)
+    `(var ~name (annot :const true) ~bind))
+
+  (mac guard
+    @doc "Establishes an escape point for calls to `raise`."
+    (handlers & body)
+    (fun transform-handler
+      (handler)
+      ())
+    `(handle ~(map tansform-handler handlers))))
