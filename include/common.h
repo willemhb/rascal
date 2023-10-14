@@ -53,7 +53,7 @@ static inline double wordToDouble(uintptr_t word) {
 // VM state objects
 typedef struct Context Context; // saved execution state
 typedef struct Frame Frame;     // call frame
-typedef struct Vtable Vtable;   // stores lifetime methods for object types
+typedef struct Vtable Vtable;   // stores layout information and core APIs for data types
 typedef struct Vm  Vm;          // all essential execution state
 
 // basic tagged types
@@ -100,39 +100,53 @@ typedef struct VecLeaf     VecLeaf;     // terminal vector node
 typedef struct MapNode     MapNode;     // internal map node
 typedef struct MapLeaf     MapLeaf;     // terminal map node (stores key/value pair)
 
+// enum & flag types
+typedef enum {
+  READER_READY, READER_EXPRESSION, READER_DONE, READER_ERROR,
+} ReadState;
+
+typedef enum {
+  COMPILER_REPL, COMPILER_SCRIPT, COMPILER_WITH, COMPILER_FUNCTION, COMPILER_MACRO,
+} CompileState;
+
+typedef enum {
+  BINARY, ASCII, LATIN1, UTF8, UTF16, UTF32,
+} Encoding;
+
+typedef enum {
+  BOTTOM_KIND,
+  TOP_KIND,
+  DATA_TYPE_KIND,
+  UNION_TYPE_KIND,
+  ABSTRACT_TYPE_KIND,
+} Kind;
+
+typedef enum {
+  // symbol flags
+  LITERALP =0x001,
+
+  // binding/function flags
+  DYNAMICP =0x002,
+  CONSTANTP=0x004,
+  GENERICP =0x008,
+  MACROP   =0x010,
+  VARIADICP=0x020,
+
+  // 
+} ObjFl;
+
 // function pointer types
 typedef Value    (*NativeFn)(size_t n, Value* a);
 typedef size_t   (*CompileFn)(Vm* vm, List* form);
 typedef void     (*ReadFn)(Vm* vm, int dispatch);
 typedef void     (*TraceFn)(void* ptr);
 typedef void     (*FreeFn)(void* ptr);
-typedef uint64_t (*HashFn)(void* ptr);
+typedef uint64_t (*HashFn)(Value ptr);
 typedef size_t   (*SizeFn)(void* ptr);
-
-// enum & flag types
-typedef enum {
-  READER_READY,
-  READER_EXPRESSION,
-  READER_DONE,
-  READER_ERROR
-} ReadState;
-
-typedef enum {
-  COMPILER_REPL,     // executing in REPL
-  COMPILER_SCRIPT,   // code loaded from a file
-  COMPILER_WITH,     // like SCRIPT_CHUNK, but with private names
-  COMPILER_FUNCTION, // body of a fun` form
-  COMPILER_MACRO,    // body of a `mac` form
-} CompileState;
-
-typedef enum {
-  BINARY,      // not encoded
-  ASCII,
-  LATIN1,
-  UTF8,
-  UTF16,
-  UTF32,
-} Encoding;
+typedef void     (*PrintFn)(FILE* ios, Value value);
+typedef bool     (*EgalFn)(Value x, Value y);
+typedef int      (*OrdFn)(Value x, Value y);
+typedef bool     (*IsaFn)(Type* type, Value value);
 
 // miscellaneous helper macros
 #define generic2(method, dispatch, args...)     \

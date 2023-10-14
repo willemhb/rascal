@@ -9,17 +9,16 @@
 (define-generic-mode
   'rascal-mode
   '(";" ("#|" . "|#"))
-  '("fun" "mac" "var" "val" "put"  ;; binding syntax
-    "record" "struct" "type"       ;; binding syntax (continued)
-    "abstract" "union"             ;; binding syntax (continued)
-    "handle" "perform" "resume"    ;; effect syntax
-    "guard" "raise" "finally"      ;; exception syntax
-    "yield"                        ;; coroutine syntax
-    "if" "and" "or"                ;; branching syntax
-    "case" "cond" "not"            ;; branching syntax (continued)
-    "let" "with" "label" "loop"    ;; block syntax
-    "annot" "quote" "do"           ;; miscellaneous syntax
-    "do*" "use" "c-call"           ;; miscellaneous syntax (continued)
+  '("fun" "mac" "var" "val" "put" ;; binding syntax
+    "record" "struct" "type"      ;; binding syntax (continued)
+    "abstract" "union"            ;; binding syntax (continued)
+    "handle" "perform" "resume"   ;; effect syntax
+    "guard" "raise" "yield"       ;; nonlocal control syntax
+    "if" "and" "or"               ;; branching syntax
+    "case" "cond" "not"           ;; branching syntax (continued)
+    "let" "with" "label" "loop"   ;; block syntax
+    "lmb" "quote" "do"            ;; miscellaneous syntax
+    "do*" "use" "c-call"          ;; miscellaneous syntax (continued)
    )
   '(("[^:]:[-a-zA-Z?*+0-9/]+" . font-lock-type-face)
     ("[^~]@[-a-zA-Z?*+0-9/]+" . font-lock-type-face)

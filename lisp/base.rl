@@ -5,4 +5,5 @@
 (mac thunk
   @doc "Wrap a block of code in a zero-arity function."
   (& body)
-  `(fun () ~@body))
+  `(lmb () ~@body))
+

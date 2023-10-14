@@ -30,9 +30,9 @@
   (c-call putenv Small (String) ("#{key}=#{value}")))
 
 ;; shortcuts to common environment variables.
-(val &path (environ "PATH"))
-(val &home (environ "HOME"))
-(val &lang (environ "LANG"))
+(val os/path (environ "PATH"))
+(val os/home (environ "HOME"))
+(val os/lang (environ "LANG"))
 
 ;; directories.
 (fun pwd

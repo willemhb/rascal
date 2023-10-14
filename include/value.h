@@ -3,57 +3,37 @@
 
 #include "common.h"
 
-// various & sundry enums
-typedef enum {
+// builtin type codes
+enum {
   // dummy (for when a typecode needs to be passed but 'none' is valid)
   NOTYPE,
 
   // user types
   // value types
-  FLOAT,
-  ARITY,
-  SMALL,
-  BOOLEAN,
-  UNIT,
-  GLYPYH,
-  OBJECT,
+  FLOAT, ARITY, SMALL, BOOLEAN, UNIT, GLYPH, OBJECT,
 
   // object types (object is not a true type so it's skipped)
-  SYMBOL=OBJECT,
-  FUNCTION,
-  TYPE,
-  BINDING,
-  STREAM,
-  BIG,
-  BITS,
-  LIST,
-  VECTOR,
-  MAP,
+  SYMBOL=OBJECT, FUNCTION, TYPE, BINDING, STREAM, BIG, BITS, LIST, VECTOR, MAP,
 
   // internal types
-  METHOD_TABLE,
-  NATIVE,
-  CHUNK,
-  CLOSURE,
-  CONTROL,
-  SCOPE,
-  NAMESPACE,
-  ENVIRONMENT,
-  UPVALUE,
+  METHOD_TABLE, NATIVE, CHUNK, CLOSURE, CONTROL, SCOPE, NAMESPACE, ENVIRONMENT, UPVALUE,
 
   // node types
-  VEC_NODE,
-  VEC_LEAF,
-  MAP_NODE,
-  MAP_LEAF,
-} TypeCode;
+  VEC_NODE, VEC_LEAF, MAP_NODE, MAP_LEAF,
+
+  // abstract types
+  BOTTOM, TOP, TERM, NUMBER, REAL, RATIONAL, INTEGER,
+};
 
 // builtin datatype objects
 extern Type FloatType, ArityType, SmallType, BooleanType, UnitType, GlyphType,
   SymbolType, FunctionType, TypeType, BindingType, StreamType, BigType, BitsType,
   ListType, VectorType, MapType, MethodTableType, NativeType, ChunkType, ClosureType,
   ControlType, ScopeType, NameSpaceType, EnvironmentType, UpValueType, VecNodeType,
-  VecLeafType, MapNodeType, MapLeafType, NoneType, AnyType, TermType;
+  VecLeafType, MapNodeType, MapLeafType;
+
+// builtin abstract and union types
+extern Type NoneType, AnyType, TermType, NumberType, RealType, RationalType, IntegerType;
 
 #define NUM_TYPES (MAP_LEAF+1)
 
@@ -145,14 +125,9 @@ extern Type FloatType, ArityType, SmallType, BooleanType, UnitType, GlyphType,
 #define IS_MAPNODE(x)      hasType(x, &MapNodeType)
 #define IS_MAPLEAF(x)      hasType(x, &MapLeafType)
 
-#include "tpl/declare.h"
-
-ARRAY_TYPE(Values, Value);
-
-#define typeOf(v)     generic2(typeOf, v, v)
-#define sizeOf(v)     generic2(sizeOf, v, v)
-#define typeCode(v)   typeOf(v)->code
-#define hasType(v, t) generic2(hasType, v, v, t)
+#define typeOf(v)         generic2(typeOf, v, v)
+#define sizeOf(v)         generic2(sizeOf, v, v)
+#define hasType(v, t)     generic2(hasType, v, v, t)
 
 Value tagFloat(Float x);
 Value tagArity(Arity x);
@@ -161,17 +136,13 @@ Value tagBoolean(Boolean x);
 Value tagGlyph(Glyph x);
 Value tagObj(void* x);
 
-Type*  typeOfVal(Value value);
-Type*  typeOfObj(void* ptr);
-size_t sizeOfVal(Value value);
-size_t sizeOfObj(void* ptr);
-bool   hasTypeVal(Value value, Type* type);
-bool   hasTypeObj(void* ptr, Type* type);
+Type*  typeOfVal(Value x);
+Type*  typeOfObj(void* p);
+size_t sizeOfVal(Value x);
+size_t sizeOfObj(void* p);
+bool   hasTypeVal(Value x, Type* type);
+bool   hasTypeObj(void* p, Type* type);
 
-void     printValues(FILE* ios, Values* values);
-bool     equalValues(Value x, Value y);
-uint64_t hashValue(Value x);
-void     printValue(FILE* ios, Value x);
-void     printLine(FILE* ios, Value x);
+void   initializeBuiltinTypes(void);
 
 #endif

@@ -2,23 +2,30 @@
 #include "environment.h"
 
 // external API
-void initEnvironment(Environment* environment) {
-  environment->nSymbols = 0;
-  initSymbolTable(&environment->symbols);
-  initNameSpace(&environment->globalNs);
-  initValues(&environment->globalVals);
+void initEnvt(Vm* vm) {
+  vm->toplevel.nSymbols = 0;
+  
+  initSymbolCache(&vm->toplevel.symbols);
+  initAnnotations(&vm->toplevel.annot);
+  initNsMap(&vm->toplevel.globals);
+  initLoadCache(&vm->toplevel.used);
 }
 
-void freeEnvironment(Environment* environment) {
-  freeSymbolTable(&environment->symbols);
-  freeNameSpace(&environment->globalNs);
-  freeValues(&environment->globalVals);
+void freeEnvt(Vm* vm) {
+  freeLoadCache(&vm->toplevel.used);
+  freeNsMap(&vm->toplevel.globals);
+  freeAnnotations(&vm->toplevel.annot);
+  freeSymbolCache(&vm->toplevel.symbols);
+}
+
+Value getAnnotVal(Value x, Value key) {
+  
 }
 
 Symbol* internSymbol(Vm* vm, char* name) {
   Symbol* out = NULL;
 
-  symbolTableAdd(&vm->environment.symbols, name, &out);
+  symbolCacheAdd(&vm->toplevel.symbols, name, &out);
 
   return out;
 }

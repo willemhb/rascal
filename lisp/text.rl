@@ -1,4 +1,4 @@
-(use (base math))
+(use (base))
 
 ;; string and character handling utilities.
 ;; character class predicates.

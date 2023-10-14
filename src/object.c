@@ -5,11 +5,74 @@
 #include "vm.h"
 #include "object.h"
 
-// template implementations
+// generics
 #include "tpl/describe.h"
+
+// ARRAY_TYPE(Values, Value, Value, false);
+
+void initValues(Values* array) { array->data = 
+((void *)0)
+; array->count = 0; array->capacity = 0; } void freeValues(Values* array) { deallocate(
+((void *)0)
+, array->data, array->capacity * sizeof(Value)); initValues(array); } size_t resizeValues(Values* array, size_t newCount) { size_t oldCount = array->count; if (newCount == 0) { if (array->count != 0) freeValues(array); } else if ((newCount+
+0
+) > array->capacity || ((newCount+
+0
+) < (array->capacity >> 1))) { size_t oldCap = array->capacity; size_t newCap = ({ __auto_type _x = 8u; __auto_type _y = ceilPow2(newCount+
+0
++1); _x < _y ? _y : _x; }); if (oldCap != newCap) { size_t oldSize = oldCap * sizeof(Value); size_t newSize = newCap * sizeof(Value); if (array->data == 
+((void *)0)
+) array->data = allocate(
+((void *)0)
+, newSize); else array->data = reallocate(
+((void *)0)
+, array->data, oldSize, newSize); array->capacity = newCap; } } array->count = newCount; 
+((void) sizeof ((
+array->capacity >= array->count
+) ? 1 : 0), __extension__ ({ if (
+array->capacity >= array->count
+) ; else __assert_fail (
+"array->capacity >= array->count"
+, "object.c", 11, __extension__ __PRETTY_FUNCTION__); }))
+; return oldCount; } size_t writeValues(Values* array, Value x) { size_t offset = resizeValues(array, array->count+1); array->data[offset] = x; return array->count-1; } size_t nWriteValues(Values* array, size_t n, Value* data) { size_t offset = resizeValues(array, array->count+n); if (data != 
+((void *)0)
+) memcpy(array->data+offset, data, n*sizeof(Value)); return offset; } size_t vWriteValues(Values* array, size_t n, ...) { size_t offset = resizeValues(array, array->count+n); va_list va; 
+__builtin_va_start(
+va
+,
+n
+)
+; for (size_t i=offset; i<array->count; i++) array->data[i] = 
+__builtin_va_arg(
+va
+,
+Value
+)
+; 
+__builtin_va_end(
+va
+)
+; return offset; } Value popValues(Values* array) { 
+((void) sizeof ((
+array->count > 0
+) ? 1 : 0), __extension__ ({ if (
+array->count > 0
+) ; else __assert_fail (
+"array->count > 0"
+, "object.c", 11, __extension__ __PRETTY_FUNCTION__); }))
+; Value x = array->data[array->count-1]; resizeValues(array, array->count-1); return x; } void nPopValues(Values* array, size_t n) { 
+((void) sizeof ((
+n <= array->count
+) ? 1 : 0), __extension__ ({ if (
+n <= array->count
+) ; else __assert_fail (
+"n <= array->count"
+, "object.c", 11, __extension__ __PRETTY_FUNCTION__); }))
+; if (array->count > 0 && n > 0) resizeValues(array, array->count-n); };
 
 ARRAY_TYPE(Objects, Obj*, Obj*, false);
 ARRAY_TYPE(ByteCode, uint16_t, int, false);
+
 
 // internal forward declarations
 static void  initObject(void* pointer, Type type, int flags) {

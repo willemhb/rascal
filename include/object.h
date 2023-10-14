@@ -7,22 +7,24 @@
 // generics
 #include "tpl/declare.h"
 
+ARRAY_TYPE(Values, Value);
 ARRAY_TYPE(Objects, Obj*);
 ARRAY_TYPE(ByteCode, uint16_t);
 TABLE_TYPE(NsMap, nsMap, Symbol*, Binding*);
+TABLE_TYPE(MethodCache, methodCache, List*, Obj*);
 
 struct Obj {
-  Obj*     next;        // live objects list
-  Map*     annot;       // object metadata
-  uint64_t hash;        // cached hash code
-  uint64_t type    : 48; // compressed pointer to type object
+  Obj*     next;         // live objects list
+  Map*     annot;        // object metadata
+  Type*    type;         // type object
+  uint64_t hash    : 48; // compressed hash
   uint64_t flags   : 11; // miscellaneous discretionary flags
   uint64_t hashed  :  1; // indicates whether self->hash is valid
   uint64_t noSweep :  1; // indicates that an object wasn't allocated with malloc (don't call deallocate)
   uint64_t noFree  :  1; // indicates that an object's data is allocated statically (don't call free)
   uint64_t gray    :  1; // gc mark flag
   uint8_t  black   :  1; // gc trace flag
-  uint8_t  data[];      // object's regular data
+  uint8_t  data[];
 };
 
 // user types
@@ -41,12 +43,16 @@ struct Function {
 };
 
 struct Vtable {
-  size_t    size;            // size of the value (0 - 8 bytes)
+  size_t    valSize;         // base value size  (0 - 8 bytes)
+  size_t    objSize;         // base object size (32+ bytes)
   uintptr_t tag;             // tag used for values of given type
   SizeFn    sizeOf;
   TraceFn   trace;
   FreeFn    free;
+  PrintFn   print;
   HashFn    hash;
+  EgalFn    equal;
+  OrdFn     order;
 };
 
 struct Type {
@@ -57,6 +63,7 @@ struct Type {
   Function* ctor;          // constructor for values of this type
   Vtable*   vTable;        // runtime and internal methods for types with concrete values
   uintptr_t idno;          // unique identifier for this type (similar to symbol idno)
+  Kind      kind;          // how this type is constituted
 };
 
 struct Binding {
@@ -95,18 +102,15 @@ struct Vector {
 
 struct Map {
   Obj      obj;
-  MapNode* root;  // key/value pairs stored here
+  MapNode* root;  // key/value pairs stored in underlying structure
   size_t   arity; // total number of key/value pairs
 };
 
 struct Big {
-  Obj      obj;
-  uint8_t* digits;
-  uint32_t arity;
-  int      sign;
+  Obj     obj;
+  /* TODO: change to arbitrary precision. */
+  int64_t value;
 };
-
-TABLE_TYPE(MethodCache, methodCache, List*, Obj*);
 
 struct MethodTable {
   Obj         obj;
@@ -173,10 +177,8 @@ struct Environment {
 struct UpValue {
   Obj      obj;
   UpValue* next;
-  union {
-    Value* location;
-    Value  value;
-  };
+  size_t   offset;
+  Value    value;
 };
 
 // node types
@@ -225,18 +227,20 @@ bool     equalObjects(void* obx, void* oby);
 void     freeObject(void* ob);
 
 // constructors
-Symbol* newSymbol(char* name);
-Symbol* getSymbol(char* token);
+Symbol*   newSymbol(char* name);
+Function* newFunction(Symbol* name, Obj* singleton);
+Chunk*    newChunk(Symbol* name);
+Bits*     newBits(void* data, size_t count, size_t elSize, Encoding encoding);
+Bits*     newString(char* data, size_t count);
+List*     newList(Value head, List* tail);
+Vector*   newVector(size_t n, Value* vs);
+Map*      newMap(size_t n, Value* kvs);
 
-Chunk* newChunk(Symbol* name);
+Symbol*   getSymbol(char* token);
 
-Bits*   newBits(void* data, size_t count, size_t elSize, Encoding encoding);
-Bits*   newString(char* data, size_t count);
-
-List*  newList(Value head, List* tail);
-List*  newList1(Value head);
-List*  newList2(Value arg1, Value arg2);
-List*  newListN(size_t n, Value* args);
-Value  mkListN(size_t n, Value* args);
+// map interface
+bool      mapGet(Map* m, Value k, Value* v);
+Map*      mapSet(Map* m, Value k, Value* v);
+Map*      mapDel(Map* m, Value k, Value* v);
 
 #endif
