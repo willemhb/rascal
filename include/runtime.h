@@ -5,38 +5,34 @@
 #include "value.h"
 
 // C types
-typedef struct ErrorContext {
-  struct ErrorContext* next;
+struct Context {
+  struct Context* next;
 
   // Rascal execution state
-  Value* sp;
+  Value* sp, *ap;
   uint16_t* ip;
-  Chunk* code;
+  Closure* code;
 
   // C execution state
   jmp_buf buf;
 } ErrorContext;
-
-struct Context {
-  ErrorContext* ctx;
-};
 
 // external API
 void initContext(Context* ctx);
 void freeContext(Context* ctx);
 void resetContext(Context* ctx);
 
-void saveState(Vm* vm, ErrorContext* ctx);
-void restoreState(Vm* vm, ErrorContext* ctx);
+void saveState(Vm* vm, Context* ctx);
+void restoreState(Vm* vm, Context* ctx);
 
-void   raise(const char* fname, const char* fmt, ...);
-bool   require(bool test, const char* fname, const char* fmt, ...);
-size_t argco(size_t expected, size_t got, const char* fname);
-size_t vargco(size_t expected, size_t got, const char* fname);
-Type   argtype(Type expected, Value got, const char* fname);
-Type   argtypes(size_t n, Value got, const char* fname, ...);
-size_t argcos(size_t n, size_t got, const char* fname, ...);
-size_t vargcos(size_t n, size_t got, const char* fname, ...);
+void    raise(const char* fname, const char* fmt, ...);
+bool    require(bool test, const char* fname, const char* fmt, ...);
+size_t  argco(size_t expected, size_t got, const char* fname);
+size_t  vargco(size_t expected, size_t got, const char* fname);
+Type*   argtype(Type* expected, Value got, const char* fname);
+Type*   argtypes(size_t n, Value got, const char* fname, ...);
+size_t  argcos(size_t n, size_t got, const char* fname, ...);
+size_t  vargcos(size_t n, size_t got, const char* fname, ...);
 
 #define try                                                             \
   ErrorContext _ctx; int l__tr, l__ca;                                  \

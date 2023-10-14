@@ -9,22 +9,21 @@
 
 ARRAY_TYPE(Objects, Obj*);
 ARRAY_TYPE(ByteCode, uint16_t);
-TABLE_TYPE(SymbolTable, symbolTable, char*, Symbol*);
-TABLE_TYPE(NameSpace, nameSpace, Symbol*, Binding*);
+TABLE_TYPE(NsMap, nsMap, Symbol*, Binding*);
 
 struct Obj {
-  Obj*     next;   // live objects list
-  Obj*     annot;  // object metadata
-  uint64_t hash;   // cached hash code
-  TypeCode type;   // VM type of this object (doesn't distinguish struct or record types)
-  uint8_t  flags;  // miscellaneous flags
-  uint8_t  hashed; // indicates whether self->hash is valid
-  uint8_t  gray;   // gc mark flag
-  uint8_t  black;  // gc trace flag
-  uint8_t  data[]; // pointer to object's regular data
+  Obj*     next;        // live objects list
+  Map*     annot;       // object metadata
+  uint64_t hash;        // cached hash code
+  uint64_t type    : 48; // compressed pointer to type object
+  uint64_t flags   : 11; // miscellaneous discretionary flags
+  uint64_t hashed  :  1; // indicates whether self->hash is valid
+  uint64_t noSweep :  1; // indicates that an object wasn't allocated with malloc (don't call deallocate)
+  uint64_t noFree  :  1; // indicates that an object's data is allocated statically (don't call free)
+  uint64_t gray    :  1; // gc mark flag
+  uint8_t  black   :  1; // gc trace flag
+  uint8_t  data[];      // object's regular data
 };
-
-typedef size_t (*CompileFn)(Vm* vm, List* form);
 
 // user types
 struct Symbol {
@@ -36,8 +35,18 @@ struct Symbol {
 
 struct Function {
   Obj          obj;
-  Symbol*      name;
-  Obj*         handler; // probably a method table
+  Symbol*      name;       // the name of this function (or `fun` if anonymous).
+  MethodTable* methods;    // handles method resolution
+  Obj*         singleton;  // short-circuit dispatch if this is non-null
+};
+
+struct Vtable {
+  size_t    size;            // size of the value (0 - 8 bytes)
+  uintptr_t tag;             // tag used for values of given type
+  SizeFn    sizeOf;
+  TraceFn   trace;
+  FreeFn    free;
+  HashFn    hash;
 };
 
 struct Type {
@@ -46,8 +55,8 @@ struct Type {
   Type*     parent;        // abstract base type
   Type*     left, * right; // union constituents stored as invasive tree
   Function* ctor;          // constructor for values of this type
-  TypeCode  code;          // VM type code (if applicable)
-  uint32_t  idno;          // unique counter
+  Vtable*   vTable;        // runtime and internal methods for types with concrete values
+  uintptr_t idno;          // unique identifier for this type (similar to symbol idno)
 };
 
 struct Binding {
@@ -81,7 +90,6 @@ struct Vector {
   Obj      obj;
   VecNode* root;   // if arity is greater than 64, remaining elements are stored here
   size_t   arity;  // total number of elements in the vector
-  Type*    sType;  // struct type (NULL if this is a plain Vector)
   Value    tail[]; // last 64 elements are stored immediately
 };
 
@@ -89,7 +97,6 @@ struct Map {
   Obj      obj;
   MapNode* root;  // key/value pairs stored here
   size_t   arity; // total number of key/value pairs
-  Type*    rType; // record type (NULL if this is a plain Map)
 };
 
 struct Big {
@@ -109,8 +116,6 @@ struct MethodTable {
   List*       variadicMethods;
 };
 
-typedef Value (*NativeFn)(size_t nArgs, Value* args);
-
 struct Native {
   Obj      obj;
   NativeFn callBack;
@@ -129,19 +134,80 @@ struct Closure {
   Environment* envt;
 };
 
+/* a single stack frame. */
+struct Frame {
+  Closure*  code;
+  uint16_t* ip;
+  size_t    bp;
+};
+
+struct Control {
+  Obj      obj;
+  Frame    frame;
+  Value*   stackCopy;
+  Frame*   framesCopy;
+  size_t   nStack, nFrames;
+};
+
 struct Scope {
   Obj       obj;
   Scope*    parent;
-  NameSpace locals;
-  bool      toplevel;
-  bool      private;
+  NsMap     locals;
+  NsMap     upVals;
+};
+
+struct NameSpace {
+  Obj    obj;
+  NsMap* globals;
+  NsMap* private;
+  Scope* scope;
 };
 
 struct Environment {
   Obj          obj;
   Environment* parent;
-  Scope*       scope;
-  Values       vals;
+  NameSpace*   ns;
+  Objects      upvals;
+};
+
+struct UpValue {
+  Obj      obj;
+  UpValue* next;
+  union {
+    Value* location;
+    Value  value;
+  };
+};
+
+// node types
+struct VecNode {
+  Obj      obj;
+  Obj**    children;
+  uint32_t shift;
+  uint16_t count;
+  uint16_t capcity;
+};
+
+struct VecLeaf {
+  Obj   obj;
+  Value slots[64];
+};
+
+struct MapNode {
+  Obj      obj;
+  Obj**    children;
+  uint32_t shift;    
+  uint16_t count;
+  uint16_t capacity;
+  uint64_t prefix;
+  uint64_t bitmap;
+};
+
+struct MapLeaf {
+  Obj      obj;
+  MapLeaf* next; // used for collision resolution. 
+  Value    key;
+  Value    val;
 };
 
 // global sigletons

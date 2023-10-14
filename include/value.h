@@ -3,46 +3,6 @@
 
 #include "common.h"
 
-// core rascal types
-// basic value types
-typedef uintptr_t       Value;    // standard tagged value representation (NaN boxed)
-typedef struct Obj      Obj;      // generic object
-
-// immediate types
-typedef double          Float;    // ieee754-64 floating point number
-typedef uintptr_t       Arity;    // 48-bit unsigned integer
-typedef int             Small;    // 32-bit integer
-typedef bool            Boolean;  // boolean
-typedef int             Glyph;    // unicode codepoint
-
-// object types
-// user types
-typedef struct Symbol   Symbol;   // interned symbol
-typedef struct Function Function; // generic function object
-typedef struct Type     Type;     // first-class representation of a rascal type
-typedef struct Binding  Binding;  // object for storing variable bindings
-typedef struct Stream   Stream;   // IO stream
-typedef struct Big      Big;      // arbitrary precision integer
-typedef struct Bits     Bits;     // compact binary data
-typedef struct List     List;     // immutable linked list
-typedef struct Vector   Vector;   // clojure-like vector
-typedef struct Map      Map;      // clojure-like hashmap
-
-// internal types
-// vm types
-typedef struct MethodTable MethodTable; // core of multimethod implementation
-typedef struct Native      Native;      // native function or special form
-typedef struct Chunk       Chunk;       // compiled code
-typedef struct Closure     Closure;     // packages a chunk/namespace with names
-typedef struct Scope       Scope;       // naming context
-typedef struct Environment Environment; // naming context plus values
-
-// node types
-typedef struct VecNode     VecNode;
-typedef struct VecLeaf     VecLeaf;
-typedef struct MapNode     MapNode;
-typedef struct MapLeaf     MapLeaf;
-
 // various & sundry enums
 typedef enum {
   // dummy (for when a typecode needs to be passed but 'none' is valid)
@@ -75,8 +35,11 @@ typedef enum {
   NATIVE,
   CHUNK,
   CLOSURE,
+  CONTROL,
   SCOPE,
+  NAMESPACE,
   ENVIRONMENT,
+  UPVALUE,
 
   // node types
   VEC_NODE,
@@ -89,7 +52,8 @@ typedef enum {
 extern Type FloatType, ArityType, SmallType, BooleanType, UnitType, GlyphType,
   SymbolType, FunctionType, TypeType, BindingType, StreamType, BigType, BitsType,
   ListType, VectorType, MapType, MethodTableType, NativeType, ChunkType, ClosureType,
-  ScopeType, EnvironmentType, VecNodeType, VecLeafType, MapNodeType, MapLeafType;
+  ControlType, ScopeType, NameSpaceType, EnvironmentType, UpValueType, VecNodeType,
+  VecLeafType, MapNodeType, MapLeafType, NoneType, AnyType, TermType;
 
 #define NUM_TYPES (MAP_LEAF+1)
 
@@ -110,80 +74,101 @@ extern Type FloatType, ArityType, SmallType, BooleanType, UnitType, GlyphType,
 #define NUL         (NUL_TAG  | 0UL)
 #define NOTHING     (NUL_TAG  | 1UL) // invalid value marker
 
-#define TAG_FLOAT(number)     doubleToWord(number)
-#define TAG_ARITY(number)     (((Value)(number)) & VAL_MASK | ARITY_TAG)
-#define TAG_SMALL(number)     (((Value)(number))  | SMALL_TAG)
-#define TAG_BOOL(boolean)     ((boolean) ? TRUE : FALSE)
-#define TAG_GLYPH(glyph)      (((Value)(glyph))   | GLYPH_TAG)
-#define TAG_OBJ(pointer)      (((Value)(pointer)) | OBJ_TAG)
+#define tag(x) _Generic((x),                    \
+                        Float:tagFloat,         \
+                        Arity:tagArity,         \
+                        Small:tagSmall,         \
+                        Boolean:tagBoolean,     \
+                        Glyph:tagGlyph,         \
+                        default:tagObj)(x)
 
-#define AS_FLOAT(value)        ((Float)wordToDouble(value))
-#define AS_ARITY(value)        ((value) & VAL_MASK)
-#define AS_SMALL(value)        ((Small)((value) & SMALL_MASK))
-#define AS_BOOL(value)         ((value) == TRUE)
-#define AS_GLYPH(value)        ((Glyph)((value) & SMALL_MASK))
-#define AS_PTR(value)          ((void*)((value) & VAL_MASK))
+#define AS_FLOAT(x)        ((Float)wordToDouble(x))
+#define AS_ARITY(x)        ((x) & VAL_MASK)
+#define AS_SMALL(x)        ((Small)((x) & SMALL_MASK))
+#define AS_BOOL(x)         ((x) == TRUE)
+#define AS_GLYPH(x)        ((Glyph)((x) & SMALL_MASK))
+#define AS_PTR(x)          ((void*)((x) & VAL_MASK))
 
-#define AS_OBJ(value)          ((Obj*)AS_PTR(value))
-#define AS_SYMBOL(value)       ((Symbol*)AS_PTR(value))
-#define AS_FUNCTION(value)     ((Function*)AS_PTR(value))
-#define AS_TYPE(value)         ((Type*)AS_PTR(value))
-#define AS_BINDING(value)      ((Binding*)AS_PTR(value))
-#define AS_STREAM(value)       ((Stream*)AS_PTR(value))
-#define AS_BIG(value)          ((Big*)AS_PTR(value))
-#define AS_BITS(value)         ((Bits*)AS_PTR(value))
-#define AS_LIST(value)         ((List*)AS_PTR(value))
-#define AS_VECTOR(value)       ((Vector*)AS_PTR(value))
-#define AS_MAP(value)          ((Map*)AS_PTR(value))
-#define AS_METHOD_TABLE(value) ((MethodTable*)AS_PTR(value))
-#define AS_NATIVE(value)       ((Native*)AS_PTR(value))
-#define AS_CHUNK(value)        ((Chunk*)AS_PTR(value))
-#define AS_CLOSURE(value)      ((Closure*)AS_PTR(value))
-#define AS_SCOPE(value)        ((Scope*)AS_PTR(value))
-#define AS_ENVIRONMENT(value)  ((Environment*)AS_PTR(value))
-#define AS_VEC_NODE(value)     ((VecNode*)AS_PTR(value))
-#define AS_VEC_LEAF(value)     ((VecLeaf*)AS_PTR(value))
-#define AS_MAP_NODE(value)     ((MapNode*)AS_PTR(value))
-#define AS_MAP_LEAF(value)     ((MapLeaf*)AS_PTR(value))
+#define AS_OBJ(x)          ((Obj*)AS_PTR(x))
+#define AS_SYMBOL(x)       ((Symbol*)AS_PTR(x))
+#define AS_FUNCTION(x)     ((Function*)AS_PTR(x))
+#define AS_TYPE(x)         ((Type*)AS_PTR(x))
+#define AS_BINDING(x)      ((Binding*)AS_PTR(x))
+#define AS_STREAM(x)       ((Stream*)AS_PTR(x))
+#define AS_BIG(x)          ((Big*)AS_PTR(x))
+#define AS_BITS(x)         ((Bits*)AS_PTR(x))
+#define AS_LIST(x)         ((List*)AS_PTR(x))
+#define AS_VECTOR(x)       ((Vector*)AS_PTR(x))
+#define AS_MAP(x)          ((Map*)AS_PTR(x))
+#define AS_METHOD_TABLE(x) ((MethodTable*)AS_PTR(x))
+#define AS_NATIVE(x)       ((Native*)AS_PTR(x))
+#define AS_CHUNK(x)        ((Chunk*)AS_PTR(x))
+#define AS_CLOSURE(x)      ((Closure*)AS_PTR(x))
+#define AS_CONTROL(x)      ((Control*)AS_PTR(x))
+#define AS_SCOPE(x)        ((Scope*)AS_PTR(x))
+#define AS_NAMESPACE(x)    ((NameSpace*)AS_PTR(x))
+#define AS_ENVIRON(x)      ((Environment*)AS_PTR(x))
+#define AS_UPVALUE(x)      ((UpValue*)AS_PTR(x))
+#define AS_VEC_NODE(x)     ((VecNode*)AS_PTR(x))
+#define AS_VEC_LEAF(x)     ((VecLeaf*)AS_PTR(x))
+#define AS_MAP_NODE(x)     ((MapNode*)AS_PTR(x))
+#define AS_MAP_LEAF(x)     ((MapLeaf*)AS_PTR(x))
 
-#define IS_FLOAT(value)        hasType(value, &FloatType)
-#define IS_ARITY(value)        hasType(value, &ArityType)
-#define IS_SMALL(value)        hasType(value, &SmallType)
-#define IS_BOOLEAN(value)      hasType(value, &BooleanType)
-#define IS_UNIT(value)         hasType(value, &UnitType)
-#define IS_GLYPH(value)        hasType(value, &GlyphType)
-#define IS_OBJ(value)          hasValueType(value, OBJECT)
-#define IS_SYMBOL(value)       hasType(value, SYMBOL)
-#define IS_FUNCTION(value)     hasType(value, FUNCTION)
-#define IS_TYPE(value)         hasType(value, TYPE)
-#define IS_BINDING(value)      hasType(value, BINDING)
-#define IS_STREAM(value)       hasType(value, STREAM)
-#define IS_BITS(value)         hasType(value, BITS)
-#define IS_LIST(value)         hasType(value, LIST)
-#define IS_METHOD_TABLE(value) hasType(value, METHOD_TABLE)
-#define IS_NATIVE(value)       hasType(value, NATIVE)
-#define IS_CHUNK(value)        hasType(value, CHUNK)
-#define IS_CLOSURE(value)      hasType(value, CLOSURE)
-#define IS_SCOPE(value)        hasType(value, SCOPE)
-#define IS_ENVIRONMENT(value)  hasType(value, ENVIRONMENT)
+#define IS_FLOAT(x)        hasType(x, &FloatType)
+#define IS_ARITY(x)        hasType(x, &ArityType)
+#define IS_SMALL(x)        hasType(x, &SmallType)
+#define IS_BOOLEAN(x)      hasType(x, &BooleanType)
+#define IS_UNIT(x)         hasType(x, &UnitType)
+#define IS_GLYPH(x)        hasType(x, &GlyphType)
+#define IS_OBJ(x)          (((x) & TAG_MASK) == OBJ_TAG)
+#define IS_SYMBOL(x)       hasType(x, &SymbolType)
+#define IS_FUNCTION(x)     hasType(x, &FunctionType)
+#define IS_TYPE(x)         hasType(x, &TypeType)
+#define IS_BINDING(x)      hasType(x, &BindingType)
+#define IS_STREAM(x)       hasType(x, &StreamType)
+#define IS_BIG(x)          hasType(x, &BigType)
+#define IS_BITS(x)         hasType(x, &BitsType)
+#define IS_LIST(x)         hasType(x, &ListType)
+#define IS_VECTOR(x)       hasType(x, &VectorType)
+#define IS_MAP(x)          hasType(x, &MapType)
+#define IS_METHOD_TABLE(x) hasType(x, &MethodTableType)
+#define IS_NATIVE(x)       hasType(x, &NativeType)
+#define IS_CHUNK(x)        hasType(x, &ChunkType)
+#define IS_CLOSURE(x)      hasType(x, &ClosureType)
+#define IS_CONTROL(x)      hasType(x, &ControlType)
+#define IS_SCOPE(x)        hasType(x, &ScopeType)
+#define IS_NAMESPACE(x)    hasType(x, &NameSpaceType)
+#define IS_ENVIRONMENT(x)  hasType(x, &EnvironmentType)
+#define IS_UPVALUE(x)      hasType(x, &UpValueType)
+#define IS_VECNODE(x)      hasType(x, &VecNodeType)
+#define IS_VECLEAF(x)      hasType(x, &VecLeafType)
+#define IS_MAPNODE(x)      hasType(x, &MapNodeType)
+#define IS_MAPLEAF(x)      hasType(x, &MapLeafType)
 
 #include "tpl/declare.h"
 
 ARRAY_TYPE(Values, Value);
-TABLE_TYPE(Annotations, annotations, Value, Obj*);
 
-#define typeOf(v) _Generic((v),                     \
-                           Value:typeOfVal,         \
-                           default:typeOfObj)(v)
+#define typeOf(v)     generic2(typeOf, v, v)
+#define sizeOf(v)     generic2(sizeOf, v, v)
+#define typeCode(v)   typeOf(v)->code
+#define hasType(v, t) generic2(hasType, v, v, t)
 
-#define typeCode(v) typeOf(v)->code
+Value tagFloat(Float x);
+Value tagArity(Arity x);
+Value tagSmall(Small x);
+Value tagBoolean(Boolean x);
+Value tagGlyph(Glyph x);
+Value tagObj(void* x);
 
-bool     hasValType(Value value, TypeCode type);
-bool     hasVmType(Value value, TypeCode type);
+Type*  typeOfVal(Value value);
+Type*  typeOfObj(void* ptr);
+size_t sizeOfVal(Value value);
+size_t sizeOfObj(void* ptr);
+bool   hasTypeVal(Value value, Type* type);
+bool   hasTypeObj(void* ptr, Type* type);
 
 void     printValues(FILE* ios, Values* values);
-Type*    typeOfVal(Value value);
-Type*    typeOfObj(void* ptr);
 bool     equalValues(Value x, Value y);
 uint64_t hashValue(Value x);
 void     printValue(FILE* ios, Value x);

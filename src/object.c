@@ -11,47 +11,6 @@
 ARRAY_TYPE(Objects, Obj*, Obj*, false);
 ARRAY_TYPE(ByteCode, uint16_t, int, false);
 
-bool compareSymbolTableKeys(char* xs, char* ys) {
-  return strcmp(xs, ys) == 0;
-}
-
-void internSymbolTableKey(SymbolTable* table, SymbolTableEntry* entry, char* key, Symbol** value) {
-  (void)table;
-  Symbol* atom   = newSymbol(key);
-  entry->key   = atom->name;
-  entry->val   = atom;
-  *value       = atom;
-}
-
-TABLE_TYPE(SymbolTable,
-           symbolTable,
-           char*,
-           Symbol*,
-           compareSymbolTableKeys,
-           hashString,
-           internSymbolTableKey,
-           NULL,
-           NULL);
-
-bool compareNameSpaceKeys(Symbol* x, Symbol* y) {
-  return x == y;
-}
-
-void internNameSpaceKey(NameSpace* table, NameSpaceEntry* entry, Symbol* key, size_t* val) {
-  entry->key = key;
-  entry->val = *val = table->count;
-}
-
-TABLE_TYPE(NameSpace,
-           nameSpace,
-           Symbol*,
-           Value,
-           compareNameSpaceKeys,
-           hashObject,
-           internNameSpaceKey,
-           NULL,
-           UINT64_MAX);
-
 // internal forward declarations
 static void  initObject(void* pointer, Type type, int flags) {
   Obj* obj  = pointer;

@@ -1,0 +1,17 @@
+#ifndef rascal_eval_h
+#define rascal_eval_h
+
+#include "opcodes.h"
+#include "vm.h"
+
+// C types
+void  initInterpreter(Vm* vm);
+void  freeInterpreter(Vm* vm);
+void  startInterpreter(Vm* vm, Closure* code);
+void  resetInterpreter(Vm* vm);
+
+Value  exec(Closure* code);
+Value  eval(Value val);
+void   repl(void);
+
+#endif

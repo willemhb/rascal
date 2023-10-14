@@ -18,6 +18,7 @@ typedef enum OpCode {
   OP_JUMPT,   // conditional jump (jump if TOS is not `false` or `nul`)
   OP_GETGL,   // load value of global variable with offset `i`
   OP_PUTGL,   // store TOS in global variable with offset `i`
+  OP_USE,     // 
 } OpCode;
 
 // external API

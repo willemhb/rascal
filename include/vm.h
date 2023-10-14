@@ -1,43 +1,90 @@
 #ifndef rascal_vm_h
 #define rascal_vm_h
 
-#include "memory.h"
-#include "runtime.h"
-#include "environment.h"
-#include "reader.h"
-#include "compiler.h"
-#include "interpreter.h"
+#include "common.h"
+#include "value.h"
+#include "object.h"
 
-/* all the global state needed by the interpreter.
-   Really just packages more specialized structs. */
+// generics
+#include "tpl/declare.h"
+
+ARRAY_TYPE(TextBuffer, char);
+TABLE_TYPE(ReadTable, readTable, int, ReadFn);
+TABLE_TYPE(SymbolCache, symbolCache, char*, Symbol*);
+TABLE_TYPE(LoadCache, loadCache, Bits*, Value);
+TABLE_TYPE(Annotations, annotations, Value, Map*);
+
+/* Composite global state object. */
 struct Vm {
   // heap state
-  Heap heap;
-
-  // exception context
-  Context context;
+  struct {
+    Obj*    objects;
+    size_t  used;
+    size_t  capacity;
+    Objects grays;
+    Values  saved;
+  } heap;
 
   // environment state
-  Environment environment;
+  struct {
+    uintptr_t   nSymbols;
+    SymbolCache symbols;
+    Annotations annot;
+    NsMap       globals;
+    LoadCache   used;
+  } toplevel;
 
   // reader state
-  Reader reader;
+  struct {
+    FILE*      source;
+    ReadState  state;
+    TextBuffer buffer;
+    ReadTable  table;
+    Values     stack;
+  } reader;
 
   // compiler state
-  Compiler compiler;
+  struct {
+    Chunk*     chunk;
+    NameSpace* ns;
+    Values     stack;
+  } compiler;
 
-  // interpreter state
-  Interpreter interpreter;
+  // execution state
+  struct {
+    size_t sp, fp, bp;
+    UpValue*  upVals;
+    Closure*  code;
+    uint16_t* ip;
+  } exec;
+
+  // error context
+  Context* ctx;
+
+  // miscellaneous state
+  Value* stackBase, * stackEnd;
+  Frame* framesBase, * framesEnd;
 };
 
 // globals
+#define N_STACK 32768
+#define N_FRAME 8192
+
 extern Vm RlVm;
+extern struct Frame Frames[N_FRAME];
+extern Value Stack[N_STACK];
 
 // external API
-// vm accessors
-
 void initVm(Vm* vm);
 void freeVm(Vm* vm);
 void syncVm(Vm* vm);
 
+size_t push(Value x);
+Value  pop(void);
+size_t pushn(size_t n);
+Value  popn(size_t n);
+Value* peek(int i);
+void   save(size_t n, ...);
+void   unsave(size_t n);
+ 
 #endif

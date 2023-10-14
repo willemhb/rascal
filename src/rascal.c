@@ -4,7 +4,6 @@
 #include "util/hashing.h"
 #include "util/io.h"
 
-#include "debug.h"
 #include "vm.h"
 #include "interpreter.h"
 
@@ -26,6 +25,7 @@ Value TheStack[N_STACK];
 List emptyList = {
   .obj={
     .next  =NULL,
+    .annot =NULL,
     .hash  =0,
     .type  =LIST,
     .hashed=false,
@@ -35,11 +35,30 @@ List emptyList = {
   },
   .tail =&emptyList,
   .arity=0,
-  .head =NUL_VAL
+  .head =NUL
+};
+
+Vector emptyVector = {
+  .obj={
+    .next  =NULL,
+    .annot =NULL,
+    .hash  =0,
+    .type  =VECTOR,
+    .hashed=false,
+    .flags =0,
+    .black =false,
+    .gray  =true
+  },
+  .arity=0,
+  
+};
+
+Map emptyMap = {
+  
 };
 
 // special forms and other important symbols
-Value QuoteSym, DoSym, VarSym, IfSym;
+Value FunSym, VarSym, IfSym, WithSym, QuoteSym, DoSym, UseSym;
 
 // startup helpers & shutdown
 static void welcomeMessage(void) {
@@ -64,15 +83,21 @@ static void initRascal(void) {
   initVm(&vm);
 
   // initialize special forms
-  extern size_t compileQuote(Compiler* compiler, List* form);
-  extern size_t compileDo(Compiler* compiler, List* form);
-  extern size_t compileVar(Compiler* compiler, List* form);
-  extern size_t compileIf(Compiler* compiler, List* form);
+  extern size_t compileFun(Vm* vm, List* form);
+  extern size_t compileVar(Vm* vm, List* form);
+  extern size_t compileIf(Vm* vm, List* form);
+  extern size_t compileWith(Vm* vm, List* form);
+  extern size_t compileQuote(Vm* vm, List* form);
+  extern size_t compileDo(Vm* vm, List* form);
+  extern size_t compileUse(Vm* vm, List* form);
 
-  QuoteSym = defineSpecial("quote", compileQuote);
-  DoSym    = defineSpecial("do", compileDo);
+  FunSym   = defineSpecial("fun", compileFun);
   VarSym   = defineSpecial("var", compileVar);
   IfSym    = defineSpecial("if", compileIf);
+  WithSym  = defineSpecial("with", compileWith);
+  QuoteSym = defineSpecial("quote", compileQuote);
+  DoSym    = defineSpecial("do", compileDo);
+  UseSym   = defineSpecial("use", compileUse);
 
   // print welcome
   welcomeMessage();

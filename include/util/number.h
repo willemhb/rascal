@@ -18,6 +18,11 @@
     _x < _y ? _y : _x;                          \
   })
 
+#define popc(n)                                 \
+  _Generic((n),                                 \
+           uint32_t:__builtin_popcount,         \
+           uint64_t:__builtin_popcountl)(n)
+
 // general numeric utilities
 uint64_t ceilPow2(uint64_t word);
 

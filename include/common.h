@@ -51,18 +51,93 @@ static inline double wordToDouble(uintptr_t word) {
 
 // other C types
 // VM state objects
-typedef struct Heap        Heap;         // allocation state
-typedef struct Context     Context;      // error and execution context sate
-typedef struct Interpreter Interpreter;  // execution state
-typedef struct Environment Environment;  // namespace & symbol table
-typedef struct Reader      Reader;       // reader state
-typedef struct Compiler    Compiler;     // compiler state
-typedef struct Vm          Vm;           // composite state object (bundles all of the above)
+typedef struct Context Context; // saved execution state
+typedef struct Frame Frame;     // call frame
+typedef struct Vtable Vtable;   // stores lifetime methods for object types
+typedef struct Vm  Vm;          // all essential execution state
 
-// misc enums
+// basic tagged types
+// basic value types
+typedef uintptr_t       Value;    // standard tagged value representation (NaN boxed)
+typedef struct Obj      Obj;      // generic object
+
+// core rascal types
+// immediate types
+typedef double          Float;    // ieee754-64 floating point number
+typedef uintptr_t       Arity;    // 48-bit unsigned integer
+typedef int             Small;    // 32-bit integer
+typedef bool            Boolean;  // boolean
+typedef char            Glyph;    // unicode codepoint
+
+// object types
+// user types
+typedef struct Symbol   Symbol;   // interned symbol
+typedef struct Function Function; // generic function object
+typedef struct Type     Type;     // first-class representation of a rascal type
+typedef struct Binding  Binding;  // object for storing variable bindings
+typedef struct Stream   Stream;   // IO stream
+typedef struct Big      Big;      // arbitrary precision integer
+typedef struct Bits     Bits;     // compact binary data
+typedef struct List     List;     // immutable linked list
+typedef struct Vector   Vector;   // clojure-like vector
+typedef struct Map      Map;      // clojure-like hashmap
+
+// internal types
+// vm types
+typedef struct MethodTable MethodTable; // core of multimethod implementation
+typedef struct Native      Native;      // native function or special form
+typedef struct Chunk       Chunk;       // compiled code
+typedef struct Closure     Closure;     // packages a chunk/namespace with names
+typedef struct Control     Control;     // reified continuation
+typedef struct Scope       Scope;       // lexical naming context
+typedef struct NameSpace   NameSpace;   // complete naming context, including globals and file-scoped variables
+typedef struct Environment Environment; // a reified naming context, including values
+typedef struct UpValue     UpValue;     // a captured local binding
+
+// node types
+typedef struct VecNode     VecNode;     // internal vector node
+typedef struct VecLeaf     VecLeaf;     // terminal vector node
+typedef struct MapNode     MapNode;     // internal map node
+typedef struct MapLeaf     MapLeaf;     // terminal map node (stores key/value pair)
+
+// function pointer types
+typedef Value    (*NativeFn)(size_t n, Value* a);
+typedef size_t   (*CompileFn)(Vm* vm, List* form);
+typedef void     (*ReadFn)(Vm* vm, int dispatch);
+typedef void     (*TraceFn)(void* ptr);
+typedef void     (*FreeFn)(void* ptr);
+typedef uint64_t (*HashFn)(void* ptr);
+typedef size_t   (*SizeFn)(void* ptr);
+
+// enum & flag types
+typedef enum {
+  READER_READY,
+  READER_EXPRESSION,
+  READER_DONE,
+  READER_ERROR
+} ReadState;
+
+typedef enum {
+  COMPILER_REPL,     // executing in REPL
+  COMPILER_SCRIPT,   // code loaded from a file
+  COMPILER_WITH,     // like SCRIPT_CHUNK, but with private names
+  COMPILER_FUNCTION, // body of a fun` form
+  COMPILER_MACRO,    // body of a `mac` form
+} CompileState;
+
 typedef enum {
   BINARY,      // not encoded
-  ASCII,       // ascii encoded
+  ASCII,
+  LATIN1,
+  UTF8,
+  UTF16,
+  UTF32,
 } Encoding;
+
+// miscellaneous helper macros
+#define generic2(method, dispatch, args...)     \
+  _Generic((dispatch),                          \
+           Value:method##Val,                   \
+           default:method##Obj)(args)
 
 #endif

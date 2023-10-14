@@ -1,135 +1,114 @@
+#include "util/hashing.h"
+
 #include "opcodes.h"
 #include "vm.h"
 
+// generics
+#include "tpl/describe.h"
+
+ARRAY_TYPE(TextBuffer, char, int, true);
+
+bool compareReadTableKeys(int cx, int cy) {
+  return cx == cy;
+}
+
+void internReadTableKey(ReadTable* table, ReadTableEntry* entry, int key, ReadFn* value) {
+  (void)table;
+  entry->key = key;
+  entry->val = *value;
+}
+
+uint64_t hashCharacter(int ch) {
+  return ch;
+}
+
+TABLE_TYPE(ReadTable,
+           readTable,
+           int,
+           ReadFn,
+           compareReadTableKeys,
+           hashCharacter,
+           internReadTableKey,
+           '\0',
+           NULL);
+
+
+bool compareSymbolCacheKeys(char* xs, char* ys) {
+  return strcmp(xs, ys) == 0;
+}
+
+void internSymbolCacheKey(SymbolCache* table, SymbolCacheEntry* entry, char* key, Symbol** value) {
+  (void)table;
+
+  Symbol* atom   = newSymbol(key);
+  entry->key   = atom->name;
+  entry->val   = atom;
+  *value       = atom;
+}
+
+TABLE_TYPE(SymbolCache,
+           symbolCache,
+           char*,
+           Symbol*,
+           compareSymbolCacheKeys,
+           hashString,
+           internSymbolCacheKey,
+           NULL,
+           NULL);
+
+bool compareLoadCacheKeys(Bits* x, Bits* y) {
+  return strcmp(x->data, y->data) == 0;
+}
+
+void internLoadCacheKey(LoadCache* table, LoadCacheEntry* entry, Bits* key, Value* value) {
+  (void)table;
+
+  entry->key = key;
+  entry->val = *value;
+}
+
+TABLE_TYPE(LoadCache,
+           loadCache,
+           Bits*,
+           Value,
+           compareLoadCacheKeys,
+           hashObject,
+           internLoadCacheKey,
+           NULL,
+           NOTHING);
+
+bool compareAnnotationsKeys(Value x, Value y) {
+  return x == y;
+}
+
+uint64_t hashAnnotationsKey(Value x) {
+  return hashWord(x);
+}
+
+void internAnnotationsKey(Annotations* table, AnnotationsEntry* entry, Value key, Map** value) {
+  (void)table;
+  entry->key = key;
+  entry->val = *value = &emptyMap;
+}
+
+TABLE_TYPE(Annotations,
+           annotations,
+           Value,
+           Map*,
+           compareAnnotationsKeys,
+           hashAnnotationsKey,
+           internAnnotationsKey,
+           NOTHING,
+           NULL);
+
 // external API
-Heap* heap(Vm* vm) {
-  return &vm->heap;
-}
-
-Obj* heapObjects(Vm* vm) {
-  return heap(vm)->objects;
-}
-
-size_t heapUsed(Vm* vm) {
-  return heap(vm)->used;
-}
-
-size_t heapCapacity(Vm* vm) {
-  return heap(vm)->capacity;
-}
-
-Objects* heapGrays(Vm* vm) {
-  return &heap(vm)->grays;
-}
-
-Context* context(Vm* vm) {
-  return &vm->context;
-}
-
-bool panicking(Vm* vm) {
-  return context(vm)->panicking;
-}
-
-Environment* environment(Vm* vm) {
-  return &vm->environment;
-}
-
-size_t nSymbols(Vm* vm) {
-  return environment(vm)->nSymbols;
-}
-
-SymbolTable* symbols(Vm* vm) {
-  return &environment(vm)->symbols;
-}
-
-NameSpace* globalNs(Vm* vm) {
-  return &environment(vm)->globalNs;
-}
-
-Values* globalVals(Vm* vm) {
-  return &environment(vm)->globalVals;
-}
-
-Reader* reader(Vm* vm) {
-  return &vm->reader;
-}
-
-FILE* source(Vm* vm) {
-  return reader(vm)->source;
-}
-
-ReaderState readState(Vm* vm) {
-  return reader(vm)->state;
-}
-
-TextBuffer* readBuffer(Vm* vm) {
-  return &reader(vm)->buffer;
-}
-
-char* token(Vm* vm) {
-  return readBuffer(vm)->data;
-}
-
-ReadTable* readTable(Vm* vm) {
-  return &reader(vm)->table;
-}
-
-Values* readStack(Vm* vm) {
-  return &reader(vm)->stack;
-}
-
-Compiler* compiler(Vm* vm) {
-  return &vm->compiler;
-}
-
-Chunk* compilerChunk(Vm* vm) {
-  return compiler(vm)->chunk;
-}
-
-Values* compilerStack(Vm* vm) {
-  return &compiler(vm)->stack;
-}
-
-Interpreter* interpreter(Vm* vm) {
-  return &vm->interpreter;
-}
-
-Value* sp(Vm* vm) {
-  return interpreter(vm)->sp;
-}
-
-Value* vp(Vm* vm) {
-  return interpreter(vm)->vp;
-}
-
-Value* ep(Vm* vm) {
-  return interpreter(vm)->ep;
-}
-
-Chunk* code(Vm* vm) {
-  return interpreter(vm)->code;
-}
-
 void initVm(Vm* vm) {
-  initHeap(heap(vm));
-  initContext(context(vm));
-  initEnvironment(environment(vm));
-  initReader(reader(vm));
-  initCompiler(compiler(vm));
-  initInterpreter(interpreter(vm), TheStack, N_STACK);
+  initHeap(vm);
 }
 
 void freeVm(Vm* vm) {
-  freeHeap(heap(vm));
-  freeContext(context(vm));
-  freeEnvironment(environment(vm));
-  freeReader(reader(vm));
-  freeCompiler(compiler(vm));
-  freeInterpreter(interpreter(vm));
+  freeHeap(vm);
 }
 
 void syncVm(Vm* vm) {
-  syncReader(reader(vm));
-  syncCompiler(compiler(vm));
-  syncInterpreter(interpreter(vm));
 }

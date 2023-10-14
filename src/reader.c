@@ -3,7 +3,7 @@
 #include <stdarg.h>
 
 #include "vm.h"
-#include "reader.h"
+#include "read.h"
 
 // character classes
 #define RLSPC  " \n\r\t\v,"
@@ -15,35 +15,6 @@
 
 // globals
 Value QuoteSym;
-
-// generics
-#include "tpl/describe.h"
-
-ARRAY_TYPE(TextBuffer, char, int, true);
-
-bool compareReadTableKeys(int cx, int cy) {
-  return cx == cy;
-}
-
-void internReadTableKey(ReadTable* table, ReadTableEntry* entry, int key, ReadFn* value) {
-  (void)table;
-  entry->key = key;
-  entry->val = *value;
-}
-
-uint64_t hashCharacter(int ch) {
-  return ch;
-}
-
-TABLE_TYPE(ReadTable,
-           readTable,
-           int,
-           ReadFn,
-           compareReadTableKeys,
-           hashCharacter,
-           internReadTableKey,
-           '\0',
-           NULL);
 
 // internal API
 // declarations

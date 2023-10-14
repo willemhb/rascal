@@ -4,15 +4,11 @@
 #include "common.h"
 #include "object.h"
 
-// C types
-struct Heap {
-  Obj*    objects;
-  size_t  used;
-  size_t  capacity;
-  Objects grays;
-  Values  saved;
-};
+// globals
+#define N_HEAP  (((size_t)1)<<19)
+#define HEAP_LF 0.625
 
+// external API
 #define SAFE_ALLOC(func, args...)                           \
   ({                                                        \
     void* __out = func(args);                               \
@@ -32,11 +28,13 @@ struct Heap {
 #define SAFE_MALLOC(nBytes)           SAFE_ALLOC(malloc, nBytes)
 #define SAFE_REALLOC(pointer, nBytes) SAFE_ALLOC(realloc, pointer, nBytes)
 
-void  initHeap(Heap* heap);
-void  freeHeap(Heap* heap);
+#define mark(x) generic2(mark, x, x)
 
-void  save(Value value);
-void  unsave(size_t n);
+void  markVal(Value val);
+void  markObj(void* ptr);
+
+void  initHeap(Vm* vm);
+void  freeHeap(Vm* vm);
 
 void* allocate(Vm* vm, size_t nBytes);
 void* duplicate(Vm* vm, void* pointer, size_t nBytes);

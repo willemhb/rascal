@@ -3,67 +3,89 @@
 #include "object.h"
 #include "value.h"
 
-// array types
+// generics
 #include "tpl/describe.h"
 
 ARRAY_TYPE(Values, Value, Value, false);
 
-Type valueType(Value value) {
+// external API
+Value tagFloat(Float x) {
+  return doubleToWord(x);
+}
+
+Value tagArity(Arity x) {
+  return (x & VAL_MASK) | ARITY_TAG;
+}
+
+Value tagSmall(Small x) {
+  return ((Value)x) | SMALL_TAG;
+}
+
+Value tagBoolean(Boolean x) {
+  return x ? TRUE : FALSE;
+}
+
+Value tagGlyph(Glyph x) {
+  return ((Value)x) | GLYPH_TAG;
+}
+
+Value tagObj(void* x) {
+  return ((Value)x) | OBJ_TAG;
+}
+
+
+Type* typeOfVal(Value value) {
+  Type* out;
+  
   switch (value & TAG_MASK) {
-    case NUL_TAG:  return UNIT;
-    case BOOL_TAG: return BOOLEAN;
-    case OBJ_TAG:  return OBJECT;
-    default:       return NUMBER;
-  }
-}
-
-Type rascalType(Value value) {
-  Type type = valueType(value);
-
-  if (type == OBJECT)
-    type = objectType(AS_OBJ(value));
-
-  return type;
-}
-
-Type objectType(Obj* object) {
-  assert(object != NULL);
-
-  return object->type;
-}
-
-size_t sizeOfType(Type type) {
-  size_t out;
-
-  switch (type) {
-    case NUMBER:   out = sizeof(Number);   break;
-    case BOOLEAN:  out = sizeof(Boolean);  break;
-    case UNIT:     out = sizeof(Value);    break;
-    case SYMBOL:   out = sizeof(Symbol);   break;
-    case FUNCTION: out = sizeof(Function); break;
-    case NATIVE:   out = sizeof(Native);   break;
-    case CHUNK:    out = sizeof(Chunk);    break;
-    case BITS:     out = sizeof(Bits);     break;
-    case LIST:     out = sizeof(List);     break;
-    default:       out = 0;                break;
+    case ARITY_TAG: out = &ArityType;               break;
+    case SMALL_TAG: out = &SmallType;               break;
+    case NUL_TAG:   out = &UnitType;                break;
+    case BOOL_TAG:  out = &BooleanType;             break;
+    case GLYPH_TAG: out = &GlyphType;               break;
+    case OBJ_TAG:   out = typeOfObj(AS_PTR(value)); break;
+    default:        out = &FloatType;               break;
   }
 
   return out;
 }
 
-char* nameOfType(Type type) {
-  char* out;
-  
-  switch (type) {
-    case NUMBER:  out = "Number";  break;
-    case BOOLEAN: out = "Boolean"; break;
-    case UNIT:    out = "Unit";    break;
-    case SYMBOL:  out = "Symbol";  break;
-    case NATIVE:  out = "Native";  break;
-    case CHUNK:   out = "Chunk";   break;
-    case BITS:    out = "Bits";    break;
-    case LIST:    out = "List";    break;
-    default:      out = "Term";    break;
+Type* typeOfObj(void* ptr) {
+  assert(ptr != NULL);
+  Obj* obj = ptr;
+  Type* out;
+
+  switch(obj->type) {
+    case SYMBOL:       out = &SymbolType;      break;
+    case FUNCTION:     out = &FunctionType;    break;
+    case TYPE:         out = &TypeType;        break;
+    case BINDING:      out = &BindingType;     break;
+    case STREAM:       out = &StreamType;      break;
+    case BIG:          out = &BigType;         break;
+    case BITS:         out = &BitsType;        break;
+    case LIST:         out = &ListType;        break;
+    case VECTOR:{
+      Vector* vec = ptr;
+      out = vec->sType ? : &VectorType;
+      break;
+    }
+    case MAP:{
+      Map* map = ptr;
+      out = map->rType ? : &MapType;
+      break;
+    }
+    case METHOD_TABLE: out = &MethodTableType; break;
+    case NATIVE:       out = &NativeType;      break;
+    case CHUNK:        out = &ChunkType;       break;
+    case CLOSURE:      out = &ClosureType;     break;
+    case CONTROL:      out = &ControlType;     break;
+    case NAMESPACE:    out = &NameSpaceType;   break;
+    case UPVALUE:      out = &UpValueType;     break;
+    case VEC_NODE:     out = &VecNodeType;     break;
+    case VEC_LEAF:     out = &VecLeafType;     break;
+    case MAP_NODE:     out = &MapNodeType;     break;
+    case MAP_LEAF:     out = &MapLeafType;     break;
+    default:           /* unreachable */       break;
   }
 
   return out;
@@ -73,15 +95,15 @@ bool equalValues(Value x, Value y) {
   if (x == y)
     return true;
 
-  Type xt = rascalType(x), yt = rascalType(y);
+  Type* xt = typeOf(x), * yt = typeOf(y);
 
-  if (xt != yt || xt < SYMBOL)
+  if (xt != yt || xt->code < SYMBOL)
     return false;
 
   return equalObjects(AS_OBJ(x), AS_OBJ(y));
 }
 
-static void printNumber(FILE* ios, Number num) {
+static void printFloat(FILE* ios, Float num) {
   fprintf(ios, "%g", num);
 }
 
@@ -132,14 +154,14 @@ static void printList(FILE* ios, List* xs) {
 }
 
 static void printTerm(FILE* ios, Value x) {
-  const char* tName = nameOfType(rascalType(x));
+  const char* tName = typeOf(x)->name->name;
 
   fprintf(ios, "#%s<%lx>", tName, x & VAL_MASK);
 }
 
 void printValue(FILE* ios, Value x) {
-  switch (rascalType(x)) {
-    case NUMBER:  printNumber(ios, AS_NUM(x)); break;
+  switch (typeCode(x)) {
+    case FLOAT:   printFloat(ios, AS_FLOAT(x)); break;
     case BOOLEAN: printBoolean(ios, AS_BOOL(x)); break;
     case UNIT:    printUnit(ios, x); break;
     case SYMBOL:  printSymbol(ios, AS_SYMBOL(x)); break;
@@ -150,21 +172,15 @@ void printValue(FILE* ios, Value x) {
 }
 
 uint64_t hashValue(Value x) {
-  Type xt = rascalType(x);
+  Type* xt = typeOf(x);
 
   uint64_t out;
 
-  if (xt < SYMBOL)
-    out = mixHashes(hashType(xt), hashWord(x));
+  if (xt->code < SYMBOL)
+    out = mixHashes(xt->obj.hash, hashWord(x));
 
   else
     out = hashObject(AS_OBJ(x));
 
   return out;
-}
-
-uint64_t hashType(Type type) {
-  static uint64_t cache[NUM_TYPES] = {};
-
-  return cache[type] ? : (cache[type] = hashWord(type));
 }

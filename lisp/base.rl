@@ -1,4 +1,4 @@
 ;; standard library.
 
-(use ("core.rl"))
+(use (core))
 
