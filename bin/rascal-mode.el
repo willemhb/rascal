@@ -9,19 +9,20 @@
 (define-generic-mode
   'rascal-mode
   '(";" ("#|" . "|#"))
-  '("fun" "mac" "var" "val"           ;; binding syntax
-    "record" "struct" "class" "union" ;; binding syntax (continued)
-    "handle" "perform" "resume"       ;; effect syntax
-    "guard" "raise" "finally"         ;; exception syntax
-    "yield" "async" "sync" "await"    ;; coroutine syntax
-    "if" "and" "or"                   ;; branching syntax
-    "case" "cond" "not"               ;; branching syntax (continued)
-    "let" "with" "label" "loop"       ;; block syntax
-    "annot" "impl" "quote" "do"       ;; miscellaneous syntax
-    "use" "c-call"                    ;; miscellaneous syntax (continued)
+  '("fun" "mac" "var" "val" "put"  ;; binding syntax
+    "record" "struct" "type"       ;; binding syntax (continued)
+    "abstract" "union"             ;; binding syntax (continued)
+    "handle" "perform" "resume"    ;; effect syntax
+    "guard" "raise" "finally"      ;; exception syntax
+    "yield"                        ;; coroutine syntax
+    "if" "and" "or"                ;; branching syntax
+    "case" "cond" "not"            ;; branching syntax (continued)
+    "let" "with" "label" "loop"    ;; block syntax
+    "annot" "quote" "do"           ;; miscellaneous syntax
+    "do*" "use" "c-call"           ;; miscellaneous syntax (continued)
    )
   '(("[^:]:[-a-zA-Z?*+0-9/]+" . font-lock-type-face)
-    ("@[-a-zA-Z?*+0-9/]+" . font-lock-type-face)
+    ("[^~]@[-a-zA-Z?*+0-9/]+" . font-lock-type-face)
     ;; special constants
     ("\\_<nothing\\_>" . font-lock-constant-face)
     ("\\_<nul\\_>" . font-lock-constant-face)
@@ -41,6 +42,7 @@
     ("\\_<Stream\\_>" . font-lock-type-face)
     ("\\_<Big\\_>" . font-lock-type-face)
     ("\\_<Bits\\_>" . font-lock-type-face)
+    ("\\_<String\\_>" . font-lock-type-face)
     ("\\_<List\\_>" . font-lock-type-face)
     ("\\_<Vector\\_>" . font-lock-type-face)
     ("\\_<Map\\_>" . font-lock-type-face)
