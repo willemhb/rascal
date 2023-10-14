@@ -1,6 +1,11 @@
 #include "util/hashing.h"
 
-#include "opcodes.h"
+#include "runtime.h"
+#include "memory.h"
+#include "environment.h"
+#include "read.h"
+#include "compile.h"
+#include "eval.h"
 #include "vm.h"
 
 // generics
@@ -104,11 +109,24 @@ TABLE_TYPE(Annotations,
 // external API
 void initVm(Vm* vm) {
   initHeap(vm);
+  initEnvt(vm);
+  initReader(vm);
+  initCompiler(vm);
+  initInterpreter(vm);
+  initRuntime(vm);
 }
 
 void freeVm(Vm* vm) {
+  freeRuntime(vm);
+  freeInterpreter(vm);
+  freeCompiler(vm);
+  freeReader(vm);
+  freeEnvt(vm);
   freeHeap(vm);
 }
 
 void syncVm(Vm* vm) {
+  syncReader(vm);
+  syncCompiler(vm);
+  syncInterpreter(vm);
 }

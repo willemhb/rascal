@@ -11,6 +11,7 @@ extern Value QuoteSym;
 void  initReader(Vm* vm);
 void  freeReader(Vm* vm);
 void  resetReader(Vm* vm);
+void  syncReader(Vm* vm);
 
 Value read(void);
 Value readLine(void);

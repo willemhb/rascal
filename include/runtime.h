@@ -2,14 +2,13 @@
 #define rascal_runtime_h
 
 #include "common.h"
-#include "value.h"
 
 // C types
 struct Context {
-  struct Context* next;
+  Context* next;
 
   // Rascal execution state
-  Value* sp, *ap;
+  size_t sp, fp, bp;
   uint16_t* ip;
   Closure* code;
 
@@ -18,9 +17,9 @@ struct Context {
 } ErrorContext;
 
 // external API
-void initContext(Context* ctx);
-void freeContext(Context* ctx);
-void resetContext(Context* ctx);
+void initRuntime(Vm* vm);
+void freeRuntime(Vm* vm);
+void resetRuntime(Vm* vm);
 
 void saveState(Vm* vm, Context* ctx);
 void restoreState(Vm* vm, Context* ctx);

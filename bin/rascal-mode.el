@@ -14,7 +14,8 @@
     "handle" "perform" "resume"       ;; effect syntax
     "guard" "raise" "finally"         ;; exception syntax
     "yield" "async" "sync" "await"    ;; coroutine syntax
-    "if" "and" "or" "case"            ;; branching syntax
+    "if" "and" "or"                   ;; branching syntax
+    "case" "cond" "not"               ;; branching syntax (continued)
     "let" "with" "label" "loop"       ;; block syntax
     "annot" "impl" "quote" "do"       ;; miscellaneous syntax
     "use" "c-call"                    ;; miscellaneous syntax (continued)
@@ -62,6 +63,13 @@
     ("\\_<Any\\_>" . font-lock-type-face)
     ("\\_<None\\_>" . font-lock-type-face)
     ("\\_<Term\\_>" . font-lock-type-face)
+    ;; numeric type hierarchy (including non-builtin numeric types)
+    ("\\_<Integer\\_>" . font-lock-type-face)
+    ("\\_<Ratio\\_>" . font-lock-type-face)
+    ("\\_<Rational\\_>" . font-lock-type-face)
+    ("\\_<Real\\_>" . font-lock-type-face)
+    ("\\_<Complex\\_>" . font-lock-type-face)
+    ("\\_<Number\\_>" . font-lock-type-face)
     ;; syntax
     ("\\_<otherwise\\_>" . font-lock-function-name-face)
     ("\\_<&\\_>" . font-lock-function-name-face)

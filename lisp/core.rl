@@ -116,5 +116,5 @@
     (handlers & body)
     (fun transform-handler
       (handler)
-      ())
+      (cond ()))
     `(handle ~(map tansform-handler handlers))))

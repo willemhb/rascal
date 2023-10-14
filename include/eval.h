@@ -5,10 +5,11 @@
 #include "vm.h"
 
 // C types
-void  initInterpreter(Vm* vm);
-void  freeInterpreter(Vm* vm);
-void  startInterpreter(Vm* vm, Closure* code);
-void  resetInterpreter(Vm* vm);
+void initInterpreter(Vm* vm);
+void freeInterpreter(Vm* vm);
+void startInterpreter(Vm* vm, Closure* code);
+void resetInterpreter(Vm* vm);
+void syncInterpreter(Vm* vm); 
 
 Value  exec(Closure* code);
 Value  eval(Value val);
