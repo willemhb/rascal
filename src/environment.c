@@ -68,5 +68,5 @@ Value defineSpecial(char* name, CompileFn compile) {
   Symbol* sym = getSymbol(name);
   assert(sym->special == NULL);
   sym->special = compile;
-  return TAG_OBJ(sym);
+  return tag(sym);
 }
