@@ -18,9 +18,9 @@ TABLE_TYPE(Annotations, annotations, Value, Map*);
 struct Vm {
   // heap state
   struct {
-    Obj*    objects;
+    Obj*    objs;
     size_t  used;
-    size_t  capacity;
+    size_t  cap;
     Objects grays;
     Values  saved;
   } heap;
@@ -84,7 +84,7 @@ Value  pop(void);
 size_t pushn(size_t n);
 Value  popn(size_t n);
 Value* peek(int i);
-void   save(size_t n, ...);
-void   unsave(size_t n);
+size_t save(size_t n, ...);
+void*  unsave(size_t n);
  
 #endif

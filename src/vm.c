@@ -7,6 +7,7 @@
 #include "compile.h"
 #include "eval.h"
 #include "vm.h"
+#include "equal.h"
 
 // generics
 #include "tpl/describe.h"
@@ -37,7 +38,6 @@ TABLE_TYPE(ReadTable,
            '\0',
            NULL);
 
-
 bool compareSymbolCacheKeys(char* xs, char* ys) {
   return strcmp(xs, ys) == 0;
 }
@@ -45,7 +45,7 @@ bool compareSymbolCacheKeys(char* xs, char* ys) {
 void internSymbolCacheKey(SymbolCache* table, SymbolCacheEntry* entry, char* key, Symbol** value) {
   (void)table;
 
-  Symbol* atom   = newSymbol(key);
+  Symbol* atom = newSymbol(key, true);
   entry->key   = atom->name;
   entry->val   = atom;
   *value       = atom;
@@ -77,7 +77,7 @@ TABLE_TYPE(LoadCache,
            Bits*,
            Value,
            compareLoadCacheKeys,
-           hashObject,
+           hashObj,
            internLoadCacheKey,
            NULL,
            NOTHING);
@@ -129,4 +129,59 @@ void syncVm(Vm* vm) {
   syncReader(vm);
   syncCompiler(vm);
   syncInterpreter(vm);
+}
+
+size_t push(Value x) {
+  assert(RlVm.exec.sp < N_STACK);
+  size_t out = RlVm.exec.sp;
+  RlVm.stackBase[RlVm.exec.sp++] = x;
+  return out;
+}
+
+Value pop(void) {
+  assert(RlVm.exec.sp > 0);
+  return RlVm.stackBase[--RlVm.exec.sp];
+}
+
+size_t pushn(size_t n) {
+  assert(RlVm.exec.sp + n < N_STACK);
+  size_t out = RlVm.exec.sp;
+  RlVm.exec.sp += n;
+
+  return out;
+}
+
+Value popn(size_t n) {
+  assert(n <= RlVm.exec.sp);
+  Value out = RlVm.stackBase[RlVm.exec.sp-n];
+  RlVm.exec.sp -= n;
+  return out;
+}
+
+size_t save(size_t n, ...) {
+  Value buf[n];
+  va_list va;
+  va_start(va, n);
+
+  size_t i, j;
+
+  for (i=0, j=0; i<n; i++) {
+    Value val = va_arg(va, Value);
+
+    // only save objects that might be collected
+    if (IS_OBJ(val) && AS_OBJ(val) != NULL && !AS_OBJ(val)->noSweep)
+      buf[j++] = val;
+  }
+
+  va_end(va);
+
+  nWriteValues(&RlVm.heap.saved, j, buf);
+  return j;
+}
+
+void* unsave(size_t n) {
+  assert(n <= RlVm.heap.saved.count);
+  void* out = AS_PTR(RlVm.heap.saved.data[RlVm.heap.saved.count-n]);
+  nPopValues(&RlVm.heap.saved, n);
+  return out;
 }

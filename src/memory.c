@@ -151,7 +151,7 @@ static void traceVm(Vm* vm) {
 }
 
 static void sweepVm(Vm* vm) {
-  Obj** l = &vm->heap.objects, *c = vm->heap.objects, *t;
+  Obj** l = &vm->heap.objs, *c = vm->heap.objs, *t;
   Type* tp;
 
   while (c != NULL) {
@@ -176,7 +176,7 @@ static void sweepVm(Vm* vm) {
 }
 
 static void resizeVm(Vm* vm) {
-  size_t allocated = vm->heap.used, available = vm->heap.capacity;
+  size_t allocated = vm->heap.used, available = vm->heap.cap;
 
   if (allocated >= available) {
     fprintf(stderr, "fatal error: gc couldn't free enough memory.");
@@ -185,10 +185,10 @@ static void resizeVm(Vm* vm) {
   
   if (allocated > available * HEAP_LF && available < MAX_ARITY) {
     if (available == MAX_POW2)
-      vm->heap.capacity = MAX_ARITY;
+      vm->heap.cap = MAX_ARITY;
 
     else
-      vm->heap.capacity <<= 1;
+      vm->heap.cap <<= 1;
   }
 }
 
@@ -205,7 +205,7 @@ static void manageHeap(Vm* vm, size_t nBytesAdded, size_t nBytesRemoved) {
   if (nBytesAdded > nBytesRemoved) {
     size_t diff = nBytesAdded - nBytesRemoved;
 
-    if (diff + vm->heap.used > vm->heap.capacity)
+    if (diff + vm->heap.used > vm->heap.cap)
       manageVm(vm);
 
     vm->heap.used += diff;
@@ -433,9 +433,9 @@ void freeMapNode(void* p) {
 
 // external API
 void  initHeap(Vm* vm) {
-  vm->heap.objects  = NULL;
-  vm->heap.used     = 0;
-  vm->heap.capacity = N_HEAP;
+  vm->heap.objs = NULL;
+  vm->heap.used = 0;
+  vm->heap.cap  = N_HEAP;
 
   initObjects(&vm->heap.grays);
   initValues(&vm->heap.saved);

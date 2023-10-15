@@ -47,6 +47,9 @@ struct Vtable {
   size_t    objSize;         // base object size (32+ bytes)
   uintptr_t tag;             // tag used for values of given type
   SizeFn    sizeOf;
+  AllocFn   alloc;
+  InitFn    init;
+  CloneFn   clone;
   TraceFn   trace;
   FreeFn    free;
   PrintFn   print;
@@ -86,6 +89,12 @@ struct Bits {
   size_t elSize;
 };
 
+struct Tuple {
+  Obj    obj;
+  size_t arity;
+  Value  slots[];
+};
+
 struct List {
   Obj    obj;
   List*  tail;
@@ -95,9 +104,10 @@ struct List {
 
 struct Vector {
   Obj      obj;
-  VecNode* root;   // if arity is greater than 64, remaining elements are stored here
-  size_t   arity;  // total number of elements in the vector
-  Value    tail[]; // last 64 elements are stored immediately
+  VecNode* root;      // if arity is greater than 64, remaining elements are stored here
+  size_t   arity;     // total number of elements in the vector
+  Value*   tail;      // the last 64 elements are stored here
+  size_t   shift;
 };
 
 struct Map {
@@ -182,32 +192,37 @@ struct UpValue {
 };
 
 // node types
+#define BRANCH_FACTOR 0x40ul
+#define INDEX_MASK    0x3ful
+#define LEVEL_SHIFT   0x06ul
+#define MAX_SHIFT     0x30ul
+#define MAX_LEVEL     0x08ul
+
 struct VecNode {
   Obj      obj;
   Obj**    children;
   uint32_t shift;
   uint16_t count;
-  uint16_t capcity;
+  uint16_t capacity;
 };
 
 struct VecLeaf {
   Obj   obj;
-  Value slots[64];
+  Value slots[BRANCH_FACTOR];
 };
 
 struct MapNode {
   Obj      obj;
   Obj**    children;
-  uint32_t shift;    
+  uint32_t shift;
   uint16_t count;
   uint16_t capacity;
-  uint64_t prefix;
   uint64_t bitmap;
 };
 
 struct MapLeaf {
   Obj      obj;
-  MapLeaf* next; // used for collision resolution. 
+  MapLeaf* next; // used for collision resolution.
   Value    key;
   Value    val;
 };
@@ -217,30 +232,46 @@ extern List   emptyList;
 extern Vector emptyVector;
 extern Map    emptyMap;
 
-#define EMPTY_LIST()   TAG_OBJ(&emptyList)
-#define EMPTY_VECTOR() TAG_OBJ(&emptyVector)
-#define EMPTY_MAP()    TAG_OBJ(&emptyMap)
-
 // miscellaneous utilities
-uint64_t hashObject(void* ob);
-bool     equalObjects(void* obx, void* oby);
-void     freeObject(void* ob);
+int getFl(void* p, int f, int m);
+int setFl(void* p, int f, int m);
+int delFl(void* p, int f);
+
+void* clone(void* obj, int fl);
+void* newObj(Type* type, int fl, size_t n, void* data);
+void* allocObj(Type* type, int fl, size_t n);
+void  initObj(void* obj, Type* type, int fl, size_t n, void* data);
 
 // constructors
-Symbol*   newSymbol(char* name);
-Function* newFunction(Symbol* name, Obj* singleton);
+Symbol*   newSymbol(char* name, bool interned);
+Function* newFunction(Symbol* name, Obj* ini, bool generic, bool macro);
 Chunk*    newChunk(Symbol* name);
 Bits*     newBits(void* data, size_t count, size_t elSize, Encoding encoding);
-Bits*     newString(char* data, size_t count);
 List*     newList(Value head, List* tail);
 Vector*   newVector(size_t n, Value* vs);
 Map*      newMap(size_t n, Value* kvs);
 
-Symbol*   getSymbol(char* token);
+VecNode*  newVecNode();
+VecLeaf*  newVecLeaf(Value* tail);
 
-// map interface
-bool      mapGet(Map* m, Value k, Value* v);
-Map*      mapSet(Map* m, Value k, Value* v);
-Map*      mapDel(Map* m, Value k, Value* v);
+// convenience constructors
+Symbol*   symbol(char* token);
+Symbol*   gensym(char* name);
+
+// collection interfaces
+Value     mapGet(Map* m, Value k);
+Map*      mapSet(Map* m, Value k, Value v);
+Map*      mapAdd(Map* m, Value k, Value v);
+Map*      mapDel(Map* m, Value k);
+
+Value     vecGet(Vector* v, size_t i);
+Vector*   vecAdd(Vector* v, Value x);
+Vector*   vecSet(Vector* v, size_t i, Value x);
+Vector*   vecDel(Vector* v);
+
+Value     listGet(List* l, size_t n);
+List*     listAdd(List* l, Value x);
+List*     listSet(List* l, size_t n, Value x);
+List*     listDel(List* l, size_t n);
 
 #endif

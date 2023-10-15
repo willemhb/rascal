@@ -22,6 +22,9 @@
 #define UINT8_COUNT  (UINT8_MAX+1)
 #define UINT16_COUNT (UINT16_MAX+1)
 
+// utility types
+typedef uint64_t hash_t;
+
 /**
  *
  * Used for conversion from double -> uint64_t when working with NaN-boxed values.
@@ -78,9 +81,10 @@ typedef struct Binding  Binding;  // object for storing variable bindings
 typedef struct Stream   Stream;   // IO stream
 typedef struct Big      Big;      // arbitrary precision integer
 typedef struct Bits     Bits;     // compact binary data
-typedef struct List     List;     // immutable linked list
+typedef struct Tuple    Tuple;    // a simple, fixed-size imutable collection
+typedef struct List     List;     // classic linked list
 typedef struct Vector   Vector;   // clojure-like vector
-typedef struct Map      Map;      // clojure-like hashmap
+typedef struct Map      Map;      // clojure-like hashmap (with reader support for sets)
 
 // internal types
 // vm types
@@ -122,15 +126,24 @@ typedef enum {
 } Kind;
 
 typedef enum {
-  // symbol flags
-  LITERALP =0x001,
+  // flags start at 0x008 to accommodate a wider flag in the low bits, eg an encoding
+  // allocation flags
+  DEEP     =0x008,  // indicates deep copy
+  BOXED    =0x010,  // object
+  EDITP    =0x020,  // indicates whether a Map or Set has been fully initialized
 
-  // binding/function flags
-  DYNAMICP =0x002,
-  CONSTANTP=0x004,
-  GENERICP =0x008,
-  MACROP   =0x010,
-  VARIADICP=0x020,
+  // symbol flags
+  LITERALP =0x040,
+  INTERNEDP=0x080,
+
+  // binding/flags
+  DYNAMICP =0x040,
+  CONSTANTP=0x080,
+
+  // function/method flags
+  GENERICP =0x040,
+  MACROP   =0x080,
+  VARIADICP=0x100,
 
   // 
 } ObjFl;
@@ -139,14 +152,16 @@ typedef enum {
 typedef Value    (*NativeFn)(size_t n, Value* a);
 typedef size_t   (*CompileFn)(Vm* vm, List* form);
 typedef void     (*ReadFn)(Vm* vm, int dispatch);
-typedef void     (*TraceFn)(void* ptr);
-typedef void     (*FreeFn)(void* ptr);
-typedef uint64_t (*HashFn)(Value ptr);
-typedef size_t   (*SizeFn)(void* ptr);
+typedef void*    (*AllocFn)(Type* type, int flags, size_t n);
+typedef void     (*InitFn)(void* obj, Type* type, int flags, size_t n, void* data);
+typedef void*    (*CloneFn)(void* p, int flags);
+typedef void     (*TraceFn)(void* p);
+typedef void     (*FreeFn)(void* p);
+typedef uint64_t (*HashFn)(Value p);
+typedef size_t   (*SizeFn)(void* p);
 typedef void     (*PrintFn)(FILE* ios, Value value);
 typedef bool     (*EgalFn)(Value x, Value y);
 typedef int      (*OrdFn)(Value x, Value y);
-typedef bool     (*IsaFn)(Type* type, Value value);
 
 // miscellaneous helper macros
 #define generic2(method, dispatch, args...)     \

@@ -17,6 +17,7 @@
     "if" "and" "or"               ;; branching syntax
     "case" "cond" "not"           ;; branching syntax (continued)
     "let" "with" "label" "loop"   ;; block syntax
+    "trait" "impl"                ;; trait syntax
     "lmb" "quote" "do"            ;; miscellaneous syntax
     "do*" "use" "c-call"          ;; miscellaneous syntax (continued)
    )
@@ -42,6 +43,7 @@
     ("\\_<Big\\_>" . font-lock-type-face)
     ("\\_<Bits\\_>" . font-lock-type-face)
     ("\\_<String\\_>" . font-lock-type-face)
+    ("\\_<Tuple\\_>" . font-lock-type-face)
     ("\\_<List\\_>" . font-lock-type-face)
     ("\\_<Vector\\_>" . font-lock-type-face)
     ("\\_<Map\\_>" . font-lock-type-face)

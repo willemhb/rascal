@@ -78,6 +78,7 @@ extern Type NoneType, AnyType, TermType, NumberType, RealType, RationalType, Int
 #define AS_BIG(x)          ((Big*)AS_PTR(x))
 #define AS_BITS(x)         ((Bits*)AS_PTR(x))
 #define AS_LIST(x)         ((List*)AS_PTR(x))
+#define AS_TUPLE(x)
 #define AS_VECTOR(x)       ((Vector*)AS_PTR(x))
 #define AS_MAP(x)          ((Map*)AS_PTR(x))
 #define AS_METHOD_TABLE(x) ((MethodTable*)AS_PTR(x))

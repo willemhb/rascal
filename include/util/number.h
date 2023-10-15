@@ -23,6 +23,16 @@
            uint32_t:__builtin_popcount,         \
            uint64_t:__builtin_popcountl)(n)
 
+#define ctz(n)                                  \
+  _Generic((n),                                 \
+           uint32_t:__builtin_ctz,              \
+           uint64_t:__builtin_ctzl)(n)
+
+#define clz(n)                                  \
+  _Generic((n),                                 \
+           uint32_t:__builtin_clz,              \
+           uint64_t:__builtin_clzl)(n)
+
 // general numeric utilities
 uint64_t ceilPow2(uint64_t word);
 

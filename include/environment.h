@@ -16,7 +16,6 @@ Value  getAnnotObj(void* p, Value key);
 Value  setAnnotVal(Value x, Value key, Value value);
 Value  setAnnotObj(void* p, Value key, Value value);
 
-Symbol* internSymbol(Vm* vm, char* name);
 size_t  defineGlobal(Vm* vm, Symbol* name, Value init, int flags);
 bool    lookupGlobal(Vm* vm, Symbol* name, Value* buf);
 Value   defineSpecial(char* name, CompileFn compile);

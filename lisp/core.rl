@@ -39,10 +39,16 @@
        ~&envt
        ~(fun args & body)))
 
-  ;; exceptions.
-
   ;; coroutines.
   (mac yield
     @doc "Suspend execution of a coroutine, passing `x` to the caller."
     (x)
     `(perform :yield ~x))
+
+
+  (mac do*
+    @doc "Like `do`, but returns the first evaluated expression instead of the last."
+    (x & more)
+    `(let ((#r ~x))
+       ~@more
+       #r)))

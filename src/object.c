@@ -1,295 +1,499 @@
 #include <string.h>
 
+#include "util/number.h"
 #include "util/hashing.h"
 
 #include "vm.h"
+#include "equal.h"
 #include "object.h"
 
 // generics
 #include "tpl/describe.h"
 
-// ARRAY_TYPE(Values, Value, Value, false);
-
-void initValues(Values* array) { array->data = 
-((void *)0)
-; array->count = 0; array->capacity = 0; } void freeValues(Values* array) { deallocate(
-((void *)0)
-, array->data, array->capacity * sizeof(Value)); initValues(array); } size_t resizeValues(Values* array, size_t newCount) { size_t oldCount = array->count; if (newCount == 0) { if (array->count != 0) freeValues(array); } else if ((newCount+
-0
-) > array->capacity || ((newCount+
-0
-) < (array->capacity >> 1))) { size_t oldCap = array->capacity; size_t newCap = ({ __auto_type _x = 8u; __auto_type _y = ceilPow2(newCount+
-0
-+1); _x < _y ? _y : _x; }); if (oldCap != newCap) { size_t oldSize = oldCap * sizeof(Value); size_t newSize = newCap * sizeof(Value); if (array->data == 
-((void *)0)
-) array->data = allocate(
-((void *)0)
-, newSize); else array->data = reallocate(
-((void *)0)
-, array->data, oldSize, newSize); array->capacity = newCap; } } array->count = newCount; 
-((void) sizeof ((
-array->capacity >= array->count
-) ? 1 : 0), __extension__ ({ if (
-array->capacity >= array->count
-) ; else __assert_fail (
-"array->capacity >= array->count"
-, "object.c", 11, __extension__ __PRETTY_FUNCTION__); }))
-; return oldCount; } size_t writeValues(Values* array, Value x) { size_t offset = resizeValues(array, array->count+1); array->data[offset] = x; return array->count-1; } size_t nWriteValues(Values* array, size_t n, Value* data) { size_t offset = resizeValues(array, array->count+n); if (data != 
-((void *)0)
-) memcpy(array->data+offset, data, n*sizeof(Value)); return offset; } size_t vWriteValues(Values* array, size_t n, ...) { size_t offset = resizeValues(array, array->count+n); va_list va; 
-__builtin_va_start(
-va
-,
-n
-)
-; for (size_t i=offset; i<array->count; i++) array->data[i] = 
-__builtin_va_arg(
-va
-,
-Value
-)
-; 
-__builtin_va_end(
-va
-)
-; return offset; } Value popValues(Values* array) { 
-((void) sizeof ((
-array->count > 0
-) ? 1 : 0), __extension__ ({ if (
-array->count > 0
-) ; else __assert_fail (
-"array->count > 0"
-, "object.c", 11, __extension__ __PRETTY_FUNCTION__); }))
-; Value x = array->data[array->count-1]; resizeValues(array, array->count-1); return x; } void nPopValues(Values* array, size_t n) { 
-((void) sizeof ((
-n <= array->count
-) ? 1 : 0), __extension__ ({ if (
-n <= array->count
-) ; else __assert_fail (
-"n <= array->count"
-, "object.c", 11, __extension__ __PRETTY_FUNCTION__); }))
-; if (array->count > 0 && n > 0) resizeValues(array, array->count-n); };
-
+ARRAY_TYPE(Values, Value, Value, false);
 ARRAY_TYPE(Objects, Obj*, Obj*, false);
 ARRAY_TYPE(ByteCode, uint16_t, int, false);
 
+// external APIs
+// flags
+int getFl(void* p, int f, int m) {
+  assert(p != NULL);
+  
+  Obj* o = p;
+  int out;
 
-// internal forward declarations
-static void  initObject(void* pointer, Type type, int flags) {
-  Obj* obj  = pointer;
+  if (m == 0)
+    out = !!(o->flags & f);
 
-  obj->type        = type;
-  obj->gray        = true;
-  obj->flags       = flags;
-  obj->next        = vm.heap.objects;
-  vm.heap.objects = obj;
-}
+  else if (f == 0)
+    out = o->flags & m;
 
-static void* newObject(Type type) {
-  Obj* out  = allocate(&vm, sizeOfType(type));
-
-  initObject(out, type, 0);
-
-  return out;
-}
-
-// miscellaneous utilities & helpers
-static void hashObjectIdentity(Obj* obj) {
-  obj->hash   = hashPtr(obj);
-  obj->hashed = true;
-}
-
-static void hashSymbol(Symbol* symbol) {
-  uint64_t idHash     = hashWord(symbol->idno);
-  uint64_t nameHash   = hashString(symbol->name);
-  uint64_t symbolHash = mixHashes(idHash, nameHash);
-  symbol->obj.hash    = symbolHash;
-  symbol->obj.hashed  = true;
-}
-
-static void hashBits(Bits* bits) {
-  bits->obj.hash   = hashBytes(bits->data, bits->arity * bits->elSize);
-  bits->obj.hashed = true;
-}
-
-static void hashList(List* list) {
-  List* curr=list,* prev=&emptyList,* tmp;
-
-  while (!curr->obj.hashed) {
-    // Traverse until we find a hashed node. Save parents by reversing list.
-    // Empty list is hashed at startup, so this always terminates.
-    tmp        = prev;
-    prev       = curr;
-    curr       = curr->tail;
-    prev->tail = tmp;
-  }
-
-  while (prev != &emptyList) {
-    uint64_t headHash = hashValue(prev->head);
-    uint64_t tailHash = curr->obj.hash;
-    prev->obj.hash    = mixHashes(headHash, tailHash);
-    prev->obj.hashed  = true;
-    tmp               = prev->tail;
-    prev->tail        = curr;
-    curr              = prev;
-    prev              = tmp;
-  }
-}
-
-static bool equalBits(Bits* xs, Bits* ys) {
-  return
-    xs->arity  == ys->arity  &&
-    xs->elSize == ys->elSize &&
-    memcmp(xs->data,
-           ys->data,
-           xs->arity*xs->elSize) == 0;
-}
-
-static bool equalLists(List* xs, List* ys) {
-  bool out = xs->arity == ys->arity;
-
-  for (; out && xs->arity; xs=xs->tail, ys=ys->tail )
-    out = equalValues(xs->head, ys->head);
+  else
+    out = (o->flags & m) == f;
 
   return out;
 }
 
-uint64_t hashObject(void* ob) {
-  assert(ob != NULL);
+int setFl(void* p, int f, int m) {
+  assert(p != NULL);
 
-  Obj* obj = ob;
+  int out;
+  Obj* o = p;
 
-  if (!obj->hashed)
-    switch(obj->type) {
-      case SYMBOL: hashSymbol(ob);          break;
-      case BITS:   hashBits(ob);            break;
-      case LIST:   hashList(ob);            break;
-      default:     hashObjectIdentity(obj); break;
+  if (m == 0) {
+    out       = !!(o->flags & f);
+    o->flags |= f;
+  } else if (f == 0) {
+    out       = o->flags & m;
+    o->flags &= ~m;
+  } else {
+    out       = o->flags & m;
+    o->flags &= ~m;
+    o->flags |= f;
   }
 
-  return mixHashes(hashType(obj->type), obj->hash);
+  return out;
 }
 
-bool equalObjects(void* obx, void* oby) {
-  assert(oby != NULL);
-  assert(obx != NULL);
+int delFl(void* p, int f) {
+  return setFl(p, 0, f);
+}
 
-  bool out = obx == oby;
+// object copying
+void* clone(void* p, int f) {
+  assert(p != NULL);
 
-  if (out == false) {
-    Type tx = objectType(obx), ty = objectType(oby);
+  save(1, tag(p));
 
-    if (tx == ty)
-      switch (tx) {
-        case BITS:  out = equalBits(obx, oby);   break;
-        case LIST:  out = equalLists(obx, oby);  break;
-        default:                                 break;
+  Obj* out   = NULL;
+  Obj*    o  = p;
+  Type*   t  = o->type;
+  CloneFn fn = t->vTable->clone;
+
+  if (fn)
+    out = fn(p, f);
+
+  else
+    out = duplicate(&RlVm, p, sizeOf(p));
+
+  // make sure to add it to live objects
+  out->next      = RlVm.heap.objs;
+  RlVm.heap.objs = out;
+
+  unsave(1);
+  return out;
+}
+
+void* newObj(Type* type, int fl, size_t n, void* data) {
+  void* out = allocObj(type, fl, n);
+  initObj(out, type, fl, n, data);
+  return out;
+}
+
+void* allocObj(Type* t, int f, size_t n) {
+  AllocFn alloc = t->vTable->alloc;
+  void* out;
+
+  if (alloc)
+    out = alloc(t, f, n);
+
+  else
+    out = allocate(&RlVm, t->vTable->objSize);
+
+  return out;
+}
+
+void initObj(void* p, Type* t, int f, size_t n, void* d) {
+  Obj* o = p;
+  InitFn init = t->vTable->init;
+
+  if (init)
+    init(p, t, f, n, d);
+  
+  o->type  = t;
+  o->annot = &emptyMap;
+  o->flags = f;
+  o->gray  = true;
+  o->next  = RlVm.heap.objs;
+  RlVm.heap.objs = o;
+}
+
+// constructors and lifetime methods
+// Symbol type
+void initSymbol(void* p, Type* t, int f, size_t n, void* d) {
+  (void)t;
+  (void)f;
+  (void)n;
+
+  char* i = d;
+
+  if (i == NULL)
+    i = "symbol";
+
+  if (*i == ':') {
+    assert(strlen(i) > 1);
+    i++;
+    f |= LITERALP;
+  }
+
+  Symbol* s = p;
+  s->idno   = ++RlVm.toplevel.nSymbols;
+  s->name   = duplicate(NULL, i, strlen(i)+1);
+}
+
+void* cloneSymbol(void* p, int f) {
+  /* a cloned symbol is always a gensym */
+  (void)f;
+
+  Symbol* out  = duplicate(&RlVm, p, sizeof(Symbol));
+  Symbol* orig = p;
+  out->name    = duplicate(NULL, orig->name, strlen(orig->name)+1);
+  out->idno    = ++RlVm.toplevel.nSymbols;
+  out->special = NULL;                                              // can't duplicate special forms
+  
+  delFl(out, INTERNEDP);
+
+  return out;
+}
+
+
+
+Symbol* newSymbol(char* name, bool interned) {
+  if (name == NULL || *name == '\0')
+    name = "symbol";
+
+  return newObj(&SymbolType, interned * INTERNEDP, strlen(name), name);
+}
+
+Symbol* symbol(char* token) {
+  Symbol* out;
+
+  symbolCacheAdd(&RlVm.toplevel.symbols, token, &out);
+
+  return out;
+}
+
+Symbol* gensym(char* name) {
+  return newSymbol(name, false);
+}
+
+// Function type
+void initFunction(void* p, Type* t, int fl, size_t n, void* data) {
+  (void)t;
+  (void)fl;
+  (void)n;
+  
+  Function* fn = p;
+
+  if (data) {
+    struct { Symbol* name; Obj* ini; }* init = data;
+
+    fn->name = init->name;
+
+    if (init->ini) {
+      if (init->ini->type == &MethodTableType)
+        fn->methods = (MethodTable*)init->ini;
+
+      else
+        fn->singleton = init->ini;
+    }
+  }
+}
+
+void* cloneFunction(void* p, int fl) {
+  Function* f = duplicate(&RlVm, p, sizeof(Function));
+
+  // the method table needs to be cloned if this is a deep copy
+  if (!!(fl & DEEP) && f->methods != NULL) {
+    size_t nSaved = save(1, tag(f));
+    f->methods = clone(f->methods, fl);
+    unsave(nSaved);
+  }
+
+  return f;
+}
+
+Function* newFunction(Symbol* name, Obj* ini, bool generic, bool macro) {
+  int flags = generic*GENERICP | macro*MACROP;
+  size_t nSaved = save(2, tag(name), tag(ini));
+  struct { Symbol* name; Obj* ini; } init = { name, ini };
+  Function* out = newObj(&FunctionType, flags, 0, &init);
+  unsave(nSaved);
+  return out;
+}
+
+// vector leaf
+void initVecLeaf(void* p, Type* t, int f, size_t n, void* d) {
+  (void)t;
+  (void)f;
+  assert(n == );
+  assert(d != NULL);
+
+  VecLeaf* l = p;
+  memcpy(l->slots, d, n * sizeof(Value));
+}
+
+VecLeaf* newVecLeaf(Value* tail) {
+  return newObj(&VecLeafType, 0, 64, tail);
+}
+
+// vector node
+void initVecNode(void* p, Type* t, int f, size_t n, void* d) {
+  assert(d != NULL);
+  
+  VecNode* vn = p;
+  struct { Obj** children; size_t shift; } *ini = d;
+
+  if (!!(f & EDITP)) {
+    vn->capacity = 
+  }
+}
+
+// collection interfaces
+size_t getNodeIndex(uint32_t shift, uint64_t key) {
+  return key >> shift & INDEX_MASK;
+}
+
+// map interface
+bool mapNodeHasIndex(uint64_t bitMap, uint32_t shift, uint64_t hash) {
+  size_t index = getNodeIndex(shift, hash);
+
+  return !!(bitMap & (1 << index));
+}
+
+size_t getMapNodeIndex(uint64_t bitMap, uint64_t shift, uint64_t hash) {
+  size_t index = getNodeIndex(shift, hash);
+
+  return popc(bitMap & ((1 << index) - 1));
+}
+
+size_t rootSize(Vector* v) {
+  size_t out;
+  
+  if (v->arity < BRANCH_FACTOR)
+    out = 0;
+
+  else if ((v->arity & INDEX_MASK) == 0)
+    out = (v->arity & ~INDEX_MASK) - BRANCH_FACTOR;
+
+  else
+    out = v->arity & ~INDEX_MASK;
+
+  return out;
+}
+
+size_t tailSize(Vector* v) {
+  size_t out;
+
+  if (v->arity < BRANCH_FACTOR)
+    out = v->arity;
+
+  else if ((v->arity & INDEX_MASK) == 0)
+    out = BRANCH_FACTOR;
+
+  else
+    out = v->arity & INDEX_MASK;
+
+  return out;
+}
+
+bool tailHasSpace(Vector* v) {
+  return tailSize(v) < BRANCH_FACTOR;
+}
+
+bool rootHasSpace(Vector* v) {
+  return v->arity < (1ul << v->shift);
+}
+
+// helpers for freezing and unfreezing nodes, which you have to do a lot
+// with these fucking things
+void freezeVecNode(VecNode* n) {
+  if (n && getFl(n, EDITP, 0)) {
+    delFl(n, EDITP);
+
+    if (n->capacity > n->count) {
+      n->children = reallocate(NULL, n->children, 0, n->count*sizeof(Obj*));
+      n->count    = n->capacity;
+    }
+
+    if (n->shift > LEVEL_SHIFT)
+      for (size_t i=0; i<n->count; i++)
+        freezeVecNode((VecNode*)n->children[i]);
+  }
+}
+
+void freezeVector(Vector* v) {
+  if (getFl(v, EDITP, 0)) {
+    delFl(v, EDITP);
+    size_t ts = tailSize(v);
+
+    if (ts < BRANCH_FACTOR)
+      v->tail = reallocate(NULL, v->tail, 0, ts*sizeof(Value));
+
+    freezeVecNode(v->root);
+  }
+}
+
+void freezeMapNode(MapNode* n) {
+  if (n && getFl(n, EDITP, 0)) {
+    delFl(n, EDITP);
+ 
+    if (n->capacity > n->count) {
+      n->children = reallocate(NULL, n->children, 0, n->count*sizeof(Obj*));
+      n->count     = n->capacity;
+    }
+
+    for (size_t i=0; i<n->capacity; i++) {
+      if (n->children[i]->type == &MapNodeType)
+        freezeMapNode((MapNode*)n->children[i]);
+    }
+  }
+}
+
+void freezeMap(Map* m) {
+  if (getFl(m, EDITP, 0)) {
+    delFl(m, EDITP);
+    freezeMapNode(m->root);
+  }
+}
+
+Vector* unfreezeVector(Vector* v) {
+  if (!getFl(v, EDITP, 0))
+    v = clone(v, EDITP);
+
+  return v;
+}
+
+VecNode* unfreezeVecNode(VecNode* n) {
+  if (!getFl(n, EDITP, 0))
+    n = clone(n, EDITP);
+
+  return n;
+}
+
+Map* unfreezeMap(Map* m) {
+  if (!getFl(m, EDITP, 0))
+    m = clone(m, EDITP);
+
+  return m;
+}
+
+MapNode* unfreezeMapNode(MapNode* n) {
+  if (!getFl(n, EDITP, 0))
+    n = clone(n, EDITP);
+
+  return n;
+}
+
+#define unfreeze(o)                             \
+  _Generic((o),                                 \
+           Vector*:unfreezeVector,              \
+           VecNode*:unfreezeVecNode,            \
+           Map*:unfreezeMap,                    \
+           MapNode*:unfreezeMapNode)(o)
+
+#define freeze(o)                               \
+  _Generic((o),                                 \
+           Vector*:freezeVector,                \
+           VecNode*:freezeVecNode,              \
+           Map*:freezeMap,                      \
+           MapNode*:freezeMapNode)(o)
+
+Value mapGet(Map* m, Value k) {
+  uint64_t h = hash(k);
+  MapNode* n = m->root;
+  Value out = NOTHING;
+
+  while (n) {
+    uint32_t sh = n->shift;
+    uint64_t bm = n->bitmap;
+
+    if (!mapNodeHasIndex(bm, sh, h))
+      break;
+    
+    size_t tidx  = getMapNodeIndex(bm, sh, h);
+    Obj*   child = n->children[tidx];
+    
+    if (child->type == &MapNodeType)
+      n = (MapNode*)child;
+    
+    else {
+      for (MapLeaf* l =(MapLeaf*)child;l != NULL;l=l->next) {
+        if (equal(k, l->key)) {
+          out = l->val;
+          break;
+        }
       }
-  }
-
-  return out;
-}
-
-void freeObject(void* ob) {
-  (void)ob;
-}
-
-// constructors
-// symbol constructors
-Symbol* newSymbol(char* name) {
-  size_t n = strlen(name)+1;
-
-  char* copy = duplicate(NULL, name, n);
-  Symbol* out  = newObject(SYMBOL);
-
-  out->name  = copy;
-  out->idno  = ++vm.environment.symbolCounter;
-
-  return out;
-}
-
-Symbol* getSymbol(char* buffer) {
-  return internSymbol(&vm, buffer);
-}
-
-// chunk constructors
-Chunk* newChunk(void) {
-  Chunk* out = newObject(CHUNK);
-
-  initValues(&out->vals);
-  initByteCode(&out->code);
-
-  return out;
-}
-
-// bits constructors
-static void initBits(Bits* bits, void* data, size_t count, size_t elSize) {
-  bits->data       = data;
-  bits->arity      = count;
-  bits->elSize     = elSize;
-}
-
-Bits* newBits(void* data, size_t count, size_t elSize, Encoding encoding) {
-  Bits* out = newObject(BITS);
-  void* spc = allocate(NULL, (count + !!encoding) * elSize);
-
-  memcpy(spc, data, count * elSize);
-  initObject(out, BITS, encoding);
-  initBits(out, spc, count, elSize);
-
-  return out;
-}
-
-Bits* newString(char* data, size_t count) {
-  return newBits(data, count, sizeof(char), ASCII);
-}
-
-// list constructors
-static void initList(List* node, Value head, List* tail) {
-  node->head  = head;
-  node->tail  = tail;
-  node->arity = tail->arity+1;
-}
-
-List* newList(Value head, List* tail) {
-  List* node = newObject(LIST);
-  initList(node, head, tail);
-  return node;
-}
-
-List* newList1(Value head) {
-  return newList(head, &emptyList);
-}
-
-List* newList2(Value arg1, Value arg2) {
-  List* tail = newList1(arg2);
-  return newList(arg1, tail);
-}
-
-List* newListN(size_t n, Value* args) {
-  List* out;
-
-  if (n == 0)
-    out = &emptyList;
-
-  else if (n == 1)
-    out = newList1(args[0]);
-
-  else if (n == 2)
-    out = newList2(args[0], args[1]);
-
-  else {
-    out = allocate(&vm, sizeof(List) * n);
-
-    for (size_t i=n; i>0; i--) {
-      initObject(&out[i-1], LIST, 0);
-      initList(&out[i-1], args[i-1], i == n ? &emptyList : &out[i]);
+      break;
     }
   }
 
   return out;
 }
 
-Value mkListN(size_t n, Value* args) {
-  return TAG_OBJ(newListN(n, args));
+// vector interface
+Value vecGet(Vector* v, size_t i) {
+  Value out = NOTHING;
+
+  if (i < v->arity) {
+    if (i > rootSize(v))
+      out = v->tail[getNodeIndex(0, i)];
+
+    else {
+      VecNode* n = v->root;
+      VecLeaf* l = NULL;
+
+      while (l == NULL) {
+        uint16_t sh = n->shift;
+        uint16_t j  = getNodeIndex(sh, i);
+        Obj* o      = n->children[j];
+
+        if (sh == 6)
+          l = (VecLeaf*)o;
+
+        else
+          n = (VecNode*)o;
+      }
+
+      out = l->slots[getNodeIndex(0, i)];
+    }
+  }
+
+  return out;
+}
+
+static void pushTail(Vector* v) {
+  // note: vector already saved
+  if (rootHasSpace(v)) {
+    
+  } else {
+    VecNode* node;
+    
+    for (size_t i=v->shift; i>0; i-=LEVEL_SHIFT) {
+      
+    }
+  }
+}
+
+Vector* vecAdd(Vector* v, Value x) {
+  if (getFl(v, EDITP, 0)) {
+    if (!tailHasSpace(v)) {
+      size_t nSaved = save(2, x, tag(v));
+      pushTail(v);
+      unsave(nSaved);
+    }
+    size_t a = v->arity;
+    size_t i = getNodeIndex(0, a);
+
+    v->tail[i] = x;
+    v->arity   = a+1;
+  } else {
+    save(1, x);
+    v = unfreeze(v);
+    unsave(1);
+    v = vecAdd(v, x);
+    freeze(v);
+  }
+
+  return v;
 }
