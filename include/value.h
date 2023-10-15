@@ -150,6 +150,7 @@ size_t sizeOfVal(Value x);
 size_t sizeOfObj(void* p);
 bool   hasTypeVal(Value x, Type* type);
 bool   hasTypeObj(void* p, Type* type);
+bool   isMember(Type* t, Type* u);
 
 void   initializeBuiltinTypes(void);
 

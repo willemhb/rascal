@@ -448,6 +448,14 @@ void freeHeap(Vm* vm) {
   // TODO: free live objects
 }
 
+void addToHeap(void* p) {
+  assert(p != NULL);
+
+  Obj* o         = p;
+  o->next        = RlVm.heap.objs;
+  RlVm.heap.objs = o;
+}
+
 void* allocate(Vm* vm, size_t nBytes) {
   if (vm)
     manageHeap(vm, nBytes, 0);

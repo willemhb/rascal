@@ -4,15 +4,20 @@
 #include "common.h"
 #include "value.h"
 
-// generics
+// generics 
 #include "tpl/declare.h"
 
 ARRAY_TYPE(Values, Value);
-ARRAY_TYPE(Objects, Obj*);
+ARRAY_TYPE(Objects, void*);
 ARRAY_TYPE(ByteCode, uint16_t);
 TABLE_TYPE(NsMap, nsMap, Symbol*, Binding*);
 TABLE_TYPE(MethodCache, methodCache, Tuple*, Method*);
 TABLE_TYPE(TypeMap, typeMap, Type*, MethodNode*);
+
+// general object flags
+typedef enum {
+  EDITP = 0x080 // object may be updated in-place
+} ObjFl;
 
 struct Obj {
   Obj*     next;         // live objects list
@@ -30,8 +35,8 @@ struct Obj {
 
 // user types
 typedef enum {
-  INTERNED=0x001,
-  LITERAL =0x002,
+  INTERNED=0x001,    // saved in symbol table
+  LITERAL =0x002,    // always treat `s` like `'s`
 } SymFl;
 
 struct Symbol {
@@ -42,9 +47,8 @@ struct Symbol {
 };
 
 typedef enum {
-  GENERIC =0x001,
-  MACRO   =0x002,
-  VARIADIC=0x004,
+  FINAL   =0x001,    // don't allow specialization
+  MACRO   =0x002,    // syntactic extension
 } FnFl;
 
 struct Function {
@@ -142,34 +146,38 @@ struct Map {
 struct MethodTable {
   Obj         obj;
   MethodCache cache;
-  MethodMap*  fixedArityMethods;
-  MethodMap*  variadicMethods;
+  MethodMap*  faMethods;
+  MethodMap*  vaMethods;
 };
 
 struct MethodMap {
   Obj         obj;
   MethodNode* root;
-  size_t      maxArity;
-  size_t      minArity;
-  bool        variadic;
+  size_t      maxA;
+  bool        va;
 };
 
 struct MethodNode {
   Obj          obj;
-  size_t       offset;  // offset of the argument corresponding to this table entry
-  Method*      leaf;    // candidate method if offset == arity
-  TypeMap      dtmap;   // methods with a datatype annotation at `sig[offset]`
-  TypeMap      atmap;   // methods with an abstract type annotation at `sig[offset]`
-  Objects      utmap;   // methods with a union annotation at `sig[offset]` (ordered by specificity)
-  MethodNode*  any;     // methods with no annotation at `sig[offset]`
+  size_t       offset;   // offset of the argument corresponding to this table entry
+  Method*      leaf;     // candidate method if offset == arity
+  TypeMap      dtmap;    // methods with a datatype annotation at `sig[offset]`
+  TypeMap      atmap;    // methods with an abstract type annotation at `sig[offset]`
+  Objects      utmap;    // methods with a union annotation at `sig[offset]` (ordered by specificity)
+  MethodNode*  any;      // methods with no annotation at `sig[offset]`
+  bool         va;       // leaf is a variadic function
+  bool         exact;    // leaf has an exact signature
 };
 
 struct Method {
   Obj     obj;
-  Tuple*  sig;      // declared method signature
-  Obj*    func;     // function to call if method matches
-  bool    variadic; // signature for a variadic method
-  bool    exact;    // all annotations refer to concrete datatypes
+  Tuple*  sig;    // declared method signature
+  Obj*    fn;     // function to call if method matches
+  bool    va;     // signature for a variadic method
+  bool    exact;  // all annotations refer to concrete datatypes
+  size_t  nExact; // number of exact annotations in signature
+  size_t  nUnion; // number of union or abstract annotations in signature
+  size_t  nAny;   // mumber of blank or `Any` annotations in signature
 };
 
 struct Native {
@@ -240,10 +248,6 @@ struct UpValue {
 #define MAX_SHIFT     0x030ul
 #define MAX_LEVEL     0x008ul
 
-typedef enum {
-  EDITP=0x080
-} HamtFl;
-
 struct VecNode {
   Obj      obj;
   Obj**    children;
@@ -280,24 +284,39 @@ int getFl(void* p, int f, int m);
 int setFl(void* p, int f, int m);
 int delFl(void* p, int f);
 
+void* newObj(Type* type, int f, size_t extra);
+void  initObj(void* p, Type* type, int f);
 void* cloneObj(void* p);
 
 // constructors
+// user types
 Symbol*   newSymbol(char* name, int flags);
 Function* newFunction(Symbol* name, Obj* ini, int flags);
 Chunk*    newChunk(Symbol* name);
 Bits*     newBits(void* data, size_t count, int flags);
 String*   newString(char* chars, size_t count, int flags);
+Tuple*    newTuple(size_t n, Value* vs);
 List*     newList(Value head, List* tail);
 Vector*   newVector(size_t n, Value* vs);
 Map*      newMap(size_t n, Value* kvs);
 
+// internal types
+// function and dispatch types
+MethodTable* newMethodTable(void);
+MethodMap*   newMethodMap(bool va);
+MethodNode*  newMethodNode(size_t offset, bool va, bool exact);
+Method*      newMethod(Obj* fn, Tuple* sig, bool va);
+
+// node types
 VecNode*  newVecNode(Obj** children, size_t n, int flags);
 VecLeaf*  newVecLeaf(Value* tail);
 
 // convenience constructors
 Symbol*   symbol(char* token);
 Symbol*   gensym(char* name);
+
+// misc accessors
+Kind      getKind(Type* type);
 
 // collection interfaces
 size_t    getElSize(Bits* b);

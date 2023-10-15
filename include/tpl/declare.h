@@ -18,23 +18,23 @@
   ElType pop##ArrayType(ArrayType* array);                              \
   void   nPop##ArrayType(ArrayType* array, size_t n)
 
-#define TABLE_TYPE(TableType, tableType, KeyType, ValType)          \
-  typedef struct {                                                  \
-    KeyType key;                                                    \
-    ValType val;                                                    \
-  } TableType##Entry;                                               \
-                                                                    \
-  typedef struct {                                                  \
-    TableType##Entry* table;                                        \
-    size_t count;                                                   \
-    size_t capacity;                                                \
-  } TableType;                                                      \
-                                                                    \
-  void init##TableType(TableType* table);                           \
-  void free##TableType(TableType* table);                           \
-  bool tableType##Add(TableType* table, KeyType key, ValType* val); \
-  bool tableType##Get(TableType* table, KeyType key, ValType* val); \
-  bool tableType##Set(TableType* table, KeyType key, ValType val);  \
-  bool tableType##Delete(TableType* table, KeyType key)
+#define TABLE_TYPE(TableType, tableType, KeyType, ValType)           \
+  typedef struct {                                                   \
+    KeyType key;                                                     \
+    ValType val;                                                     \
+  } TableType##Entry;                                                \
+                                                                     \
+  typedef struct {                                                   \
+    TableType##Entry* table;                                         \
+    size_t count;                                                    \
+    size_t capacity;                                                 \
+  } TableType;                                                       \
+                                                                     \
+  void init##TableType(TableType* t);                                \
+  void free##TableType(TableType* t);                                \
+  bool tableType##Add(TableType* t, KeyType k, ValType* v, void* s); \
+  bool tableType##Get(TableType* t, KeyType k, ValType* v);          \
+  bool tableType##Set(TableType* t, KeyType k, ValType v, void* s);  \
+  bool tableType##Delete(TableType* t, KeyType k)
 
 #endif

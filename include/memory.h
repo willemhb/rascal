@@ -36,6 +36,7 @@ void  markObj(void* ptr);
 void  initHeap(Vm* vm);
 void  freeHeap(Vm* vm);
 
+void  addToHeap(void* p);
 void* allocate(Vm* vm, size_t nBytes);
 void* duplicate(Vm* vm, void* pointer, size_t nBytes);
 char* duplicates(Vm* vm, char* chars, size_t nChars);

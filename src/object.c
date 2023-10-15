@@ -59,17 +59,33 @@ int delFl(void* p, int f) {
   return setFl(p, 0, f);
 }
 
+void* newObj(Type* t, int f, size_t e) {
+  void* o;
+  save(1, tag(t));
+  o = allocate(&RlVm, t->vTable->objSize+e);
+  initObj(o, t, f);
+  unsave(1);
+  return o;
+}
+
 void* cloneObj(void* p) {
+  Obj* o;
   assert(p != NULL);
   save(1, tag(p));
-  
-  Obj* o         = duplicate(&RlVm, p, sizeOf(p));
-  o->next        = RlVm.heap.objs;
-  RlVm.heap.objs = o;
-
+  o = duplicate(&RlVm, p, sizeOf(p));
+  addToHeap(o);
   unsave(1);
-
   return o;
+}
+
+void initObj(void* p, Type* t, int f) {
+  Obj* o   = p;
+  o->type  = t;
+  o->annot = &emptyMap;
+  o->flags = f;
+  o->gray  = true;
+
+  addToHeap(o);
 }
 
 // collection interfaces
@@ -145,6 +161,18 @@ Bits* bitsDel(Bits* b, size_t n) {
 }
 
 // string interface
+String emptyString = {
+  .obj={
+    .type   =&StringType,
+    .annot  =&emptyMap,
+    .noSweep=true,
+    .noFree =true,
+    .gray   =true
+  },
+  .data ="",
+  .arity=0
+};
+
 Encoding getEncoding(String* s) {
   assert(s != NULL);
   return s->obj.flags & 0x7;
@@ -153,7 +181,7 @@ Encoding getEncoding(String* s) {
 String* cloneString(String* s) {
   if (s->arity == 0)
     return s;
-  
+
   String* o = cloneObj(s);
   o->data   = duplicates(NULL, s->data, s->arity);
 
@@ -174,6 +202,29 @@ String* strAdd(String* s, Glyph g) {
   o->data[s->arity] = g;
   memcpy(o->data, s->data, s->arity);
   unsave(1);
+  return o;
+}
+
+String* strSet(String* s, size_t n, Glyph g) {
+  assert(n < s->arity);
+  save(1, tag(s));
+  String* o = cloneString(s);
+  o->data[n] = g;
+  unsave(1);
+  return o;
+}
+
+String* strDel(String* s, size_t n) {
+  
+}
+
+// tuple interface
+Tuple* cloneTuple(Tuple* t) {
+  Tuple* o = t;
+  
+  if (t->arity > 0) // don't clone empty tuple
+    o = cloneObj(t);
+
   return o;
 }
 
