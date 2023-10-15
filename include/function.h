@@ -4,8 +4,9 @@
 #include "common.h"
 
 // includes native function definitions, multimethod & macro internals, &c
-void addMethod(Function* func, List* sig, Obj* method);
-Obj* getMethod(Function* func, List* sig);
+Method* getMethod(Function* generic, Tuple* sig);
+void    addMethod(Function* generic, Tuple* sig, Obj* specialized);
+
 
 // external API
 void initializeNativeFunctions(void);

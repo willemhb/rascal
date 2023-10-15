@@ -158,30 +158,29 @@ Value popn(size_t n) {
   return out;
 }
 
-size_t save(size_t n, ...) {
+Value* peek(int i) {
+  if (i < 0)
+    i += RlVm.exec.sp;
+
+  assert(i >= 0 && (size_t)i < RlVm.exec.sp);
+
+  return RlVm.stackBase+i;
+}
+
+void save(size_t n, ...) {
   Value buf[n];
   va_list va;
   va_start(va, n);
 
-  size_t i, j;
-
-  for (i=0, j=0; i<n; i++) {
-    Value val = va_arg(va, Value);
-
-    // only save objects that might be collected
-    if (IS_OBJ(val) && AS_OBJ(val) != NULL && !AS_OBJ(val)->noSweep)
-      buf[j++] = val;
-  }
+  for (size_t i=0; i<n; i++)
+    buf[i] = va_arg(va, Value);
 
   va_end(va);
 
-  nWriteValues(&RlVm.heap.saved, j, buf);
-  return j;
+  nWriteValues(&RlVm.heap.saved, n, buf);
 }
 
-void* unsave(size_t n) {
+void unsave(size_t n) {
   assert(n <= RlVm.heap.saved.count);
-  void* out = AS_PTR(RlVm.heap.saved.data[RlVm.heap.saved.count-n]);
   nPopValues(&RlVm.heap.saved, n);
-  return out;
 }

@@ -11,7 +11,8 @@ ARRAY_TYPE(Values, Value);
 ARRAY_TYPE(Objects, Obj*);
 ARRAY_TYPE(ByteCode, uint16_t);
 TABLE_TYPE(NsMap, nsMap, Symbol*, Binding*);
-TABLE_TYPE(MethodCache, methodCache, List*, Obj*);
+TABLE_TYPE(MethodCache, methodCache, Tuple*, Method*);
+TABLE_TYPE(TypeMap, typeMap, Type*, MethodNode*);
 
 struct Obj {
   Obj*     next;         // live objects list
@@ -28,6 +29,11 @@ struct Obj {
 };
 
 // user types
+typedef enum {
+  INTERNED=0x001,
+  LITERAL =0x002,
+} SymFl;
+
 struct Symbol {
   Obj       obj;
   char*     name;
@@ -35,11 +41,17 @@ struct Symbol {
   CompileFn special; // special form associated with this symbol
 };
 
+typedef enum {
+  GENERIC =0x001,
+  MACRO   =0x002,
+  VARIADIC=0x004,
+} FnFl;
+
 struct Function {
   Obj          obj;
   Symbol*      name;       // the name of this function (or `fun` if anonymous).
   MethodTable* methods;    // handles method resolution
-  Obj*         singleton;  // short-circuit dispatch if this is non-null
+  Method*      singleton;  // short-circuit dispatch if this is non-null
 };
 
 struct Vtable {
@@ -47,9 +59,6 @@ struct Vtable {
   size_t    objSize;         // base object size (32+ bytes)
   uintptr_t tag;             // tag used for values of given type
   SizeFn    sizeOf;
-  AllocFn   alloc;
-  InitFn    init;
-  CloneFn   clone;
   TraceFn   trace;
   FreeFn    free;
   PrintFn   print;
@@ -66,7 +75,6 @@ struct Type {
   Function* ctor;          // constructor for values of this type
   Vtable*   vTable;        // runtime and internal methods for types with concrete values
   uintptr_t idno;          // unique identifier for this type (similar to symbol idno)
-  Kind      kind;          // how this type is constituted
 };
 
 struct Binding {
@@ -82,11 +90,27 @@ struct Stream {
   FILE*   ios;
 };
 
+struct Big {
+  Obj     obj;
+  /* TODO: change to arbitrary precision. */
+  int64_t value;
+};
+
 struct Bits {
   Obj    obj;
-  void*  data;
+  union {
+    void*     data;
+    uint8_t*  u8;
+    uint16_t* u16;
+    uint32_t* u32;
+  };
   size_t arity;
-  size_t elSize;
+};
+
+struct String {
+  Obj      obj;
+  char*    data;
+  size_t   arity;
 };
 
 struct Tuple {
@@ -107,7 +131,6 @@ struct Vector {
   VecNode* root;      // if arity is greater than 64, remaining elements are stored here
   size_t   arity;     // total number of elements in the vector
   Value*   tail;      // the last 64 elements are stored here
-  size_t   shift;
 };
 
 struct Map {
@@ -116,18 +139,37 @@ struct Map {
   size_t   arity; // total number of key/value pairs
 };
 
-struct Big {
-  Obj     obj;
-  /* TODO: change to arbitrary precision. */
-  int64_t value;
-};
-
 struct MethodTable {
   Obj         obj;
   MethodCache cache;
-  Obj*        zeroArityMethod;
-  List*       fixedArityMethods;
-  List*       variadicMethods;
+  MethodMap*  fixedArityMethods;
+  MethodMap*  variadicMethods;
+};
+
+struct MethodMap {
+  Obj         obj;
+  MethodNode* root;
+  size_t      maxArity;
+  size_t      minArity;
+  bool        variadic;
+};
+
+struct MethodNode {
+  Obj          obj;
+  size_t       offset;  // offset of the argument corresponding to this table entry
+  Method*      leaf;    // candidate method if offset == arity
+  TypeMap      dtmap;   // methods with a datatype annotation at `sig[offset]`
+  TypeMap      atmap;   // methods with an abstract type annotation at `sig[offset]`
+  Objects      utmap;   // methods with a union annotation at `sig[offset]` (ordered by specificity)
+  MethodNode*  any;     // methods with no annotation at `sig[offset]`
+};
+
+struct Method {
+  Obj     obj;
+  Tuple*  sig;      // declared method signature
+  Obj*    func;     // function to call if method matches
+  bool    variadic; // signature for a variadic method
+  bool    exact;    // all annotations refer to concrete datatypes
 };
 
 struct Native {
@@ -192,18 +234,20 @@ struct UpValue {
 };
 
 // node types
-#define BRANCH_FACTOR 0x40ul
-#define INDEX_MASK    0x3ful
-#define LEVEL_SHIFT   0x06ul
-#define MAX_SHIFT     0x30ul
-#define MAX_LEVEL     0x08ul
+#define BRANCH_FACTOR 0x040ul
+#define INDEX_MASK    0x03ful
+#define LEVEL_SHIFT   0x006ul
+#define MAX_SHIFT     0x030ul
+#define MAX_LEVEL     0x008ul
+
+typedef enum {
+  EDITP=0x080
+} HamtFl;
 
 struct VecNode {
   Obj      obj;
   Obj**    children;
-  uint32_t shift;
-  uint16_t count;
-  uint16_t capacity;
+  size_t   count;
 };
 
 struct VecLeaf {
@@ -214,9 +258,6 @@ struct VecLeaf {
 struct MapNode {
   Obj      obj;
   Obj**    children;
-  uint32_t shift;
-  uint16_t count;
-  uint16_t capacity;
   uint64_t bitmap;
 };
 
@@ -228,6 +269,8 @@ struct MapLeaf {
 };
 
 // global sigletons
+extern String emptyString;
+extern Tuple  emptyTuple;
 extern List   emptyList;
 extern Vector emptyVector;
 extern Map    emptyMap;
@@ -237,21 +280,19 @@ int getFl(void* p, int f, int m);
 int setFl(void* p, int f, int m);
 int delFl(void* p, int f);
 
-void* clone(void* obj, int fl);
-void* newObj(Type* type, int fl, size_t n, void* data);
-void* allocObj(Type* type, int fl, size_t n);
-void  initObj(void* obj, Type* type, int fl, size_t n, void* data);
+void* cloneObj(void* p);
 
 // constructors
-Symbol*   newSymbol(char* name, bool interned);
-Function* newFunction(Symbol* name, Obj* ini, bool generic, bool macro);
+Symbol*   newSymbol(char* name, int flags);
+Function* newFunction(Symbol* name, Obj* ini, int flags);
 Chunk*    newChunk(Symbol* name);
-Bits*     newBits(void* data, size_t count, size_t elSize, Encoding encoding);
+Bits*     newBits(void* data, size_t count, int flags);
+String*   newString(char* chars, size_t count, int flags);
 List*     newList(Value head, List* tail);
 Vector*   newVector(size_t n, Value* vs);
 Map*      newMap(size_t n, Value* kvs);
 
-VecNode*  newVecNode();
+VecNode*  newVecNode(Obj** children, size_t n, int flags);
 VecLeaf*  newVecLeaf(Value* tail);
 
 // convenience constructors
@@ -259,19 +300,45 @@ Symbol*   symbol(char* token);
 Symbol*   gensym(char* name);
 
 // collection interfaces
+size_t    getElSize(Bits* b);
+bool      fitsElSize(Bits* b, int i);
+Bits*     cloneBits(Bits* b);
+Value     bitsGet(Bits* b, size_t n);
+Bits*     bitsAdd(Bits* b, int i);
+Bits*     bitsSet(Bits* b, size_t n, int i);
+Bits*     bitsDel(Bits* b, size_t n);
+
+Encoding  getEncoding(String* s);
+String*   cloneString(String* s);
+Value     strGet(String* s, size_t n);
+String*   strAdd(String* s, Glyph g);
+String*   strSet(String* s, size_t n, Glyph g);
+String*   strDel(String* s, size_t n);
+
+Tuple*    cloneTuple(Tuple* t);
+Value     tupleGet(Tuple* t, size_t n);
+Tuple*    tupleAdd(Tuple* t, Value x);
+Tuple*    tupleSet(Tuple* t, size_t n, Value x);
+Tuple*    tupleDel(Tuple* t, size_t n);
+
+Value     listGet(List* l, size_t n);
+List*     listAdd(List* l, Value x);
+List*     listSet(List* l, size_t n, Value x);
+List*     listDel(List* l, size_t n);
+
+size_t    getShift(void* p);
+size_t    setShift(void* p, size_t sh);
+void*     unfreeze(void* p);
+void      freeze(void* p);
+
 Value     mapGet(Map* m, Value k);
-Map*      mapSet(Map* m, Value k, Value v);
 Map*      mapAdd(Map* m, Value k, Value v);
+Map*      mapSet(Map* m, Value k, Value v);
 Map*      mapDel(Map* m, Value k);
 
 Value     vecGet(Vector* v, size_t i);
 Vector*   vecAdd(Vector* v, Value x);
 Vector*   vecSet(Vector* v, size_t i, Value x);
 Vector*   vecDel(Vector* v);
-
-Value     listGet(List* l, size_t n);
-List*     listAdd(List* l, Value x);
-List*     listSet(List* l, size_t n, Value x);
-List*     listDel(List* l, size_t n);
 
 #endif

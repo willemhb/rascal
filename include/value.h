@@ -13,13 +13,13 @@ enum {
   FLOAT, ARITY, SMALL, BOOLEAN, UNIT, GLYPH, OBJECT,
 
   // object types (object is not a true type so it's skipped)
-  SYMBOL=OBJECT, FUNCTION, TYPE, BINDING, STREAM, BIG, BITS, LIST, VECTOR, MAP,
+  SYMBOL=OBJECT, FUNCTION, TYPE, BINDING, STREAM, BIG, BITS, STRING, TUPLE, LIST, VECTOR, MAP,
 
   // internal types
-  METHOD_TABLE, NATIVE, CHUNK, CLOSURE, CONTROL, SCOPE, NAMESPACE, ENVIRONMENT, UPVALUE,
+  METHOD_TABLE, METHOD, NATIVE, CHUNK, CLOSURE, CONTROL, SCOPE, NAMESPACE, ENVIRONMENT, UPVALUE,
 
   // node types
-  VEC_NODE, VEC_LEAF, MAP_NODE, MAP_LEAF,
+  VEC_NODE, VEC_LEAF, MAP_NODE, MAP_LEAF, METHOD_NODE,
 
   // abstract types
   BOTTOM, TOP, TERM, NUMBER, REAL, RATIONAL, INTEGER,
@@ -28,9 +28,9 @@ enum {
 // builtin datatype objects
 extern Type FloatType, ArityType, SmallType, BooleanType, UnitType, GlyphType,
   SymbolType, FunctionType, TypeType, BindingType, StreamType, BigType, BitsType,
-  ListType, VectorType, MapType, MethodTableType, NativeType, ChunkType, ClosureType,
-  ControlType, ScopeType, NameSpaceType, EnvironmentType, UpValueType, VecNodeType,
-  VecLeafType, MapNodeType, MapLeafType;
+  StringType, TupleType, ListType, VectorType, MapType, MethodTableType, MethodType,
+  NativeType, ChunkType, ClosureType, ControlType, ScopeType, NameSpaceType, EnvironmentType,
+  UpValueType, VecNodeType, VecLeafType, MapNodeType, MapLeafType, MethodNodeType;
 
 // builtin abstract and union types
 extern Type NoneType, AnyType, TermType, NumberType, RealType, RationalType, IntegerType;
@@ -77,23 +77,26 @@ extern Type NoneType, AnyType, TermType, NumberType, RealType, RationalType, Int
 #define AS_STREAM(x)       ((Stream*)AS_PTR(x))
 #define AS_BIG(x)          ((Big*)AS_PTR(x))
 #define AS_BITS(x)         ((Bits*)AS_PTR(x))
+#define AS_STRING(x)       ((String*)AS_PTR(x))
+#define AS_TUPLE(x)        ((Tuple*)AS_PTR(x))
 #define AS_LIST(x)         ((List*)AS_PTR(x))
-#define AS_TUPLE(x)
 #define AS_VECTOR(x)       ((Vector*)AS_PTR(x))
 #define AS_MAP(x)          ((Map*)AS_PTR(x))
 #define AS_METHOD_TABLE(x) ((MethodTable*)AS_PTR(x))
+#define AS_METHOD(x)       ((Method*)AS_PTR(x))
 #define AS_NATIVE(x)       ((Native*)AS_PTR(x))
 #define AS_CHUNK(x)        ((Chunk*)AS_PTR(x))
 #define AS_CLOSURE(x)      ((Closure*)AS_PTR(x))
 #define AS_CONTROL(x)      ((Control*)AS_PTR(x))
 #define AS_SCOPE(x)        ((Scope*)AS_PTR(x))
 #define AS_NAMESPACE(x)    ((NameSpace*)AS_PTR(x))
-#define AS_ENVIRON(x)      ((Environment*)AS_PTR(x))
+#define AS_ENVIRONMENT(x)  ((Environment*)AS_PTR(x))
 #define AS_UPVALUE(x)      ((UpValue*)AS_PTR(x))
 #define AS_VEC_NODE(x)     ((VecNode*)AS_PTR(x))
 #define AS_VEC_LEAF(x)     ((VecLeaf*)AS_PTR(x))
 #define AS_MAP_NODE(x)     ((MapNode*)AS_PTR(x))
 #define AS_MAP_LEAF(x)     ((MapLeaf*)AS_PTR(x))
+#define AS_METHOD_NODE(x)  ((MethodNode*)AS_PTR(x))
 
 #define IS_FLOAT(x)        hasType(x, &FloatType)
 #define IS_ARITY(x)        hasType(x, &ArityType)
@@ -109,10 +112,13 @@ extern Type NoneType, AnyType, TermType, NumberType, RealType, RationalType, Int
 #define IS_STREAM(x)       hasType(x, &StreamType)
 #define IS_BIG(x)          hasType(x, &BigType)
 #define IS_BITS(x)         hasType(x, &BitsType)
+#define IS_STRING(x)       hasType(x, &StringType)
+#define IS_TUPLE(x)        hasType(x, &TupleType)
 #define IS_LIST(x)         hasType(x, &ListType)
 #define IS_VECTOR(x)       hasType(x, &VectorType)
 #define IS_MAP(x)          hasType(x, &MapType)
 #define IS_METHOD_TABLE(x) hasType(x, &MethodTableType)
+#define IS_METHOD(x)       hasType(x, &MethodType)
 #define IS_NATIVE(x)       hasType(x, &NativeType)
 #define IS_CHUNK(x)        hasType(x, &ChunkType)
 #define IS_CLOSURE(x)      hasType(x, &ClosureType)
@@ -121,10 +127,11 @@ extern Type NoneType, AnyType, TermType, NumberType, RealType, RationalType, Int
 #define IS_NAMESPACE(x)    hasType(x, &NameSpaceType)
 #define IS_ENVIRONMENT(x)  hasType(x, &EnvironmentType)
 #define IS_UPVALUE(x)      hasType(x, &UpValueType)
-#define IS_VECNODE(x)      hasType(x, &VecNodeType)
-#define IS_VECLEAF(x)      hasType(x, &VecLeafType)
-#define IS_MAPNODE(x)      hasType(x, &MapNodeType)
-#define IS_MAPLEAF(x)      hasType(x, &MapLeafType)
+#define IS_VEC_NODE(x)     hasType(x, &VecNodeType)
+#define IS_VEC_LEAF(x)     hasType(x, &VecLeafType)
+#define IS_MAP_NODE(x)     hasType(x, &MapNodeType)
+#define IS_MAP_LEAF(x)     hasType(x, &MapLeafType)
+#define IS_METHOD_NODE(x)  hasType(x, &MethodNode)
 
 #define typeOf(v)         generic2(typeOf, v, v)
 #define sizeOf(v)         generic2(sizeOf, v, v)

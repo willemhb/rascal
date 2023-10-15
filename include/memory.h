@@ -38,6 +38,7 @@ void  freeHeap(Vm* vm);
 
 void* allocate(Vm* vm, size_t nBytes);
 void* duplicate(Vm* vm, void* pointer, size_t nBytes);
+char* duplicates(Vm* vm, char* chars, size_t nChars);
 void* reallocate(Vm* vm, void* pointer, size_t oldSize, size_t newSize);
 void  deallocate(Vm* vm, void* pointer, size_t nBytes);
 

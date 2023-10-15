@@ -80,7 +80,8 @@ typedef struct Type     Type;     // first-class representation of a rascal type
 typedef struct Binding  Binding;  // object for storing variable bindings
 typedef struct Stream   Stream;   // IO stream
 typedef struct Big      Big;      // arbitrary precision integer
-typedef struct Bits     Bits;     // compact binary data
+typedef struct Bits     Bits;     // compact, unencoded binary data
+typedef struct String   String;   // encoded binary data
 typedef struct Tuple    Tuple;    // a simple, fixed-size imutable collection
 typedef struct List     List;     // classic linked list
 typedef struct Vector   Vector;   // clojure-like vector
@@ -88,11 +89,19 @@ typedef struct Map      Map;      // clojure-like hashmap (with reader support f
 
 // internal types
 // vm types
+// functions & methods
 typedef struct MethodTable MethodTable; // core of multimethod implementation
-typedef struct Native      Native;      // native function or special form
+typedef struct MethodMap   MethodMap;   // root for single method tree
+typedef struct MethodNode  MethodNode;  // internal method table node
+typedef struct Method      Method;      // a single method table entry
+typedef struct Native      Native;      // native function
 typedef struct Chunk       Chunk;       // compiled code
 typedef struct Closure     Closure;     // packages a chunk/namespace with names
+
+// effects & control
 typedef struct Control     Control;     // reified continuation
+
+// names & environments
 typedef struct Scope       Scope;       // lexical naming context
 typedef struct NameSpace   NameSpace;   // complete naming context, including globals and file-scoped variables
 typedef struct Environment Environment; // a reified naming context, including values
@@ -125,36 +134,10 @@ typedef enum {
   ABSTRACT_TYPE_KIND,
 } Kind;
 
-typedef enum {
-  // flags start at 0x008 to accommodate a wider flag in the low bits, eg an encoding
-  // allocation flags
-  DEEP     =0x008,  // indicates deep copy
-  BOXED    =0x010,  // object
-  EDITP    =0x020,  // indicates whether a Map or Set has been fully initialized
-
-  // symbol flags
-  LITERALP =0x040,
-  INTERNEDP=0x080,
-
-  // binding/flags
-  DYNAMICP =0x040,
-  CONSTANTP=0x080,
-
-  // function/method flags
-  GENERICP =0x040,
-  MACROP   =0x080,
-  VARIADICP=0x100,
-
-  // 
-} ObjFl;
-
 // function pointer types
 typedef Value    (*NativeFn)(size_t n, Value* a);
 typedef size_t   (*CompileFn)(Vm* vm, List* form);
 typedef void     (*ReadFn)(Vm* vm, int dispatch);
-typedef void*    (*AllocFn)(Type* type, int flags, size_t n);
-typedef void     (*InitFn)(void* obj, Type* type, int flags, size_t n, void* data);
-typedef void*    (*CloneFn)(void* p, int flags);
 typedef void     (*TraceFn)(void* p);
 typedef void     (*FreeFn)(void* p);
 typedef uint64_t (*HashFn)(Value p);
