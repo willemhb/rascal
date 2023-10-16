@@ -53,3 +53,5 @@
 (fun lower
   ((Glyph g))
   (c-call towlower Glyph (Glyph) (g)))
+
+;; 

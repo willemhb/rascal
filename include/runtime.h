@@ -1,9 +1,24 @@
 #ifndef rascal_runtime_h
 #define rascal_runtime_h
 
-#include "common.h"
+#include "object.h"
 
 // C types
+/* a single stack frame. */
+struct Frame {
+  Closure*  code;
+  uint16_t* ip;
+  size_t    bp;
+};
+
+struct Control {
+  Obj      obj;
+  Frame    frame;
+  Value*   stackCopy;
+  Frame*   framesCopy;
+  size_t   nStack, nFrames;
+};
+
 struct Context {
   Context* next;
 

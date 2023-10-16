@@ -8,16 +8,14 @@
 #include "tpl/declare.h"
 
 ARRAY_TYPE(Values, Value);
-ARRAY_TYPE(Objects, void*);
-ARRAY_TYPE(ByteCode, uint16_t);
-TABLE_TYPE(NsMap, nsMap, Symbol*, Binding*);
-TABLE_TYPE(MethodCache, methodCache, Tuple*, Method*);
-TABLE_TYPE(TypeMap, typeMap, Type*, MethodNode*);
-TABLE_TYPE(TypeSet, typeSet, Type*, Type*);
+ARRAY_API(Values, Value, values);
+ARRAY_TYPE(Objects, Obj*);
+ARRAY_API(Objects, Obj*, objects);
 
 // general object flags
 typedef enum {
-  EDITP = 0x080 // object may be updated in-place
+  EDITP = 0x400, // object may be updated in-place
+  TOTALP= 0x200, // indicates that an object  is being freshly initialized
 } ObjFl;
 
 struct Obj {
@@ -34,249 +32,18 @@ struct Obj {
   uint8_t  data[];
 };
 
-// user types
-typedef enum {
-  INTERNED=0x001,    // saved in symbol table
-  LITERAL =0x002,    // always treat `s` like `'s`
-} SymFl;
+ARRAY_OBJ_TYPE(Binary8, byte_t);
+ARRAY_OBJ_TYPE(Binary16, uint16_t);
+ARRAY_OBJ_TYPE(Binary32, uint32_t);
+ARRAY_OBJ_TYPE(Buffer8, char);
+ARRAY_OBJ_TYPE(Buffer16, char16_t);
+ARRAY_OBJ_TYPE(Buffer32, char32_t);
+ARRAY_OBJ_TYPE(Alist, Value);
+TABLE_OBJ_TYPE(Table, Value, Value);
 
-struct Symbol {
-  Obj       obj;
-  char*     name;
-  uintptr_t idno;    // unique identifier
-  CompileFn special; // special form associated with this symbol
-};
-
-typedef enum {
-  FINAL   =0x001,    // don't allow specialization
-  MACRO   =0x002,    // syntactic extension
-} FnFl;
-
-struct Function {
-  Obj          obj;
-  Symbol*      name;       // the name of this function (or `fun` if anonymous).
-  MethodTable* methods;    // handles method resolution
-  Method*      singleton;  // short-circuit dispatch if this is non-null
-};
-
-struct Vtable {
-  size_t    valSize;         // base value size  (0 - 8 bytes)
-  size_t    objSize;         // base object size (32+ bytes)
-  uintptr_t tag;             // tag used for values of given type
-  SizeFn    sizeOf;
-  TraceFn   trace;
-  FreeFn    free;
-  PrintFn   print;
-  HashFn    hash;
-  EgalFn    equal;
-  OrdFn     order;
-};
-
-struct Type {
-  Obj       obj;
-  Symbol*   name;
-  Type*     parent;        // abstract parent type
-  Function* ctor;          // constructor for values of this type
-  Vtable*   vTable;        // runtime and internal methods for types with concrete values
-  uintptr_t idno;          // unique identifier for this type (similar to symbol idno)
-  TypeSet   members;       // set of member types (if this is a union type)
-};
-
-struct Binding {
-  Obj     obj;
-  Symbol* name;            // plain name of the binding (unqualified)
-  Scope*  scope;           // scope in which the name is defined
-  size_t  offset;          // offset within corresponding environment
-  Value   value;           // value associated with the binding (if the value is stored directly)
-};
-
-struct Stream {
-  Obj     obj;
-  FILE*   ios;
-};
-
-struct Big {
-  Obj     obj;
-  /* TODO: change to arbitrary precision. */
-  int64_t value;
-};
-
-struct Bits {
-  Obj    obj;
-  union {
-    void*     data;
-    uint8_t*  u8;
-    uint16_t* u16;
-    uint32_t* u32;
-  };
-  size_t arity;
-};
-
-struct String {
-  Obj      obj;
-  char*    data;
-  size_t   arity;
-};
-
-struct Tuple {
-  Obj    obj;
-  size_t arity;
-  Value  slots[];
-};
-
-struct List {
-  Obj    obj;
-  List*  tail;
-  size_t arity;
-  Value  head;
-};
-
-struct Vector {
-  Obj      obj;
-  VecNode* root;      // if arity is greater than 64, remaining elements are stored here
-  size_t   arity;     // total number of elements in the vector
-  Value*   tail;      // the last 64 elements are stored here
-};
-
-struct Map {
-  Obj      obj;
-  MapNode* root;  // key/value pairs stored in underlying structure
-  size_t   arity; // total number of key/value pairs
-};
-
-struct MethodTable {
-  Obj         obj;
-  MethodCache cache;
-  MethodMap*  faMethods;
-  MethodMap*  vaMethods;
-};
-
-struct MethodMap {
-  Obj         obj;
-  MethodNode* root;
-  size_t      maxA;
-  bool        va;
-};
-
-struct MethodNode {
-  Obj          obj;
-  size_t       offset;   // offset of the argument corresponding to this table entry
-  Method*      leaf;     // candidate method if offset == arity
-  TypeMap      dtmap;    // methods with a datatype annotation at `sig[offset]`
-  TypeMap      atmap;    // methods with an abstract type annotation at `sig[offset]`
-  Objects      utmap;    // methods with a union annotation at `sig[offset]` (ordered by specificity)
-  MethodNode*  any;      // methods with no annotation at `sig[offset]`
-  bool         va;       // leaf is a variadic function
-  bool         exact;    // leaf has an exact signature
-};
-
-struct Method {
-  Obj     obj;
-  Tuple*  sig;    // declared method signature
-  Tuple*  sig_s;  // sorted method signature (for comparing specificity)
-  Obj*    fn;     // function to call if method matches
-  bool    va;     // signature for a variadic method
-  bool    exact;  // all annotations refer to concrete datatypes
-};
-
-struct Native {
-  Obj      obj;
-  NativeFn callBack;
-};
-
-struct Chunk {
-  Obj      obj;
-  Obj*     name;  // readable name (might be string or symbol)
-  Values   vals;  // constant store
-  ByteCode code;  // instructions
-};
-
-struct Closure {
-  Obj          obj;
-  Chunk*       code;
-  Environment* envt;
-};
-
-/* a single stack frame. */
-struct Frame {
-  Closure*  code;
-  uint16_t* ip;
-  size_t    bp;
-};
-
-struct Control {
-  Obj      obj;
-  Frame    frame;
-  Value*   stackCopy;
-  Frame*   framesCopy;
-  size_t   nStack, nFrames;
-};
-
-struct Scope {
-  Obj       obj;
-  Scope*    parent;
-  NsMap     locals;
-  NsMap     upVals;
-};
-
-struct NameSpace {
-  Obj    obj;
-  NsMap* globals;
-  NsMap* private;
-  Scope* scope;
-};
-
-struct Environment {
-  Obj          obj;
-  Environment* parent;
-  NameSpace*   ns;
-  Objects      upvals;
-};
-
-struct UpValue {
-  Obj      obj;
-  UpValue* next;
-  size_t   offset;
-  Value    value;
-};
-
-// node types
-#define BRANCH_FACTOR 0x040ul
-#define INDEX_MASK    0x03ful
-#define LEVEL_SHIFT   0x006ul
-#define MAX_SHIFT     0x030ul
-#define MAX_LEVEL     0x008ul
-
-struct VecNode {
-  Obj      obj;
-  Obj**    children;
-  size_t   count;
-};
-
-struct VecLeaf {
-  Obj   obj;
-  Value slots[BRANCH_FACTOR];
-};
-
-struct MapNode {
-  Obj      obj;
-  Obj**    children;
-  uint64_t bitmap;
-};
-
-struct MapLeaf {
-  Obj      obj;
-  MapLeaf* next; // used for collision resolution.
-  Value    key;
-  Value    val;
-};
-
-// global sigletons
-extern String emptyString;
-extern Tuple  emptyTuple;
-extern List   emptyList;
-extern Vector emptyVector;
-extern Map    emptyMap;
+// globals
+extern struct Type Buffer8Type, Buffer16Type, Buffer32Type, Binary8Type, Binary16Type, Binary32Type,
+  AlistType, TableType;
 
 // miscellaneous utilities
 int getFl(void* p, int f, int m);
@@ -287,76 +54,14 @@ void* newObj(Type* type, int f, size_t extra);
 void  initObj(void* p, Type* type, int f);
 void* cloneObj(void* p);
 
-// constructors
-// user types
-Symbol*   newSymbol(char* name, int flags);
-Function* newFunction(Symbol* name, Obj* ini, int flags);
-Chunk*    newChunk(Symbol* name);
-Bits*     newBits(void* data, size_t count, int flags);
-String*   newString(char* chars, size_t count, int flags);
-Tuple*    newTuple(size_t n, Value* vs);
-List*     newList(Value head, List* tail);
-Vector*   newVector(size_t n, Value* vs);
-Map*      newMap(size_t n, Value* kvs);
-
-// internal types
-// function and dispatch types
-MethodTable* newMethodTable(void);
-MethodMap*   newMethodMap(bool va);
-MethodNode*  newMethodNode(size_t offset, bool va, bool exact);
-Method*      newMethod(Obj* fn, Tuple* sig, bool va);
-
-// node types
-VecNode*  newVecNode(Obj** children, size_t n, int flags);
-VecLeaf*  newVecLeaf(Value* tail);
-
-// convenience constructors
-Symbol*   symbol(char* token);
-Symbol*   gensym(char* name);
-
-// misc accessors
-Kind      getKind(Type* type);
-
-// collection interfaces
-size_t    getElSize(Bits* b);
-bool      fitsElSize(Bits* b, int i);
-Bits*     cloneBits(Bits* b);
-Value     bitsGet(Bits* b, size_t n);
-Bits*     bitsAdd(Bits* b, int i);
-Bits*     bitsSet(Bits* b, size_t n, int i);
-Bits*     bitsDel(Bits* b, size_t n);
-
-Encoding  getEncoding(String* s);
-String*   cloneString(String* s);
-Value     strGet(String* s, size_t n);
-String*   strAdd(String* s, Glyph g);
-String*   strSet(String* s, size_t n, Glyph g);
-String*   strDel(String* s, size_t n);
-
-Tuple*    cloneTuple(Tuple* t);
-Value     tupleGet(Tuple* t, size_t n);
-Tuple*    tupleAdd(Tuple* t, Value x);
-Tuple*    tupleSet(Tuple* t, size_t n, Value x);
-Tuple*    tupleDel(Tuple* t, size_t n);
-
-Value     listGet(List* l, size_t n);
-List*     listAdd(List* l, Value x);
-List*     listSet(List* l, size_t n, Value x);
-List*     listDel(List* l, size_t n);
-
-size_t    getShift(void* p);
-size_t    setShift(void* p, size_t sh);
-void*     unfreeze(void* p);
-void      freeze(void* p);
-
-Value     mapGet(Map* m, Value k);
-Map*      mapAdd(Map* m, Value k, Value v);
-Map*      mapSet(Map* m, Value k, Value v);
-Map*      mapDel(Map* m, Value k);
-
-Value     vecGet(Vector* v, size_t i);
-Vector*   vecAdd(Vector* v, Value x);
-Vector*   vecSet(Vector* v, size_t i, Value x);
-Vector*   vecDel(Vector* v);
+// utility collection APIs
+ARRAY_OBJ_API(Binary8,  byte_t,   binary8);
+ARRAY_OBJ_API(Binary16, uint16_t, binary16);
+ARRAY_OBJ_API(Binary32, uint32_t, binary32);
+ARRAY_OBJ_API(Buffer8,  char,     buffer8);
+ARRAY_OBJ_API(Buffer16, char16_t, buffer16);
+ARRAY_OBJ_API(Buffer32, char32_t, buffer32);
+ARRAY_OBJ_API(Alist,    Value,    alist);
+TABLE_OBJ_API(Table,    Value,    Value, table);
 
 #endif

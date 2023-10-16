@@ -1,18 +1,11 @@
 #ifndef rascal_vm_h
 #define rascal_vm_h
 
-#include "common.h"
-#include "value.h"
-#include "object.h"
+#include "environment.h"
+#include "runtime.h"
 
 // generics
 #include "tpl/declare.h"
-
-ARRAY_TYPE(TextBuffer, char);
-TABLE_TYPE(ReadTable, readTable, int, ReadFn);
-TABLE_TYPE(SymbolCache, symbolCache, char*, Symbol*);
-TABLE_TYPE(LoadCache, loadCache, Bits*, Value);
-TABLE_TYPE(Annotations, annotations, Value, Map*);
 
 /* Composite global state object. */
 struct Vm {
@@ -27,26 +20,23 @@ struct Vm {
 
   // environment state
   struct {
-    uintptr_t   nSymbols;
-    SymbolCache symbols;
-    Annotations annot;
-    NsMap       globals;
-    LoadCache   used;
+    SymbolTable* symbols;
+    Table*       globals;
+    Table*       used;
   } toplevel;
 
   // reader state
   struct {
-    FILE*      source;
     ReadState  state;
-    TextBuffer buffer;
-    ReadTable  table;
+    Stream*    source;
+    Buffer8*   buffer;
+    Table*     table;
     Values     stack;
   } reader;
 
   // compiler state
   struct {
     Chunk*     chunk;
-    NameSpace* ns;
     Values     stack;
   } compiler;
 

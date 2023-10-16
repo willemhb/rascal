@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <uchar.h>
 #include <string.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -23,7 +24,9 @@
 #define UINT16_COUNT (UINT16_MAX+1)
 
 // utility types
-typedef uint64_t hash_t;
+typedef uint64_t   hash_t;
+typedef uint8_t    byte_t;
+typedef void     (*funcptr_t)(void);
 
 /**
  *
@@ -71,68 +74,69 @@ typedef uintptr_t       Arity;    // 48-bit unsigned integer
 typedef int             Small;    // 32-bit integer
 typedef bool            Boolean;  // boolean
 typedef char            Glyph;    // unicode codepoint
+typedef void*           Pointer;  // arbitrary C pointer
+typedef funcptr_t       FuncPtr;  // C function pointer
 
 // object types
-// user types
-typedef struct Symbol   Symbol;   // interned symbol
-typedef struct Function Function; // generic function object
+// miscellaneous
+typedef struct Symbol   Symbol;   // first-class identifier type
 typedef struct Type     Type;     // first-class representation of a rascal type
-typedef struct Binding  Binding;  // object for storing variable bindings
 typedef struct Stream   Stream;   // IO stream
 typedef struct Big      Big;      // arbitrary precision integer
-typedef struct Bits     Bits;     // compact, unencoded binary data
+
+// mutable collection types
+typedef struct Buffer8   Buffer8;
+typedef struct Buffer16  Buffer16;
+typedef struct Buffer32  Buffer32;
+typedef struct Binary8   Binary8;
+typedef struct Binary16  Binary16;
+typedef struct Binary32  Binary32;
+typedef struct Alist     Alist;
+typedef struct Table     Table;
+
+// other internal object types
+typedef struct SymbolTable SymbolTable;
+
+// immutable collection types
+typedef struct Bits     Bits;     // unencoded binary data
 typedef struct String   String;   // encoded binary data
 typedef struct Tuple    Tuple;    // a simple, fixed-size imutable collection
 typedef struct List     List;     // classic linked list
 typedef struct Vector   Vector;   // clojure-like vector
+typedef struct VecNode  VecNode;
+typedef struct VecLeaf  VecLeaf;
 typedef struct Map      Map;      // clojure-like hashmap (with reader support for sets)
+typedef struct MapNode  MapNode;
+typedef struct MapLeaf  MapLeaf;
 
-// internal types
-// vm types
-// functions & methods
+// function & method types
+typedef struct Function    Function;    // generic function object
 typedef struct MethodTable MethodTable; // core of multimethod implementation
 typedef struct MethodMap   MethodMap;   // root for single method tree
 typedef struct MethodNode  MethodNode;  // internal method table node
 typedef struct Method      Method;      // a single method table entry
 typedef struct Native      Native;      // native function
-typedef struct Chunk       Chunk;       // compiled code
 typedef struct Closure     Closure;     // packages a chunk/namespace with names
 
-// effects & control
+// execution and control
+typedef struct Chunk       Chunk;
 typedef struct Control     Control;     // reified continuation
 
 // names & environments
-typedef struct Scope       Scope;       // lexical naming context
-typedef struct NameSpace   NameSpace;   // complete naming context, including globals and file-scoped variables
+typedef struct Binding     Binding;
+typedef struct Scope       Scope;       // complete naming context, including globals and file-scoped variables
 typedef struct Environment Environment; // a reified naming context, including values
 typedef struct UpValue     UpValue;     // a captured local binding
-
-// node types
-typedef struct VecNode     VecNode;     // internal vector node
-typedef struct VecLeaf     VecLeaf;     // terminal vector node
-typedef struct MapNode     MapNode;     // internal map node
-typedef struct MapLeaf     MapLeaf;     // terminal map node (stores key/value pair)
 
 // enum & flag types
 typedef enum {
   READER_READY, READER_EXPRESSION, READER_DONE, READER_ERROR,
 } ReadState;
 
-typedef enum {
-  COMPILER_REPL, COMPILER_SCRIPT, COMPILER_WITH, COMPILER_FUNCTION, COMPILER_MACRO,
-} CompileState;
 
 typedef enum {
   BINARY, ASCII, LATIN1, UTF8, UTF16, UTF32,
 } Encoding;
-
-typedef enum {
-  BOTTOM_KIND,
-  TOP_KIND,
-  DATA_TYPE_KIND,
-  UNION_TYPE_KIND,
-  ABSTRACT_TYPE_KIND,
-} Kind;
 
 // function pointer types
 typedef Value    (*NativeFn)(size_t n, Value* a);

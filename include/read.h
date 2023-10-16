@@ -1,8 +1,14 @@
 #ifndef rascal_read_h
 #define rascal_read_h
 
-#include "common.h"
-#include "vm.h"
+#include "object.h"
+
+/* reader, io types */
+// C types
+struct Stream {
+  Obj     obj;
+  FILE*   ios;
+};
 
 // globals
 extern Value QuoteSym;
