@@ -11,240 +11,214 @@
 #undef ARRAY_TYPE
 #undef TABLE_TYPE
 
-#define ARRAY_TYPE(ArrayType, ElType, VaType, encodep)                  \
-  void init##ArrayType(ArrayType* array) {                              \
-    array->data     = NULL;                                             \
-    array->count    = 0;                                                \
-    array->capacity = 0;                                                \
+#define ARRAY_TYPE(A, X, VA, ep)                                        \
+  void init##A(A* a) {                                                  \
+    a->data = NULL;                                                     \
+    a->cnt  = 0;                                                        \
+    a->cap  = 0;                                                        \
   }                                                                     \
                                                                         \
-  void free##ArrayType(ArrayType* array) {                              \
-    deallocate(NULL, array->data, array->capacity * sizeof(ElType));    \
-    init##ArrayType(array);                                             \
+  void free##A(A* a) {                                                  \
+    deallocate(NULL, a->data, 0);                                       \
+    init##A(a);                                                         \
   }                                                                     \
                                                                         \
-  size_t resize##ArrayType(ArrayType* array, size_t newCount) {         \
-    size_t oldCount = array->count;                                     \
-    if (newCount == 0) {                                                \
-      if (array->count != 0)                                            \
-        free##ArrayType(array);                                         \
-    } else if ((newCount+encodep)  > array->capacity ||                 \
-               ((newCount+encodep) < (array->capacity >> 1))) {         \
-      size_t oldCap   = array->capacity;                                \
-      size_t newCap   = max(8u, ceilPow2(newCount+encodep+1));          \
+  size_t resize##A(A* a, size_t newCnt) {                               \
+    size_t oldCnt = a->count;                                           \
+    size_t newPad = newCnt + ep;                                        \
+    if (newCnt == 0) {                                                  \
+      if (a->cnt != 0)                                                  \
+        free##A(a);                                                     \
+    } else if (newPad > a->cap || newPad < (a->cap >> 1)) {             \
+      size_t oldCap   = a->cap;                                         \
+      size_t newCap   = max(8u, ceilPow2(newPad+1));                    \
                                                                         \
       if (oldCap != newCap) {                                           \
-        size_t oldSize  = oldCap * sizeof(ElType);                      \
-        size_t newSize  = newCap * sizeof(ElType);                      \
-        if (array->data == NULL)                                        \
-          array->data = allocate(NULL, newSize);                        \
+        size_t oldSize  = oldCap * sizeof(X);                           \
+        size_t newSize  = newCap * sizeof(X);                           \
+        if (a->data == NULL)                                            \
+          a->data = allocate(NULL, newSize);                            \
         else                                                            \
-          array->data = reallocate(NULL,                                \
-                                   array->data,                         \
-                                   oldSize,                             \
-                                   newSize);                            \
-        array->capacity = newCap;                                       \
+          a->data = reallocate(NULL, a->data, oldSize, newSize);        \
+        a->cap = newCap;                                                \
       }                                                                 \
     }                                                                   \
-    array->count = newCount;                                            \
-    assert(array->capacity >= array->count);                            \
-    return oldCount;                                                    \
+    a->cnt = newCnt;                                                    \
+    assert(a->cap >= a->cnt);                                           \
+    return oldCnt;                                                      \
   }                                                                     \
                                                                         \
-  size_t write##ArrayType(ArrayType* array, ElType x) {                 \
-    size_t offset = resize##ArrayType(array, array->count+1);           \
-    array->data[offset] = x;                                            \
-    return array->count-1;                                              \
+  size_t write##A(A* a, X x) {                                          \
+    size_t off = resize##A(a, a->cnt+1);                                \
+    a->data[off] = x;                                                   \
+    return a->cnt-1;                                                    \
   }                                                                     \
                                                                         \
-  size_t nWrite##ArrayType(ArrayType* array, size_t n, ElType* data) {  \
-    size_t offset = resize##ArrayType(array, array->count+n);           \
-    if (data != NULL)                                                   \
-      memcpy(array->data+offset, data, n*sizeof(ElType));               \
-    return offset;                                                      \
+  size_t nWrite##A(A* a, size_t n, X* d) {                              \
+    size_t off = resize##A(a, a->cnt+n);                                \
+    if (d != NULL)                                                      \
+      memcpy(a->data+off, d, n*sizeof(X));                              \
+    return off;                                                         \
   }                                                                     \
                                                                         \
-  size_t vWrite##ArrayType(ArrayType* array, size_t n, ...) {           \
-    size_t offset = resize##ArrayType(array, array->count+n);           \
+  size_t vWrite##A(A* a, size_t n, ...) {                               \
+    size_t off = resize##A(a, a->cnt+n);                                \
     va_list va; va_start(va, n);                                        \
                                                                         \
-    for (size_t i=offset; i<array->count; i++)                          \
-      array->data[i] = va_arg(va, VaType);                              \
+    for (size_t i=off; i<a->cnt; i++)                                   \
+      a->data[i] = va_arg(va, VA);                                      \
                                                                         \
     va_end(va);                                                         \
-    return offset;                                                      \
+    return off;                                                         \
   }                                                                     \
                                                                         \
-  ElType pop##ArrayType(ArrayType* array) {                             \
-    assert(array->count > 0);                                           \
-    ElType x = array->data[array->count-1];                             \
-    resize##ArrayType(array, array->count-1);                           \
+  X pop##A(A* a) {                                                      \
+    assert(a->cnt > 0);                                                 \
+    X x = a->data[a->cnt-1];                                            \
+    resize##A(a, a->cnt-1);                                             \
     return x;                                                           \
   }                                                                     \
                                                                         \
-  void nPop##ArrayType(ArrayType* array, size_t n) {                    \
-    assert(n <= array->count);                                          \
-    if (array->count > 0 && n > 0)                                      \
-      resize##ArrayType(array, array->count-n);                         \
+  void nPop##A(A* a, size_t n) {                                        \
+    assert(n <= a->cnt);                                                \
+    if (a->cnt > 0 && n > 0)                                            \
+      resize##A(a, a->cnt-n);                                           \
   }
 
 #define TABLE_MAX_LOAD 0.75
 
-#define TABLE_TYPE(TableType, tableType, KeyType, ValType,              \
-                   compareKeys, hashKey, internKey,                     \
-                   noKey, noValue)                                      \
-  void init##TableType(TableType* table) {                              \
-    table->table    = NULL;                                             \
-    table->count    = 0;                                                \
-    table->capacity = 0;                                                \
+#define TABLE_TYPE(T, _t, K, V, cmp, hashK, internK, noK, noV)          \
+  void init##T(T* t) {                                                  \
+    t->kvs   = NULL;                                                    \
+    t->cnt   = 0;                                                       \
+    t->cap   = 0;                                                       \
   }                                                                     \
                                                                         \
-  void free##TableType(TableType* table) {                              \
-    deallocate(NULL,                                                    \
-               table->table,                                            \
-               table->capacity * sizeof(TableType##Entry));             \
-    init##TableType(table);                                             \
+  void free##T(T* t) {                                                  \
+    deallocate(NULL, t->kvs, 0);                                        \
+    init##T(t);                                                         \
   }                                                                     \
                                                                         \
-  static TableType##Entry* find##TableType##Entry(TableType##Entry* entries, \
-                                                  size_t capacity,      \
-                                                  KeyType key) {        \
-    uint64_t hash = hashKey(key);                                       \
-    uint64_t mask = capacity - 1;                                       \
-    uint64_t index = hash & mask;                                       \
-    TableType##Entry* tombstone = NULL;                                 \
+  static T##Kv* find##T##Kv(T##Kv* kvs, size_t cap, K k) {              \
+    uint64_t hash    = hashK(k);                                        \
+    uint64_t mask    = cap - 1;                                         \
+    uint64_t index   = hash & mask;                                     \
+    T##Kv* tombstone = NULL;                                            \
                                                                         \
     for (;;) {                                                          \
-      TableType##Entry* entry = &entries[index];                        \
-      if (entry->key == noKey) {                                        \
-        if (entry->val == noValue) {                                    \
-          return tombstone != NULL ? tombstone : entry;                 \
+      T##Kv* kv = &kvs[index];                                          \
+      if (kv->key == noK) {                                             \
+        if (kv->val == noV) {                                           \
+          return tombstone != NULL ? tombstone : kv;                    \
         } else {                                                        \
           if (tombstone == NULL)                                        \
-            tombstone = entry;                                          \
+            tombstone = kv;                                             \
         }                                                               \
-      } else if (compareKeys(entry->key, key)) {                        \
-        return entry;                                                   \
+      } else if (cmp(kv->key, k)) {                                     \
+        return kv;                                                      \
       } else {                                                          \
         index = (index + 1) & mask;                                     \
       }                                                                 \
-      }                                                                 \
+    }                                                                   \
   }                                                                     \
                                                                         \
-  static void adjust##TableType##Capacity(TableType* table,             \
-                                          size_t capacity) {            \
-    size_t newSize = capacity * sizeof(TableType##Entry);               \
-    TableType##Entry* entries = allocate(NULL, newSize);                \
+  static void adjust##T##Capacity(T* t, size_t cap) {                   \
+    size_t newSize = cap * sizeof(T##Kv);                               \
+    T##kv* kvs     = allocate(NULL, newSize);                           \
     /* fill table */                                                    \
-    for (size_t i=0; i<capacity; i++) {                                 \
-      entries[i].key = noKey;                                           \
-      entries[i].val = noValue;                                         \
-    }                                                                   \
-    /* reset table init count */                                        \
-    table->count = 0;                                                   \
-    if (table->table != NULL) {                                         \
-      for (size_t i=0; i<table->capacity; i++) {                        \
-        TableType##Entry* entry = &table->table[i];                     \
+    for (size_t i=0; i<cap; i++)                                        \
+      es[i] = { .key=noK, .val=noV };                                   \
                                                                         \
-        if (entry->key == noKey) {                                      \
+    /* reset table init count */                                        \
+    t->cnt = 0;                                                         \
+    if (t->table != NULL) {                                             \
+      for (size_t i=0; i < t->cap; i++) {                               \
+        T##Kv* kv = &t->kvs[i];                                         \
+                                                                        \
+        if (e->key == noKey) {                                          \
           continue;                                                     \
         }                                                               \
                                                                         \
-        TableType##Entry* dest = find##TableType##Entry(entries,        \
-                                                        capacity,       \
-                                                        entry->key);    \
-        dest->key = entry->key;                                         \
-        dest->val = entry->val;                                         \
-        table->count++;                                                 \
+        T##Kv* dest = find##T##Kv(kvs, cap, kv->key);                   \
+        dest->key   = kv->key;                                          \
+        dest->val   = kv->val;                                          \
+        table->cnt += 1;                                                \
       }                                                                 \
-      deallocate(NULL,                                                  \
-                 table->table,                                          \
-                 table->capacity*sizeof(TableType##Entry));             \
+      deallocate(NULL, t->tkvs, 0);                                     \
     }                                                                   \
-    table->table = entries;                                             \
-    table->capacity = capacity;                                         \
+    t->kvs = kvs;                                                       \
+    t->cap = cap;                                                       \
   }                                                                     \
                                                                         \
-  bool tableType##Add(TableType* table, KeyType key, ValType* value) {  \
-    if (table->count + 1 > table->capacity * TABLE_MAX_LOAD) {          \
-      size_t capacity = table->capacity < 8 ? 8 : table->capacity << 1; \
-      adjust##TableType##Capacity(table, capacity);                     \
-    }                                                                   \
+  bool _t##Add(T* t, K k, V* v, void* s) {                              \
+    if (t->cnt + 1 > t->cap * TABLE_MAX_LOAD)                           \
+      adjust##T##Capacity(t, max(8u, t->cap << 1));                     \
                                                                         \
-    TableType##Entry* entry = find##TableType##Entry(table->table,      \
-                                                     table->capacity,   \
-                                                     key);              \
+    T##Kv* kv   = find##T##Kv(t->kvs, t->cap, k);                       \
+    bool isNewK = kv->key == noK;                                       \
                                                                         \
-    bool isNewKey = entry->key == noKey;                                \
-                                                                        \
-    if (isNewKey) {                                                     \
-      table->count++;                                                   \
-      if (entry->val == noValue) {                                      \
-        table->count++;                                                 \
+    if (isNewK) {                                                       \
+      t->cnt++;                                                         \
+      if (kv->val == noV) {                                             \
+        t->cnt++;                                                       \
       }                                                                 \
-      internKey(table, entry, key, value);                              \
+      internK(t, kv, k, v, s);                                          \
     } else {                                                            \
-      *value = entry->val;                                              \
+      if (v != NULL)                                                    \
+        *v = entry->val;                                                \
     }                                                                   \
                                                                         \
-    return isNewKey;                                                    \
+    return isNewK;                                                      \
   }                                                                     \
                                                                         \
-  bool tableType##Get(TableType* table, KeyType key, ValType* val) {    \
-    if (table->count == 0) {                                            \
-      *val = noValue;                                                   \
-      return false;                                                     \
+  bool _t##Get(T* t, K k, V* v) {                                       \
+    bool out = false;                                                   \
+    if (v != NULL)                                                      \
+      *v = noV;                                                         \
+                                                                        \
+    if (t->cnt > 0) {                                                   \
+      T##Kv* kv = find##T##Kv(t->kvs, t->cap, k);                       \
+                                                                        \
+      if (kv->key != noK) {                                             \
+        out = true;                                                     \
+        if (v != NULL)                                                  \
+          *v = kv->val;                                                 \
+      }                                                                 \
     }                                                                   \
-                                                                        \
-    TableType##Entry* entry = find##TableType##Entry(table->table,      \
-                                                     table->capacity,   \
-                                                     key);              \
-                                                                        \
-    if (entry->key == noKey) {                                          \
-      *val = noValue;                                                   \
-      return false;                                                     \
-    }                                                                   \
-                                                                        \
-    *val = entry->val;                                                  \
-    return true;                                                        \
+    return out;                                                         \
   }                                                                     \
                                                                         \
-  bool tableType##Set(TableType* table, KeyType key, ValType value) {   \
-    if (table->count + 1 > table->capacity * TABLE_MAX_LOAD) {          \
-      size_t capacity = table->capacity < 8 ? 8 : table->capacity << 1; \
-      adjust##TableType##Capacity(table, capacity);                     \
-    }                                                                   \
-                                                                        \
-    TableType##Entry* entry = find##TableType##Entry(table->table,      \
-                                                     table->capacity,   \
-                                                     key);              \
-                                                                        \
-    bool isNewKey = entry->key == noKey;                                \
-                                                                        \
-    if (isNewKey && entry->val == noValue) {                            \
-      table->count++;                                                   \
-    }                                                                   \
-                                                                        \
-    entry->key = key;                                                   \
-    entry->val = value;                                                 \
-                                                                        \
-    return isNewKey;                                                    \
+  bool _t##Has(T* t, K k) {                                             \
+    return _t##Get(t, k, NULL);                                         \
   }                                                                     \
                                                                         \
-  bool tableType##Delete(TableType* table, KeyType key) {               \
-    if (table->count == 0) {                                            \
+  bool _t##Set(T* t, K k, V v) {                                        \
+    if (t->cnt + 1 > t->cap * TABLE_MAX_LOAD)                           \
+      adjust##T##Capacity(t, max(8u, t->cap << 1));                     \
+                                                                        \
+    T##Kv* kv = find##T##Kv(t->kvs, t->cap, k);                         \
+                                                                        \
+    bool isNewK = kv->key == noK;                                       \
+                                                                        \
+    if (isNewK && kv->val == noV)                                       \
+      table->cnt++;                                                     \
+                                                                        \
+    kv->key = k;                                                        \
+    kv->val = v;                                                        \
+                                                                        \
+    return isNewK;                                                      \
+  }                                                                     \
+                                                                        \
+  bool _t##Del(T* t, K k) {                                             \
+    if (t->cnt == 0)                                                    \
       return false;                                                     \
-    }                                                                   \
                                                                         \
-    TableType##Entry* entry = find##TableType##Entry(table->table,      \
-                                                     table->capacity,   \
-                                                     key);              \
+    T##Kv* kv = find##T##Kv(t->kvs, t->cap, k);                         \
                                                                         \
-    if (entry->key == noKey) {                                          \
+    if (kv->key == noK)                                                 \
       return false;                                                     \
-    }                                                                   \
                                                                         \
-    entry->key = noKey;                                                 \
+    kv->key = noK;                                                      \
     return true;                                                        \
   }
 

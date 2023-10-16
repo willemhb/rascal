@@ -1,41 +1,41 @@
 #ifndef rascal_template_declare_h
 #define rascal_template_declare_h
 
-#define ARRAY_TYPE(ArrayType, ElType)                                   \
+#define ARRAY_TYPE(A, X)                                                \
                                                                         \
   typedef struct {                                                      \
-    ElType* data;                                                       \
-    size_t  count;                                                      \
-    size_t  capacity;                                                   \
-  } ArrayType;                                                          \
+    X*      data;                                                       \
+    size_t  cnt;                                                        \
+    size_t  cap;                                                        \
+  } A;                                                                  \
                                                                         \
-  void   init##ArrayType(ArrayType* array);                             \
-  void   free##ArrayType(ArrayType* array);                             \
-  size_t resize##ArrayType(ArrayType* array, size_t newCount);          \
-  size_t write##ArrayType(ArrayType* array, ElType x);                  \
-  size_t nWrite##ArrayType(ArrayType* array, size_t n, ElType* data);   \
-  size_t vWrite##ArrayType(ArrayType* array, size_t n, ...);            \
-  ElType pop##ArrayType(ArrayType* array);                              \
-  void   nPop##ArrayType(ArrayType* array, size_t n)
+  void   init##A(A* a);                                                 \
+  void   free##A(A* a);                                                 \
+  size_t resize##A(A* a, size_t newCnt);                                \
+  size_t write##A(A* a, X x);                                           \
+  size_t nWrite##A(A* a, size_t n, X* d);                               \
+  size_t vWrite##A(A* a, size_t n, ...);                                \
+  X      pop##A(A* a);                                                  \
+  void   nPop##A(A* a, size_t n)
 
-#define TABLE_TYPE(TableType, tableType, KeyType, ValType)           \
+#define TABLE_TYPE(T, _t, K, V)                                      \
   typedef struct {                                                   \
-    KeyType key;                                                     \
-    ValType val;                                                     \
-  } TableType##Entry;                                                \
+    K key;                                                           \
+    V val;                                                           \
+  } T##Kv;                                                           \
                                                                      \
   typedef struct {                                                   \
-    TableType##Entry* table;                                         \
-    size_t count;                                                    \
-    size_t capacity;                                                 \
-  } TableType;                                                       \
+    T##Kv* kvs;                                                      \
+    size_t cnt;                                                      \
+    size_t cap;                                                      \
+  } T;                                                               \
                                                                      \
-  void init##TableType(TableType* t);                                \
-  void free##TableType(TableType* t);                                \
-  bool tableType##Add(TableType* t, KeyType k, ValType* v, void* s); \
-  bool tableType##Has(TableType* t, KeyType k);                      \
-  bool tableType##Get(TableType* t, KeyType k, ValType* v);          \
-  bool tableType##Set(TableType* t, KeyType k, ValType v, void* s);  \
-  bool tableType##Delete(TableType* t, KeyType k)
+  void init##T(T* t);                                                \
+  void free##T(T* t);                                                \
+  bool _t##Add(T* t, K k, V* v, void* s);                            \
+  bool _t##Get(T* t, K k, V* v);                                     \
+  bool _t##Has(T* t, K k);                                           \
+  bool _t##Set(T* t, K k, V v, void* s);                             \
+  bool _t##Del(T* t, K k)
 
 #endif
