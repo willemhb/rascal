@@ -13,6 +13,7 @@ ARRAY_TYPE(ByteCode, uint16_t);
 TABLE_TYPE(NsMap, nsMap, Symbol*, Binding*);
 TABLE_TYPE(MethodCache, methodCache, Tuple*, Method*);
 TABLE_TYPE(TypeMap, typeMap, Type*, MethodNode*);
+TABLE_TYPE(TypeSet, typeSet, Type*, Type*);
 
 // general object flags
 typedef enum {
@@ -74,11 +75,11 @@ struct Vtable {
 struct Type {
   Obj       obj;
   Symbol*   name;
-  Type*     parent;        // abstract base type
-  Type*     left, * right; // union constituents stored as invasive tree
+  Type*     parent;        // abstract parent type
   Function* ctor;          // constructor for values of this type
   Vtable*   vTable;        // runtime and internal methods for types with concrete values
   uintptr_t idno;          // unique identifier for this type (similar to symbol idno)
+  TypeSet   members;       // set of member types (if this is a union type)
 };
 
 struct Binding {
@@ -172,12 +173,10 @@ struct MethodNode {
 struct Method {
   Obj     obj;
   Tuple*  sig;    // declared method signature
+  Tuple*  sig_s;  // sorted method signature (for comparing specificity)
   Obj*    fn;     // function to call if method matches
   bool    va;     // signature for a variadic method
   bool    exact;  // all annotations refer to concrete datatypes
-  size_t  nExact; // number of exact annotations in signature
-  size_t  nUnion; // number of union or abstract annotations in signature
-  size_t  nAny;   // mumber of blank or `Any` annotations in signature
 };
 
 struct Native {

@@ -92,7 +92,7 @@ static bool searchMethodNode(MethodNode* mn, Tuple* s, Objects* ms) {
 static bool searchMethodMap(MethodMap* mm, Tuple* s, Objects* ms) {
   bool out = false;
 
-  if (mm != NULL && s->arity >= mm->minA && (mm->va || s->arity <= mm->maxA))
+  if (mm != NULL && s->arity >= (mm->va || s->arity <= mm->maxA))
     out = searchMethodNode(mm->root, s, ms);
  
   return out;

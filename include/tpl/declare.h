@@ -33,6 +33,7 @@
   void init##TableType(TableType* t);                                \
   void free##TableType(TableType* t);                                \
   bool tableType##Add(TableType* t, KeyType k, ValType* v, void* s); \
+  bool tableType##Has(TableType* t, KeyType k);                      \
   bool tableType##Get(TableType* t, KeyType k, ValType* v);          \
   bool tableType##Set(TableType* t, KeyType k, ValType v, void* s);  \
   bool tableType##Delete(TableType* t, KeyType k)
