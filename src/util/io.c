@@ -14,21 +14,21 @@ int fpeekc(FILE* ios) {
   return out;
 }
 
-char* readPath(const char* path) {
+char* read_path(const char* path) {
   FILE*  file   = SAFE_OPEN(path, "rb");
-  return readFile(path, file);
+  return read_file(path, file);
 }
 
 char* readFile(const char* path, FILE* ios) {
-  size_t fSize  = fileSize(ios);
-  char*  buffer = SAFE_MALLOC(fSize+1);
+  size_t f_size = file_size(ios);
+  char*  buffer = SAFE_MALLOC(f_size+1);
   
-  SAFE_READ(path, buffer, char, fSize, ios);
+  SAFE_READ(path, buffer, char, f_size, ios);
   fclose(ios);
   return buffer;
 }
 
-size_t fileSize(FILE* ios) {
+size_t file_size(FILE* ios) {
   size_t pos = ftell(ios);
   rewind(ios);
   fseek(ios, 0, SEEK_END);

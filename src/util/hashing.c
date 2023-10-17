@@ -4,10 +4,10 @@
 #define FNV_PRIME_64  0x00000100000001B3UL
 #define FNV_OFFSET_64 0xCBF29CE484222325UL
 
-uint64_t hashString(const char* chars) {
+hash_t hash_string(const char* chars) {
   uint64_t hash = FNV_OFFSET_64;
 
-  for (char ch = *chars; ch != '\0'; chars++, ch=*chars ) {
+  for (char ch=*chars; ch != '\0'; chars++, ch=*chars) {
     hash ^= ch;
     hash *= FNV_PRIME_64;
   }
@@ -15,7 +15,7 @@ uint64_t hashString(const char* chars) {
   return hash;
 }
 
-uint64_t hashBytes(const uint8_t* bytes, size_t n) {
+hash_t hash_bytes(const uint8_t* bytes, size_t n) {
   uint64_t hash = FNV_OFFSET_64;
 
   for (size_t i=0; i<n; i++) {
@@ -26,7 +26,7 @@ uint64_t hashBytes(const uint8_t* bytes, size_t n) {
   return hash;
 }
 
-uint64_t hashWord(uint64_t word) {
+uint64_t hash_word(uint64_t word) {
   // stolen from femtolisp.
   word = (~word) + (word << 21);             // word = (word << 21) - word - 1;
   word =   word  ^ (word >> 24);
@@ -38,14 +38,14 @@ uint64_t hashWord(uint64_t word) {
   return word;  
 }
 
-uint64_t hashPtr(const void* pointer) {
-  return hashWord((uint64_t)pointer);
+hash_t hash_ptr(const void* pointer) {
+  return hash_word((uint64_t)pointer);
 }
 
-uint64_t hashDouble(double num) {
-  return hashWord(doubleToWord(num));
+hash_t hash_double(double num) {
+  return hash_word(double_to_word(num));
 }
 
-uint64_t mixHashes(uint64_t hx, uint64_t hy) {
-  return hashWord(hx ^ hy);
+hash_t mix_hashes(hash_t hx, hash_t hy) {
+  return hash_word(hx ^ hy);
 }

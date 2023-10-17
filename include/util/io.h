@@ -36,8 +36,8 @@
   } while (false)
 
 int    fpeekc(FILE* ios);
-char*  readPath(const char* path);
-char*  readFile(const char* path, FILE* ios);
-size_t fileSize(FILE* ios);
+char*  read_path(const char* path);
+char*  read_file(const char* path, FILE* ios);
+size_t file_size(FILE* ios);
 
 #endif

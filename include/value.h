@@ -24,46 +24,46 @@
 #define ZERO        (SMALL_TAG | 0UL)
 #define ONE         (SMALL_TAG | 1UL)
 
-#define tag(x) _Generic((x),                    \
-                        Float:tagFloat,         \
-                        Arity:tagArity,         \
-                        Small:tagSmall,         \
-                        Boolean:tagBoolean,     \
-                        Glyph:tagGlyph,         \
-                        void*:tagPtr,           \
-                        funcptr_t:tagFptr,      \
-                        default:tagObj)(x)
+#define tag(x) _Generic((x),                     \
+                        Float:tag_float,         \
+                        Arity:tag_arity,         \
+                        Small:tag_small,         \
+                        Boolean:tag_bool,        \
+                        Glyph:tag_glyph,         \
+                        Pointer:tag_ptr,         \
+                        FuncPtr:tag_fptr,        \
+                        default:tag_obj)(x)
 
-#define AS_FLOAT(x)        ((Float)wordToDouble(x))
-#define AS_ARITY(x)        ((x) & VAL_MASK)
-#define AS_SMALL(x)        ((Small)((x) & SMALL_MASK))
-#define AS_BOOL(x)         ((x) == TRUE)
-#define AS_GLYPH(x)        ((Glyph)((x) & SMALL_MASK))
-#define AS_PTR(x)          ((Pointer)((x) & VAL_MASK))
-#define AS_FPTR(x)         ((FuncPtr)((x) & VAL_MASK))
-#define AS(T, x)           ((T*)AS_PTR(x))
+#define as_float(x) ((Float)word_to_double(x))
+#define as_arity(x) ((x) & VAL_MASK)
+#define as_small(x) ((Small)((x) & SMALL_MASK))
+#define as_bool(x)  ((x) == TRUE)
+#define as_glyph(x) ((Glyph)((x) & SMALL_MASK))
+#define as_ptr(x)   ((Pointer)((x) & VAL_MASK))
+#define as_fptr(x)  ((FuncPtr)((x) & VAL_MASK))
+#define as(T, x)    ((T*)as_ptr(x))
 
-#define IS_OBJ(x)          (((x) & TAG_MASK) == OBJ_TAG)
-#define IS(T, x)           hasType(x, &T##Type)
+#define is_obj(x)   (((x) & TAG_MASK) == OBJ_TAG)
+#define is(T, x)    hasType(x, &T##Type)
 
-#define typeOf(v)         generic2(typeOf, v, v)
-#define sizeOf(v)         generic2(sizeOf, v, v)
-#define hasType(v, t)     generic2(hasType, v, v, t)
+#define type_of(v)     generic2(type_of, v, v)
+#define size_of(v)     generic2(size_of, v, v)
+#define has_type(v, t) generic2(has_type, v, v, t)
 
-Value tagFloat(Float x);
-Value tagArity(Arity x);
-Value tagSmall(Small x);
-Value tagBoolean(Boolean x);
-Value tagGlyph(Glyph x);
-Value tagPtr(Pointer x);
-Value tagFptr(FuncPtr x);
-Value tagObj(void* x);
+Value tag_float(Float x);
+Value tag_arity(Arity x);
+Value tag_small(Small x);
+Value tag_bool(Boolean x);
+Value tag_glyph(Glyph x);
+Value tag_ptr(Pointer x);
+Value tag_fptr(FuncPtr x);
+Value tag_obj(void* x);
 
-Type*  typeOfVal(Value x);
-Type*  typeOfObj(void* p);
-size_t sizeOfVal(Value x);
-size_t sizeOfObj(void* p);
-bool   hasTypeVal(Value x, Type* type);
-bool   hasTypeObj(void* p, Type* type);
+Type*  type_of_val(Value x);
+Type*  type_of_obj(void* p);
+size_t size_of_val(Value x);
+size_t size_of_obj(void* p);
+bool   has_type_val(Value x, Type* type);
+bool   has_type_obj(void* p, Type* type);
 
 #endif

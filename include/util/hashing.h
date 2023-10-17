@@ -4,11 +4,11 @@
 #include "common.h"
 
 // hashing functions
-uint64_t hashString(const char* chars);
-uint64_t hashBytes(const uint8_t* bytes, size_t n);
-uint64_t hashWord(uint64_t word);
-uint64_t hashPtr(const void* pointer);
-uint64_t hashDouble(double num);
-uint64_t mixHashes(uint64_t hx, uint64_t hy);
+hash_t hash_string(const char* chars);
+hash_t hash_bytes(const uint8_t* bytes, size_t n);
+hash_t hash_word(uint64_t word);
+hash_t hash_ptr(const void* pointer);
+hash_t hash_double(double num);
+hash_t mix_hashes(hash_t hx, hash_t hy);
 
 #endif

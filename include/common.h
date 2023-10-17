@@ -48,11 +48,11 @@ typedef union {
   } bits;
 } IEEE_754_64;
 
-static inline uintptr_t doubleToWord(double number) {
+static inline uintptr_t double_to_word(double number) {
   return ((IEEE_754_64)number).word;
 }
 
-static inline double wordToDouble(uintptr_t word) {
+static inline double word_to_double(uintptr_t word) {
   return ((IEEE_754_64)word).number;
 }
 
@@ -156,9 +156,11 @@ typedef bool     (*EgalFn)(Value x, Value y);
 typedef int      (*OrdFn)(Value x, Value y);
 
 // miscellaneous helper macros
+#define generic _Generic
+
 #define generic2(method, dispatch, args...)     \
-  _Generic((dispatch),                          \
-           Value:method##Val,                   \
-           default:method##Obj)(args)
+  generic((dispatch),                           \
+          Value:method##_##val,                 \
+          default:method##_##obj)(args)
 
 #endif

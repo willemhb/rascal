@@ -1,7 +1,7 @@
 #include "util/number.h"
 
 // general numeric utilities
-uint64_t ceilPow2(uint64_t word) {
+uint64_t ceil_2(uint64_t word) {
   // stolen from femtolisp
 
   if (word == 0)

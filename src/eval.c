@@ -252,6 +252,8 @@ Value exec(Closure* code) {
   goto fetch;
 
   /* load/store private */
+ op_loadp:
+  
 
   /* load/store global */
 

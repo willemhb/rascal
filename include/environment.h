@@ -50,24 +50,24 @@ struct Binding {
 extern struct Type SymbolType, EnvironmentType, BindingType;
 
 // external API
-void    initEnvt(Vm* vm);
-void    freeEnvt(Vm* vm);
+void    init_envt(Vm* vm);
+void    free_envt(Vm* vm);
 
-#define getAnnot(x, k)    generic2(getAnnot, x, x, k)
-#define setAnnot(x, k, v) generic2(setAnnot, x, k, v)
+#define get_annot(x, k)    generic2(get_annot, x, x, k)
+#define set_annot(x, k, v) generic2(set_annot, x, k, v)
 
-Value  getAnotVal(Value x, Value key);
-Value  getAnnotObj(void* p, Value key);
-Value  setAnnotVal(Value x, Value key, Value value);
-Value  setAnnotObj(void* p, Value key, Value value);
+Value  get_annot_val(Value x, Value key);
+Value  get_annot_obj(void* p, Value key);
+Value  set_annot_val(Value x, Value key, Value value);
+Value  set_annot_obj(void* p, Value key, Value value);
 
 // accessors
-ScopeType getScopeType(Environment* envt);
+ScopeType get_scope_type(Environment* envt);
 
 // constructors
-Symbol*      newSymbol(char* name, flags_t fl);
-Environment* newEnvironment(Environment* parent, ScopeType type);
-Binding*     newBinding(Binding* parent, Symbol* name, NameSpace* ns, size_t offset, NsType type, Value val);
+Symbol*      new_symbol(char* name, flags_t fl);
+Environment* new_environment(Environment* parent, ScopeType type);
+Binding*     new_binding(Binding* parent, Symbol* name, NameSpace* ns, size_t offset, NsType type, Value val);
 
 // convenience constructors
 Symbol* symbol(char* token);

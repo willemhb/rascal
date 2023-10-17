@@ -6,17 +6,18 @@
 
 /* globals & utilites for working with types. */
 // categorization of types. Used to determine membership and compare specificity of types
+
 typedef enum {
   BOTTOM_KIND, DATA_KIND, DATA_UNION_KIND,
   ABSTRACT_KIND, ABSTRACT_UNION_KIND, TOP_KIND,
 } Kind;
 
 struct Vtable {
-  size_t     valSize;         // base value size  (0 - 8 bytes)
-  size_t     objSize;         // base object size (32+ bytes)
+  size_t     val_size;        // base value size  (0 - 8 bytes)
+  size_t     obj_size;        // base object size (32+ bytes)
   uintptr_t  tag;             // tag used for values of given type
   NameSpace* slots;           // mapping of slot names to offsets and other metadata
-  SizeFn     sizeOf;          // called to determine total object size
+  SizeFn     size_of;         // called to determine total object size
   TraceFn    trace;           // called by the GC to trace owned pointers
   FreeFn     free;            // called by the GC to free managed data
   HashFn     hash;            // called to hash object data
@@ -29,7 +30,7 @@ struct Type {
   Symbol*   name;
   Type*     parent;        // abstract parent type
   Function* ctor;          // constructor for values of this type
-  Vtable*   vTable;        // runtime and internal methods for types with concrete values
+  Vtable*   v_table;       // runtime and internal methods for types with concrete values
   uintptr_t idno;          // unique identifier for this type (similar to symbol idno)
   Table*    members;       // used by union types to determine membership
 };
@@ -70,19 +71,20 @@ extern Type NoneType, AnyType, TermType, TypeType;
 
 // external API
 // accessors
-Kind getKind(Type* type);
+Kind get_kind(Type* type);
+bool is_instance(Type* xt, Type* yt);
 
 // constructors
-Type*   newStructType(Type* parent, Symbol* name, List* slots, Tuple* signature);
-Type*   newRecordType(Type* parent, Symbol* name, List* slots, Tuple* signature);
-Type*   newAbstractType(Type* parent, Symbol* name);
-Type*   newUnionType(Type* parent, Symbol* name, size_t count, Type** members);
+Type* new_struct_type(Type* parent, Symbol* name, List* slots, Tuple* signature);
+Type* new_record_type(Type* parent, Symbol* name, List* slots, Tuple* signature);
+Type* new_abstract_type(Type* parent, Symbol* name);
+Type* new_union_type(Type* parent, Symbol* name, size_t count, Type** members);
 
 // utilities
-Tuple*  rankTypes(Tuple* sig);
-int     orderSigs(Tuple* sigx, Tuple* sigy);
+Tuple*  rank_types(Tuple* sig);
+int     order_sigs(Tuple* sigx, Tuple* sigy);
 
 // initialization
-void   initializeBuiltinTypes(void);
+void   init_builtin_types(void);
 
 #endif

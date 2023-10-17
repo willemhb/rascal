@@ -28,15 +28,15 @@ struct Function {
 
 struct MethodTable {
   Obj         obj;
-  Table*      cache;     // cache of exact signatures
-  MethodMap*  faMethods; // fixed arity methods
-  MethodMap*  vaMethods; // variadic methods
+  Table*      cache;      // cache of exact signatures
+  MethodMap*  fa_methods; // fixed arity methods
+  MethodMap*  va_methods; // variadic methods
 };
 
 struct MethodMap {
   Obj         obj;
   MethodNode* root;
-  size_t      maxA;
+  size_t      max_a;
 };
 
 struct MethodNode {
@@ -58,7 +58,7 @@ struct Method {
 
 struct Native {
   Obj      obj;
-  NativeFn callBack;
+  NativeFn fn;
 };
 
 struct Closure {
@@ -74,20 +74,20 @@ extern struct Type FunctionType, MethodTableType,
 
 // external API
 // constructors
-Function* newFunction(Symbol* name, flags_t fl);
+Function* new_function(Symbol* name, flags_t fl);
 
 // internal types
 // function and dispatch types
-MethodTable* newMethodTable(void);
-MethodMap*   newMethodMap(bool va);
-MethodNode*  newMethodNode(size_t offset, int fl);
-Method*      newMethod(Obj* fn, Tuple* sig, bool va);
+MethodTable* new_method_table(void);
+MethodMap*   new_method_map(bool va);
+MethodNode*  new_method_node(size_t offset, int fl);
+Method*      new_method(Obj* fn, Tuple* sig, bool va);
 
-Tuple*       signature(size_t n, size_t maxN, Value* vals);
-Method*      getMethod(Function* g, Tuple* s);
-Method*      addMethod(Function* g, Tuple* s, Obj* m, bool va);
+Tuple*  signature(size_t n, size_t maxN, Value* vals);
+Method* get_method(Function* g, Tuple* s);
+Method* add_method(Function* g, Tuple* s, Obj* m, bool va);
 
 // initialization
-void         initializeNativeFunctions(void);
+void init_builtin_functions(void);
 
 #endif

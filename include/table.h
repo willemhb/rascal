@@ -37,44 +37,44 @@
   typedef bool (*T##EgalFn)(K x, K y);                                  \
                                                                         \
   struct T {                                                            \
-    Obj    obj;                                                         \
-    T##Kv* kvs;                                                         \
-    void*  ord;                                                         \
-    size_t kvCnt;                                                       \
-    size_t tsCnt;                                                       \
-    size_t ordCap;                                                      \
-    size_t kvCap;                                                       \
+    Obj         obj;                                                    \
+    T##Kv*      kvs;                                                    \
+    void*       ord;                                                    \
+    size_t      kv_cnt;                                                 \
+    size_t      ts_cnt;                                                 \
+    size_t      ord_cap;                                                \
+    size_t      kv_cap;                                                 \
     T##InternFn intern;                                                 \
-    T##HashFn hash;                                                     \
-    T##EgalFn egal;                                                     \
+    T##HashFn   hash;                                                   \
+    T##EgalFn   egal;                                                   \
   };                                                                    \
                                                                         \
   extern struct Type T##Type
 
 #define TABLE_API(T, K, V, _t)                                          \
-  T*     new##T(flags_t fl, T##InternFn i, T##HashFn h, T##EgalFn e);   \
-  void   init##T(T* t);                                                 \
-  void   free##T(void* p);                                              \
-  T##Kv* _t##Find(T* t, T##Kv* kvs, size_t c, K k);                     \
-  bool   _t##Intern(T* t, K k, void* s, V* b);                          \
-  bool   _t##Add(T* t, K k, V* v);                                      \
-  bool   _t##Get(T* t, K k, V* v);                                      \
-  bool   _t##Set(T* t, K k, V v);                                       \
-  bool   _t##Has(T* t, K k);                                            \
-  bool   _t##Del(T* t, K k)
+  T*     new_##_t(flags_t fl, T##InternFn i, T##HashFn h, T##EgalFn e); \
+  void   init_##_t(T* t);                                               \
+  void   free_##_t(void* p);                                            \
+  T##Kv* _t##_find(T* t, T##Kv* kvs, size_t c, K k);                    \
+  bool   _t##_intern(T* t, K k, void* s, V* b);                         \
+  bool   _t##_add(T* t, K k, V* v);                                     \
+  bool   _t##_get(T* t, K k, V* v);                                     \
+  bool   _t##_set(T* t, K k, V v);                                      \
+  bool   _t##_has(T* t, K k);                                           \
+  bool   _t##_del(T* t, K k)
 
 #define ORDERED_TABLE_API(T, K, V, _t)                                  \
-  T*     new##T(flags_t fl, T##InternFn i, T##HashFn h, T##EgalFn e);   \
-  void   init##T(T* t);                                                 \
-  void   free##T(void* p);                                              \
-  size_t _t##Arity(T* t);                                               \
-  void*  _t##Find(T* t, T##Kv* kvs, void* o, size_t c, K k);            \
-  bool   _t##Intern(T* t, K k, void* s, V* b);                          \
-  bool   _t##Add(T* t, K k, V* v);                                      \
-  bool   _t##Get(T* t, K k, V* v);                                      \
-  bool   _t##Set(T* t, K k, V v);                                       \
-  bool   _t##Has(T* t, K k);                                            \
-  bool   _t##Del(T* t, K k)
+  T*     new_##_t(flags_t fl, T##InternFn i, T##HashFn h, T##EgalFn e); \
+  void   init_##_t(T* t);                                               \
+  void   free_##_t(void* p);                                            \
+  size_t _t##_arity(T* t);                                              \
+  void*  _t##_find(T* t, T##Kv* kvs, void* o, size_t c, K k);           \
+  bool   _t##_intern(T* t, K k, void* s, V* b);                         \
+  bool   _t##_add(T* t, K k, V* v);                                     \
+  bool   _t##_get(T* t, K k, V* v);                                     \
+  bool   _t##_set(T* t, K k, V v);                                      \
+  bool   _t##_has(T* t, K k);                                           \
+  bool   _t##_del(T* t, K k)
 
 typedef enum {
   GLOBAL_NS, PRIVATE_NS, LOCAL_NS, NONLOCAL_NS, STRUCT_NS, RECORD_NS,
@@ -85,11 +85,11 @@ TABLE_TYPE(Table, Value, Value);
 ORDERED_TABLE_TYPE(NameSpace, Symbol*, Binding*);
 
 // external APIs
-TABLE_API(SymbolTable, char*, Symbol*, symbolTable);
+TABLE_API(SymbolTable, char*, Symbol*, symbol_table);
 TABLE_API(Table, Value, Value, table);
-ORDERED_TABLE_API(NameSpace, Symbol*, Binding*, nameSpace);
+ORDERED_TABLE_API(NameSpace, Symbol*, Binding*, name_space);
 
 // utilities
-NsType getNsType(NameSpace* ns);
+NsType get_ns_type(NameSpace* ns);
 
 #endif
