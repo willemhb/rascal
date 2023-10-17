@@ -63,6 +63,9 @@ extern Vm RlVm;
 extern struct Frame Frames[N_FRAME];
 extern Value Stack[N_STACK];
 
+// don't really fit anywhere else
+extern struct Type PointerType, FuncPtrType;
+
 // external API
 void initVm(Vm* vm);
 void freeVm(Vm* vm);

@@ -1,10 +1,17 @@
 #include "util/hashing.h"
 
+#include "environment.h"
+#include "function.h"
+
+#include "vm.h"
+
 #include "type.h"
 
 // external API
 // accessors
-Kind getKind(Type* type);
+Kind getKind(Type* type) {
+  return type->obj.flags & 0x7;
+}
 
 // constructors
 Type*   newStructType(Type* parent, Symbol* name, List* slots, Tuple* signature);
@@ -17,16 +24,33 @@ Tuple*  rankTypes(Tuple* sig);
 int     orderSigs(Tuple* sigx, Tuple* sigy);
 
 // initialization
-#include "vm.h"
-#include "environment.h"
+static void initializeBuiltinType(char* name, Type* type) {
+  type->name       = symbol(name);
+  type->obj.hash   = hashWord(type->idno);
+  type->obj.hashed = true;
+
+  if (type->ctor != NULL)
+    type->ctor->name = type->name;
+
+  Binding* binding = define(NULL, type->name, tag(type), false);
+
+  setFl(binding, CONSTANT); 
+}
 
 void initializeBuiltinTypes(void) {
   // numeric
   extern Type FloatType, ArityType, SmallType, BigType,
     NumberType, RealType, RationalType, IntegerType;
 
+  // mutable array types
+  extern Type Buffer8Type, Buffer16Type, Buffer32Type, Binary8Type, Binary16Type,
+    Binary32Type, AlistType, ObjectsType;
+
+  // mutable table types
+  extern Type SymbolTableType, TableType, NameSpaceType;
+
   // environment
-  extern Type SymbolType, ScopeType, EnvironmentType, BindingType, UpValueType;
+  extern Type SymbolType, EnvironmentType, BindingType, UpValueType;
 
   // collections
   extern Type BitsType, StringType, TupleType, ListType, VectorType, VecNodeType,
@@ -40,7 +64,7 @@ void initializeBuiltinTypes(void) {
   extern Type ChunkType, ControlType;
 
   // miscellaneous
-  extern Type BooleanType, UnitType, GlyphType, StreamType;
+  extern Type PointerType, FuncPtrType, BooleanType, UnitType, GlyphType, StreamType;
   
   struct { char* name; Type* type; } types[] = {
     // fucked up
@@ -49,7 +73,7 @@ void initializeBuiltinTypes(void) {
     [UNIT]         = { "Unit",        &UnitType        },
     [TERM]         = { "Term",        &TermType        },
     [TYPE]         = { "Type",        &TypeType        },
-    
+
     // numeric
     [FLOAT]        = { "Float",       &FloatType       },
     [ARITY]        = { "Arity",       &ArityType       },
@@ -60,9 +84,23 @@ void initializeBuiltinTypes(void) {
     [RATIONAL]     = { "Rational",    &RationalType    },
     [INTEGER]      = { "Integer",     &IntegerType     },
 
+    // mutable arrays
+    [BUFFER8]      = { "Buffer8",     &Buffer8Type     },
+    [BUFFER16]     = { "Buffer16",    &Buffer16Type    },
+    [BUFFER32]     = { "Buffer32",    &Buffer32Type    },
+    [BINARY8]      = { "Binary8",     &Binary8Type     },
+    [BINARY16]     = { "Binary16",    &Binary16Type    },
+    [BINARY32]     = { "Binary32",    &Binary32Type    },
+    [ALIST]        = { "Alist",       &AlistType       },
+    [OBJECTS]      = { "Objects",     &ObjectsType     },
+
+    // mutable tables
+    [SYMBOL_TABLE] = { "SymbolTable", &SymbolTableType },
+    [TABLE]        = { "Table",       &TableType       },
+    [NAME_SPACE]   = { "NameSpace",   &NameSpaceType   },
+
     // environment
     [SYMBOL]       = { "Symbol",      &SymbolType      },
-    [SCOPE]        = { "Scope",       &ScopeType       },
     [ENVIRONMENT]  = { "Environment", &EnvironmentType },
     [BINDING]      = { "Binding",     &BindingType     },
     [UPVALUE]      = { "UpValue",     &UpValueType     },
@@ -93,19 +131,13 @@ void initializeBuiltinTypes(void) {
     [CONTROL]      = { "Control",     &ControlType     },
 
     // miscellaneous
+    [POINTER]      = { "Pointer",     &PointerType     },
+    [FUNCPTR]      = { "FuncPtr",     &FuncPtrType     },
     [BOOLEAN]      = { "Boolean",     &BooleanType     },
     [GLYPH]        = { "Glyph",       &GlyphType       },
     [STREAM]       = { "Stream",      &StreamType      },
   };
 
-  for (size_t i=0;i <= INTEGER; i++) {
-    char* name = types[i].name;
-    Type* type = types[i].type;
-
-    type->name       = symbol(name);
-    type->obj.hash   = hashWord(type->idno);
-    type->obj.hashed = true;
-
-    defineGlobal(&RlVm, type->name, tag(&type), CONSTANTP);
-  }
+  for (size_t i=0;i <= INTEGER; i++)
+    initializeBuiltinType(types[i].name, types[i].type);
 }

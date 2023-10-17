@@ -50,7 +50,7 @@ enum {
   TABLE, SYMBOL_TABLE, NAME_SPACE,
 
   // miscellaneous
-  BOOLEAN, GLYPH, STREAM,
+  POINTER, FUNCPTR, BOOLEAN, GLYPH, STREAM,
 
   // environment system
   SYMBOL, ENVIRONMENT, BINDING, UPVALUE,
