@@ -56,10 +56,10 @@ size_t  argcos(size_t n, size_t got, const char* fname, ...);
 size_t  vargcos(size_t n, size_t got, const char* fname, ...);
 
 #define try                                                             \
-  ErrorContext _ctx; int l__tr, l__ca;                                  \
-  saveState(&RlVm, &_ctx); RlVm.context.ctx = &_ctx;                    \
+  Context _ctx; int l__tr, l__ca;                                       \
+  saveState(&RlVm, &_ctx); RlVm.ctx = &_ctx;                            \
   if (!setjmp(_ctx.buf))                                                \
-    for (l__tr=1; l__tr; l__tr=0, (void)(RlVm.context.ctx=_ctx.next))
+    for (l__tr=1; l__tr; l__tr=0, (void)(RlVm.ctx=_ctx.next))
 
 #define catch                                                   \
   else                                                          \

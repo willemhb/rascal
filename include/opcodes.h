@@ -28,7 +28,14 @@ typedef enum OpCode {
   /* closures */
   OP_CLOSURE,
 
-  /* */
+  /* control (effects) */
+  OP_PERFORM,
+
+  /* FFI */
+  OP_CCALL,
+
+  /* miscellaneous */
+  OP_USE,
 } OpCode;
 
 // external API

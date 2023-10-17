@@ -45,7 +45,7 @@ struct MethodNode {
   Method*      leaf;     // candidate method if offset == arity
   Table*       dtmap;    // 
   Table*       atmap;    // 
-  Objects      utmap;    // methods with a union annotation at `sig[offset]` (ordered by specificity)
+  Objects*     utmap;    // methods with a union annotation at `sig[offset]` (ordered by specificity)
   MethodNode*  any;      // methods with no annotation at `sig[offset]`
 };
 
@@ -62,15 +62,19 @@ struct Native {
 };
 
 struct Closure {
-  Obj     obj;
-  Chunk*  code;
-  Objects upvals;
+  Obj      obj;
+  Chunk*   code;
+  Objects* upvals;
 };
+
+// globals
+extern struct Type FunctionType, MethodTableType,
+  MethodMapType, MethodNodeType, MethodType,
+  ClosureType, NativeType;
 
 // external API
 // constructors
-// user types
-Function* newFunction(Symbol* name, int flags);
+Function* newFunction(Symbol* name, flags_t fl);
 
 // internal types
 // function and dispatch types
@@ -79,8 +83,9 @@ MethodMap*   newMethodMap(bool va);
 MethodNode*  newMethodNode(size_t offset, int fl);
 Method*      newMethod(Obj* fn, Tuple* sig, bool va);
 
+Tuple*       signature(size_t n, size_t maxN, Value* vals);
 Method*      getMethod(Function* g, Tuple* s);
-void         addMethod(Function* g, Tuple* s, Obj* m, bool va);
+Method*      addMethod(Function* g, Tuple* s, Obj* m, bool va);
 
 // initialization
 void         initializeNativeFunctions(void);

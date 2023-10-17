@@ -1,11 +1,11 @@
-#include <stdlib.h>
-#include <stdio.h>
-
 #include "util/io.h"
 
 #include "vm.h"
 #include "environment.h"
 #include "collection.h"
+#include "compile.h"
+#include "read.h"
+#include "print.h"
 #include "eval.h"
 
 // internal API
@@ -28,59 +28,27 @@ static bool isFalsey(Value x) {
 }
 
 // external API
-void initInterpreter(Interpreter* interpreter, Value* vals, size_t nStack) {
-  interpreter->sp   = vals;
-  interpreter->vp   = vals;
-  interpreter->ep   = vals+nStack;
-  interpreter->code = NULL;
-  interpreter->ip   = NULL;
-}
-
-void freeInterpreter(Interpreter* interpreter) {
-  interpreter->sp   = NULL;
-  interpreter->vp   = NULL;
-  interpreter->ep   = NULL;
-  interpreter->code = NULL;
-  interpreter->ip   = NULL;
-}
-
-void startInterpreter(Interpreter* interpreter, Chunk* code) {
-  interpreter->code = code;
-  interpreter->ip   = code->code.data;
-}
-
-void resetInterpreter(Interpreter* interpreter) {
-  interpreter->sp   = interpreter->vp;
-  interpreter->code = NULL;
-  interpreter->ip   = NULL;
-}
-
-void syncInterpreter(Interpreter* interpreter) {
-  (void)interpreter;
-}
-
-Value eval(Vm* vm, Value xpr) {
+Value eval(Value xpr) {
   Value val; Chunk* code;
   
   if (isLiteral(xpr))
     val = xpr;
 
-  else if (IS(Symbol, xpr))
-    lookupGlobal(vm, AS_SYMBOL(xpr), &val);
+  else if (IS(Symbol, xpr)) {
+    Binding* b = lookup(NULL, AS(Symbol, xpr));
+    require(b != NULL, "eval", "unbound symbol `%s`", AS(Symbol, xpr)->name);
+    val = b->value;
+  }
 
   else {
-    code = compile(vm, xpr);
-
-    if (code == NULL) // error occured
-      val = NUL;
-    else
-      val = exec(vm, code);
+    code = compile(xpr);
+    val = exec(code);
   }
 
   return val;
 }
 
-void repl(Vm* vm) {
+void repl(void) {
   static const char*  prompt  = "rascal>";
   Value xpr, val;
 
@@ -88,16 +56,17 @@ void repl(Vm* vm) {
     fprintf(stdout, "%s ", prompt);
 
     try {
-      xpr = readLine(vm);
-      val = eval(vm, xpr);
+      xpr = readLine();
+      val = eval(xpr);
       printLine(stdout, val);
     } catch {
-      
+      syncVm(&RlVm);
+      fprintf(stdout, "\n");
     }
   }
 }
 
-Value exec(Vm* vm, Chunk* code) {
+Value exec(void* code) {
   static void* labels[] = {
     [OP_NOTHING] = &&op_nothing,
     [OP_POP]     = &&op_pop,
@@ -105,26 +74,18 @@ Value exec(Vm* vm, Chunk* code) {
     [OP_NUL]     = &&op_nul,
     [OP_TRUE]    = &&op_true,
     [OP_FALSE]   = &&op_false,
-    [OP_EMPTY]   = &&op_empty,
-    [OP_VALUE]   = &&op_value,
     [OP_CALL]    = &&op_call,
     [OP_JUMP]    = &&op_jump,
     [OP_JUMPF]   = &&op_jumpf,
     [OP_JUMPT]   = &&op_jumpt,
-    [OP_GETGL]   = &&op_getgl,
-    [OP_PUTGL]   = &&op_putgl
   };
 
   Value x, v;
   OpCode op;
   int argx, argc;
-  Interpreter* interp = &vm->interpreter;
-  Environment* envt = &vm->environment;
   
-  startInterpreter(interp, code);
-
  dispatch:
-  op   = *interp->ip++;
+  op   = *RlVm->ip++;
   argc = opCodeArgc(op);
 
   if (argc > 0)
@@ -136,32 +97,23 @@ Value exec(Vm* vm, Chunk* code) {
   goto dispatch;
 
  op_pop:
-  pop(vm);
+  pop();
   goto dispatch;
 
  op_return:
-  v = pop(vm);
+  v = pop();
   return v;
 
  op_nul:
-  push(vm, NUL);
+  push(NUL);
   goto dispatch;
 
  op_true:
-  push(vm, TRUE);
+  push(TRUE);
   goto dispatch;
 
  op_false:
-  push(vm, FALSE);
-  goto dispatch;
-
- op_empty:
-  push(vm, EMPTY_LIST());
-  goto dispatch;
-
- op_value:
-  v = interp->code->vals.data[argx];
-  push(vm, v);
+  push(FALSE);
   goto dispatch;
 
  op_jump:

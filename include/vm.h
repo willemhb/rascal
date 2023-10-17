@@ -5,7 +5,7 @@
 #include "environment.h"
 #include "runtime.h"
 
-// generics
+// C types
 /* Composite global state object. */
 struct Vm {
   // heap state

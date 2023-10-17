@@ -68,7 +68,6 @@ ScopeType getScopeType(Environment* envt);
 Symbol*      newSymbol(char* name, flags_t fl);
 Environment* newEnvironment(Environment* parent, ScopeType type);
 Binding*     newBinding(Binding* parent, Symbol* name, NameSpace* ns, size_t offset, NsType type, Value val);
-UpValue*     newUpValue(size_t offset);
 
 // convenience constructors
 Symbol* symbol(char* token);

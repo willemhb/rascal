@@ -1,29 +1,27 @@
 #ifndef rascal_compile_h
 #define rascal_compile_h
 
-#include "object.h"
+#include "environment.h"
 
-// C types
+// C types 
 struct Chunk {
   Obj          obj;
-  Obj*         name;  // name of the module (either a function or a script)
-  Environment* envt;  // 
+  Obj*         name; // name of the module (either a function or a script)
+  Environment* envt; // name context
   Alist*       vals;
   Binary16*    code;
 };
 
 // globals
-extern Value FunSym, VarSym, IfSym, WithSym, QuoteSym, DoSym, UseSym;
+extern Value FunSym, VarSym, MacSym,
+  IfSym, WithSym, QuoteSym, DoSym, UseSym,
+  PerformSym, HandleSym, ResumeSym;
+
+extern struct Type ChunkType;
 
 // external API
-void initCompiler(Vm* vm);
-void freeCompiler(Vm* vm);
-void startCompiler(Vm* vm, Value xpr);
-void resetCompiler(Vm* vm);
-void syncCompiler(Vm* vm);
-
-Chunk* newChunk(Symbol* name);
-
-Chunk* compile(Value xpr);
+Chunk* newChunk(Obj* name, Environment* parent, ScopeType type);
+Value  macroexpand(Function* macro, Environment* envt, List* form);
+Chunk* compile(Obj* name, CompilerState state, Value xpr);
 
 #endif
