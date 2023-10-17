@@ -6,8 +6,8 @@
 // C types
 struct Chunk {
   Obj          obj;
-  Obj*         name;  // readable name (might be string or symbol)
-  Environment* envt;
+  Obj*         name;  // name of the module (either a function or a script)
+  Environment* envt;  // 
   Alist*       vals;
   Binary16*    code;
 };

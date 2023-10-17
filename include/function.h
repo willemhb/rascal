@@ -11,40 +11,42 @@ typedef enum {
   SINGLETON=0x004,
 } FnFl;
 
+typedef enum {
+  VARIADIC =0x001,    // method allows multiple 
+  EXACT    =0x002,    // 
+} MethodFl;
+
 struct Function {
   Obj          obj;
-  Symbol*      name;       // the name of this function (or `fun` if anonymous).
+  Symbol*      name;     // the name of this function (or `fun` if anonymous).
 
   union {
-    MethodTable* methods;
-    Method*      singleton;
+    MethodTable* metht;  // method table
+    Method*      leaf;   // singleton 
   };
 };
 
 struct MethodTable {
   Obj         obj;
-  MethodCache cache;
-  MethodMap*  faMethods;
-  MethodMap*  vaMethods;
+  Table*      cache;     // cache of exact signatures
+  MethodMap*  faMethods; // fixed arity methods
+  MethodMap*  vaMethods; // variadic methods
 };
 
 struct MethodMap {
   Obj         obj;
   MethodNode* root;
   size_t      maxA;
-  bool        va;
 };
 
 struct MethodNode {
   Obj          obj;
   size_t       offset;   // offset of the argument corresponding to this table entry
   Method*      leaf;     // candidate method if offset == arity
-  TypeMap      dtmap;    // methods with a datatype annotation at `sig[offset]`
-  TypeMap      atmap;    // methods with an abstract type annotation at `sig[offset]`
+  Table*       dtmap;    // 
+  Table*       atmap;    // 
   Objects      utmap;    // methods with a union annotation at `sig[offset]` (ordered by specificity)
   MethodNode*  any;      // methods with no annotation at `sig[offset]`
-  bool         va;       // leaf is a variadic function
-  bool         exact;    // leaf has an exact signature
 };
 
 struct Method {
@@ -52,8 +54,6 @@ struct Method {
   Tuple*  sig;    // declared method signature
   Tuple*  sig_s;  // sorted method signature (for comparing specificity)
   Obj*    fn;     // function to call if method matches
-  bool    va;     // signature for a variadic method
-  bool    exact;  // all annotations refer to concrete datatypes
 };
 
 struct Native {
@@ -62,21 +62,21 @@ struct Native {
 };
 
 struct Closure {
-  Obj          obj;
-  Chunk*       code;
-  Environment* envt;
+  Obj     obj;
+  Chunk*  code;
+  Objects upvals;
 };
 
 // external API
 // constructors
 // user types
-Function* newFunction(Symbol* name, Obj* ini, int flags);
+Function* newFunction(Symbol* name, int flags);
 
 // internal types
 // function and dispatch types
 MethodTable* newMethodTable(void);
 MethodMap*   newMethodMap(bool va);
-MethodNode*  newMethodNode(size_t offset, bool va, bool exact);
+MethodNode*  newMethodNode(size_t offset, int fl);
 Method*      newMethod(Obj* fn, Tuple* sig, bool va);
 
 Method*      getMethod(Function* g, Tuple* s);

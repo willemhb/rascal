@@ -4,15 +4,17 @@
 #include "util/io.h"
 
 #include "vm.h"
-#include "interpreter.h"
+#include "environment.h"
+#include "collection.h"
+#include "eval.h"
 
 // internal API
 static bool isLiteral(Value x) {
-  if (IS_SYMBOL(x))
-    return *AS_SYMBOL(x)->name == ':';
+  if (IS(Symbol, x))
+    return getFl(AS(Obj, x), LITERAL);
 
-  if (IS_LIST(x))
-    return AS_LIST(x)->arity == 0;
+  if (IS(List, x))
+    return AS(List, x)->arity == 0;
 
   return false;
 }
@@ -57,17 +59,13 @@ void syncInterpreter(Interpreter* interpreter) {
   (void)interpreter;
 }
 
-void  push(Vm* vm, Value value);
-void  pushn(Vm* vm, size_t n);
-Value pop(Vm* vm);
-
 Value eval(Vm* vm, Value xpr) {
   Value val; Chunk* code;
   
   if (isLiteral(xpr))
     val = xpr;
 
-  else if (IS_SYMBOL(xpr))
+  else if (IS(Symbol, xpr))
     lookupGlobal(vm, AS_SYMBOL(xpr), &val);
 
   else {

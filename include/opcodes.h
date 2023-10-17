@@ -4,21 +4,31 @@
 #include "common.h"
 
 typedef enum OpCode {
-  OP_NOTHING, // no-op
-  OP_POP,     // discard TOS
-  OP_RETURN,  // leave executing chunk
-  OP_NUL,     // load `nul`
-  OP_TRUE,    // load `true`
-  OP_FALSE,   // load `false`
-  OP_EMPTY,   // load `()`
-  OP_VALUE,   // load value from constant store
-  OP_CALL,    // call a function
-  OP_JUMP,    // unconditional jump
-  OP_JUMPF,   // conditional jump (jump if TOS is `false` or `nul`)
-  OP_JUMPT,   // conditional jump (jump if TOS is not `false` or `nul`)
-  OP_GETGL,   // load value of global variable with offset `i`
-  OP_PUTGL,   // store TOS in global variable with offset `i`
-  OP_USE,     // 
+  /* miscellaneous */
+  OP_NOTHING, OP_POP,
+
+  /* constant load/store instructions */
+  OP_NUL, OP_TRUE, OP_FALSE, OP_EMPTY_LIST,
+  OP_EMPTY_TUPLE, OP_EMPTY_VEC, OP_EMPTY_MAP,
+  OP_EMPTY_STR, OP_EMPTY_BITS,
+
+  /* other load/store instructions */
+  OP_LOADV,          /* value (constant store) */
+  OP_LOADS, OP_PUTS, /* stack (local values) */
+  OP_LOADU, OP_PUTU, /* upvalue (captured from surrounding scope) */
+  OP_LOADP, OP_PUTP, /* private (with-scoped) */
+  OP_LOADG, OP_PUTG, /* global (toplevel scope) */
+
+  /* jump instructions */
+  OP_JUMP, OP_JUMPF, OP_JUMPT,
+
+  /* function calls */
+  OP_CALL, OP_RETURN,
+
+  /* closures */
+  OP_CLOSURE,
+
+  /* */
 } OpCode;
 
 // external API

@@ -19,6 +19,13 @@ struct Control {
   size_t   nStack, nFrames;
 };
 
+struct UpValue {
+  Obj      obj;
+  UpValue* next;
+  size_t   offset;
+  Value    value;
+};
+
 struct Context {
   Context* next;
 

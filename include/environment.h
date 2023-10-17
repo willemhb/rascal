@@ -1,17 +1,11 @@
 #ifndef rascal_environment_h
 #define rascal_environment_h
 
-#include "object.h"
+#include "table.h"
 
 /* functions, types, and API for dealing with names, scopes, and environments. */
 
 // C types
-// generics
-#include "tpl/declare.h"
-
-TABLE_OBJ_TYPE(SymbolTable, char*, Symbol*);
-
-
 // user types
 typedef enum {
   INTERNED=0x001,    // saved in symbol table
@@ -26,34 +20,34 @@ struct Symbol {
 };
 
 typedef enum {
-  TOPLEVEL_ENVIRONMENT, SCRIPT_ENVIRONMENT, WITH_ENVIRONMENT, FUNCTION_ENVIRONMENT,
-} EnvironmentFl;
+  GLOBAL_SCOPE, PRIVATE_SCOPE, FUNCTION_SCOPE,
+} ScopeType;
 
 struct Environment {
-  Obj    obj;
-  Table* globals;
-  Table* private;
-  Table* locals;
-  Table* upvals;
+  Obj          obj;
+  Environment* parent;
+  NameSpace*   globals;
+  NameSpace*   private;
+  NameSpace*   locals;
+  NameSpace*   upvals;
 };
+
+typedef enum {
+  CONSTANT   = 0x001,
+  LOCAL_UPVAL= 0x002,
+} BindingFl;
 
 struct Binding {
   Obj          obj;
-  Symbol*      name;    // plain name of the binding (unqualified)
-  Environment* envt;    // 
+  Binding*     captured; // the binding this reference captured (if any)
+  Symbol*      name;     // plain name of the binding (unqualified)
+  NameSpace*   ns;       // namespace to which this binding belongs
   size_t       offset;
   Value        value;
 };
 
-struct UpValue {
-  Obj      obj;
-  UpValue* next;
-  size_t   offset;
-  Value    value;
-};
-
 // globals
-extern struct Type SymbolType, EnvironmentType, BindingType, UpValueType;
+extern struct Type SymbolType, EnvironmentType, BindingType;
 
 // external API
 void    initEnvt(Vm* vm);
@@ -67,10 +61,13 @@ Value  getAnnotObj(void* p, Value key);
 Value  setAnnotVal(Value x, Value key, Value value);
 Value  setAnnotObj(void* p, Value key, Value value);
 
+// accessors
+ScopeType getScopeType(Environment* envt);
+
 // constructors
-Symbol*      newSymbol(char* name, int fl);
-Environment* newEnvironment(int flags);
-Binding*     newBinding(Symbol* name, Environment* environment, size_t offset, int fl);
+Symbol*      newSymbol(char* name, flags_t fl);
+Environment* newEnvironment(Environment* parent, ScopeType type);
+Binding*     newBinding(Binding* parent, Symbol* name, NameSpace* ns, size_t offset, NsType type, Value val);
 UpValue*     newUpValue(size_t offset);
 
 // convenience constructors
@@ -78,8 +75,8 @@ Symbol* symbol(char* token);
 Symbol* gensym(char* name);
 
 // utilities
-
-// initialization
-void initializeEnvironment(void);
+Binding*  define(Environment* envt, void* p, Value init, bool internal);
+Binding*  capture(Environment* envt, Symbol* name);
+Binding*  lookup(Environment* envt, Symbol* name);
 
 #endif

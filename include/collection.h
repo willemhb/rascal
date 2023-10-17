@@ -11,26 +11,21 @@
 #define MAX_LEVEL     0x008ul
 
 struct Bits {
-  Obj    obj;
-  union {
-    void*     data;
-    uint8_t*  u8;
-    uint16_t* u16;
-    uint32_t* u32;
-  };
-  size_t arity;
+  Obj     obj;
+  byte_t* data;
+  size_t  arity;
 };
 
 struct String {
-  Obj      obj;
-  char*    data;
-  size_t   arity;
+  Obj    obj;
+  char*  data;
+  size_t arity;
 };
 
 struct Tuple {
   Obj    obj;
+  Value* data;
   size_t arity;
-  Value  slots[];
 };
 
 struct List {
@@ -52,7 +47,6 @@ struct Map {
   MapNode* root;  // key/value pairs stored in underlying structure
   size_t   arity; // total number of key/value pairs
 };
-
 
 // node types
 struct VecNode {
@@ -81,11 +75,17 @@ struct MapLeaf {
 
 // globals
 // empty sigletons
-extern String emptyString;
-extern Tuple  emptyTuple;
-extern List   emptyList;
-extern Vector emptyVector;
-extern Map    emptyMap;
+extern Bits   EmptyBits;
+extern String EmptyString;
+extern Tuple  EmptyTuple;
+extern List   EmptyList;
+extern Vector EmptyVector;
+extern Map    EmptyMap;
+
+// type objects
+extern struct Type BitsType, StringType, TupleType, ListType,
+  VectorType, VecNodeType, VecLeafType,
+  MapType, MapNodeType, MapLeafType;
 
 // external AP
 // constructors

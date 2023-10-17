@@ -1,6 +1,8 @@
 #include "util/hashing.h"
+#include "util/number.h"
 
 #include "runtime.h"
+#include "array.h"
 #include "memory.h"
 #include "environment.h"
 #include "read.h"
@@ -8,103 +10,6 @@
 #include "eval.h"
 #include "vm.h"
 #include "equal.h"
-
-// generics
-#include "tpl/describe.h"
-
-ARRAY_TYPE(TextBuffer, char, int, true);
-
-bool compareReadTableKeys(int cx, int cy) {
-  return cx == cy;
-}
-
-void internReadTableKey(ReadTable* table, ReadTableEntry* entry, int key, ReadFn* value) {
-  (void)table;
-  entry->key = key;
-  entry->val = *value;
-}
-
-uint64_t hashCharacter(int ch) {
-  return ch;
-}
-
-TABLE_TYPE(ReadTable,
-           readTable,
-           int,
-           ReadFn,
-           compareReadTableKeys,
-           hashCharacter,
-           internReadTableKey,
-           '\0',
-           NULL);
-
-bool compareSymbolCacheKeys(char* xs, char* ys) {
-  return strcmp(xs, ys) == 0;
-}
-
-void internSymbolCacheKey(SymbolCache* table, SymbolCacheEntry* entry, char* key, Symbol** value) {
-  (void)table;
-
-  Symbol* atom = newSymbol(key, true);
-  entry->key   = atom->name;
-  entry->val   = atom;
-  *value       = atom;
-}
-
-TABLE_TYPE(SymbolCache,
-           symbolCache,
-           char*,
-           Symbol*,
-           compareSymbolCacheKeys,
-           hashString,
-           internSymbolCacheKey,
-           NULL,
-           NULL);
-
-bool compareLoadCacheKeys(Bits* x, Bits* y) {
-  return strcmp(x->data, y->data) == 0;
-}
-
-void internLoadCacheKey(LoadCache* table, LoadCacheEntry* entry, Bits* key, Value* value) {
-  (void)table;
-
-  entry->key = key;
-  entry->val = *value;
-}
-
-TABLE_TYPE(LoadCache,
-           loadCache,
-           Bits*,
-           Value,
-           compareLoadCacheKeys,
-           hashObj,
-           internLoadCacheKey,
-           NULL,
-           NOTHING);
-
-bool compareAnnotationsKeys(Value x, Value y) {
-  return x == y;
-}
-
-uint64_t hashAnnotationsKey(Value x) {
-  return hashWord(x);
-}
-
-void internAnnotationsKey(Annotations* table, AnnotationsEntry* entry, Value key, Map** value) {
-  (void)table;
-  entry->key = key;
-  entry->val = *value = &emptyMap;
-}
-
-TABLE_TYPE(Annotations,
-           annotations,
-           Value,
-           Map*,
-           compareAnnotationsKeys,
-           hashAnnotationsKey,
-           internAnnotationsKey,
-           NOTHING,
-           NULL);
 
 // external API
 void initVm(Vm* vm) {
@@ -167,20 +72,34 @@ Value* peek(int i) {
   return RlVm.stackBase+i;
 }
 
-void save(size_t n, ...) {
-  Value buf[n];
+size_t save(size_t n, ...) {
+  Obj* buf[n];
   va_list va;
   va_start(va, n);
+  size_t i, j;
 
-  for (size_t i=0; i<n; i++)
-    buf[i] = va_arg(va, Value);
+  for (i=0, j=0; i<n; i++) {
+    Value v = va_arg(va, Value);
+
+    if (IS_OBJ(v) && AS(Obj, v) != NULL && !AS(Obj, v)->black)
+      buf[j] = AS(Obj, v);
+  }
 
   va_end(va);
 
-  nWriteValues(&RlVm.heap.saved, n, buf);
+  if (i > 0) {
+    markObjs(i, (void**)buf);
+    objectsWrite(&RlVm.heap.grays, i, buf);
+  }
+
+  return i;
 }
 
 void unsave(size_t n) {
-  assert(n <= RlVm.heap.saved.count);
-  nPopValues(&RlVm.heap.saved, n);
+  n = max(n, RlVm.heap.grays.cnt); // 
+
+  if (n > 0) {
+    unmarkObjs(n, (void**)RlVm.heap.grays.data);
+    objectsPopN(&RlVm.heap.grays, n);
+  }
 }

@@ -1,12 +1,11 @@
 #ifndef rascal_vm_h
 #define rascal_vm_h
 
+#include "array.h"
 #include "environment.h"
 #include "runtime.h"
 
 // generics
-#include "tpl/declare.h"
-
 /* Composite global state object. */
 struct Vm {
   // heap state
@@ -15,15 +14,15 @@ struct Vm {
     size_t  used;
     size_t  cap;
     Objects grays;
-    Values  saved;
   } heap;
 
   // environment state
   struct {
     SymbolTable* symbols;
-    Table*       globals;
+    NameSpace*   globals;
+    Table*       annot;
     Table*       used;
-  } toplevel;
+  } envt;
 
   // reader state
   struct {
@@ -31,13 +30,13 @@ struct Vm {
     Stream*    source;
     Buffer8*   buffer;
     Table*     table;
-    Values     stack;
+    Alist      stack;
   } reader;
 
   // compiler state
   struct {
     Chunk*     chunk;
-    Values     stack;
+    Alist      stack;
   } compiler;
 
   // execution state
@@ -74,7 +73,7 @@ Value  pop(void);
 size_t pushn(size_t n);
 Value  popn(size_t n);
 Value* peek(int i);
-void   save(size_t n, ...);
+size_t save(size_t n, ...);
 void   unsave(size_t n);
  
 #endif

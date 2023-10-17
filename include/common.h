@@ -27,6 +27,7 @@
 typedef uint64_t   hash_t;
 typedef uint8_t    byte_t;
 typedef void     (*funcptr_t)(void);
+typedef uint32_t   flags_t;
 
 /**
  *
@@ -57,10 +58,10 @@ static inline double wordToDouble(uintptr_t word) {
 
 // other C types
 // VM state objects
-typedef struct Context Context; // saved execution state
-typedef struct Frame Frame;     // call frame
-typedef struct Vtable Vtable;   // stores layout information and core APIs for data types
-typedef struct Vm  Vm;          // all essential execution state
+typedef struct Context Context;   // saved execution state
+typedef struct Frame   Frame;     // call frame
+typedef struct Vtable  Vtable;    // stores layout information and core APIs for data types
+typedef struct Vm      Vm;        // all essential execution state
 
 // basic tagged types
 // basic value types
@@ -84,7 +85,7 @@ typedef struct Type     Type;     // first-class representation of a rascal type
 typedef struct Stream   Stream;   // IO stream
 typedef struct Big      Big;      // arbitrary precision integer
 
-// mutable collection types
+// utility array types
 typedef struct Buffer8   Buffer8;
 typedef struct Buffer16  Buffer16;
 typedef struct Buffer32  Buffer32;
@@ -92,10 +93,12 @@ typedef struct Binary8   Binary8;
 typedef struct Binary16  Binary16;
 typedef struct Binary32  Binary32;
 typedef struct Alist     Alist;
-typedef struct Table     Table;
+typedef struct Objects   Objects;
 
-// other internal object types
+// utility table types
+typedef struct Table       Table;
 typedef struct SymbolTable SymbolTable;
+typedef struct NameSpace   NameSpace;
 
 // immutable collection types
 typedef struct Bits     Bits;     // unencoded binary data
@@ -133,7 +136,6 @@ typedef enum {
   READER_READY, READER_EXPRESSION, READER_DONE, READER_ERROR,
 } ReadState;
 
-
 typedef enum {
   BINARY, ASCII, LATIN1, UTF8, UTF16, UTF32,
 } Encoding;
@@ -144,9 +146,8 @@ typedef size_t   (*CompileFn)(Vm* vm, List* form);
 typedef void     (*ReadFn)(Vm* vm, int dispatch);
 typedef void     (*TraceFn)(void* p);
 typedef void     (*FreeFn)(void* p);
-typedef uint64_t (*HashFn)(Value p);
+typedef hash_t   (*HashFn)(Value p);
 typedef size_t   (*SizeFn)(void* p);
-typedef void     (*PrintFn)(FILE* ios, Value value);
 typedef bool     (*EgalFn)(Value x, Value y);
 typedef int      (*OrdFn)(Value x, Value y);
 

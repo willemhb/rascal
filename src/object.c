@@ -10,52 +10,30 @@
 // generics
 #include "tpl/describe.h"
 
-ARRAY_API(Values, Value, values, Value, false);
-ARRAY_API(Objects, Obj*, objects, Obj*, false);
-
 // external APIs
 // flags
-int getFl(void* p, int f, int m) {
+bool getFl(void* p, flags_t f) {
   assert(p != NULL);
-  
   Obj* o = p;
-  int out;
-
-  if (m == 0)
-    out = !!(o->flags & f);
-
-  else if (f == 0)
-    out = o->flags & m;
-
-  else
-    out = (o->flags & m) == f;
-
-  return out;
+  return !!(o->flags & f);
 }
 
-int setFl(void* p, int f, int m) {
+bool setFl(void* p, flags_t f) {
   assert(p != NULL);
+  Obj* o    = p;
+  bool r    = !!(o->flags & f);
+  o->flags |= f;
 
-  int out;
-  Obj* o = p;
-
-  if (m == 0) {
-    out       = !!(o->flags & f);
-    o->flags |= f;
-  } else if (f == 0) {
-    out       = o->flags & m;
-    o->flags &= ~m;
-  } else {
-    out       = o->flags & m;
-    o->flags &= ~m;
-    o->flags |= f;
-  }
-
-  return out;
+  return r;
 }
 
-int delFl(void* p, int f) {
-  return setFl(p, 0, f);
+bool delFl(void* p, flags_t f) {
+  assert(p != NULL);
+  Obj* o    = p;
+  bool r    = !!(o->flags & f);
+  o->flags &= ~f;
+
+  return r;
 }
 
 void* newObj(Type* t, int f, size_t e) {
@@ -80,7 +58,7 @@ void* cloneObj(void* p) {
 void initObj(void* p, Type* t, int f) {
   Obj* o   = p;
   o->type  = t;
-  o->annot = &emptyMap;
+  o->annot = &EmptyMap;
   o->flags = f;
   o->gray  = true;
 
@@ -88,12 +66,31 @@ void initObj(void* p, Type* t, int f) {
 }
 
 // utility objects
-ARRAY_OBJ_API(Binary8,  byte_t,   binary8,  int,      false);
-ARRAY_OBJ_API(Binary16, uint16_t, binary16, int,      false);
-ARRAY_OBJ_API(Binary32, uint32_t, binary32, uint32_t, false);
-ARRAY_OBJ_API(Buffer8,  char,     buffer8,  int,      true);
-ARRAY_OBJ_API(Buffer16, char16_t, buffer16, int,      true);
-ARRAY_OBJ_API(Buffer32, char32_t, buffer32, int,      true);
-ARRAY_OBJ_API(Alist,    Value,    alist,    Value,    false);
+// utility array types
 
+// utility object types
 TABLE_OBJ_API(Table, Value, Value, table, equalVal, hashVal, NOTHING, NOTHING);
+
+// Table type
+extern void   traceTable(void* p);
+
+Vtable TableTable = {
+  .valSize=sizeof(Table*),
+  .objSize=sizeof(Table),
+  .tag    =OBJ_TAG,
+  .free   =freeTable,
+  .trace  =traceTable
+};
+
+Type TableType = {
+  .obj={
+    .type   =&TypeType,
+    .annot  =&EmptyMap,
+    .noSweep=true,
+    .noFree =true,
+    .gray   =true,
+  },
+  .parent=&TermType,
+  .vTable=&TableTable,
+  .idno  =ALIST
+};
