@@ -17,10 +17,12 @@
 #define VAL_MASK    0x0000ffffffffffffUL
 #define SMALL_MASK  0x00000000ffffffffUL
 
-#define TRUE        (BOOL_TAG | 1UL)
-#define FALSE       (BOOL_TAG | 0UL)
-#define NUL         (NUL_TAG  | 0UL)
-#define NOTHING     (NUL_TAG  | 1UL) // invalid value marker
+#define TRUE        (BOOL_TAG  | 1UL)
+#define FALSE       (BOOL_TAG  | 0UL)
+#define NUL         (NUL_TAG   | 0UL)
+#define NOTHING     (NUL_TAG   | 1UL) // invalid value marker
+#define ZERO        (SMALL_TAG | 0UL)
+#define ONE         (SMALL_TAG | 1UL)
 
 #define tag(x) _Generic((x),                    \
                         Float:tagFloat,         \

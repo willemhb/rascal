@@ -68,7 +68,7 @@ struct MapNode {
 
 struct MapLeaf {
   Obj      obj;
-  MapLeaf* next; // used for collision resolution.
+  MapLeaf* next; // used for collision resolution (convenient but inefficient)
   Value    key;
   Value    val;
 };
@@ -83,8 +83,8 @@ extern Vector EmptyVector;
 extern Map    EmptyMap;
 
 // type objects
-extern struct Type BitsType, StringType, TupleType, ListType,
-  VectorType, VecNodeType, VecLeafType,
+extern struct Type BitsType, StringType, TupleType,
+  ListType, VectorType, VecNodeType, VecLeafType,
   MapType, MapNodeType, MapLeafType;
 
 // external AP
@@ -97,7 +97,6 @@ Vector*   newVector(size_t n, Value* vs);
 VecNode*  newVecNode(Obj** children, size_t n, int flags);
 VecLeaf*  newVecLeaf(Value* tail);
 Map*      newMap(size_t n, Value* kvs);
-
 
 // collection interfaces
 size_t    getElSize(Bits* b);

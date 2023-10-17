@@ -13,15 +13,17 @@ struct Chunk {
 };
 
 // globals
-extern Value FunSym, VarSym, MacSym,
+extern Value FunSym, MacSym, VarSym, PutSym,
   IfSym, WithSym, QuoteSym, DoSym, UseSym,
   PerformSym, HandleSym, ResumeSym;
 
 extern struct Type ChunkType;
 
 // external API
-Chunk* newChunk(Obj* name, Environment* parent, ScopeType type);
-Value  macroexpand(Function* macro, Environment* envt, List* form);
-Chunk* compile(Obj* name, CompilerState state, Value xpr);
+Chunk*   newChunk(Obj* name, Environment* parent, ScopeType type);
+Value    macroExpand(Function* macro, Environment* envt, List* form);
+Closure* compile(void* name, CompilerState state, Value xpr);
+
+void   initSpecialForms(void);
 
 #endif

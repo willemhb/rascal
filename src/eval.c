@@ -1,8 +1,11 @@
 #include "util/io.h"
 
 #include "vm.h"
-#include "environment.h"
+
 #include "collection.h"
+#include "function.h"
+
+#include "environment.h"
 #include "compile.h"
 #include "read.h"
 #include "print.h"
@@ -28,9 +31,44 @@ static bool isFalsey(Value x) {
 }
 
 // external API
+void initInterpreter(Vm* vm) {
+  vm->exec.sp    = 0;
+  vm->exec.fp    = 0;
+  vm->exec.bp    = 0;
+  vm->exec.code  = NULL;
+  vm->exec.ip    = NULL;
+  vm->stackBase  = Stack;
+  vm->stackEnd   = &Stack[N_STACK];
+  vm->framesBase = Frames;
+  vm->framesEnd  = &Frames[N_FRAME];
+}
+
+void freeInterpreter(Vm* vm) {
+  (void)vm;
+}
+
+void startInterpreter(Vm* vm, Closure* code) {
+  vm->exec.code = code;
+  vm->exec.ip   = code->code->code->data;
+}
+
+void resetInterpreter(Vm* vm) {
+  vm->exec.sp     = 0;
+  vm->exec.fp     = 0;
+  vm->exec.bp     = 0;
+  vm->exec.upVals = NULL;
+  vm->exec.code   = NULL;
+  vm->exec.ip     = NULL;
+}
+
+void syncInterpreter(Vm* vm) {
+  (void)vm;
+}
+
 Value eval(Value xpr) {
-  Value val; Chunk* code;
-  
+  Value val;
+  Closure* code;
+
   if (isLiteral(xpr))
     val = xpr;
 
@@ -41,7 +79,7 @@ Value eval(Value xpr) {
   }
 
   else {
-    code = compile(xpr);
+    code = compile("<toplevel>", COMPILER_REPL, xpr);
     val = exec(code);
   }
 
@@ -66,84 +104,157 @@ void repl(void) {
   }
 }
 
-Value exec(void* code) {
+Value exec(Closure* code) {
   static void* labels[] = {
-    [OP_NOTHING] = &&op_nothing,
-    [OP_POP]     = &&op_pop,
-    [OP_RETURN]  = &&op_return,
-    [OP_NUL]     = &&op_nul,
-    [OP_TRUE]    = &&op_true,
-    [OP_FALSE]   = &&op_false,
-    [OP_CALL]    = &&op_call,
-    [OP_JUMP]    = &&op_jump,
-    [OP_JUMPF]   = &&op_jumpf,
-    [OP_JUMPT]   = &&op_jumpt,
+    /* miscellaneous */
+    [OP_NOTHING] = &&op_nothing, [OP_POP] = &&op_pop,
+
+    /* constant loads */
+    [OP_NUL]         = &&op_nul,         [OP_TRUE]       = &&op_true,
+    [OP_FALSE]       = &&op_false,       [OP_EMPTY_LIST] = &&op_empty_list,
+    [OP_EMPTY_TUPLE] = &&op_empty_tuple, [OP_EMPTY_VEC]  = &&op_empty_vec,
+    [OP_EMPTY_MAP]   = &&op_empty_map,   [OP_EMPTY_STR]  = &&op_empty_str,
+    [OP_EMPTY_BITS]  = &&op_empty_bits,  [OP_ZERO]       = &&op_zero,
+    [OP_ONE]         = &&op_one,
+ 
+    /* loads/stores */
+    [OP_LOADI16] = &&op_loadi16, [OP_LOADG16] = &&op_loadg16,
+    [OP_LOADV]   = &&op_loadv,
+    [OP_LOADS]   = &&op_loads,   [OP_PUTS]    = &&op_puts,
+    [OP_LOADU]   = &&op_loadu,   [OP_PUTU]    = &&op_putu,
+    [OP_LOADP]   = &&op_loadp,   [OP_PUTP]    = &&op_putp,
+    [OP_LOADG]   = &&op_loadg,   [OP_PUTG]    = &&op_putg,
+
+    /* jumps */
+    [OP_JUMP]  = &&op_jump, [OP_JUMPT] = &&op_jumpt, [OP_JUMPF] = &&op_jumpf,
+
+    /* function calls */
+    [OP_CALL0]  = &&op_call0,  [OP_CALL1]  = &&op_call1,
+    [OP_CALL2]  = &&op_call2,  [OP_CALLN]  = &&op_calln,
+    [OP_TCALL0] = &&op_tcall0, [OP_TCALL1] = &&op_tcall1,
+    [OP_TCALL2] = &&op_tcall2, [OP_TCALLN] = &&olp_tcalln,
+    [OP_RETURN] = &&op_return,
+
+    /* miscellaneous */
+    [OP_USE]    = &&op_use,
   };
 
-  Value x, v;
+  UpValue* up;
+  Value x, y, v, * bx, * by;
   OpCode op;
-  int argx, argc;
-  
- dispatch:
-  op   = *RlVm->ip++;
+  int16_t argx, argy;
+  uint16_t argc;
+
+  startInterpreter(&RlVm, code);
+
+ fetch:
+  op   = *RlVm.exec.ip++;
   argc = opCodeArgc(op);
 
   if (argc > 0)
-    argx = *interp->ip++;
+    argx = *RlVm.exec.ip++;
+
+  if (argc > 1)
+    argy = *RlVm.exec.ip++;
 
   goto *labels[op];
 
+  /* no-op */
  op_nothing:
-  goto dispatch;
+  goto fetch;
 
+  /* discard value from stack */
  op_pop:
   pop();
-  goto dispatch;
+  goto fetch;
 
- op_return:
-  v = pop();
-  return v;
-
+  //* constant loads for common values *;
  op_nul:
   push(NUL);
-  goto dispatch;
+  goto fetch;
 
  op_true:
   push(TRUE);
-  goto dispatch;
+  goto fetch;
 
  op_false:
   push(FALSE);
-  goto dispatch;
+  goto fetch;
 
- op_jump:
-  interp->ip += argx;
-  goto dispatch;
+ op_empty_list:
+  push(tag(&EmptyList));
+  goto fetch;
 
- op_jumpt:
-  x = pop(vm);
+ op_empty_tuple:
+  push(tag(&EmptyTuple));
+  goto fetch;
 
-  if (isTruthy(x))
-    interp->ip += argx;
+ op_empty_vec:
+  push(tag(&EmptyVector));
+  goto fetch;
 
-  goto dispatch;
+ op_empty_map:
+  push(tag(&EmptyMap));
+  goto fetch;
 
- op_jumpf:
-  x = pop(vm);
+ op_empty_str:
+  push(tag(&EmptyString));
+  goto fetch;
 
-  if (isFalsey(x))
-    interp->ip += argx;
+ op_empty_bits:
+  push(tag(&EmptyBits));
+  goto fetch;
 
-  goto dispatch;
+ op_zero:
+  push(ZERO);
+  goto fetch;
 
- op_call:
+ op_one:
+  push(ONE);
+  goto fetch;
 
- op_getgl:
-  v = envt->globalVals.data[argx];
-  push(vm, v);
-  goto dispatch;
+  /* inlined constant loads for small integers and characters */
+ op_loadi16:
+  push(tag((Small)argx));
+  goto fetch;
 
- op_putgl:
-  envt->globalVals.data[argx] = peek(vm, -1);
-  goto dispatch;
+ op_loadg16:
+  push(tag((Glyph)argx));
+  goto fetch;
+
+  /* load value from constant store */
+ op_loadv:
+  v = RlVm.exec.code->code->vals->data[argx];
+  push(v);
+  goto fetch;
+
+  /* load/store on stack */
+ op_loads:
+  v = *peek(RlVm.exec.bp+argx);
+  push(v);
+  goto fetch;
+
+ op_puts:
+  *peek(RlVm.exec.bp+argx) = *peek(-1);
+  goto fetch;
+
+  /* load/store upvalue */
+ op_loadu:
+  up = (UpValue*)RlVm.exec.code->upvals->data[argx];
+  v  = up->value == NOTHING ? *peek(up->offset) : up->value;
+  push(v);
+  goto fetch;
+
+ op_putu:
+   up = (UpValue*)RlVm.exec.code->upvals->data[argx];
+   bx = up->value == NOTHING ? peek(up->offset) : &up->value;
+  *bx = *peek(-1);
+  goto fetch;
+
+  /* load/store private */
+
+  /* load/store global */
+
+  /* function & method calls */
+  
 }

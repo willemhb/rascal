@@ -12,7 +12,7 @@ void resetInterpreter(Vm* vm);
 void syncInterpreter(Vm* vm);
 
 Value  load(char* path);
-Value  exec(void* code);
+Value  exec(Closure* code);
 Value  eval(Value val);
 void   repl(void);
 

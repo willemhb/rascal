@@ -7,14 +7,15 @@
 
 #define ARRAY_TYPE(A, X)       \
                                \
-  extern struct Type A##Type;  \
                                \
   struct A {                   \
     Obj    obj;                \
     X*     data;               \
     size_t cnt;                \
     size_t cap;                \
-  }
+  };                           \
+                               \
+  extern struct Type A##Type
 
 #define ARRAY_API(A, X, _a)                                             \
   A*     new##A(flags_t fl);                                            \

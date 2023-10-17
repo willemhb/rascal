@@ -9,7 +9,9 @@
 #include "compile.h"
 
 // globals
-Value FunSym, VarSym, IfSym, WithSym, QuoteSym, DoSym, UseSym;
+Value FunSym, MacSym, VarSym, IfSym,
+  WithSym, QuoteSym, DoSym, UseSym,
+  PerformSym, HandleSym, ResumeSym;
 
 // chunk API
 extern void freeChunk(void* p);
@@ -43,14 +45,9 @@ Chunk* newChunk(Obj* name, Environment* parent, ScopeType type) {
 }
 
 // helpers
-static size_t compileXpr(Chunk* chunk, Value xpr);
-
-static char* getChunkName(Chunk* chunk) {
-  if (IS(Symbol, chunk->name))
-    return ((Symbol*)chunk->name)->name;
-
-  return ((String*)chunk->name)->data;
-}
+static size_t compileVal(Chunk* chunk, Value val);
+static size_t compileVar(Chunk* chunk, Symbol* name);
+static size_t compileComb(Chunk* chunk, List* form);
 
 static bool isLiteral(Value val) {
   if (IS(Symbol, val))
@@ -60,6 +57,24 @@ static bool isLiteral(Value val) {
     return AS(List, val)->arity == 0;
 
   return true;
+}
+
+static size_t compileXpr(Chunk* chunk, Value xpr) {
+  if (isLiteral(xpr))
+    return compileVal(chunk, xpr);
+
+  else if (IS(Symbol, xpr))
+    return compileVar(chunk, AS(Symbol, xpr));
+
+  else
+    return compileComb(chunk, AS(List, xpr));
+}
+
+static char* getChunkName(Chunk* chunk) {
+  if (IS(Symbol, chunk->name))
+    return ((Symbol*)chunk->name)->name;
+
+  return ((String*)chunk->name)->data;
 }
 
 static bool isIdentifier(Value val) {
@@ -127,6 +142,10 @@ static size_t addValue(Chunk* code, Value val) {
   return alistPush(code->vals, val);
 }
 
+static Value popSubXpr(void) {
+  return alistPop(&RlVm.compiler.stack);
+}
+
 static size_t pushSubXprs(List* form) {
   size_t out = form->arity;
   Value buf[out];
@@ -162,7 +181,7 @@ static size_t compileVar(Chunk* code, Symbol* name) {
   return out;
 }
 
-static size_t compileValue(Chunk* code, Value val) {
+static size_t compileVal(Chunk* code, Value val) {
   size_t out, off;
 
   if (val == NUL)
@@ -200,7 +219,7 @@ static size_t compileValue(Chunk* code, Value val) {
   return out;
 }
 
-size_t compileCombination(Chunk* chunk, List* form) {
+static size_t compileComb(Chunk* chunk, List* form) {
   size_t out;
   Binding* macrob;
 
@@ -209,7 +228,7 @@ size_t compileCombination(Chunk* chunk, List* form) {
 
   else if ((macrob=isMacroCall(chunk->envt, form))) {
     Function* macro = AS(Function, macrob->value);
-    Value xpr = macroexpand(macro, chunk->envt, form);
+    Value xpr = macroExpand(macro, chunk->envt, form);
     out = compileXpr(chunk, xpr);
   } else {
     
@@ -221,13 +240,14 @@ size_t compileCombination(Chunk* chunk, List* form) {
 // special forms
 size_t compileQuote(Chunk* chunk, List* form) {
   argco(2, form->arity, "quote");
-  return compileValue(chunk, form->tail->head);
+  return compileVal(chunk, form->tail->head);
 }
 
 size_t compileDo(Chunk* chunk, List* form) {
-  size_t arity = vargco(2, form->arity, "do");
-  size_t out;
+  size_t arity, out;
   Value xpr;
+
+  arity = vargco(2, form->arity, "do");
 
   if (arity == 2)
     out = compileXpr(chunk, form->tail->head);
@@ -247,7 +267,52 @@ size_t compileDo(Chunk* chunk, List* form) {
   return out;
 }
 
+size_t compileIf(Chunk* chunk, List* form) {
+  size_t arity, offset1, offset2, offset3;
+  Value  test, then, otherwise;
+
+  /* consequent is otpional */
+  argcos(2, form->arity, "if", 3, 4);
+
+  arity     = pushSubXprs(form->tail);
+  test      = popSubXpr();
+
+  compileXpr(chunk, test);
+
+  offset1   = emitInstr(chunk, OP_JUMPF, 0);
+  then      = popSubXpr();
+
+  compileXpr(chunk, then);
+
+  offset2   = emitInstr(chunk, OP_JUMP, 0);
+  otherwise = arity == 3 ? NUL : popSubXpr();
+
+  offset3   = compileXpr(chunk, otherwise);
+
+  /* fill in jumps */
+  chunk->code->data[offset1-1] = offset2-offset1;
+  chunk->code->data[offset2-1] = offset3-offset2;
+
+  return offset3;
+}
+
 // external API
 Chunk* newChunk(Obj* name, Environment* parent, ScopeType type);
-Value  macroexpand(Function* macro, Environment* envt, List* form);
+
+Value  macroExpand(Function* macro, Environment* envt, List* form) {
+  size_t nsv;
+  Value exp;
+  Tuple* sig;
+
+  nsv = save(3, tag(macro), tag(envt), tag(form));
+
+  
+
+  unsave(nsv);
+}
+
 Chunk* compile(Obj* name, CompilerState state, Value xpr);
+
+void initSpecialForms(void) {
+  
+}
