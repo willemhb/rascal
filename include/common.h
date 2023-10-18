@@ -127,7 +127,6 @@ typedef struct Control     Control;     // reified continuation
 
 // names & environments
 typedef struct Binding     Binding;
-typedef struct Scope       Scope;       // complete naming context, including globals and file-scoped variables
 typedef struct Environment Environment; // a reified naming context, including values
 typedef struct UpValue     UpValue;     // a captured local binding
 

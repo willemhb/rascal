@@ -66,7 +66,17 @@ Chunk* new_chunk(Obj* name, Environment* parent, ScopeType type) {
 }
 
 // special forms
-size_t 
+size_t fun_form(List* form);
+size_t mac_form(List* form);
+size_t var_form(List* form);
+size_t put_form(List* form);
+size_t if_form(List* form);
+size_t with_form(List* form);
+size_t quote_form(List* form);
+size_t do_form(List* form);
+size_t use_form(List* form);
+size_t perform_form(List* form);
+size_t handle_form(List* form);
 
 // helpers
 static void save_compiler_state(void) {
@@ -280,15 +290,17 @@ static size_t compile_comb(List* form) {
 }
 
 // special forms
-size_t compile_quote(List* form) {
+size_t quote_form(List* form) {
   argco(2, form->arity, "quote");
   return compile_val(form->tail->head);
 }
 
-size_t compileDo(List* form) {
+size_t do_form(List* form) {
   size_t arity, out;
   Value xpr;
+  Chunk* chunk;
 
+  chunk = RlVm.compiler.chunk;
   arity = vargco(2, form->arity, "do");
 
   if (arity == 2)
@@ -309,9 +321,22 @@ size_t compileDo(List* form) {
   return out;
 }
 
-size_t compile_if(Chunk* chunk, List* form) {
+size_t put_form(List* form) {
+  Symbol* name;
+  Binding* bind;
+  Value var;
+  
+  argco(3, form->arity, "put");
+  argtype(&SymbolType, form->tail->head, "put");
+  
+}
+
+size_t if_form(List* form) {
   size_t arity, offset1, offset2, offset3;
   Value  test, then, otherwise;
+  Chunk* chunk;
+
+  chunk = RlVm.compiler.chunk;
 
   /* consequent is otpional */
   argcos(2, form->arity, "if", 3, 4);
@@ -346,8 +371,9 @@ Value  macro_expand(Function* macro, Environment* envt, List* form) {
   Tuple* sig;
 
   nsv = save(3, tag(macro), tag(envt), tag(form));
-
+  
   unsave(nsv);
+  
 }
 
 Closure* compile(void* name, CompilerState state, Value xpr);
@@ -361,6 +387,16 @@ static Value new_special_form(char* name, CompileFn special) {
   return tag(sym);
 }
 
-void initSpecialForms(void) {
-  
+void init_special_forms(void) {
+  FunSym     = new_special_form("fun", fun_form);
+  MacSym     = new_special_form("mac", mac_form);
+  VarSym     = new_special_form("var", var_form);
+  PutSym     = new_special_form("put", put_form);
+  IfSym      = new_special_form("if",  if_form);
+  WithSym    = new_special_form("with", with_form);
+  QuoteSym   = new_special_form("quote", quote_form);
+  DoSym      = new_special_form("do", do_form);
+  UseSym     = new_special_form("use", use_form);
+  PerformSym = new_special_form("perform", perform_form);
+  HandleSym  = new_special_form("handle", handle_form);
 }

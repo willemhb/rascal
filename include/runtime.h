@@ -14,9 +14,9 @@ struct Frame {
 struct Control {
   Obj      obj;
   Frame    frame;
-  Value*   stackCopy;
-  Frame*   framesCopy;
-  size_t   nStack, nFrames;
+  Value*   stack_copy;
+  Frame*   frames_copy;
+  size_t   n_stack, n_frames;
 };
 
 struct UpValue {
@@ -36,15 +36,15 @@ struct Context {
 
   // C execution state
   jmp_buf buf;
-} ErrorContext;
+};
 
 // external API
-void initRuntime(Vm* vm);
-void freeRuntime(Vm* vm);
-void resetRuntime(Vm* vm);
+void init_runtime(Vm* vm);
+void free_runtime(Vm* vm);
+void reset_runtime(Vm* vm);
 
-void saveState(Vm* vm, Context* ctx);
-void restoreState(Vm* vm, Context* ctx);
+void save_state(Vm* vm, Context* ctx);
+void restore_state(Vm* vm, Context* ctx);
 
 void    raise(const char* fname, const char* fmt, ...);
 bool    require(bool test, const char* fname, const char* fmt, ...);
@@ -57,12 +57,12 @@ size_t  vargcos(size_t n, size_t got, const char* fname, ...);
 
 #define try                                                             \
   Context _ctx; int l__tr, l__ca;                                       \
-  saveState(&RlVm, &_ctx); RlVm.ctx = &_ctx;                            \
+  save_state(&RlVm, &_ctx); RlVm.ctx = &_ctx;                           \
   if (!setjmp(_ctx.buf))                                                \
     for (l__tr=1; l__tr; l__tr=0, (void)(RlVm.ctx=_ctx.next))
 
 #define catch                                                   \
   else                                                          \
-    for (l__ca=1; l__ca; l__ca=0, restoreState(&RlVm, &_ctx))
+    for (l__ca=1; l__ca; l__ca=0, restore_state(&RlVm, &_ctx))
 
 #endif
