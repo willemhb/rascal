@@ -2,7 +2,7 @@
 #define rascal_eval_h
 
 #include "opcodes.h"
-#include "vm.h"
+#include "runtime.h"
 
 // C types
 void init_interpreter(Vm* vm);

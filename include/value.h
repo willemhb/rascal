@@ -25,6 +25,11 @@
 #define ONE         (SMALL_TAG | 1UL)
 #define NULL_OBJ    (OBJ_TAG   | 0UL)
 
+// globals
+// don't really fit anywhere else
+extern struct Type PointerType, FuncPtrType;
+
+// external API
 #define tag(x) generic((x),                      \
                        Float:tag_float,          \
                        Arity:tag_arity,          \

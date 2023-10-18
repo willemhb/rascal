@@ -4,15 +4,6 @@
 #include "environment.h"
 
 // C types
-struct CompFrame {
-  CompState    state; // 
-  flags_t      flags; // miscellaneous flags
-  char*        name;  // name of the compiling code unit
-  Chunk*       code;  // compiling code object
-  Environment* envt;  // naming context
-  Handlers*    hndl;  // effect handlers
-};
-
 struct Chunk {
   Obj          obj;
   Alist*       vals;
