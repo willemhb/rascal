@@ -9,6 +9,7 @@ struct Frame {
   Closure*  code;
   uint16_t* ip;
   size_t    bp;
+  size_t    pp;
 };
 
 struct Control {
@@ -28,6 +29,9 @@ struct UpValue {
 
 struct Context {
   Context* next;
+
+  // GC state
+  GcFrame* frames;
 
   // Rascal execution state
   size_t sp, fp, bp;

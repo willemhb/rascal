@@ -13,9 +13,12 @@ struct Big {
 };
 
 // globals
+extern struct Type FloatType, ArityType, SmallType,
+  NumberType, RealType, RationalType, IntegerType;
 
 // external API
+Big* new_big(int64_t value);
 bool fits(Value x, int64_t min, int64_t max);
-
+void promote(Value* x, Value* y);
 
 #endif

@@ -22,7 +22,25 @@ struct Obj {
   uint8_t  data[];
 };
 
+// empty singletons
+extern struct Bits   EmptyBits;
+extern struct String EmptyString;
+extern struct Tuple  EmptyTuple;
+extern struct List   EmptyList;
+extern struct Vector EmptyVector;
+extern struct Map    EmptyMap;
+
 // miscellaneous utilities
+#define obj_head(o, T, f, args...)                      \
+  *((Obj*)o) = (Obj)                                    \
+    {                                                   \
+      .next=NULL,                                       \
+      .type=&T##Type,                                   \
+      .annot=&EmptyMap,                                 \
+      .flags=f,                                         \
+      .gray=true,                                       \
+      args                                              \
+    }
 
 bool get_fl(void* p, flags_t f);
 bool set_fl(void* p, flags_t f);

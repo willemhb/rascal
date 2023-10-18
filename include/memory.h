@@ -1,14 +1,31 @@
 #ifndef rascal_memory_h
 #define rascal_memory_h
 
-#include "common.h"
 #include "object.h"
+#include "vm.h"
 
 // globals
 #define N_HEAP  (((size_t)1)<<19)
 #define HEAP_LF 0.625
 
+// C types
+struct GcFrame {
+  GcFrame* next;
+  size_t   cnt;
+  Value*   vals;
+};
+
 // external API
+void unsave_gc_frame(GcFrame* frame);
+
+#define save(n, args...)                             \
+  Value __gc_frame_vals[(n)] = { args };             \
+  GcFrame __gc_frame cleanup(unsave_gc_frame) = {    \
+    .next=RlVm.heap.frames,                          \
+    .cnt =(n),                                       \
+    .vals=__gc_frame_vals                            \
+  }
+
 #define SAFE_ALLOC(func, args...)                           \
   ({                                                        \
     void* __out = func(args);                               \

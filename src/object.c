@@ -14,6 +14,10 @@
 bool get_fl(void* p, flags_t f) {
   assert(p != NULL);
   Obj* o = p;
+
+  if (f == 0)
+    return o->flags;
+
   return !!(o->flags & f);
 }
 

@@ -5,10 +5,25 @@
 #define FNV_OFFSET_64 0xCBF29CE484222325UL
 
 hash_t hash_string(const char* chars) {
-  uint64_t hash = FNV_OFFSET_64;
+  /**
+   *  Slightly optimized fnv-64 hash. For longer strings, hash words
+   *  until no words are left. Hash the remainder as usual.
+  **/
 
-  for (char ch=*chars; ch != '\0'; chars++, ch=*chars) {
-    hash ^= ch;
+  hash_t hash;
+  size_t e_off, n, i;
+
+  hash  = FNV_OFFSET_64;
+  n     = strlen(chars);
+  e_off = n & ~3ul;
+
+  for (i=0; i < e_off; i += sizeof(uint64_t)) {
+    hash ^= *(const uint64_t*)chars+i;
+    hash *= FNV_PRIME_64;
+  }
+
+  for (; i < n; i++) {
+    hash ^= chars[i];
     hash *= FNV_PRIME_64;
   }
 
@@ -16,9 +31,23 @@ hash_t hash_string(const char* chars) {
 }
 
 hash_t hash_bytes(const uint8_t* bytes, size_t n) {
-  uint64_t hash = FNV_OFFSET_64;
+  /**
+   *  Slightly optimized fnv-64 hash. For longer strings, hash words
+   *  until no words are left. Hash the remainder as usual.
+  **/
 
-  for (size_t i=0; i<n; i++) {
+  hash_t hash;
+  size_t e_off, i;
+
+  hash    = FNV_OFFSET_64;
+  e_off   = n & ~3ul;
+
+  for (i=0; i < e_off; i += sizeof(uint64_t)) {
+    hash ^=  *(const uint64_t*)bytes+i;
+    hash *=  FNV_PRIME_64;
+  }
+
+  for (; i < n; i++) {
     hash ^= bytes[i];
     hash *= FNV_PRIME_64;
   }
@@ -26,7 +55,7 @@ hash_t hash_bytes(const uint8_t* bytes, size_t n) {
   return hash;
 }
 
-uint64_t hash_word(uint64_t word) {
+hash_t hash_word(uint64_t word) {
   // stolen from femtolisp.
   word = (~word) + (word << 21);             // word = (word << 21) - word - 1;
   word =   word  ^ (word >> 24);

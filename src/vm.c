@@ -1,10 +1,11 @@
 #include "util/hashing.h"
 #include "util/number.h"
 
-#include "runtime.h"
 #include "array.h"
-#include "memory.h"
 #include "environment.h"
+
+#include "runtime.h"
+#include "memory.h"
 #include "read.h"
 #include "compile.h"
 #include "eval.h"
@@ -12,28 +13,28 @@
 #include "equal.h"
 
 // external API
-void initVm(Vm* vm) {
-  initHeap(vm);
-  initEnvt(vm);
-  initReader(vm);
-  initCompiler(vm);
-  initInterpreter(vm);
-  initRuntime(vm);
+void init_vm(Vm* vm) {
+  init_heap(vm);
+  init_envt(vm);
+  init_reader(vm);
+  init_compiler(vm);
+  init_interpreter(vm);
+  init_runtime(vm);
 }
 
 void freeVm(Vm* vm) {
-  freeRuntime(vm);
-  freeInterpreter(vm);
-  freeCompiler(vm);
-  freeReader(vm);
-  freeEnvt(vm);
-  freeHeap(vm);
+  free_runtime(vm);
+  free_interpreter(vm);
+  free_compiler(vm);
+  free_reader(vm);
+  free_envt(vm);
+  free_heap(vm);
 }
 
 void syncVm(Vm* vm) {
-  syncReader(vm);
-  syncCompiler(vm);
-  syncInterpreter(vm);
+  sync_reader(vm);
+  sync_compiler(vm);
+  sync_interpreter(vm);
 }
 
 size_t push(Value x) {

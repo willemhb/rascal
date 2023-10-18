@@ -61,6 +61,7 @@ static inline double word_to_double(uintptr_t word) {
 typedef struct Context Context;   // saved execution state
 typedef struct Frame   Frame;     // call frame
 typedef struct Vtable  Vtable;    // stores layout information and core APIs for data types
+typedef struct GcFrame GcFrame;   // stores arrays of values that need to be preserved by the GC
 typedef struct Vm      Vm;        // all essential execution state
 
 // basic tagged types
@@ -157,6 +158,8 @@ typedef int      (*OrdFn)(Value x, Value y);
 
 // miscellaneous helper macros
 #define generic _Generic
+
+#define cleanup(f) __attribute__ ((__cleanup__(f)))
 
 #define generic2(method, dispatch, args...)     \
   generic((dispatch),                           \

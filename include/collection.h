@@ -74,14 +74,6 @@ struct MapLeaf {
 };
 
 // globals
-// empty sigletons
-extern Bits   EmptyBits;
-extern String EmptyString;
-extern Tuple  EmptyTuple;
-extern List   EmptyList;
-extern Vector EmptyVector;
-extern Map    EmptyMap;
-
 // type objects
 extern struct Type BitsType, StringType, TupleType,
   ListType, VectorType, VecNodeType, VecLeafType,

@@ -10,10 +10,11 @@
 struct Vm {
   // heap state
   struct {
-    Obj*    objs;
-    size_t  used;
-    size_t  cap;
-    Objects grays;
+    Obj*     objs;
+    size_t   used;
+    size_t   cap;
+    Objects  grays;
+    GcFrame* frames;
   } heap;
 
   // environment state
@@ -54,6 +55,8 @@ struct Vm {
   Context* ctx;
 
   // miscellaneous state
+  bool   initialized;
+  
   Value* stackBase, * stackEnd;
   Frame* framesBase, * framesEnd;
 };
@@ -80,7 +83,5 @@ Value  pop(void);
 size_t pushn(size_t n);
 Value  popn(size_t n);
 Value* peek(int i);
-size_t save(size_t n, ...);
-void   unsave(size_t n);
 
 #endif

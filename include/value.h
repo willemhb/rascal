@@ -316,4 +316,7 @@ size_t size_of_obj(void* p);
 bool   has_type_val(Value x, Type* type);
 bool   has_type_obj(void* p, Type* type);
 
+bool   is_truthy(Value x);
+bool   is_falsey(Value x);
+
 #endif

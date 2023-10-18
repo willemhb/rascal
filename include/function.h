@@ -71,22 +71,23 @@ extern struct Type FunctionType, MethodTableType,
 
 // external API
 // accessors
-size_t get_sig_max(Function* f);
+size_t max_arity(Function* f);
+bool   has_va_methods(Function* f);
 
 // constructors
-Function* new_func(Symbol* name, flags_t fl);
+Function* new_func(Symbol* name, flags_t fl, Obj* leaf);
+Tuple*  get_sig(size_t max_a, size_t n, Value* vals);
+Tuple*  get_macro_sig(size_t max_a, List* args);
 
 // internal types
 // function and dispatch types
 MethodTable* new_metht(void);
-MethodMap*   new_methm(bool va);
-MethodNode*  new_methn(size_t offset, int fl);
-Method*      new_method(Obj* fn, Tuple* sig, bool va);
+MethodMap*   new_methm(flags_t fl);
+MethodNode*  new_methn(size_t offset, flags_t fl);
+Method*      new_method(Obj* fn, Tuple* sig, flags_t fl);
 
-Tuple*  get_sig(size_t sig_max, size_t n, Value* vals);
-Tuple*  get_macro_sig(size_t sig_max, List* args);
 Method* get_method(Function* g, Tuple* s);
-Method* add_method(Function* g, Tuple* s, Obj* m, bool va);
+Method* add_method(Function* g, Tuple* s, Obj* m, flags_t fl);
 
 // initialization
 void init_builtin_functions(void);
