@@ -36,16 +36,13 @@ struct Vm {
 
   // compiler state
   struct {
-    CompilerState state;
-    bool          tail_pos;
-    size_t        depth;
-    Chunk*        chunk;
-    Alist         stack;
+    
+    Alist stack;
   } compiler;
 
   // execution state
   struct {
-    size_t sp, fp, bp;
+    size_t sp, fp, bp, pp;
     UpValue*  upVals;
     Closure*  code;
     uint16_t* ip;
@@ -57,8 +54,6 @@ struct Vm {
   // miscellaneous state
   bool   initialized;
   
-  Value* stackBase, * stackEnd;
-  Frame* framesBase, * framesEnd;
 };
 
 // globals
@@ -66,7 +61,7 @@ struct Vm {
 #define N_FRAME 8192
 
 extern Vm RlVm;
-extern struct Frame Frames[N_FRAME];
+extern struct ExecFrame ExecFrames[N_FRAME];
 extern Value Stack[N_STACK];
 
 // don't really fit anywhere else

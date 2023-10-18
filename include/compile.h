@@ -3,11 +3,18 @@
 
 #include "environment.h"
 
-// C types 
+// C types
+struct CompFrame {
+  CompState    state; // 
+  flags_t      flags; // miscellaneous flags
+  char*        name;  // name of the compiling code unit
+  Chunk*       code;  // compiling code object
+  Environment* envt;  // naming context
+  Handlers*    hndl;  // effect handlers
+};
+
 struct Chunk {
   Obj          obj;
-  Obj*         name; // name of the module (either a function or a script)
-  Environment* envt; // name context
   Alist*       vals;
   Binary16*    code;
 };
@@ -20,10 +27,10 @@ extern Value FunSym, MacSym, VarSym, PutSym,
 extern struct Type ChunkType;
 
 // external API
-Chunk*   new_chunk(Obj* name, Environment* parent, ScopeType type);
+Chunk*   new_chunk(Environment* parent, ScopeType type);
 Value    macro_expand(Function* macro, Environment* envt, List* form);
-Closure* compile(void* name, CompilerState state, Value xpr);
+Closure* compile(void* name, CompState state, Value xpr);
 
-void   init_special_forms(void);
+void     init_special_forms(void);
 
 #endif

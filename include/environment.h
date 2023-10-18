@@ -20,14 +20,13 @@ struct Symbol {
 };
 
 typedef enum {
-  GLOBAL_SCOPE, PRIVATE_SCOPE, FUNCTION_SCOPE,
+  GLOBAL_SCOPE, FUNCTION_SCOPE,
 } ScopeType;
 
 struct Environment {
   Obj          obj;
   Environment* parent;
   NameSpace*   globals;
-  NameSpace*   private;
   NameSpace*   locals;
   NameSpace*   upvals;
 };

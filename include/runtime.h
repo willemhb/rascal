@@ -34,7 +34,7 @@ struct Context {
   GcFrame* frames;
 
   // Rascal execution state
-  size_t sp, fp, bp;
+  size_t sp, fp, bp, pp;
   uint16_t* ip;
   Closure* code;
 

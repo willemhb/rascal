@@ -58,11 +58,13 @@ static inline double word_to_double(uintptr_t word) {
 
 // other C types
 // VM state objects
-typedef struct Context Context;   // saved execution state
-typedef struct Frame   Frame;     // call frame
-typedef struct Vtable  Vtable;    // stores layout information and core APIs for data types
-typedef struct GcFrame GcFrame;   // stores arrays of values that need to be preserved by the GC
-typedef struct Vm      Vm;        // all essential execution state
+typedef struct Context   Context;      // saved execution state
+typedef struct Vtable    Vtable;       // stores layout information and core APIs for data types
+typedef struct GcFrame   GcFrame;      // stores arrays of values that need to be preserved by the GC
+typedef struct Vm        Vm;           // all essential execution state
+typedef struct CompFrame CompFrame;    // compile frame
+typedef struct ReadFrame ReadFrame;    // read frame
+typedef struct ExecFrame ExecFrame;    // exec frame
 
 // basic tagged types
 // basic value types
@@ -99,6 +101,7 @@ typedef struct Objects   Objects;
 // utility table types
 typedef struct Table       Table;
 typedef struct SymbolTable SymbolTable;
+typedef struct Handlers    Handlers;
 typedef struct NameSpace   NameSpace;
 
 // immutable collection types
@@ -124,7 +127,7 @@ typedef struct Closure     Closure;     // packages a chunk/namespace with names
 
 // execution and control
 typedef struct Chunk       Chunk;
-typedef struct Control     Control;     // reified continuation
+typedef struct Control     Control;     // reified partial continuation
 
 // names & environments
 typedef struct Binding     Binding;
@@ -137,9 +140,8 @@ typedef enum {
 } ReadState;
 
 typedef enum {
-  COMPILER_READY, COMPILER_REPL, COMPILER_SCRIPT, COMPILER_WITH_BINDS, COMPILER_WITH_BODY,
-  COMPILER_FUNCTION, COMPILER_MACRO,
-} CompilerState;
+  COMPILER_READY, COMPILER_REPL, COMPILER_SCRIPT, COMPILER_FUNCTION, COMPILER_MACRO,
+} CompState;
 
 typedef enum {
   BINARY, ASCII, LATIN1, UTF8, UTF16, UTF32,
