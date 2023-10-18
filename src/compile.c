@@ -14,114 +14,138 @@ Value FunSym, MacSym, VarSym, IfSym,
   PerformSym, HandleSym, ResumeSym;
 
 // chunk API
-extern void freeChunk(void* p);
-extern void traceChunk(void* p);
+extern void free_chunk(void* p);
+extern void trace_chunk(void* p);
 
 struct Vtable ChunkTable = {
-  .valSize=sizeof(Chunk*),
-  .objSize=sizeof(Chunk),
-  .tag    =OBJ_TAG,
-  .free   =freeChunk,
-  .trace  =traceChunk
+  .val_size=sizeof(Chunk*),
+  .obj_size=sizeof(Chunk),
+  .tag     =OBJ_TAG,
+  .free    =free_chunk,
+  .trace   =trace_chunk
 };
 
-struct Type ChunkType = {
+Function ChunkCtor = {
   .obj={
-    
-  },
-  
+    .type    =&FunctionType,
+    .annot   =&EmptyMap,
+    .no_sweep=true,
+    .gray    =true,
+  }
 };
 
-Chunk* newChunk(Obj* name, Environment* parent, ScopeType type) {
-  size_t ns   = save(2, tag(name), tag(parent));
-  Chunk* out  = newObj(&ChunkType, 0, 0);
+Type ChunkType = {
+  .obj={
+    .type =&TypeType,
+    .annot=&EmptyMap,
+    .no_sweep=true,
+    .no_free =true,
+    .gray    =true,
+  },
+  .parent =&TermType,
+  .v_table=&ChunkTable,
+  .ctor   =&ChunkCtor,
+  .idno   =CHUNK,
+};
+
+Chunk* new_chunk(Obj* name, Environment* parent, ScopeType type) {
+  Chunk* out;
+  size_t ns;
+
+  ns          = save(2, tag(name), tag(parent));
+  out         = new_obj(&ChunkType, 0, 0);
   ns         += save(1, tag(out));
   out->name   = name;
-  out->envt   = newEnvironment(parent, type);
-  out->vals   = newAlist(0);
-  out->code   = newBinary16(0);
+  out->envt   = new_environment(parent, type);
+  out->vals   = new_alist(0);
+  out->code   = new_binary16(0);
+
   unsave(ns);
+
   return out;
 }
 
+// special forms
+size_t 
+
 // helpers
-static size_t compileVal(Chunk* chunk, Value val);
-static size_t compileVar(Chunk* chunk, Symbol* name);
-static size_t compileComb(Chunk* chunk, List* form);
+static void save_compiler_state(void) {
+  if (RlVm.compiler.state != COMPILER_READY) {
+    RlVm.compiler.depth++;
+    alist_push(&RlVm.compiler.stack, tag((int)RlVm.compiler.state));
+    alist_push(&RlVm.compiler.stack, tag(RlVm.compiler.tail_pos));
+    alist_push(&RlVm.compiler.stack, tag(RlVm.compiler.chunk));
+  }
+}
 
-static bool isLiteral(Value val) {
-  if (IS(Symbol, val))
-    return !getFl(AS(Symbol, val), LITERAL);
+static void restore_compiler_state(void) {
+  if (RlVm.compiler.depth > 0) {
+    RlVm.compiler.chunk    = as(Chunk, alist_pop(&RlVm.compiler.stack));
+    RlVm.compiler.tail_pos = as_bool(alist_pop(&RlVm.compiler.stack));
+    RlVm.compiler.state    = as_small(alist_pop(&RlVm.compiler.stack));
+    RlVm.compiler.depth--;
+  } 
+}
 
-  if (IS(List, val))
-    return AS(List, val)->arity == 0;
+static size_t compile_val(Value val);
+static size_t compile_var(Symbol* name);
+static size_t compile_comb(List* form);
+
+static bool is_literal(Value val) {
+  if (is(Symbol, val))
+    return !get_fl(as(Symbol, val), LITERAL);
+
+  if (is(List, val))
+    return as(List, val)->arity == 0;
 
   return true;
 }
 
-static size_t compileXpr(Chunk* chunk, Value xpr) {
-  if (isLiteral(xpr))
-    return compileVal(chunk, xpr);
+static size_t compile_xpr(Value xpr) {
+  if (is_literal(xpr))
+    return compile_val(xpr);
 
-  else if (IS(Symbol, xpr))
-    return compileVar(chunk, AS(Symbol, xpr));
+  else if (is(Symbol, xpr))
+    return compile_var(as(Symbol, xpr));
 
   else
-    return compileComb(chunk, AS(List, xpr));
+    return compile_comb(as(List, xpr));
 }
 
-static char* getChunkName(Chunk* chunk) {
-  if (IS(Symbol, chunk->name))
+static char* get_chunk_name(void) {
+  Chunk* chunk = RlVm.compiler.chunk;
+
+  if (is(Symbol, chunk->name))
     return ((Symbol*)chunk->name)->name;
 
   return ((String*)chunk->name)->data;
 }
 
-static bool isIdentifier(Value val) {
+static bool is_identifier(Value val) {
   bool out = false;
 
-  if (IS(Symbol, val)) {
-    Symbol* s = AS(Symbol, val);
-    out       = !getFl(s, LITERAL);
+  if (is(Symbol, val)) {
+    Symbol* s = as(Symbol, val);
+    out       = !get_fl(s, LITERAL);
   }
 
   return out;
 }
 
-static bool isMacro(Value val) {
-  return IS(Function, val) && getFl(AS(Function, val), MACRO);
+static bool is_special_form(List* form) {
+  return is(Symbol, form->head) && as(Symbol, form->head)->special != NULL;
 }
 
-static bool isSpecialForm(List* form) {
-  return IS(Symbol, form->head) && AS(Symbol, form->head)->special != NULL;
-}
-
-static Binding* lookupSyntax(Environment* envt, Symbol* name) {
+static Binding* is_macro_call(List* form) {
   Binding* out = NULL;
 
-  if (envt && name->special == NULL && !getFl(name, LITERAL)) {
-    if (nameSpaceGet(envt->private, name, &out)) {
-      if (!isMacro(out->value))
-        out = NULL;
-    } else if (nameSpaceGet(envt->globals, name, &out)) {
-      if (!isMacro(out->value))
-        out = NULL;
-    }
-  }
+  if (is(Symbol, form->head))
+    out = lookup_syntax(RlVm.compiler.chunk->envt, as(Symbol, form->head));
 
   return out;
 }
 
-static Binding* isMacroCall(Environment* envt, List* form) {
-  Binding* out = NULL;
-
-  if (IS(Symbol, form->head))
-    out = lookupSyntax(envt, AS(Symbol, form->head));
-
-  return out;
-}
-
-static size_t emitInstr(Chunk* code, OpCode op, ...) {
+static size_t emit_instr(Chunk* code, OpCode op, ...) {
   uint16_t buf[3] = { op, 0, 0 };
   size_t argc = opCodeArgc(op);
   size_t n = 1;
@@ -135,101 +159,119 @@ static size_t emitInstr(Chunk* code, OpCode op, ...) {
 
   va_end(va);
 
-  return binary16Write(code->code, n, buf);
+  return binary16_write(code->code, n, buf);
 }
 
-static size_t addValue(Chunk* code, Value val) {
-  return alistPush(code->vals, val);
+static size_t add_value(Chunk* code, Value val) {
+  return alist_push(code->vals, val);
 }
 
-static Value popSubXpr(void) {
-  return alistPop(&RlVm.compiler.stack);
+static Value pop_subxpr(void) {
+  return alist_pop(&RlVm.compiler.stack);
 }
 
-static size_t pushSubXprs(List* form) {
+static size_t push_subxprs(List* form) {
   size_t out = form->arity;
   Value buf[out];
 
   for (size_t i=out; i > 0; i--, form=form->tail)
     buf[i] = form->head;
 
-  alistWrite(&RlVm.compiler.stack, out, buf);
+  alist_write(&RlVm.compiler.stack, out, buf);
   return out;
 }
 
-static size_t compileVar(Chunk* code, Symbol* name) {
-  Binding* bind = lookup(code->envt, name);
+static size_t compile_var(Symbol* name) {
+  Chunk* code;
+  Binding* bind;
   size_t out;
+
+  code = RlVm.compiler.chunk;
+  bind = lookup(code->envt, name);
 
   if (bind == NULL) // create binding, but raise an error if it isn't initialized by runtime
     bind = define(NULL, name, NOTHING, false);
 
-  NsType type = getNsType(bind->ns);
+  NsType type = get_ns_type(bind->ns);
 
   if (type == GLOBAL_NS)
-    out = emitInstr(code, OP_LOADG, bind->offset);
+    out = emit_instr(code, OP_LOADG, bind->offset);
 
   else if (type == PRIVATE_NS)
-    out = emitInstr(code, OP_LOADP, bind->offset);
+    out = emit_instr(code, OP_LOADP, bind->offset);
 
   else if (type == NONLOCAL_NS)
-    out = emitInstr(code, OP_LOADS, bind->offset);
+    out = emit_instr(code, OP_LOADS, bind->offset);
 
   else
-    out = emitInstr(code, OP_LOADU, bind->offset);
+    out = emit_instr(code, OP_LOADU, bind->offset);
 
   return out;
 }
 
-static size_t compileVal(Chunk* code, Value val) {
+static size_t compile_val(Value val) {
+  Chunk* code;
   size_t out, off;
 
+  code = RlVm.compiler.chunk;
+
   if (val == NUL)
-    out = emitInstr(code, OP_NUL);
+    out = emit_instr(code, OP_NUL);
 
   else if (val == TRUE)
-    out = emitInstr(code, OP_TRUE);
+    out = emit_instr(code, OP_TRUE);
 
   else if (val == FALSE)
-    out = emitInstr(code, OP_FALSE);
+    out = emit_instr(code, OP_FALSE);
+
+  else if (val == ZERO)
+    out = emit_instr(code, OP_ZERO);
+
+  else if (val == ONE)
+    out = emit_instr(code, OP_ONE);
 
   else if (val == tag(&EmptyBits))
-    out = emitInstr(code, OP_EMPTY_BITS);
+    out = emit_instr(code, OP_EMPTY_BITS);
 
   else if (val == tag(&EmptyString))
-    out = emitInstr(code, OP_EMPTY_STR);
+    out = emit_instr(code, OP_EMPTY_STR);
 
   else if (val == tag(&EmptyList))
-    out = emitInstr(code, OP_EMPTY_LIST);
+    out = emit_instr(code, OP_EMPTY_LIST);
 
   else if (val == tag(&EmptyTuple))
-    out = emitInstr(code, OP_EMPTY_TUPLE);
+    out = emit_instr(code, OP_EMPTY_TUPLE);
 
   else if (val == tag(&EmptyVector))
-    out = emitInstr(code, OP_EMPTY_VEC);
+    out = emit_instr(code, OP_EMPTY_VEC);
 
   else if (val == tag(&EmptyMap))
-    out = emitInstr(code, OP_EMPTY_MAP);
+    out = emit_instr(code, OP_EMPTY_MAP);
 
   else {
-    off = addValue(code, val);
-    out = emitInstr(code, OP_LOADV, off);
+    off = add_value(code, val);
+    out = emit_instr(code, OP_LOADV, off);
   }
 
   return out;
 }
 
-static size_t compileComb(Chunk* chunk, List* form) {
+static size_t compile_comb(List* form) {
   size_t out;
   Binding* macrob;
+  Chunk* chunk;
+  Function* macro;
+  Value xpr;
 
-  if (isSpecialForm(form))
-    out = AS(Symbol, form->head)->special(chunk, form);
+  chunk = RlVm.compiler.chunk;
 
-  else if ((macrob=isMacroCall(chunk->envt, form))) {
-    Function* macro = AS(Function, macrob->value);
-    Value xpr = macroExpand(macro, chunk->envt, form);
-    out = compileXpr(chunk, xpr);
+  if (is_special_form(form))
+    out = as(Symbol, form->head)->special(form);
+
+  else if ((macrob=is_macro_call(form))) {
+    macro = as(Function, macrob->value);
+    xpr   = macro_expand(macro, chunk->envt, form);
+    out   = compile_xpr(xpr);
   } else {
     
   }
@@ -238,56 +280,56 @@ static size_t compileComb(Chunk* chunk, List* form) {
 }
 
 // special forms
-size_t compileQuote(Chunk* chunk, List* form) {
+size_t compile_quote(List* form) {
   argco(2, form->arity, "quote");
-  return compileVal(chunk, form->tail->head);
+  return compile_val(form->tail->head);
 }
 
-size_t compileDo(Chunk* chunk, List* form) {
+size_t compileDo(List* form) {
   size_t arity, out;
   Value xpr;
 
   arity = vargco(2, form->arity, "do");
 
   if (arity == 2)
-    out = compileXpr(chunk, form->tail->head);
+    out = compile_xpr(form->tail->head);
 
   else {
-    arity = pushSubXprs(form->tail);
+    arity = push_subxprs(form->tail);
 
     for (size_t i=0; i<arity; i++) {
-      xpr = alistPop(&RlVm.compiler.stack);
-      out = compileXpr(chunk, xpr);
+      xpr = pop_subxpr();
+      out = compile_xpr(xpr);
 
       if (i+1 < arity)
-        emitInstr(chunk, OP_POP);
+        emit_instr(chunk, OP_POP);
     }
   }
 
   return out;
 }
 
-size_t compileIf(Chunk* chunk, List* form) {
+size_t compile_if(Chunk* chunk, List* form) {
   size_t arity, offset1, offset2, offset3;
   Value  test, then, otherwise;
 
   /* consequent is otpional */
   argcos(2, form->arity, "if", 3, 4);
 
-  arity     = pushSubXprs(form->tail);
-  test      = popSubXpr();
+  arity     = push_subxprs(form->tail);
+  test      = pop_subxpr();
 
-  compileXpr(chunk, test);
+  compile_xpr(test);
 
-  offset1   = emitInstr(chunk, OP_JUMPF, 0);
-  then      = popSubXpr();
+  offset1   = emit_instr(chunk, OP_JUMPF, 0);
+  then      = pop_subxpr();
 
-  compileXpr(chunk, then);
+  compile_xpr(then);
 
-  offset2   = emitInstr(chunk, OP_JUMP, 0);
-  otherwise = arity == 3 ? NUL : popSubXpr();
+  offset2   = emit_instr(chunk, OP_JUMP, 0);
+  otherwise = arity == 3 ? NUL : pop_subxpr();
 
-  offset3   = compileXpr(chunk, otherwise);
+  offset3   = compile_xpr(otherwise);
 
   /* fill in jumps */
   chunk->code->data[offset1-1] = offset2-offset1;
@@ -297,21 +339,27 @@ size_t compileIf(Chunk* chunk, List* form) {
 }
 
 // external API
-Chunk* newChunk(Obj* name, Environment* parent, ScopeType type);
 
-Value  macroExpand(Function* macro, Environment* envt, List* form) {
+Value  macro_expand(Function* macro, Environment* envt, List* form) {
   size_t nsv;
   Value exp;
   Tuple* sig;
 
   nsv = save(3, tag(macro), tag(envt), tag(form));
 
-  
-
   unsave(nsv);
 }
 
-Chunk* compile(Obj* name, CompilerState state, Value xpr);
+Closure* compile(void* name, CompilerState state, Value xpr);
+
+static Value new_special_form(char* name, CompileFn special) {
+  Symbol* sym;
+
+  sym          = symbol(name);
+  sym->special = special;
+
+  return tag(sym);
+}
 
 void initSpecialForms(void) {
   

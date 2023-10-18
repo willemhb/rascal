@@ -77,5 +77,6 @@ Symbol* gensym(char* name);
 Binding*  define(Environment* envt, void* p, Value init, bool internal);
 Binding*  capture(Environment* envt, Symbol* name);
 Binding*  lookup(Environment* envt, Symbol* name);
+Binding*  lookup_syntax(Environment* envt, Symbol* name);
 
 #endif

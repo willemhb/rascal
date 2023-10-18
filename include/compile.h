@@ -20,10 +20,10 @@ extern Value FunSym, MacSym, VarSym, PutSym,
 extern struct Type ChunkType;
 
 // external API
-Chunk*   newChunk(Obj* name, Environment* parent, ScopeType type);
-Value    macroExpand(Function* macro, Environment* envt, List* form);
+Chunk*   new_chunk(Obj* name, Environment* parent, ScopeType type);
+Value    macro_expand(Function* macro, Environment* envt, List* form);
 Closure* compile(void* name, CompilerState state, Value xpr);
 
-void   initSpecialForms(void);
+void   init_special_forms(void);
 
 #endif

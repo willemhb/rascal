@@ -36,7 +36,8 @@ struct Vm {
   // compiler state
   struct {
     CompilerState state;
-    bool          tailPos;
+    bool          tail_pos;
+    size_t        depth;
     Chunk*        chunk;
     Alist         stack;
   } compiler;

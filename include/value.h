@@ -44,7 +44,7 @@
 #define as(T, x)    ((T*)as_ptr(x))
 
 #define is_obj(x)   (((x) & TAG_MASK) == OBJ_TAG)
-#define is(T, x)    hasType(x, &T##Type)
+#define is(T, x)    has_type(x, &T##Type)
 
 #define type_of(v)     generic2(type_of, v, v)
 #define size_of(v)     generic2(size_of, v, v)

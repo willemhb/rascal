@@ -146,7 +146,7 @@ typedef enum {
 
 // function pointer types
 typedef Value    (*NativeFn)(size_t n, Value* a);
-typedef size_t   (*CompileFn)(Chunk* chunk, List* form);
+typedef size_t   (*CompileFn)(List* form);
 typedef void     (*ReadFn)(Vm* vm, int dispatch);
 typedef void     (*TraceFn)(void* p);
 typedef void     (*FreeFn)(void* p);
