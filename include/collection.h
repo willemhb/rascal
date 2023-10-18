@@ -24,7 +24,7 @@ struct String {
 
 struct Tuple {
   Obj    obj;
-  Value* data;
+  Value* slots;
   size_t arity;
 };
 
@@ -89,55 +89,55 @@ extern struct Type BitsType, StringType, TupleType,
 
 // external AP
 // constructors
-Bits*     newBits(void* data, size_t count, int flags);
-String*   newString(char* chars, size_t count, int flags);
-Tuple*    newTuple(size_t n, Value* vs);
-List*     newList(Value head, List* tail);
-Vector*   newVector(size_t n, Value* vs);
-VecNode*  newVecNode(Obj** children, size_t n, int flags);
-VecLeaf*  newVecLeaf(Value* tail);
-Map*      newMap(size_t n, Value* kvs);
+Bits*     new_bits(void* data, size_t count, flags_t fl);
+String*   new_str(char* chars, size_t count, flags_t fl);
+Tuple*    new_tuple(size_t n, Value* vs);
+List*     new_list(Value head, List* tail);
+Vector*   new_vec(size_t n, Value* vs);
+VecNode*  new_vecn(Obj** children, size_t n, int flags);
+VecLeaf*  new_vecl(Value* tail);
+Map*      new_map(size_t n, Value* kvs);
 
 // collection interfaces
-size_t    getElSize(Bits* b);
-bool      fitsElSize(Bits* b, int i);
-Bits*     cloneBits(Bits* b);
-Value     bitsGet(Bits* b, size_t n);
-Bits*     bitsAdd(Bits* b, int i);
-Bits*     bitsSet(Bits* b, size_t n, int i);
-Bits*     bitsDel(Bits* b, size_t n);
+size_t    get_elsize(Bits* b);
+bool      fits_elsize(Bits* b, int i);
+Bits*     clone_bits(Bits* b);
+Value     bits_get(Bits* b, size_t n);
+Bits*     bits_add(Bits* b, int i);
+Bits*     bits_set(Bits* b, size_t n, int i);
+Bits*     bits_del(Bits* b, size_t n);
 
-Encoding  getEncoding(String* s);
-String*   cloneString(String* s);
-Value     strGet(String* s, size_t n);
-String*   strAdd(String* s, Glyph g);
-String*   strSet(String* s, size_t n, Glyph g);
-String*   strDel(String* s, size_t n);
+Encoding  get_encoding(String* s);
+String*   clone_str(String* s);
+Value     str_get(String* s, size_t n);
+String*   str_add(String* s, Glyph g);
+String*   str_set(String* s, size_t n, Glyph g);
+String*   str_del(String* s, size_t n);
 
-Tuple*    cloneTuple(Tuple* t);
-Value     tupleGet(Tuple* t, size_t n);
-Tuple*    tupleAdd(Tuple* t, Value x);
-Tuple*    tupleSet(Tuple* t, size_t n, Value x);
-Tuple*    tupleDel(Tuple* t, size_t n);
+Tuple*    clone_tuple(Tuple* t);
+Value     tuple_get(Tuple* t, size_t n);
+Tuple*    tuple_add(Tuple* t, Value x);
+Tuple*    tuple_set(Tuple* t, size_t n, Value x);
+Tuple*    tuple_del(Tuple* t, size_t n);
 
-Value     listGet(List* l, size_t n);
-List*     listAdd(List* l, Value x);
-List*     listSet(List* l, size_t n, Value x);
-List*     listDel(List* l, size_t n);
+Value     list_get(List* l, size_t n);
+List*     list_add(List* l, Value x);
+List*     list_set(List* l, size_t n, Value x);
+List*     list_del(List* l, size_t n);
 
-size_t    getShift(void* p);
-size_t    setShift(void* p, size_t sh);
+size_t    get_shift(void* p);
+size_t    set_shift(void* p, size_t sh);
 void*     unfreeze(void* p);
 void      freeze(void* p);
 
-Value     mapGet(Map* m, Value k);
-Map*      mapAdd(Map* m, Value k, Value v);
-Map*      mapSet(Map* m, Value k, Value v);
-Map*      mapDel(Map* m, Value k);
+Value     map_get(Map* m, Value k);
+Map*      map_add(Map* m, Value k, Value v);
+Map*      map_set(Map* m, Value k, Value v);
+Map*      map_del(Map* m, Value k);
 
-Value     vecGet(Vector* v, size_t i);
-Vector*   vecAdd(Vector* v, Value x);
-Vector*   vecSet(Vector* v, size_t i, Value x);
-Vector*   vecDel(Vector* v);
+Value     vec_get(Vector* v, size_t i);
+Vector*   vec_add(Vector* v, Value x);
+Vector*   vec_set(Vector* v, size_t i, Value x);
+Vector*   vec_del(Vector* v);
 
 #endif

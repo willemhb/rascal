@@ -45,6 +45,6 @@ ARRAY_API(Buffer8,  char,     buffer8);
 ARRAY_API(Buffer16, char16_t, buffer16);
 ARRAY_API(Buffer32, char32_t, buffer32);
 ARRAY_API(Alist,    Value,    alist);
-ARRAY_API(Objects,  Obj*,     objects);
+ARRAY_API(Objects,  void*,    objects);
 
 #endif

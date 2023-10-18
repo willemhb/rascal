@@ -82,7 +82,7 @@ Type* new_union_type(Type* parent, Symbol* name, size_t count, Type** members);
 
 // utilities
 Tuple*  rank_types(Tuple* sig);
-int     order_sigs(Tuple* sigx, Tuple* sigy);
+int     order_sigs(const Tuple* sigx, const Tuple* sigy);
 
 // initialization
 void   init_builtin_types(void);

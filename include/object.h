@@ -23,6 +23,7 @@ struct Obj {
 };
 
 // miscellaneous utilities
+
 bool get_fl(void* p, flags_t f);
 bool set_fl(void* p, flags_t f);
 bool del_fl(void* p, flags_t f);

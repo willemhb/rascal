@@ -19,11 +19,8 @@ typedef enum {
 struct Function {
   Obj          obj;
   Symbol*      name;     // the name of this function (or `fun` if anonymous).
-
-  union {
-    MethodTable* metht;  // method table
-    Method*      leaf;   // singleton 
-  };
+  MethodTable* metht;  // method table
+  Method*      leaf;   // singleton 
 };
 
 struct MethodTable {
@@ -73,17 +70,21 @@ extern struct Type FunctionType, MethodTableType,
   ClosureType, NativeType;
 
 // external API
+// accessors
+size_t get_sig_max(Function* f);
+
 // constructors
-Function* new_function(Symbol* name, flags_t fl);
+Function* new_func(Symbol* name, flags_t fl);
 
 // internal types
 // function and dispatch types
-MethodTable* new_method_table(void);
-MethodMap*   new_method_map(bool va);
-MethodNode*  new_method_node(size_t offset, int fl);
+MethodTable* new_metht(void);
+MethodMap*   new_methm(bool va);
+MethodNode*  new_methn(size_t offset, int fl);
 Method*      new_method(Obj* fn, Tuple* sig, bool va);
 
-Tuple*  signature(size_t n, size_t maxN, Value* vals);
+Tuple*  get_sig(size_t sig_max, size_t n, Value* vals);
+Tuple*  get_macro_sig(size_t sig_max, List* args);
 Method* get_method(Function* g, Tuple* s);
 Method* add_method(Function* g, Tuple* s, Obj* m, bool va);
 

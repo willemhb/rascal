@@ -23,6 +23,7 @@
 #define NOTHING     (NUL_TAG   | 1UL) // invalid value marker
 #define ZERO        (SMALL_TAG | 0UL)
 #define ONE         (SMALL_TAG | 1UL)
+#define NULL_OBJ    (OBJ_TAG   | 0UL)
 
 #define tag(x) generic((x),                      \
                        Float:tag_float,          \
@@ -67,7 +68,6 @@
                        Chunk*:tag_obj,           \
                        Control*:tag_obj,         \
                        Binding*:tag_obj,         \
-                       Scope*:tag_obj,           \
                        Environment*:tag_obj,     \
                        UpValue*:tag_obj,         \
                        default:tag_ptr)(x)
@@ -83,7 +83,7 @@
 #define as_float(x)        as2(Float, x, word_to_double)
 #define as_arity(x)        as2(Arity, x, untag)
 #define as_small(x)        as2(Small, x, untag)
-#define as_bool(x)         as2(Bool, x, untag)
+#define as_bool(x)         as2(Boolean, x, untag)
 #define as_glyph(x)        as2(Glyph, x, untag)
 #define as_ptr(x)          as2(Pointer, x, untag)
 #define as_fptr(x)         as2(FuncPtr, x, untag)
@@ -116,6 +116,7 @@
 #define as_metht(x)        as2(MethodTable*, x, untag)
 #define as_methm(x)        as2(MethodMap*, x, untag)
 #define as_methn(x)        as2(MethodNode*, x, untag)
+#define as_method(x)       as2(Method*, x, untag)
 #define as_native(x)       as2(Native*, x, untag)
 #define as_cls(x)          as2(Closure*, x, untag)
 #define as_chunk(x)        as2(Chunk*, x, untag)
@@ -173,12 +174,9 @@
 #define is_envt(x)      is(Environment, x)
 #define is_upval(x)     is(UpValue, x)
 
-
-
 #define type_of(v)     generic2(type_of, v, v)
 #define size_of(v)     generic2(size_of, v, v)
 #define has_type(v, T) generic2(has_type, v, v, T)
-
 
 Value tag_float(Float x);
 Value tag_arity(Arity x);
@@ -189,19 +187,127 @@ Value tag_ptr(Pointer x);
 Value tag_fptr(FuncPtr x);
 Value tag_obj(void* x);
 
-#define SAFECAST_V(T, t)                        \
-  T to_##t(Value x, const char* fname)
+Float   as_float_s(Value x,   const char* fname);
+Arity   as_arity_s(Value x,   const char* fname);
+Small   as_small_s(Value x,   const char* fname);
+Boolean as_bool_s(Value x,    const char* fname);
+Glyph   as_glyph_s(Value x,   const char* fname);
+Pointer as_ptr_s(Value x,     const char* fname);
+FuncPtr as_fptr_s(Value x,    const char* fname);
 
-SAFECAST_V(Float, float);
-SAFECAST_V(Arity, arity);
-SAFECAST_V(Small, small);
-SAFECAST_V(Boolean, bool);
-SAFECAST_V(Glyph, glyph);
-SAFECAST_V()
+#define as_obj_s(x, f)    generic2(as_obj_s, x, x, f)
+#define as_sym_s(x, f)    generic2(as_sym_s, x, x, f)
+#define as_type_s(x, f)   generic2(as_type_s, x, x, f)
+#define as_stream_s(x, f) generic2(as_stream_s, x, x, f)
+#define as_big_s(x, f)    generic2(as_big_s, x, x, f)
+#define as_buf8_s(x, f)   generic2(as_buf8_s, x, x, f)
+#define as_buf16_s(x, f)  generic2(as_buf16_s, x, x, f)
+#define as_buf32_s(x, f)  generic2(as_buf32_s, x, x, f)
+#define as_bin8_s(x, f)   generic2(as_bin8_s, x, x, f)
+#define as_bin16_s(x, f)  generic2(as_bin16_s, x, x, f)
+#define as_bin32_s(x, f)  generic2(as_bin32_s, x, x, f)
+#define as_alist_s(x, f)  generic2(as_alist_s, x, x, f)
+#define as_objs_s(x, f)   generic2(as_objs_s, x, x, f)
+#define as_table_s(x, f)  generic2(as_table_s, x, x, f)
+#define as_symt_s(x, f)   generic2(as_symt_s, x, x, f)
+#define as_ns_s(x, f)     generic2(as_ns_s, x, x, f)
+#define as_bits_s(x, f)   generic2(as_bits_s, x, x, f)
+#define as_str_s(x, f)    generic2(as_str_s, x, x, f)
+#define as_tuple_s(x, f)  generic2(as_tuple_s, x, x, f)
+#define as_list_s(x, f)   generic2(as_list_s, x, x, f)
+#define as_vec_s(x, f)    generic2(as_vec_s, x, x, f)
+#define as_vecn_s(x, f)   generic2(as_vecn_s, x, x, f)
+#define as_vecl_s(x, f)   generic2(as_vecl_s, x, x, f)
+#define as_map_s(x, f)    generic2(as_map_s, x, x, f)
+#define as_mapn_s(x, f)   generic2(as_mapn_s, x, x, f)
+#define as_mapl_s(x, f)   generic2(as_mapl_s, x, x, f)
+#define as_func_s(x, f)   generic2(as_func_s, x, x, f)
+#define as_metht_s(x, f)  generic2(as_metht_s, x, x, f)
+#define as_methm_s(x, f)  generic2(as_methm_s, x, x, f)
+#define as_methn_s(x, f)  generic2(as_methn_s, x, x, f)
+#define as_method_s(x, f) generic2(as_method_s, x, x, f)
+#define as_native_s(x, f) generic2(as_native_s, x, x, f)
+#define as_cls_s(x, f)    generic2(as_cls_s, x, x, f)
+#define as_chunk_s(x, f)  generic2(as_chunk_s, x, x, f)
+#define as_cntl_s(x, f)   generic2(as_cntl_s, x, x, f)
+#define as_bind_s(x, f)   generic2(as_bind_s, x, x, f)
+#define as_envt_s(x, f)   generic2(as_envt_s, x, x, f)
+#define as_upval_s(x, f)  generic2(as_upval_s, x, x, f)
 
-#define SAFECAST_O(T, t)                        \
-  T to_##t(void* p, const char* fname)
-
+Obj*         as_obj_s_val(Value x,    const char* fname);
+Obj*         as_obj_s_obj(void* x,    const char* fname);
+Symbol*      as_sym_s_val(Value x,    const char* fname);
+Symbol*      as_sym_s_obj(void* x,    const char* fname);
+Type*        as_type_s_val(Value x,   const char* fname);
+Type*        as_type_s_obj(void* x,   const char* fname);
+Stream*      as_stream_s_val(Value x, const char* fname);
+Stream*      as_stream_s_obj(void* x, const char* fname);
+Big*         as_big_s_val(Value x,    const char* fname);
+Big*         as_big_s_obj(void* x,    const char* fname);
+Buffer8*     as_buf8_s_val(Value x,   const char* fname);
+Buffer8*     as_buf8_s_obj(void* x,   const char* fname);
+Buffer16*    as_buf16_s_val(Value x,  const char* fname);
+Buffer16*    as_buf16_s_obj(void* x,  const char* fname);
+Buffer32*    as_buf32_s_val(Value x,  const char* fname);
+Buffer32*    as_buf32_s_obj(void* x,  const char* fname);
+Binary8*     as_bin8_s_val(Value x,   const char* fname);
+Binary8*     as_bin8_s_obj(void* x,   const char* fname);
+Binary16*    as_bin16_s_val(Value x,  const char* fname);
+Binary16*    as_bin16_s_obj(void* x,  const char* fname);
+Binary32*    as_bin32_s_val(Value x,  const char* fname);
+Binary32*    as_bin32_s_obj(void* x,  const char* fname);
+Alist*       as_alist_s_val(Value x,  const char* fname);
+Alist*       as_alist_s_obj(void* x,  const char* fname);
+Objects*     as_objs_s_val(Value x,   const char* fname);
+Objects*     as_objs_s_obj(void* x,   const char* fname);
+Table*       as_table_s_val(Value x,  const char* fname);
+Table*       as_table_s_obj(void* x,  const char* fname);
+SymbolTable* as_symt_s_val(Value x,   const char* fname);
+SymbolTable* as_symt_s_obj(void* x,   const char* fname);
+NameSpace*   as_ns_s_val(Value x,     const char* fname);
+NameSpace*   as_ns_s_obj(void* x,     const char* fname);
+Bits*        as_bits_s_val(Value x,   const char* fname);
+Bits*        as_bits_s_obj(void* x,   const char* fname);
+String*      as_str_s_val(Value x,    const char* fname);
+String*      as_str_s_obj(void* x,    const char* fname);
+Tuple*       as_tuple_s_val(Value x,  const char* fname);
+Tuple*       as_tuple_s_obj(void* x,  const char* fname);
+List*        as_list_s_val(Value x,   const char* fname);
+List*        as_list_s_obj(void* x,   const char* fname);
+Vector*      as_vec_s_val(Value x,    const char* fname);
+Vector*      as_vec_s_obj(void* x,    const char* fname);
+VecNode*     as_vecn_s_val(Value x,   const char* fname);
+VecNode*     as_vecn_s_obj(void* x,   const char* fname);
+VecLeaf*     as_vecl_s_val(Value x,   const char* fname);
+VecLeaf*     as_vecl_s_obj(void* x,   const char* fname);
+Map*         as_map_s_val(Value x,    const char* fname);
+Map*         as_map_s_obj(void* x,    const char* fname);
+MapNode*     as_mapn_s_val(Value x,   const char* fname);
+MapNode*     as_mapn_s_obj(void* x,   const char* fname);
+MapLeaf*     as_mapl_s_val(Value x,   const char* fname);
+MapLeaf*     as_mapl_s_obj(void* x,   const char* fname);
+Function*    as_func_s_val(Value x,   const char* fname);
+Function*    as_func_s_obj(void* x,   const char* fname);
+MethodTable* as_metht_s_val(Value x,  const char* fname);
+MethodTable* as_metht_s_obj(void* x,  const char* fname);
+MethodMap*   as_methm_s_val(Value x,  const char* fname);
+MethodMap*   as_methm_s_obj(void* x,  const char* fname);
+MethodNode*  as_methn_s_val(Value x,  const char* fname);
+MethodNode*  as_methn_s_obj(void* x,  const char* fname);
+Native*      as_native_s_val(Value x, const char* fname);
+Native*      as_native_s_obj(void* x, const char* fname);
+Closure*     as_cls_s_val(Value x,    const char* fname);
+Closure*     as_cls_s_obj(void* x,    const char* fname);
+Chunk*       as_chunk_s_val(Value x,  const char* fname);
+Chunk*       as_chunk_s_obj(void* x,  const char* fname);
+Control*     as_cntl_s_val(Value x,   const char* fname);
+Control*     as_cntl_s_obj(void* x,   const char* fname);
+Binding*     as_bind_s_val(Value x,   const char* fname);
+Binding*     as_bind_s_obj(void* x,   const char* fname);
+Environment* as_envt_s_val(Value x,   const char* fname);
+Environment* as_envt_s_obj(void* x,   const char* fname);
+UpValue*     as_upval_s_val(Value x,  const char* fname);
+UpValue*     as_upval_s_obj(void* x,  const char* fname);
 
 Type*  type_of_val(Value x);
 Type*  type_of_obj(void* p);

@@ -1,87 +1,98 @@
 #include "runtime.h"
 #include "vm.h"
-#include "object.h"
+
+#include "array.h"
+#include "type.h"
+#include "collection.h"
 #include "function.h"
 
 // pseudo-accessors
-static Type* sigGet(Tuple* s, size_t n) {
-  return AS_TYPE(s->slots[n]);
+static Type* sig_get(Tuple* s, size_t n) {
+  return as_type(s->slots[n]);
 }
 
-static size_t methodArity(const Method* m) {
+static size_t method_arity(const Method* m) {
   return m->sig->arity;
 }
 
+static bool is_va(void* p) {
+  return get_fl(p, VARIADIC);
+}
+
+static bool is_exact(void* p) {
+  return get_fl(p, EXACT);
+}
+
 // dispatch helpers
-static bool searchMethodNode(MethodNode* mn, Tuple* s, Objects* ms);
+static bool search_method_node(MethodNode* mn, Tuple* s, Objects* ms);
 
-static bool searchExactChildren(MethodNode* mn, Tuple* s, Objects* ms) {
+static bool search_exact_children(MethodNode* mn, Tuple* s, Objects* ms) {
   bool out = false;
-  Type* t = sigGet(s, mn->offset);
-  MethodNode* child;
+  Type* t = sig_get(s, mn->offset);
+  Value child;
 
-  if (typeMapGet(&mn->dtmap, t, &child))
-    out = searchMethodNode(child, s, ms);
+  if (table_get(mn->dtmap, tag(t), &child))
+    out = search_method_node(as_methn(child), s, ms);
 
   return out;
 }
 
-static bool searchAbstractChildren(MethodNode* mn, Tuple* s, Objects* ms) {
+static bool search_abstract_children(MethodNode* mn, Tuple* s, Objects* ms) {
   bool out = false;
-  Type* t  = sigGet(s, mn->offset);
-  MethodNode* child;
+  Type* t  = sig_get(s, mn->offset);
+  Value child;
 
   for (Type* p = t->parent; p != &AnyType; p=p->parent) {
-    if (typeMapGet(&mn->atmap, p, &child))
-      searchMethodNode(child, s, ms);
+    if (table_get(mn->atmap, tag(p), &child))
+      search_method_node(as_methn(child), s, ms);
   }
 
   return out;
 }
 
-static bool searchUnionChildren(MethodNode* mn, Tuple* s, Objects* ms) {
+static bool search_union_children(MethodNode* mn, Tuple* s, Objects* ms) {
   bool out = false;
-  Type* t  = sigGet(s, mn->offset);
+  Type* t  = sig_get(s, mn->offset);
 
-  for (size_t i = 0;i < mn->utmap.count;i += 2) {
-    if (isMember(t, mn->utmap.data[i]))
-      searchMethodNode(mn->utmap.data[i+1], s, ms);
+  for (size_t i = 0;i < mn->utmap->cnt; i += 2) {
+    if (is_instance(t, (Type*)mn->utmap->data[i]))
+      search_method_node((MethodNode*)mn->utmap->data[i+1], s, ms);
   }
 
   return out;
 }
 
-static bool searchAnyChildren(MethodNode* mn, Tuple* s, Objects* ms) {
+static bool search_any_children(MethodNode* mn, Tuple* s, Objects* ms) {
   bool out = false;
 
   if (mn->any != NULL)
-    searchMethodNode(mn->any, s, ms);
+    search_method_node(mn->any, s, ms);
 
   return out;
 }
 
-static bool searchMethodNode(MethodNode* mn, Tuple* s, Objects* ms) {
+static bool search_method_node(MethodNode* mn, Tuple* s, Objects* ms) {
   bool out = false;
 
-  if (mn->va) { // different search procedure
-    if (mn->leaf != NULL && s->arity >= methodArity(mn->leaf))
-      writeObjects(ms, mn->leaf);
+  if (is_va(mn)) { // different search procedure
+    if (mn->leaf != NULL && s->arity >= method_arity(mn->leaf))
+      objects_push(ms, as_obj(mn->leaf));
 
-    searchExactChildren(mn, s, ms);
-    searchAbstractChildren(mn, s, ms);
-    searchUnionChildren(mn, s, ms);
-    searchAnyChildren(mn, s, ms);
+    search_exact_children(mn, s, ms);
+    search_abstract_children(mn, s, ms);
+    search_union_children(mn, s, ms);
+    search_any_children(mn, s, ms);
   } else {
     if (s->arity == mn->offset && mn->leaf != NULL) {
-      writeObjects(ms, mn->leaf);
-      out = mn->exact;
+      objects_push(ms, mn->leaf);
+      out = is_exact(mn);
     } else {
-      out = searchExactChildren(mn, s, ms);
+      out = search_exact_children(mn, s, ms);
 
       if (!out) {
-        searchAbstractChildren(mn, s, ms);
-        searchUnionChildren(mn, s, ms);
-        searchAnyChildren(mn, s, ms);
+        search_abstract_children(mn, s, ms);
+        search_union_children(mn, s, ms);
+        search_any_children(mn, s, ms);
       }
     }
   }
@@ -89,82 +100,64 @@ static bool searchMethodNode(MethodNode* mn, Tuple* s, Objects* ms) {
   return out;
 }
 
-static bool searchMethodMap(MethodMap* mm, Tuple* s, Objects* ms) {
+static bool search_method_map(MethodMap* mm, Tuple* s, Objects* ms) {
   bool out = false;
 
-  if (mm != NULL && s->arity >= (mm->va || s->arity <= mm->maxA))
-    out = searchMethodNode(mm->root, s, ms);
+  if (mm != NULL && s->arity >= (is_va(mm) || s->arity <= mm->max_a))
+    out = search_method_node(mm->root, s, ms);
  
   return out;
 }
 
-int orderMethods(const void* x, const void* y) {
-  /* heuristic comparison of the specificity of different methods.
-
-     Generally speaking, for two methods `a` and `b`:
-
-       1) `a` is more specific than `b` if it takes more inputs;
-       2) otherwise, `a` is more specific than `b` if it contains more exact annotations in its signature;
-       3) otherwise, `a` is more specific than `b` if it contains fewer `Any` annotations in its signature;
-       4) otherwise, `a` and `b` are regarded as having the same specificity. */
-
-  int o;
-
-  const Method* mx = x;
-  const Method* my = y;
-
-  o = (int)mx->sig->arity - (int)my->sig->arity;
-  o = o ? : (int)mx->nExact - (int)my->nExact;
-  o = o ? : (int)my->nAny - (int)mx->nAny;
-
-  return o;
+int order_methods(const void* x, const void* y) {
+  return order_sigs(x, y);
 }
 
-static void sortMethods(size_t cnt, Method** ms) {
-  qsort(ms, cnt, sizeof(Method*), orderMethods);
+static void sort_methods(size_t cnt, Method** ms) {
+  qsort(ms, cnt, sizeof(Method*), order_methods);
 }
 
 static void dispatch(MethodTable* mt, Tuple* s, Objects* ms) {
-  bool exact = searchMethodMap(mt->faMethods, s, ms);
+  bool exact = search_method_map(mt->fa_methods, s, ms);
 
   if (!exact)
-    exact = searchMethodMap(mt->vaMethods, s, ms);
+    exact = search_method_map(mt->va_methods, s, ms);
 
   // if an exact match hasn't been found, sort applicable methods to find the best one
   if (!exact)
-    sortMethods(ms->count, (Method**)ms->data);
+    sort_methods(ms->cnt, (Method**)ms->data);
 }
 
-static void cacheMethod(Function* g, Tuple* s, Method* m) {
-  methodCacheAdd(&g->methods->cache, s, &m, NULL);
+static void cache_method(Function* g, Tuple* s, Method* m) {
+  table_set(g->metht->cache, tag(s), tag(m));
 }
 
-static Method* checkMethodCache(Function* g, Tuple* s) {
-  Method* m;
+static Method* check_method_cache(Function* g, Tuple* s) {
+  Value b;
 
-  methodCacheGet(&g->methods->cache, s, &m);
+  table_get(g->metht->cache, tag(s), &b);
 
-  return m;
+  return as_method(b);
 }
 
 // specialize helpers
-static void insertMethodNode(MethodNode* mn, Tuple* s, Obj* m, bool va);
+static void insert_method_node(MethodNode* mn, Tuple* s, Obj* m, bool va);
 
-static void insertExactMethod(MethodNode* mn, Type* t, Tuple* s, Obj* m, bool va) {
-  MethodNode* child = NULL;
+static void insert_exact_method(MethodNode* mn, Type* t, Tuple* s, Obj* m, bool va) {
+  Value child;
 
-  typeMapAdd(&mn->dtmap, t, &child, mn);
-  insertMethodNode(child, s, m, va);
+  table_intern(mn->dtmap, tag(t), NULL, &child);
+  insert_method_node(as_methn(child), s, m, va);
 }
 
-static void insertAbstractMethod(MethodNode* mn, Type* t, Tuple* s, Obj* m, bool va) {
+static void insert_abstract_method(MethodNode* mn, Type* t, Tuple* s, Obj* m, bool va) {
   MethodNode* child = NULL;
 
   typeMapAdd(&mn->atmap, t, &child, mn);
-  insertMethodNode(child, s, m, va);
+  insert_method_node(child, s, m, va);
 }
 
-static void insertUnionMethod(MethodNode* mn, Type* t, Tuple* s, Obj* m, bool va) {
+static void insert_union_method(MethodNode* mn, Type* t, Tuple* s, Obj* m, bool va) {
   MethodNode* child = NULL;
 
   for (size_t i = 0; child == NULL && i < mn->utmap.count; i += 2) {
@@ -173,38 +166,37 @@ static void insertUnionMethod(MethodNode* mn, Type* t, Tuple* s, Obj* m, bool va
   }
 
   if (child == NULL) {
-    child = newMethodNode(mn->offset+1, mn->exact, mn->va);
+    child = new_methn(mn->offset+1, mn->exact, mn->va);
     vWriteObjects(&mn->utmap, 2, t, child);
   }
 
-  insertMethodNode(mn, s, m, va);
+  insert_method_node(mn, s, m, va);
 }
 
 static void insertAnyMethod(MethodNode* mn, Type* t, Tuple* s, Obj* m, bool va) {
   (void)t;
 
   if (mn->any == NULL)
-    mn->any = newMethodNode(mn->offset+1, false, mn->va);
+    mn->any = new_methn(mn->offset+1, false, mn->va);
 
-  insertMethodNode(mn->any, s, m, va);
+  insert_method_node(mn->any, s, m, va);
 }
 
-static void insertMethodNode(MethodNode* mn, Tuple* s, Obj* m, bool va) {
-  assert(va == mn->va);
+static void insert_method_node(MethodNode* mn, Tuple* s, Obj* m, bool va) {
+  assert(va == is_va(mn));
 
   if (s->arity == mn->offset - mn->va) {
     if (mn->leaf != NULL)
       raise("add-method!", "duplicate method signature");
 
     if (m->type != &MethodType)
-      m = (Obj*)newMethod(m, s, va);
+      m = (Obj*)new_method(m, s, va);
 
     mn->leaf  = (Method*)m;
-    mn->exact = mn->leaf->exact;
   }
 
-  Type* t = sigGet(s, mn->offset);
-  Kind  k = getKind(t);
+  Type* t = sig_get(s, mn->offset);
+  Kind  k = get_kind(t);
 
   switch (k) {
     case BOTTOM_KIND:
@@ -215,89 +207,92 @@ static void insertMethodNode(MethodNode* mn, Tuple* s, Obj* m, bool va) {
       insertAnyMethod(mn, t, s, m, va);
       break;
 
-    case DATA_TYPE_KIND:
-      insertExactMethod(mn, t, s, m, va);
+    case DATA_KIND:
+      insert_exact_method(mn, t, s, m, va);
       break;
 
-    case ABSTRACT_TYPE_KIND:
-      insertAbstractMethod(mn, t, s, m, va);
+    case ABSTRACT_KIND:
+      insert_abstract_method(mn, t, s, m, va);
       break;
 
-    case UNION_TYPE_KIND:
-      insertUnionMethod(mn, t, s, m, va);
+    case DATA_UNION_KIND:
+    case ABSTRACT_UNION_KIND:
+      insert_union_method(mn, t, s, m, va);
       break;
   }
 }
 
-static void insertMethodMap(MethodMap* mm, Tuple* s, Obj* m, bool va) {
+static void insert_methm(MethodMap* mm, Tuple* s, Obj* m, bool va) {
   assert(va == mm->va);
 
   if (mm->root == NULL)
-    mm->root = newMethodNode(0, mm->va, !mm->va);
+    mm->root = new_methn(0, is_va(mm), !is_va(mm));
 
-  insertMethodNode(mm->root, s, m, va);
+  insert_method_node(mm->root, s, m, va);
 
   if (s->arity > mm->maxA)
     mm->maxA = s->arity;
 }
 
-static void insertMethod(MethodTable* mt, Tuple* s, Obj* m, bool va) {
+static void insert_method(MethodTable* mt, Tuple* s, Obj* m, bool va) {
   if (va) {
-    if (mt->vaMethods == NULL)
-      mt->vaMethods = newMethodMap(true);
+    if (mt->va_methods == NULL)
+      mt->va_methods = new_methm(true);
 
-    insertMethodMap(mt->vaMethods, s, m, va);
+    insert_methm(mt->va_methods, s, m, va);
   } else {
-    if (mt->faMethods == NULL)
-      mt->faMethods = newMethodMap(false);
+    if (mt->fa_methods == NULL)
+      mt->fa_methods = new_methm(false);
 
-    insertMethodMap(mt->faMethods, s, m, va);
+    insert_methm(mt->fa_methods, s, m, va);
   }
 }
 
 // external APIs
-Method* getMethod(Function* g, Tuple* s) {
+Method* get_method(Function* g, Tuple* s) {
   Method* m;
 
-  if (g->singleton)
-    m = g->singleton;
+  if (g->leaf)
+    m = g->leaf;
 
   else {
-    Method* m = checkMethodCache(g, s);
+    Method* m = check_method_cache(g, s);
 
     if (m == NULL) {
       Objects ms;
-      initObjects(&ms);
-      dispatch(g->methods, s, &ms);
+      init_objects(&ms);
+      dispatch(g->metht, s, &ms);
 
-      if (ms.count == 0)
+      if (ms.cnt == 0)
         raise(g->name->name, "no method matching given types");
 
-      m = (Method*)popObjects(&ms);
+      m = (Method*)objects_pop(&ms);
 
-      freeObjects(&ms);
-      cacheMethod(g, s, m);
+      free_objects(&ms);
+      cache_method(g, s, m);
     }
   }
 
   return m;
 }
 
-void addMethod(Function* g, Tuple* s, Obj* m, bool va) {
-  if (getFl(g, FINAL, 0))
+Method* add_method(Function* g, Tuple* s, Obj* m, bool va) {
+  size_t nsv;
+  Method* out, * tmp;
+  
+  if (get_fl(g, FINAL))
     raise("add-method!", "`%s` does not allow specialization.", g->name->name);
 
-  save(3, tag(g), tag(s), tag(m));
+  nsv = save(3, tag(g), tag(s), tag(m));
 
-  if (g->singleton) { // no methods yet added; method table must be created
-    Method* st = g->singleton;
-    save(1, tag(st));
-    g->methods   = newMethodTable();
-    g->singleton = NULL;
-    insertMethod(g->methods, st->sig, (Obj*)st, st->va);
-    unsave(1);
+  if (g->leaf) { // no methods yet added; method table must be created
+    tmp = g->leaf;
+    nsv += save(1, tag(tmp));
+    g->metht = new_metht();
+    g->leaf  = NULL;
+    insert_method(g->metht, tmp->sig, (Obj*)tmp, va);
   }
 
-  insertMethod(g->methods, s, m, va);
-  unsave(3);
+  out = insert_method(g->metht, s, m, va);
+  unsave(nsv);
 }

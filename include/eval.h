@@ -5,12 +5,13 @@
 #include "vm.h"
 
 // C types
-void initInterpreter(Vm* vm);
-void freeInterpreter(Vm* vm);
-void startInterpreter(Vm* vm, Closure* code);
-void resetInterpreter(Vm* vm);
-void syncInterpreter(Vm* vm);
+void init_interpreter(Vm* vm);
+void free_interpreter(Vm* vm);
+void start_interpreter(Vm* vm, Closure* code);
+void reset_interpreter(Vm* vm);
+void sync_interpreter(Vm* vm);
 
+Value  apply_cl(Closure* cl, size_t n);
 Value  load(char* path);
 Value  exec(Closure* code);
 Value  eval(Value val);

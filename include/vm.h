@@ -70,10 +70,11 @@ extern Value Stack[N_STACK];
 extern struct Type PointerType, FuncPtrType;
 
 // external API
-void initVm(Vm* vm);
-void freeVm(Vm* vm);
-void syncVm(Vm* vm);
+void init_vm(Vm* vm);
+void free_vm(Vm* vm);
+void sync_vm(Vm* vm);
 
+size_t push_macro_args(Environment* envt, List* form);
 size_t push(Value x);
 Value  pop(void);
 size_t pushn(size_t n);

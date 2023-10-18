@@ -6,6 +6,7 @@
 #include "function.h"
 
 #include "vm.h"
+#include "eval.h"
 #include "compile.h"
 
 // globals
@@ -90,7 +91,7 @@ static void save_compiler_state(void) {
 
 static void restore_compiler_state(void) {
   if (RlVm.compiler.depth > 0) {
-    RlVm.compiler.chunk    = as(Chunk, alist_pop(&RlVm.compiler.stack));
+    RlVm.compiler.chunk    = as_chunk(alist_pop(&RlVm.compiler.stack));
     RlVm.compiler.tail_pos = as_bool(alist_pop(&RlVm.compiler.stack));
     RlVm.compiler.state    = as_small(alist_pop(&RlVm.compiler.stack));
     RlVm.compiler.depth--;
@@ -102,11 +103,11 @@ static size_t compile_var(Symbol* name);
 static size_t compile_comb(List* form);
 
 static bool is_literal(Value val) {
-  if (is(Symbol, val))
-    return !get_fl(as(Symbol, val), LITERAL);
+  if (is_sym(val))
+    return !get_fl(as_sym(val), LITERAL);
 
-  if (is(List, val))
-    return as(List, val)->arity == 0;
+  if (is_list(val))
+    return as_list(val)->arity == 0;
 
   return true;
 }
@@ -115,42 +116,35 @@ static size_t compile_xpr(Value xpr) {
   if (is_literal(xpr))
     return compile_val(xpr);
 
-  else if (is(Symbol, xpr))
-    return compile_var(as(Symbol, xpr));
+  else if (is_sym(xpr))
+    return compile_var(as_sym(xpr));
 
   else
-    return compile_comb(as(List, xpr));
+    return compile_comb(as_list(xpr));
 }
 
 static char* get_chunk_name(void) {
   Chunk* chunk = RlVm.compiler.chunk;
 
-  if (is(Symbol, chunk->name))
-    return ((Symbol*)chunk->name)->name;
+  if (is_sym(chunk->name))
+    return as_sym(chunk->name)->name;
 
-  return ((String*)chunk->name)->data;
+  return as_str(chunk->name)->data;
 }
 
 static bool is_identifier(Value val) {
-  bool out = false;
-
-  if (is(Symbol, val)) {
-    Symbol* s = as(Symbol, val);
-    out       = !get_fl(s, LITERAL);
-  }
-
-  return out;
+  return is_sym(val) && !get_fl(as_sym(val), LITERAL);
 }
 
 static bool is_special_form(List* form) {
-  return is(Symbol, form->head) && as(Symbol, form->head)->special != NULL;
+  return is_sym(form->head) && as_sym(form->head)->special != NULL;
 }
 
 static Binding* is_macro_call(List* form) {
   Binding* out = NULL;
 
-  if (is(Symbol, form->head))
-    out = lookup_syntax(RlVm.compiler.chunk->envt, as(Symbol, form->head));
+  if (is_sym(form->head))
+    out = lookup_syntax(RlVm.compiler.chunk->envt, as_sym(form->head));
 
   return out;
 }
@@ -276,10 +270,10 @@ static size_t compile_comb(List* form) {
   chunk = RlVm.compiler.chunk;
 
   if (is_special_form(form))
-    out = as(Symbol, form->head)->special(form);
+    out =as_sym(form->head)->special(form);
 
   else if ((macrob=is_macro_call(form))) {
-    macro = as(Function, macrob->value);
+    macro = as_func(macrob->value);
     xpr   = macro_expand(macro, chunk->envt, form);
     out   = compile_xpr(xpr);
   } else {
@@ -325,10 +319,13 @@ size_t put_form(List* form) {
   Symbol* name;
   Binding* bind;
   Value var;
+  Chunk* chunk;
   
   argco(3, form->arity, "put");
-  argtype(&SymbolType, form->tail->head, "put");
-  
+  chunk = RlVm.compiler.chunk;
+  name  = as_sym_s(form->head, "put");
+  var   = list_get(form, 2);
+  bind  = lookup(chunk->envt, name);
 }
 
 size_t if_form(List* form) {
@@ -364,16 +361,22 @@ size_t if_form(List* form) {
 }
 
 // external API
-
-Value  macro_expand(Function* macro, Environment* envt, List* form) {
-  size_t nsv;
+Value macro_expand(Function* macro, Environment* envt, List* form) {
+  size_t nsv, argc, sig_max;
   Value exp;
   Tuple* sig;
+  Method* method;
 
-  nsv = save(3, tag(macro), tag(envt), tag(form));
-  
+  nsv     = save(3, tag(macro), tag(envt), tag(form));
+  sig_max = get_sig_max(macro);
+  sig     = get_macro_sig(sig_max, form->tail);
+  method  = get_method(macro, sig);
+  argc    = push_macro_args(envt, form);
+  exp     = apply_cl(as_cls(method->fn), argc);
+
   unsave(nsv);
-  
+
+  return exp;
 }
 
 Closure* compile(void* name, CompilerState state, Value xpr);
