@@ -5,7 +5,7 @@
 
 typedef enum OpCode {
   /* miscellaneous */
-  OP_NOTHING, OP_POP,
+  OP_NOTHING, OP_POP, OP_DUP, OP_ROTN,
 
   /* constant loads */
   OP_NUL, OP_TRUE, OP_FALSE, OP_EMPTY_LIST,
@@ -26,7 +26,9 @@ typedef enum OpCode {
   OP_JUMPT, /* jump if top of stack is truthy (discards TOS). */
 
   /* function calls */
-  OP_CALL, OP_TCALL, OP_RETURN,
+  OP_CALL0,  OP_CALL1,  OP_CALL2,  OP_CALLN,  OP_CALLV,  /* handles calls like (f x y & more). */
+  OP_TCALL0, OP_TCALL1, OP_TCALL2, OP_TCALLN, OP_TCALLV, /* same as above, but in tail position. */
+  OP_RETURN,
 
   /* closures */
   OP_CLOSURE,       /* Create a new closure object. */

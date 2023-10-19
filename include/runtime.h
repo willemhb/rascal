@@ -38,6 +38,21 @@ struct ExecFrame {
   size_t    bp;         // stack address of current closure arguments
   size_t    fp;         // address of caller's frame
   size_t    pp;         // address of nearest enclosing prompt
+  size_t    sp;         // current top of stack
+};
+
+/* exception context */
+struct Context {
+  Context* next;
+
+  // gc, reader, compiler, and execution context
+  GcFrame*   g_frame;
+  ReadFrame* r_frame;
+  CompFrame* c_frame;
+  ExecFrame* e_frame;
+
+  // C execution state
+  jmp_buf buf;
 };
 
 /* Composite global state object. */
@@ -76,7 +91,6 @@ struct Vm {
   struct {
     UpValue*   upVals;  // toplevel list of open upvalues
     ExecFrame* frame;   // current exec frame
-    size_t     sp;      // current stack pointer
   } e;
 
   // miscellaneous state
@@ -128,27 +142,10 @@ size_t pushn(size_t n);
 Value  popn(size_t n);
 Value* peek(int i);
 
-struct Context {
-  Context* next;
-
-  // GC state
-  GcFrame* frames;
-
-  // Rascal execution state
-  size_t sp, fp, bp, pp;
-  uint16_t* ip;
-  Closure* code;
-
-  // C execution state
-  jmp_buf buf;
-};
-
-
 // globals
 #define N_HEAP  (((size_t)1)<<19)
 #define HEAP_LF 0.625
 
-// external API
 void unsave_gc_frame(GcFrame* frame);
 
 #define save(n, args...)                             \
