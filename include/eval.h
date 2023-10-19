@@ -4,15 +4,10 @@
 #include "opcodes.h"
 #include "runtime.h"
 
-// C types
-void init_interpreter(Vm* vm);
-void free_interpreter(Vm* vm);
-void start_interpreter(Vm* vm, Closure* code);
-void reset_interpreter(Vm* vm);
-void sync_interpreter(Vm* vm);
-
+// external API
 Value  apply_cl(Closure* cl, size_t n);
 Value  load(char* path);
+Value  use_module(char* path);
 Value  exec(Closure* code);
 Value  eval(Value val);
 void   repl(void);

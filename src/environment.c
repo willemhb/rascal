@@ -225,3 +225,15 @@ Binding* lookup(Environment* envt, Symbol* name) {
 
   return out;
 }
+
+// global initialization
+void init_options(void) {
+  ConstOpt     = tag(symbol(":const"));
+  DocOpt       = tag(symbol(":doc"));
+  NameOpt      = tag(symbol(":name"));
+  SignatureOpt = tag(symbol(":sig"));
+  MacroOpt     = tag(symbol(":macro"));
+  TypeOpt      = tag(symbol(":type"));
+  EnvtOpt      = tag(symbol(":envt"));
+  VaOpt        = tag(symbol(":vargs"));
+}

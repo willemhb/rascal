@@ -1,18 +1,19 @@
 #include "opcodes.h"
 
+#include "runtime.h"
+
 #include "type.h"
 #include "collection.h"
 #include "environment.h"
 #include "function.h"
 
-#include "vm.h"
 #include "eval.h"
 #include "compile.h"
 
 // globals
 Value FunSym, MacSym, VarSym, IfSym,
-  WithSym, QuoteSym, DoSym, UseSym,
-  PerformSym, HandleSym, ResumeSym;
+  QuoteSym, DoSym, UseSym, PerformSym,
+  HandleSym, ResumeSym;
 
 // chunk API
 extern void free_chunk(void* p);
@@ -49,19 +50,12 @@ Type ChunkType = {
   .idno   =CHUNK,
 };
 
-Chunk* new_chunk(Obj* name, Environment* parent, ScopeType type) {
+Chunk* new_chunk(void) {
   Chunk* out;
-  size_t ns;
 
-  ns          = save(2, tag(name), tag(parent));
-  out         = new_obj(&ChunkType, 0, 0);
-  ns         += save(1, tag(out));
-  out->name   = name;
-  out->envt   = new_environment(parent, type);
+  out         = new_obj(&ChunkType, 0, 0); save(1, tag(out));
   out->vals   = new_alist(0);
   out->code   = new_binary16(0);
-
-  unsave(ns);
 
   return out;
 }
@@ -72,7 +66,6 @@ size_t mac_form(List* form);
 size_t var_form(List* form);
 size_t put_form(List* form);
 size_t if_form(List* form);
-size_t with_form(List* form);
 size_t quote_form(List* form);
 size_t do_form(List* form);
 size_t use_form(List* form);
@@ -80,22 +73,16 @@ size_t perform_form(List* form);
 size_t handle_form(List* form);
 
 // helpers
-static void save_compiler_state(void) {
-  if (RlVm.compiler.state != COMPILER_READY) {
-    RlVm.compiler.depth++;
-    alist_push(&RlVm.compiler.stack, tag((int)RlVm.compiler.state));
-    alist_push(&RlVm.compiler.stack, tag(RlVm.compiler.tail_pos));
-    alist_push(&RlVm.compiler.stack, tag(RlVm.compiler.chunk));
+static CompFrame* push_compiler_frame(CompState state, void* name) {
+  if (RlVm.c.frame == NULL) {
+    
+  } else {
+    
   }
 }
 
-static void restore_compiler_state(void) {
-  if (RlVm.compiler.depth > 0) {
-    RlVm.compiler.chunk    = as_chunk(alist_pop(&RlVm.compiler.stack));
-    RlVm.compiler.tail_pos = as_bool(alist_pop(&RlVm.compiler.stack));
-    RlVm.compiler.state    = as_small(alist_pop(&RlVm.compiler.stack));
-    RlVm.compiler.depth--;
-  } 
+static Chunk* pop_compiler_frame(void) {
+  
 }
 
 static size_t compile_val(Value val);
@@ -141,10 +128,13 @@ static bool is_special_form(List* form) {
 }
 
 static Binding* is_macro_call(List* form) {
+  CompFrame* frame;
   Binding* out = NULL;
+  
+  frame = RlVm.c.frame;
 
   if (is_sym(form->head))
-    out = lookup_syntax(RlVm.compiler.chunk->envt, as_sym(form->head));
+    out = lookup_syntax(frame->envt, as_sym(form->head));
 
   return out;
 }
@@ -171,7 +161,7 @@ static size_t add_value(Chunk* code, Value val) {
 }
 
 static Value pop_subxpr(void) {
-  return alist_pop(&RlVm.compiler.stack);
+  return alist_pop(&RlVm.c.stack);
 }
 
 static size_t push_subxprs(List* form) {
@@ -181,17 +171,19 @@ static size_t push_subxprs(List* form) {
   for (size_t i=out; i > 0; i--, form=form->tail)
     buf[i] = form->head;
 
-  alist_write(&RlVm.compiler.stack, out, buf);
+  alist_write(&RlVm.c.stack, out, buf);
   return out;
 }
 
 static size_t compile_var(Symbol* name) {
+  CompFrame* frame;
   Chunk* code;
   Binding* bind;
   size_t out;
-
-  code = RlVm.compiler.chunk;
-  bind = lookup(code->envt, name);
+  
+  frame = RlVm.c.frame;
+  code  = frame->code;
+  bind  = lookup(frame->envt, name);
 
   if (bind == NULL) // create binding, but raise an error if it isn't initialized by runtime
     bind = define(NULL, name, NOTHING, false);
@@ -200,9 +192,6 @@ static size_t compile_var(Symbol* name) {
 
   if (type == GLOBAL_NS)
     out = emit_instr(code, OP_LOADG, bind->offset);
-
-  else if (type == PRIVATE_NS)
-    out = emit_instr(code, OP_LOADP, bind->offset);
 
   else if (type == NONLOCAL_NS)
     out = emit_instr(code, OP_LOADS, bind->offset);
@@ -289,12 +278,35 @@ size_t quote_form(List* form) {
   return compile_val(form->tail->head);
 }
 
+size_t use_form(List* form) {
+  argco(2, form->arity, "use");
+
+  List* modules    = as_list_s(form->tail->head, "use");
+  size_t n_modules = push_subxprs(modules);
+  Value value      = NUL;
+
+  for (size_t i=0; i < n_modules; i++) {
+    Value module_name = pop_subxpr();
+
+    if (is_str(module_name))
+      value = use_module(as_str(module_name)->data);
+
+    else if (is_sym(module_name))
+      value = use_module(as_sym(module_name)->name);
+
+    else
+      error("use",
+            "expected type was `Symbol` or `String`, actual was `%s`",
+            type_of(module_name)->name->name);
+  }
+
+  return compile_xpr(value);
+}
+
 size_t do_form(List* form) {
   size_t arity, out;
   Value xpr;
-  Chunk* chunk;
 
-  chunk = RlVm.compiler.chunk;
   arity = vargco(2, form->arity, "do");
 
   if (arity == 2)
@@ -308,7 +320,7 @@ size_t do_form(List* form) {
       out = compile_xpr(xpr);
 
       if (i+1 < arity)
-        emit_instr(chunk, OP_POP);
+        emit_instr(RlVm.c.frame->code, OP_POP);
     }
   }
 
@@ -396,7 +408,6 @@ void init_special_forms(void) {
   VarSym     = new_special_form("var", var_form);
   PutSym     = new_special_form("put", put_form);
   IfSym      = new_special_form("if",  if_form);
-  WithSym    = new_special_form("with", with_form);
   QuoteSym   = new_special_form("quote", quote_form);
   DoSym      = new_special_form("do", do_form);
   UseSym     = new_special_form("use", use_form);

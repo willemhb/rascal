@@ -48,10 +48,10 @@ struct Binding {
 // globals
 extern struct Type SymbolType, EnvironmentType, BindingType;
 
-// external API
-void    init_envt(Vm* vm);
-void    free_envt(Vm* vm);
+// common options
+extern Value ConstOpt, DocOpt, NameOpt, SignatureOpt, MacroOpt, TypeOpt, EnvtOpt, VaOpt;
 
+// external API
 #define get_annot(x, k)    generic2(get_annot, x, x, k)
 #define set_annot(x, k, v) generic2(set_annot, x, k, v)
 
@@ -77,5 +77,8 @@ Binding*  define(Environment* envt, Symbol* name, Value init, flags_t fl);
 Binding*  capture(Environment* envt, Symbol* name);
 Binding*  lookup(Environment* envt, Symbol* name);
 Binding*  lookup_syntax(Environment* envt, Symbol* name);
+
+// global initialization
+void init_options(void);
 
 #endif

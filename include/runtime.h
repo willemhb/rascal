@@ -17,7 +17,7 @@ struct GcFrame {
 struct CompFrame {
   CompState    state; // current compiler state (distinguishes what type of chunk is being compiled)
   flags_t      flags; // miscellaneous flags
-  char*        name;  // name of the compiling code unit
+  char*        name;
   Chunk*       code;  // compiling code object
   Environment* envt;  // naming context
   Handlers*    hndl;  // effect handlers
