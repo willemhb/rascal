@@ -1,37 +1,32 @@
 #include "util/io.h"
+#include "util/number.h"
+#include "util/hashing.h"
 
-#include "vm.h"
-#include "value.h"
-#include "memory.h"
+#include "environment.h"
+#include "type.h"
+#include "equal.h"
+
 #include "runtime.h"
 
 // external API
-void initContext(Context* ctx) {
-  ctx->ctx = NULL;
-}
-
-void freeContext(Context* ctx) {
-  ctx->ctx = NULL;
-}
-
-void resetContext(Context* ctx) {
-  freeContext(ctx);
-}
-
-void saveState(Vm* vm, ErrorContext* ctx) {
+void save_state(Context* ctx) {
   assert(ctx != NULL);
-  ctx->sp   = vm->interpreter.sp;
-  ctx->ip   = vm->interpreter.ip;
-  ctx->code = vm->interpreter.code;
-  ctx->next = vm->context.ctx;
+
+  ctx->next    = RlVm.m.ctx;
+  ctx->g_frame = RlVm.h.frame;
+  ctx->r_frame = RlVm.r.frame;
+  ctx->c_frame = RlVm.c.frame;
+  ctx->e_frame = RlVm.e.frame;
 }
 
-void restoreState(Vm* vm, ErrorContext* ctx) {
+void restore_state(Context* ctx) {
   assert(ctx != NULL);
-  vm->interpreter.sp   = ctx->sp;
-  vm->interpreter.ip   = ctx->ip;
-  vm->interpreter.code = ctx->code;
-  vm->context.ctx      = ctx->next;
+  
+  RlVm.m.ctx   = ctx;
+  RlVm.h.frame = ctx->g_frame;
+  RlVm.r.frame = ctx->r_frame;
+  RlVm.c.frame = ctx->c_frame;
+  RlVm.e.frame = ctx->e_frame;
 }
 
 static void print_error(const char* fname, const char* fmt, va_list va) {
@@ -46,10 +41,10 @@ static void print_error(const char* fname, const char* fmt, va_list va) {
     va_start(_va, fmt);                         \
     print_error(fname, fmt, _va);               \
     va_end(_va);                                \
-    longjmp(RlVm.context.ctx->buf, 1);          \
+    longjmp(RlVm.m.ctx->buf, 1);                \
   } while (false)
 
-void raise(const char* fname, const char* fmt, ...) {
+void error(const char* fname, const char* fmt, ...) {
   SIGNAL_ERROR(fname, fmt);
 }
 
@@ -72,284 +67,328 @@ size_t vargco(size_t expected, size_t got, const char* fname) {
   return got;
 }
 
-Type argtype(Type expected, Value got, const char* fname) {
+Type* argtype(Type* expect, Value got, const char* fname) {
   static const char* fmt = "expected value of type %s, got value of type %s";
-  Type gotType = valueType(got);
-  require(expected == gotType, fmt, fname, nameOfType(expected), nameOfType(gotType));
-  return gotType;
-}
+  Type* got_type;
 
-Type argtypes(size_t n, Value got, const char* fname, ...) {
-  static const char* fmt1 = "expected type was %s, actual type was %s";
-  static const char* fmt2 = "expected type was %s or %s, actual type was %s";
-  static const char* fmt3 = "expected type was %s, %s, or %s, actual type was %s";
-  static const char* fmt4 = "expected type was %s, %s, %s, or %s, actual type was %s";
-
-  assert(n > 0);
-  va_list va;
-  va_start(va, fname);
-  Type gt = rascalType(got);
-
-  switch (n) {
-    case 1: {
-      Type a    = va_arg(va, Type);
-      bool test = gt == a;
-      va_end(va);
-      require(test, fname, fmt1, nameOfType(a), nameOfType(gt));
-      break;
-    }
-
-    case 2: {
-      Type a    = va_arg(va, Type);
-      Type b    = va_arg(va, Type);
-      bool test = gt == a || gt == b;
-      va_end(va);
-      require(test, fname, fmt2, nameOfType(a), nameOfType(b), nameOfType(gt));
-      break;
-    }
-
-    case 3: {
-      Type a    = va_arg(va, Type);
-      Type b    = va_arg(va, Type);
-      Type c    = va_arg(va, Type);
-      bool test = gt == a || gt == b || gt == c;
-      va_end(va);
-      require(test, fname, fmt3,
-              nameOfType(a), nameOfType(b), nameOfType(c), nameOfType(gt));
-      break;
-    }
-
-    case 4: {
-      Type a    = va_arg(va, Type);
-      Type b    = va_arg(va, Type);
-      Type c    = va_arg(va, Type);
-      Type d    = va_arg(va, Type);
-      bool test = gt == a || gt == b || gt == c || gt == d;
-      va_end(va);
-      require(test, fname, fmt4,
-              nameOfType(a), nameOfType(b), nameOfType(c), nameOfType(d), nameOfType(gt));
-      break;
-    }
-
-    default: {
-      FILE* buffer = tmpfile();
-      bool test = false;
-      
-      for (size_t i=0; !test && i<n; i++) {
-        Type opt = va_arg(va, Type);
-        test  = gt == opt;
-
-        if (!test) {
-          if (i == 0)
-            fprintf(buffer, "expected type was %s", nameOfType(opt));
-          
-        else if (i+1 < n)
-          fprintf(buffer, ", %s", nameOfType(opt));
-          
-        else
-          fprintf(buffer, ",or %s", nameOfType(opt));
-        }
-      }
-      
-      va_end(va);
-
-      if (!test) {
-        fprintf(buffer, ", actual type was %s", nameOfType(gt));
-        char* msg = readFile("<tmp>", buffer);
-        fprintf(stderr, "error in %s: %s.\n", fname, msg);
-        deallocate(NULL, msg, 0);
-        longjmp(RlVm.context.ctx->buf, 1);
-      } else {
-        fclose(buffer);
-      }
-
-      break;
-    }
-  }
-
-  return gt;
-}
-
-size_t argcos(size_t n, size_t got, const char* fname, ...) {
-  static const char* fmt1 = "expected %zu arguments, got %zu";
-  static const char* fmt2 = "expected %zu or %zu arguments, got %zu";
-  static const char* fmt3 = "expected %zu, %zu, or %zu arguments, got %zu";
-  static const char* fmt4 = "expected %zu, %zu, %zu, or %zu arguments, got %zu";
-
-  assert(n > 0);
-  va_list va;
-  va_start(va, fname);
-
-  switch (n) {
-    case 1: {
-      size_t a  = va_arg(va, size_t);
-      bool test = got == a;
-      va_end(va);
-      require(test, fname, fmt1, a, got);
-      break;
-    }
-
-    case 2: {
-      size_t a  = va_arg(va, size_t);
-      size_t b  = va_arg(va, size_t);
-      bool test = got == a || got == b;
-      va_end(va);
-      require(test, fname, fmt2, a, b, got);
-      break;
-    }
-
-    case 3: {
-      size_t a  = va_arg(va, size_t);
-      size_t b  = va_arg(va, size_t);
-      size_t c  = va_arg(va, size_t);
-      bool test = got == a || got == b || got == c;
-      va_end(va);
-      require(test, fname, fmt3, a, b, c, got);
-      break;
-    }
-
-    case 4: {
-      size_t a  = va_arg(va, size_t);
-      size_t b  = va_arg(va, size_t);
-      size_t c  = va_arg(va, size_t);
-      size_t d  = va_arg(va, size_t);
-      bool test = got == a || got == b || got == c || got == d;
-      va_end(va);
-      require(test, fname, fmt4, a, b, c, d, got);
-      break;
-    }
-
-    default: {
-      FILE* buffer = tmpfile();
-      bool test = false;
-      
-      for (size_t i=0; !test && i<n; i++) {
-        size_t opt = va_arg(va, size_t);
-        test  = got == opt;
-        
-        if (!test) {
-          if (i == 0)
-            fprintf(buffer, "expected %zu", opt);
-          
-        else if (i+1 < n)
-          fprintf(buffer, ", %zu", opt);
-          
-        else
-          fprintf(buffer, ",or %zu arguments", opt);
-        }
-      }
-      
-      va_end(va);
-
-      if (!test) {
-        fprintf(buffer, ", got %zu", got);
-        char* msg = readFile("<tmp>", buffer);
-        fprintf(stderr, "error in %s: %s.\n", fname, msg);
-        deallocate(NULL, msg, 0);
-        longjmp(RlVm.context.ctx->buf, 1);
-      } else {
-        fclose(buffer);
-      }
-
-      break;
-    }
-  }
-
-  return got;
-}
-
-
-size_t vargcos(size_t n, size_t got, const char* fname, ...) {
-  static const char* fmt1 = "expected at least %zu arguments, got %zu";
-  static const char* fmt2 = "expected %zu or at least %zu arguments, got %zu";
-  static const char* fmt3 = "expected %zu, %zu, or at least %zu arguments, got %zu";
-  static const char* fmt4 = "expected %zu, %zu, %zu, or at least %zu arguments, got %zu";
-
-  assert(n > 0);
-  va_list va;
-  va_start(va, fname);
-
-  switch (n) {
-    case 1: {
-      size_t a  = va_arg(va, size_t);
-      bool test = got >= a;
-      va_end(va);
-      require(test, fname, fmt1, a, got);
-      break;
-    }
-
-    case 2: {
-      size_t a  = va_arg(va, size_t);
-      size_t b  = va_arg(va, size_t);
-      bool test = got == a || got >= b;
-      va_end(va);
-      require(test, fname, fmt2, a, b, got);
-      break;
-    }
-
-    case 3: {
-      size_t a  = va_arg(va, size_t);
-      size_t b  = va_arg(va, size_t);
-      size_t c  = va_arg(va, size_t);
-      bool test = got == a || got == b || got >= c;
-      va_end(va);
-      require(test, fname, fmt3, a, b, c, got);
-      break;
-    }
-
-    case 4: {
-      size_t a  = va_arg(va, size_t);
-      size_t b  = va_arg(va, size_t);
-      size_t c  = va_arg(va, size_t);
-      size_t d  = va_arg(va, size_t);
-      bool test = got == a || got == b || got == c || got >= d;
-      va_end(va);
-      require(test, fname, fmt4, a, b, c, d, got);
-      break;
-    }
-
-    default: {
-      FILE* buffer = tmpfile();
-      bool test = false;
-      
-      for (size_t i=0; !test && i<n; i++) {
-        size_t opt = va_arg(va, size_t);
-
-        if (i+1 < n)
-          test = got >= opt;
-
-        else
-          test = got == opt;
-        
-        if (!test) {
-          if (i == 0)
-            fprintf(buffer, "expected %zu", opt);
-          
-        else if (i+1 < n)
-          fprintf(buffer, ", %zu", opt);
-          
-        else
-          fprintf(buffer, ",or at least %zu arguments", opt);
-        }
-      }
-      
-      va_end(va);
-
-      if (!test) {
-        fprintf(buffer, ", got %zu", got);
-        char* msg = readFile("<tmp>", buffer);
-        fprintf(stderr, "error in %s: %s.\n", fname, msg);
-        deallocate(NULL, msg, 0);
-        longjmp(RlVm.context.ctx->buf, 1);
-      } else {
-        fclose(buffer);
-      }
-
-      break;
-    }
-  }
-
-  return got;
+  got_type = type_of(got);
+  require(is_instance(expect, got_type),
+          fmt, fname, expect->name->name, got_type->name->name);
+  return got_type;
 }
 
 #undef SIGNAL_ERROR
+
+// external API
+void init_vm(Vm* vm) {
+  // initialize miscellaneous state
+  vm->m.ctx   = NULL;
+  vm->m.init  = false;
+
+  // initialize global stacks
+  vm->h.stack = (Objects) {
+    .obj={
+      .type    =&ObjectsType,
+      .annot   =&EmptyMap,
+      .no_trace=true,
+      .no_sweep=true,
+    },
+    .data=NULL,
+    .cnt =0,
+    .cap =0,
+  };
+
+  vm->r.stack   = (Alist) {
+    .obj={
+      .type    =&AlistType,
+      .annot   =&EmptyMap,
+      .no_sweep=true,
+      .gray    =true,
+    },
+    .data=NULL,
+    .cnt =0,
+    .cap =0,
+  };
+
+  vm->c.stack = (Alist) {
+    .obj={
+      .type    =&AlistType,
+      .annot   =&EmptyMap,
+      .no_sweep=true,
+      .gray    =true,
+    },
+    .data=NULL,
+    .cnt =0,
+    .cap =0,
+  };
+
+  // initialize heap
+  vm->h.objs  = NULL;
+  vm->h.used  = 0;
+  vm->h.cap   = N_HEAP;
+  vm->h.frame = NULL;
+
+  // initialize environment
+  vm->n.symbols = new_symbol_table(0, NULL, NULL, NULL);
+  vm->n.globals = new_name_space(0, NULL, NULL, NULL);
+  vm->n.annot   = new_table(0, NULL, NULL, NULL);
+  vm->n.used    = new_table(0, NULL, NULL, NULL);
+
+  // initialize reader
+  vm->r.table   = new_table(0, NULL, hash_word, same);
+  vm->r.frame   = NULL;
+
+  // initialize compiler
+  vm->c.frame = NULL;
+
+  // initialize interpreter
+  vm->e.frame  = NULL;
+  vm->e.upvals = NULL;
+  vm->e.sp     = 0;
+}
+
+void free_vm(Vm* vm) {
+  // deallocate global objects
+  free_objects(&vm->h.stack);
+  free_alist(&vm->r.stack);
+  free_alist(&vm->c.stack);
+
+  // traverse free objects list
+  Obj* o = vm->h.objs;
+
+  while (o != NULL) {
+    Obj* n  = o;
+    o       = o->next;
+
+    if (!n->no_free)
+      free_obj(n);
+
+    if (!n->no_sweep)
+      free(n);
+  }
+}
+
+void sync_vm(Vm* vm) {
+  (void)vm;
+}
+
+size_t push(Value x) {
+  assert(RlVm.e.sp < N_VALUES);
+  
+  size_t out = RlVm.e.sp;
+  StackSpace[RlVm.e.sp++] = x;
+  return out;
+}
+
+Value pop(void) {
+  assert(RlVm.e.sp > 0);
+  return StackSpace[--RlVm.e.sp];
+}
+
+size_t pushn(size_t n) {
+  assert(RlVm.e.sp + n < N_VALUES);
+  size_t out = RlVm.e.sp;
+  RlVm.e.sp += n;
+
+  return out;
+}
+
+Value popn(size_t n) {
+  assert(n <= RlVm.e.sp);
+  Value out = StackSpace[RlVm.e.sp-n];
+  RlVm.e.sp -= n;
+  return out;
+}
+
+Value* peek(int i) {
+  if (i < 0)
+    i += RlVm.e.sp;
+
+  assert(i >= 0 && (size_t)i < RlVm.e.sp);
+
+  return StackSpace+i;
+}
+
+// internal GC helpers
+static void add_gray(void* ptr) {
+  objects_push(&RlVm.h.stack, ptr);
+}
+
+void mark_vals(Value* vs, size_t n) {
+  for (size_t i=0; i<n; i++)
+    mark(vs[i]);
+}
+
+void mark_objs(void** objs, size_t n) {
+  for (size_t i=0; i<n; i++)
+    mark(objs[i]);
+}
+
+void mark_obj(void* p) {
+  if (p != NULL) {
+    Obj* o = p;
+
+    if (o->black == false) {
+      o->black = true;
+      mark_obj(o->annot);
+
+      Type* t = type_of(o);
+
+      if (t->v_table->trace)
+        add_gray(o);
+
+      else
+        o->gray = false;
+    }
+  }
+}
+
+void mark_val(Value val) {
+  if (is_obj(val))
+    mark_obj(as_obj(val));
+}
+
+static void mark_vm(Vm* vm) {
+  (void)vm;
+}
+
+static void trace_vm(Vm* vm) {
+  Objects* grays = &vm->h.stack;
+  Type* t; Obj* o;
+
+  while (grays->cnt > 0) {
+    o = objects_pop(grays);
+    // assert(obj->gray == false);
+    t = type_of(o);
+    if (t->v_table->trace)
+      t->v_table->trace(o);
+    o->gray = false;
+  }
+}
+
+static void sweep_vm(Vm* vm) {
+  Obj** l = &vm->h.objs, *c = vm->h.objs, *t;
+  Type* tp;
+
+  while (c != NULL) {
+    if (c->black) {
+      c->black = false;
+      c->gray  = true;
+      l        = &c->next;
+    } else {
+      t  = c;
+      *l = c->next;
+      tp = type_of(t);
+
+      if (tp->v_table->free && !t->no_free)
+        tp->v_table->free(t);
+
+      if (!t->no_sweep)
+        deallocate(vm, t, size_of(t));
+    }
+
+    c  = *l;
+  }
+}
+
+static void resize_vm(Vm* vm) {
+  size_t allocated = vm->h.used, available = vm->h.cap;
+
+  if (!vm->m.init) {
+    vm->h.cap <<= 1;
+  } else {
+    if (allocated >= available) {
+      fprintf(stderr, "fatal error: gc couldn't free enough memory.");
+      exit(1);
+    }
+    
+    if (allocated > available * HEAP_LF && available < MAX_ARITY) {
+      if (available == MAX_POW2)
+        vm->h.cap = MAX_ARITY;
+      
+      else
+        vm->h.cap <<= 1;
+    }
+  }
+}
+
+static void manage_vm(Vm* vm) {
+  if (vm->m.init) {
+    mark_vm(vm);
+    trace_vm(vm);
+    sweep_vm(vm);
+  }
+  
+  resize_vm(vm);
+}
+
+static void manage_heap(Vm* vm, size_t n_bytes_added, size_t n_bytes_removed) {
+  assert(vm != NULL);
+
+  if (n_bytes_added > n_bytes_removed) {
+    size_t diff = n_bytes_added - n_bytes_removed;
+
+    if (diff + vm->h.used > vm->h.cap)
+      manage_vm(vm);
+
+    vm->h.used += diff;
+  } else {
+    size_t diff    = n_bytes_removed - n_bytes_added;
+    vm->h.used -= diff;
+  }
+}
+
+// external GC helpers
+void add_to_heap(void* p) {
+  assert(p != NULL);
+
+  Obj* o      = p;
+  o->next     = RlVm.h.objs;
+  RlVm.h.objs = o;
+}
+
+void* allocate(Vm* vm, size_t n_bytes) {
+  if (vm)
+    manage_heap(vm, n_bytes, 0);
+
+  void* out = SAFE_MALLOC(n_bytes);
+  memset(out, 0, n_bytes);
+
+  return out;
+}
+
+void* duplicate(Vm* vm, void* pointer, size_t n_bytes) {
+  void* cpy = allocate(vm, n_bytes);
+
+  memcpy(cpy, pointer, n_bytes);
+
+  return cpy;
+}
+
+void* reallocate(Vm* vm, void* pointer, size_t old_size, size_t new_size) {
+  void* out;
+  
+  if (new_size == 0) {
+    deallocate(vm, pointer, old_size);
+    out = NULL;
+  }
+  
+  else {
+    if (vm)
+      manage_heap(vm, old_size, new_size);
+
+    out = SAFE_REALLOC(pointer, new_size);
+
+    if (new_size > old_size)
+      memset(out+old_size, 0, new_size-old_size);
+  }
+  
+  return out;
+}
+
+void deallocate(Vm* vm, void* pointer, size_t n_bytes) {
+  if (vm)
+    manage_heap(vm, 0, n_bytes);
+
+  free(pointer);
+}

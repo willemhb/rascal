@@ -77,7 +77,7 @@
   bool   _t##_del(T* t, K k)
 
 typedef enum {
-  GLOBAL_NS, PRIVATE_NS, LOCAL_NS, NONLOCAL_NS, STRUCT_NS, RECORD_NS,
+  GLOBAL_NS, LOCAL_NS, NONLOCAL_NS, STRUCT_NS, RECORD_NS,
 } NsType;
 
 TABLE_TYPE(SymbolTable, char*, Symbol*);

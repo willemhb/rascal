@@ -38,7 +38,6 @@ struct ExecFrame {
   size_t    bp;         // stack address of current closure arguments
   size_t    fp;         // address of caller's frame
   size_t    pp;         // address of nearest enclosing prompt
-  size_t    sp;         // current top of stack
 };
 
 /* exception context */
@@ -62,7 +61,7 @@ struct Vm {
     Obj*     objs;
     size_t   used;
     size_t   cap;
-    GcFrame* frames;  // chain of values on the C stack that need to be preserved during collection
+    GcFrame* frame;   // chain of values on the C stack that need to be preserved during collection
     Objects  stack;   // stack of marked values waiting to be traced
   } h;
 
@@ -89,15 +88,16 @@ struct Vm {
 
   // execution state
   struct {
-    UpValue*   upVals;  // toplevel list of open upvalues
+    UpValue*   upvals;  // toplevel list of open upvalues
     ExecFrame* frame;   // current exec frame
+    size_t     sp;      // stack pointer
   } e;
 
   // miscellaneous state
   struct {
     Context* ctx;  // error recovery context
     bool     init; // indicates whether the VM has finished initializing
-  } m;  
+  } m;
 };
 
 /* miscellaneous object types vital in the runtime system */
@@ -130,31 +130,35 @@ extern CompFrame CompFrames[N_COMP];
 extern ExecFrame ExecFrames[N_EXEC];
 extern Value     StackSpace[N_VALUES];
 
+#define STACK_BASE (&StackSpace[0])
+#define STACK_END  (&StackSpace[N_VALUES])
+
+#define N_HEAP  (((size_t)1)<<19)
+#define HEAP_LF 0.625
+
 // external API
 void init_vm(Vm* vm);
 void free_vm(Vm* vm);
 void sync_vm(Vm* vm);
 
-size_t push_macro_args(Environment* envt, List* form);
+size_t push_macro_args(List* form);
 size_t push(Value x);
 Value  pop(void);
 size_t pushn(size_t n);
 Value  popn(size_t n);
 Value* peek(int i);
 
-// globals
-#define N_HEAP  (((size_t)1)<<19)
-#define HEAP_LF 0.625
-
 void unsave_gc_frame(GcFrame* frame);
 
 #define save(n, args...)                             \
   Value __gc_frame_vals[(n)] = { args };             \
   GcFrame __gc_frame cleanup(unsave_gc_frame) = {    \
-    .next=RlVm.heap.frames,                          \
+    .next=RlVm.h.frame,                              \
     .cnt =(n),                                       \
     .vals=__gc_frame_vals                            \
   }
+
+#define add_saved(n, val) __gc_frame_vals[(n)] = (val)
 
 #define SAFE_ALLOC(func, args...)                           \
   ({                                                        \
@@ -201,39 +205,29 @@ void  unmark_objs(void** objs, size_t n);
 
 void  add_to_heap(void* p);
 
-void  init_heap(Vm* vm);
-void  free_heap(Vm* vm);
-
 void* allocate(Vm* vm, size_t nBytes);
 void* duplicate(Vm* vm, void* pointer, size_t n_bytes);
 char* duplicates(Vm* vm, char* chars, size_t n_chars);
 void* reallocate(Vm* vm, void* pointer, size_t old_size, size_t new_size);
 void  deallocate(Vm* vm, void* pointer, size_t n_bytes);
 
-void init_runtime(Vm* vm);
-void free_runtime(Vm* vm);
-void reset_runtime(Vm* vm);
+void save_state(Context* ctx);
+void restore_state(Context* ctx);
 
-void save_state(Vm* vm, Context* ctx);
-void restore_state(Vm* vm, Context* ctx);
-
-void    raise(const char* fname, const char* fmt, ...);
-bool    require(bool test, const char* fname, const char* fmt, ...);
-size_t  argco(size_t expected, size_t got, const char* fname);
-size_t  vargco(size_t expected, size_t got, const char* fname);
-Type*   argtype(Type* expected, Value got, const char* fname);
-Type*   argtypes(size_t n, Value got, const char* fname, ...);
-size_t  argcos(size_t n, size_t got, const char* fname, ...);
-size_t  vargcos(size_t n, size_t got, const char* fname, ...);
+void   error(const char* fname, const char* fmt, ...);
+bool   require(bool test, const char* fname, const char* fmt, ...);
+size_t argco(size_t expected, size_t got, const char* fname);
+size_t vargco(size_t expected, size_t got, const char* fname);
+Type*  argtype(Type* expected, Value got, const char* fname);
 
 #define try                                                             \
   Context _ctx; int l__tr, l__ca;                                       \
-  save_state(&RlVm, &_ctx); RlVm.ctx = &_ctx;                           \
+  save_state(&_ctx); RlVm.m.ctx = &_ctx;                                \
   if (!setjmp(_ctx.buf))                                                \
-    for (l__tr=1; l__tr; l__tr=0, (void)(RlVm.ctx=_ctx.next))
+    for (l__tr=1; l__tr; l__tr=0, (void)(RlVm.m.ctx=_ctx.next))
 
 #define catch                                                   \
   else                                                          \
-    for (l__ca=1; l__ca; l__ca=0, restore_state(&RlVm, &_ctx))
+    for (l__ca=1; l__ca; l__ca=0, restore_state(&_ctx))
 
 #endif

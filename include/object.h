@@ -13,8 +13,9 @@ struct Obj {
   Map*     annot;        // object metadata
   Type*    type;         // type object
   uint64_t hash     : 48; // compressed hash
-  uint64_t flags    : 11; // miscellaneous discretionary flags
+  uint64_t flags    : 10; // miscellaneous discretionary flags
   uint64_t hashed   :  1; // indicates whether self->hash is valid
+  uint64_t no_trace :  1; // indicates that an object shouldn't be traced (used to distinguish handful of very specialized objects like the grays stack)
   uint64_t no_sweep :  1; // indicates that an object wasn't allocated with malloc (don't call deallocate)
   uint64_t no_free  :  1; // indicates that an object's data was allocated statically (don't free)
   uint64_t gray     :  1; // gc mark flag
@@ -48,6 +49,8 @@ bool del_fl(void* p, flags_t f);
 
 void* new_obj(Type* type, flags_t fl, size_t extra);
 void  init_obj(void* p, Type* type, flags_t fl);
+void  free_obj(void* p);
+void  trace_obj(void* p);
 void* clone_obj(void* p);
 
 #endif

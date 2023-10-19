@@ -4,7 +4,7 @@
 
 #include "equal.h"
 
-#include "memory.h"
+#include "number.h"
 #include "environment.h"
 #include "array.h"
 #include "table.h"
@@ -233,7 +233,7 @@ static Method* insert_method_node(MethodNode* mn, Tuple* s, Obj* m, bool va) {
 
   if (s->arity == mn->offset - is_va(mn)) {
     if (mn->leaf != NULL)
-      raise("add-method!", "duplicate method signature");
+      error("add-method!", "duplicate method signature");
 
     if (m->type != &MethodType)
       m = (Obj*)new_method(m, s, va);
@@ -246,7 +246,7 @@ static Method* insert_method_node(MethodNode* mn, Tuple* s, Obj* m, bool va) {
 
   switch (k) {
     case BOTTOM_KIND:
-      raise("add-method!", "can't specialize on `None`");
+      error("add-method!", "can't specialize on `None`");
       break;
 
     case TOP_KIND:
@@ -321,6 +321,11 @@ bool has_va_methods(Function* f) {
   
 }
 
+static void clear_method_cache(Function* f) {
+  if (f->metht)
+    free_table(f->metht->cache);
+}
+
 // constructors
 MethodTable* new_metht(void) {
   MethodTable* out;
@@ -336,12 +341,12 @@ MethodTable* new_metht(void) {
   return out;
 }
 
-MethodMap* new_methm(bool va) {
+MethodMap* new_methm(flags_t fl) {
   
 }
 
-MethodNode*  new_methn(size_t offset, bool va);
-Method*      new_method(Obj* fn, Tuple* sig, bool va);
+MethodNode*  new_methn(size_t offset, flags_t fl);
+Method*      new_method(Obj* fn, Tuple* sig, flags_t fl);
 
 // multimethods API
 Method* get_method(Function* g, Tuple* s) {
@@ -379,16 +384,16 @@ Method* get_method(Function* g, Tuple* s) {
   }
 
   if (m == NULL)
-    raise(g->name->name, "no method matching given signature");
+    error(g->name->name, "no method matching given signature");
 
   return m;
 }
 
-Method* add_method(Function* g, Tuple* s, Obj* m, bool va) {
+Method* add_method(Function* g, Tuple* s, Obj* m, flags_t fl) {
   Method* out, * tmp;
 
   if (get_fl(g, FINAL))
-    raise("add-method!", "`%s` does not allow specialization.", g->name->name);
+    error("add-method!", "`%s` does not allow specialization.", g->name->name);
 
   save(3, tag(g), tag(s), tag(m));
 
@@ -397,16 +402,16 @@ Method* add_method(Function* g, Tuple* s, Obj* m, bool va) {
     save(1, tag(tmp));
     g->metht = new_metht();
     g->leaf  = NULL;
-    insert_method(g->metht, tmp->sig, (Obj*)tmp, va);
+    insert_method(g->metht, tmp->sig, (Obj*)tmp, fl);
   }
 
-  out = insert_method(g->metht, s, m, va);
+  out = insert_method(g->metht, s, m, fl);
   /**
    * A new method might be more specific than cached methods, and those caches
    * need to be removed. Clearing the entire cache probably isn't necessary, so
    * this is an obvious target for optimization at some point.
   **/
-  free_table(g->metht->cache);
+  clear_method_cache(g);
 
   return out;
 }
@@ -446,6 +451,71 @@ Value native_ord(size_t n, Value* args) {
   (void)n;
 
   return tag(order(args[0], args[1]));
+}
+
+Value native_identity(size_t n, Value* args) {
+  (void)n;
+
+  return args[0];
+}
+
+/**
+ * Arithmetic methods.
+ *
+ * Generally speaking, arithmetic methods have the following implementations:
+ *
+ * 1) binary imeplementations for matching types.
+ * 2) 
+ * 3) 
+ *
+ * 
+**/
+
+Value native_add_small_small(size_t n, Value* args) {
+  (void)n;
+
+  Small   x = as_small(args[0]);
+  Small   y = as_small(args[1]);
+  int64_t r = x + y;
+  Value out = r >= INT32_MIN || r <= INT32_MAX ? tag_small(r) : tag(new_big(r));
+
+  return out;
+}
+
+Value native_add_float_float(size_t n, Value* args) {
+  (void)n;
+
+  Float x = as_float(args[0]);
+  Float y = as_float(args[1]);
+  Float z = x + y;
+
+  return tag(z);
+}
+
+Value native_add_number_number(size_t n, Value* args) {
+  (void)n;
+
+  Type* xt = type_of(args[0]), * yt = type_of(args[1]);
+  Type* common = promote(&args[0], &args[1]);
+  
+  if (common == &SmallType)
+    return native_add_small_small(2, args);
+
+  else if (common == &FloatType)
+    return native_add_float_float(2, args);
+
+  else if (common == &ArityType)
+    return native_add_arity_arity(2, args);
+
+  else if (common == &BigType)
+    return native_add_big_big(2, args);
+
+  else {
+    error("+", "couldn't find common type for %s and %s.",
+          xt->name->name, yt->name->name);
+
+    return NOTHING;
+  }
 }
 
 // initialization
@@ -520,6 +590,9 @@ NATIVE_FN(Eqp, eqp);
 NATIVE_FN(TypeOf, type_of);
 NATIVE_FN(Not, not);
 NATIVE_FN(Hash, hash);
+NATIVE_FN(Identity, identity);
+NATIVE_FN(AddSmallSmall, add_small_small);
+NATIVE_FN(AddFloatFloat, add_float_float);
 
 void init_builtin_functions(void) {
   Function* func;
@@ -535,6 +608,7 @@ void init_builtin_functions(void) {
   init_builtin_final_function("type-of", &NativeTypeOf, false, 1, &AnyType);
   init_builtin_final_function("not", &NativeNot, false, 1, &AnyType);
   init_builtin_final_function("hash", &NativeHash, false, 1, &AnyType);
+  init_builtin_final_function("identity", &NativeIdentity, false, 1, &AnyType);
 
   /**
    * Arithmetic functions.
@@ -543,6 +617,17 @@ void init_builtin_functions(void) {
    **/
 
   func = init_builtin_function("+");
+
+  add_builtin_method(func, &NativeIdentity, false, 1, &SmallType);
+  add_builtin_method(func, &NativeIdentity, false, 1, &FloatType);
+  add_builtin_method(func, &NativeIdentity, false, 1, &ArityType);
+  add_builtin_method(func, &NativeIdentity, false, 1, &BigType);
+  add_builtin_method(func, &NativeAddSmallSmall, false, 2, &SmallType, &SmallType);
+  add_builtin_method(func, &NativeAddArityArity, false, 2, &ArityType, &ArityType);
+  add_builtin_method(func, &NativeAddFloatFloat, false, 2, &FloatType, &FloatType);
+  add_builtin_method(func, &NativeAddBigBig, false, 2, &BigType, &BigType);
+  add_builtin_method(func, &NativeAddNumberNumber, false, 2, &NumberType, &NumberType);
+  add_builtin_method(func, &NativeAddMany, true, 2, &NumberType, &NumberType);
 
   func = init_builtin_function("-");
 

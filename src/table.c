@@ -4,7 +4,8 @@
 
 #include "equal.h"
 
-#include "memory.h"
+#include "runtime.h"
+
 #include "environment.h"
 #include "type.h"
 #include "table.h"
@@ -578,19 +579,12 @@ void ns_intern(NameSpace* ns, NameSpaceKv* kv, Symbol* n, void* s, Binding** b) 
   (void)s;
   (void)b;
 
-  NsType type = get_ns_type(ns);
-
-  Value ini;
   Binding* captured = b && *b ? *b : NULL;
-
-  if (type == GLOBAL_NS || type == PRIVATE_NS)
-    ini = s ? *(Value*)s : NUL;
-
-  else
-    ini = NOTHING;
+  flags_t fl = s ? *(flags_t*)s : 0;
+  Value ini = NOTHING;
 
   kv->key = n;
-  kv->val = new_binding(captured, n, ns, ns->kv_cnt, 0, ini);
+  kv->val = new_bind(captured, n, ns, ns->kv_cnt, fl, ini);
 }
 
 ORDERED_TABLE_API(NameSpace, Symbol*, Binding*, name_space,
