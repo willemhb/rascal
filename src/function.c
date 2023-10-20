@@ -417,46 +417,32 @@ Method* add_method(Function* g, Tuple* s, Obj* m, flags_t fl) {
 }
 
 // native functions
-Value native_idp(size_t n, Value* args) {
-  (void)n;
-
-  return args[0] == args[1] ? TRUE : FALSE;
+Value native_idp(Value x, Value y) {
+  return x == y ? TRUE : FALSE;
 }
 
-Value native_type_of(size_t n, Value* args) {
-  (void)n;
-
-  return tag(type_of(args[0]));
+Value native_type_of(Value x) {
+  return tag(type_of(x));
 }
 
-Value native_not(size_t n, Value* args) {
-  (void)n;
-
-  return is_truthy(args[0]) ? FALSE : TRUE; 
+Value native_not(Value x) {
+  return is_truthy(x) ? FALSE : TRUE; 
 }
 
-Value native_hash(size_t n, Value* args) {
-  (void)n;
-
-  return tag(hash(args[0]));
+Value native_hash(Value x) {
+  return tag(hash(x));
 }
 
-Value native_eqp(size_t n, Value* args) {
-  (void)n;
-
-  return tag(equal(args[0], args[1]));
+Value native_eqp(Value x, Value y) {
+  return tag(equal(x, y));
 }
 
-Value native_ord(size_t n, Value* args) {
-  (void)n;
-
-  return tag(order(args[0], args[1]));
+Value native_ord(Value x, Value y) {
+  return tag(order(x, y));
 }
 
-Value native_identity(size_t n, Value* args) {
-  (void)n;
-
-  return args[0];
+Value native_identity(Value x) {
+  return x;
 }
 
 /**
@@ -471,51 +457,75 @@ Value native_identity(size_t n, Value* args) {
  * 
 **/
 
-Value native_add_small_small(size_t n, Value* args) {
-  (void)n;
-
-  Small   x = as_small(args[0]);
-  Small   y = as_small(args[1]);
-  int64_t r = x + y;
+Value native_add_small_small(Value x, Value y) {
+  int64_t r = as_small(x) + as_small(y);
   Value out = r >= INT32_MIN || r <= INT32_MAX ? tag_small(r) : tag(new_big(r));
 
   return out;
 }
 
-Value native_add_float_float(size_t n, Value* args) {
-  (void)n;
-
-  Float x = as_float(args[0]);
-  Float y = as_float(args[1]);
-  Float z = x + y;
-
-  return tag(z);
+Value native_add_float_float(Value x, Value y) {
+  return tag(as_float(x) + as_float(y));
 }
 
-Value native_add_number_number(size_t n, Value* args) {
-  (void)n;
+Value native_add_arity_arity(Value x, Value y) {
+  Arity   r = as_arity(x) + as_arity(y);
 
-  Type* xt = type_of(args[0]), * yt = type_of(args[1]);
-  Type* common = promote(&args[0], &args[1]);
+  if (r > ARITY_MAX)
+    return tag(new_big(r));
+
+  return tag(r);
+}
+
+Value native_add_big_big(Value x, Value y) {
+  int64_t r = as_big(x)->val + as_big(y)->val;
+
+  return tag(new_big(r));
+}
+
+Value native_add_number_number(Value x, Value y) {
+  Type* xt = type_of(x), * yt = type_of(y);
+  Type* common = promote(NULL, &x, &y);
   
   if (common == &SmallType)
-    return native_add_small_small(2, args);
+    return native_add_small_small(x, y);
 
   else if (common == &FloatType)
-    return native_add_float_float(2, args);
+    return native_add_float_float(x, y);
 
   else if (common == &ArityType)
-    return native_add_arity_arity(2, args);
+    return native_add_arity_arity(x, y);
 
   else if (common == &BigType)
-    return native_add_big_big(2, args);
+    return native_add_big_big(x, y);
 
   else {
-    error("+", "couldn't find common type for %s and %s.",
-          xt->name->name, yt->name->name);
+    error("+", "couldn't find common type for %s and %s", t_name(xt), t_name(yt));
 
     return NOTHING;
   }
+}
+
+Value native_add_many(size_t n, Value* args) {
+  Value x = args[0];
+
+  for (size_t i=1; i < n; i++)
+    x = native_add_number_number(x, args[i]);
+
+  return x;
+}
+
+Value native_head(Value x) {
+  List* xs = as_list(x);
+
+  require(xs->arity > 0, "head", "`()` has no head.");
+  return xs->head;
+}
+
+Value native_tail(Value x) {
+  List* xs = as_list(x);
+  require(xs->arity > 0, "tail", "`()` has no tail.");
+  return tag(xs->tail);
 }
 
 // initialization
@@ -576,23 +586,60 @@ static void init_builtin_final_function(char* name, Native* fn, bool va, size_t 
   va_end(va_l);
 }
 
-#define NATIVE_FN(F, f)                          \
+#define NATIVE_FN0(F, f)                         \
   Native Native##F = {                           \
     .obj={                                       \
       .type =&NativeType,                        \
       .annot=&EmptyMap,                          \
     },                                           \
-    .fn=native_##f                               \
+    .fn.n0=native_##f                            \
   }
 
-NATIVE_FN(Idp, idp);
-NATIVE_FN(Eqp, eqp);
-NATIVE_FN(TypeOf, type_of);
-NATIVE_FN(Not, not);
-NATIVE_FN(Hash, hash);
-NATIVE_FN(Identity, identity);
-NATIVE_FN(AddSmallSmall, add_small_small);
-NATIVE_FN(AddFloatFloat, add_float_float);
+#define NATIVE_FN1(F, f)                         \
+  Native Native##F = {                           \
+    .obj={                                       \
+      .type =&NativeType,                        \
+      .annot=&EmptyMap,                          \
+    },                                           \
+    .fn.n1=native_##f                            \
+  }
+
+#define NATIVE_FN2(F, f)                         \
+  Native Native##F = {                           \
+    .obj={                                       \
+      .type =&NativeType,                        \
+      .annot=&EmptyMap,                          \
+    },                                           \
+    .fn.n2=native_##f                            \
+  }
+
+#define NATIVE_FNN(F, f)                         \
+  Native Native##F = {                           \
+    .obj={                                       \
+      .type =&NativeType,                        \
+      .annot=&EmptyMap,                          \
+    },                                           \
+    .fn.nn=native_##f                            \
+  }
+
+NATIVE_FN2(Idp, idp);
+NATIVE_FN2(Eqp, eqp);
+NATIVE_FN1(TypeOf, type_of);
+NATIVE_FN1(Not, not);
+NATIVE_FN1(Hash, hash);
+NATIVE_FN1(Identity, identity);
+
+/* arithmetic */
+NATIVE_FN2(AddSmallSmall,   add_small_small);
+NATIVE_FN2(AddFloatFloat,   add_float_float);
+NATIVE_FN2(AddArityArity,   add_arity_arity);
+NATIVE_FN2(AddBigBig,       add_big_big);
+NATIVE_FN2(AddNumberNumber, add_number_number);
+NATIVE_FNN(AddMany,         add_many);
+
+/* collections */
+NATIVE_FN1(Head, head);
+NATIVE_FN1(Tail, tail);
 
 void init_builtin_functions(void) {
   Function* func;
@@ -647,5 +694,19 @@ void init_builtin_functions(void) {
    * Collection functions.
    *
    **/
+
+  init_builtin_final_function("head", &NativeHead, false, 1, &ListType);
+  init_builtin_final_function("tail", &NativeTail, false, 1, &ListType);
+
+  func = init_builtin_function("cnt");
+
+  func = init_builtin_function("ref");
+
+  func = init_builtin_function("xef");
+
+  func = init_builtin_function("add");
+
+  func = init_builtin_function("del");
+
   
 }

@@ -6,8 +6,8 @@
 
 // external API
 Value  apply_cl(Closure* cl, size_t n);
-Value  load(char* path);
-Value  use_module(char* path);
+Value  load(Obj* path);
+Value  use_module(Obj* path);
 Value  exec(Closure* code);
 Value  eval(Value val);
 void   repl(void);

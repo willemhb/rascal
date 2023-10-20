@@ -32,7 +32,7 @@ struct Environment {
 };
 
 typedef enum {
-  CONSTANT   = 0x001,
+  FINAL      = 0x001,
   LOCAL_UPVAL= 0x002,
 } BindingFl;
 
@@ -49,11 +49,20 @@ struct Binding {
 extern struct Type SymbolType, EnvironmentType, BindingType;
 
 // common options
-extern Value ConstOpt, DocOpt, NameOpt, SignatureOpt, MacroOpt, TypeOpt, EnvtOpt, VaOpt;
+extern Value FinalOpt, DocOpt, NameOpt, SignatureOpt, MacroOpt, TypeOpt,
+  EnvtOpt, VaOpt, FileOpt;
+
+// common implicit variable names
+extern Value FormSym, EnvtSym;
+
+// other common names
+extern Value ReplSym;
 
 // external API
 #define get_annot(x, k)    generic2(get_annot, x, x, k)
-#define set_annot(x, k, v) generic2(set_annot, x, k, v)
+#define set_annot(x, k, v) generic2(set_annot, x, x, k, v)
+
+void   merge_annot(void* dst, void* src);
 
 Value  get_annot_val(Value x, Value key);
 Value  get_annot_obj(void* p, Value key);
@@ -73,10 +82,15 @@ Symbol* symbol(char* token);
 Symbol* gensym(char* name);
 
 // utilities
+bool      is_bound(Environment* envt, Symbol* name);
+bool      is_unbound(Environment* envt, Symbol* name);
+
 Binding*  define(Environment* envt, Symbol* name, Value init, flags_t fl);
+Binding*  defun(Environment* envt, Symbol* name, flags_t fl);
+Binding*  defmac(Environment* envt, Symbol* name, flags_t fl);
 Binding*  capture(Environment* envt, Symbol* name);
-Binding*  lookup(Environment* envt, Symbol* name);
-Binding*  lookup_syntax(Environment* envt, Symbol* name);
+Binding*  lookup(Environment* envt, Symbol* name, bool capture);
+Function* lookup_syntax(Environment* envt, Symbol* name);
 
 // global initialization
 void init_options(void);

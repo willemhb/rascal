@@ -84,11 +84,14 @@ extern struct Type BitsType, StringType, TupleType,
 Bits*     new_bits(void* data, size_t count, flags_t fl);
 String*   new_str(char* chars, size_t count, flags_t fl);
 Tuple*    new_tuple(size_t n, Value* vs);
-List*     new_list(Value head, List* tail);
+List*     new_list(size_t n, Value* vs);
 Vector*   new_vec(size_t n, Value* vs);
 VecNode*  new_vecn(Obj** children, size_t n, int flags);
 VecLeaf*  new_vecl(Value* tail);
 Map*      new_map(size_t n, Value* kvs);
+
+// convenience constructors
+List*     cons(Value head, List* tail);
 
 // collection interfaces
 size_t    get_elsize(Bits* b);
@@ -123,13 +126,18 @@ void*     unfreeze(void* p);
 void      freeze(void* p);
 
 Value     map_get(Map* m, Value k);
+bool      map_has(Map* m, Value k);
 Map*      map_add(Map* m, Value k, Value v);
 Map*      map_set(Map* m, Value k, Value v);
 Map*      map_del(Map* m, Value k);
+Map*      merge_maps(Map* dst, Map* src);
 
 Value     vec_get(Vector* v, size_t i);
 Vector*   vec_add(Vector* v, Value x);
 Vector*   vec_set(Vector* v, size_t i, Value x);
 Vector*   vec_del(Vector* v);
+
+// initialization
+void init_global_singletons(void);
 
 #endif

@@ -1,8 +1,10 @@
 #include "util/hashing.h"
 
+#include "runtime.h"
+
 #include "equal.h"
 
-#include "runtime.h"
+#include "function.h"
 #include "collection.h"
 #include "table.h"
 #include "environment.h"
@@ -68,6 +70,15 @@ Value set_annot_obj(void* p, Value key, Value value) {
   Obj* o   = p;
   Map* m   = o->annot;
   o->annot = map_set(m, key, value);
+
+  /* synchronize annotations with flags */ 
+  if (is_func(o)) {
+    if (key == MacroOpt && value == TRUE)
+      set_fl(o, MACRO);
+  } else if (is_bind(o)) {
+    if (key == FinalOpt && value == TRUE)
+      set_fl(o, FINAL);
+  }
 
   return value;
 }
@@ -143,7 +154,7 @@ Symbol* symbol(char* token) {
   assert(*token != '\0');
 
   Symbol* out  = NULL;
-  
+
   symbol_table_intern(RlVm.n.symbols, token, NULL, &out);
 
   return out;
@@ -228,12 +239,21 @@ Binding* lookup(Environment* envt, Symbol* name) {
 
 // global initialization
 void init_options(void) {
-  ConstOpt     = tag(symbol(":const"));
+  // frequently used annotations and options
+  FinalOpt     = tag(symbol(":final"));
   DocOpt       = tag(symbol(":doc"));
   NameOpt      = tag(symbol(":name"));
-  SignatureOpt = tag(symbol(":sig"));
+  SignatureOpt = tag(symbol(":signature"));
   MacroOpt     = tag(symbol(":macro"));
   TypeOpt      = tag(symbol(":type"));
   EnvtOpt      = tag(symbol(":envt"));
   VaOpt        = tag(symbol(":vargs"));
+  FileOpt      = tag(symbol(":file"));
+
+  // common implicit arguments (for macros, &c)
+  FormSym      = tag(symbol("&form"));
+  EnvtSym      = tag(symbol("&envt"));
+  ReplSym      = tag(symbol("&repl"));
+
+  // 
 }

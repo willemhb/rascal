@@ -6,9 +6,8 @@
 /* functions and methods */
 // user types
 typedef enum {
-  FINAL    =0x001,    // don't allow specialization
+  SINGLETON=0x001,    // don't allow specialization
   MACRO    =0x002,    // syntactic extension
-  SINGLETON=0x004,
 } FnFl;
 
 typedef enum {

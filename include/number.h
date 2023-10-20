@@ -9,10 +9,12 @@
 struct Big {
   Obj     obj;
   /* TODO: change to arbitrary precision. */
-  int64_t value;
+  int64_t val;
 };
 
 // globals
+#define ARITY_MAX 0x0000ffffffffffffUL
+
 extern struct Type FloatType, ArityType, SmallType,
   BigType, NumberType, RealType, RationalType,
   IntegerType;
@@ -20,6 +22,7 @@ extern struct Type FloatType, ArityType, SmallType,
 // external API
 Big*  new_big(int64_t value);
 bool  fits(Value x, int64_t min, int64_t max);
-Type* promote(Value* x, Value* y);
+Type* promote(Type* type, Value* x, Value* y);
+Type* promote_n(Type* type, size_t n, Value* a);
 
 #endif

@@ -29,19 +29,35 @@ void restore_state(Context* ctx) {
   RlVm.e.frame = ctx->e_frame;
 }
 
-static void print_error(const char* fname, const char* fmt, va_list va) {
+static void vprint_error(const char* fname, const char* fmt, va_list va) {
   fprintf(stderr, "error in %s: ", fname);
   vfprintf(stderr, fmt, va);
   fprintf(stderr, ".\n");
+}
+
+static void print_error(const char* fname, const char* fmt, ...) {
+  va_list va;
+  va_start(va, fmt);
+  vprint_error(fname, fmt, va);
+  va_end(va);
+}
+
+static void rl_longjmp(int status) {
+  if (RlVm.m.ctx == NULL) {
+    fprintf(stderr, "Exiting due to unhandled error.\n");
+    exit(1);
+  } else {
+    longjmp(RlVm.m.ctx->buf, status);
+  }
 }
 
 #define SIGNAL_ERROR(fname, fmt)                \
   do {                                          \
     va_list _va;                                \
     va_start(_va, fmt);                         \
-    print_error(fname, fmt, _va);               \
+    vprint_error(fname, fmt, _va);              \
     va_end(_va);                                \
-    longjmp(RlVm.m.ctx->buf, 1);                \
+    rl_longjmp(1);                              \
   } while (false)
 
 void error(const char* fname, const char* fmt, ...) {
@@ -54,6 +70,7 @@ bool require(bool test, const char* fname, const char* fmt, ...) {
 
   return test;
 }
+
 
 size_t argco(size_t expected, size_t got, const char* fname) {
   static const char* fmt = "expected exactly %zu arguments, got %zu";
@@ -76,6 +93,196 @@ Type* argtype(Type* expect, Value got, const char* fname) {
           fmt, fname, expect->name->name, got_type->name->name);
   return got_type;
 }
+
+Type* argtypes(size_t expected, Value got, const char* fname, ...) {
+  static const char* fmt1 = "expected value of type %s, got value of type %s";
+  static const char* fmt2 = "expected value of type %s or %s, got value of type %s";
+  static const char* fmt3 = "expected value of type %s, %s, or %s, got value of type %s";
+
+  va_list va;
+  bool okay;
+  FILE* tmp;
+  Type* tg, *tx, *ty, *tz;
+
+  va_start(va, fname);
+  okay = true;
+  tg = type_of(got);
+
+  if (expected == 1) {
+    tx = va_arg(va, Type*);
+    va_end(va);
+    require(is_instance(tg, tx), fname, fmt1, tx->name->name, tg->name->name);
+  } else if (expected == 2) {
+    tx = va_arg(va, Type*);
+    ty = va_arg(va, Type*);
+    va_end(va);
+    require(is_instance(tg, tx) || is_instance(tg, ty), fname, fmt2,
+            tx->name->name, ty->name->name, tg->name->name);
+  } else if (expected == 3) {
+    tx = va_arg(va, Type*);
+    ty = va_arg(va, Type*);
+    tz = va_arg(va, Type*);
+    va_end(va);
+    require(is_instance(tg, tx) || is_instance(tg, ty) || is_instance(tg, tz),
+            fname, fmt3, tx->name->name, ty->name->name,
+            tz->name->name, tg->name->name);
+  } else {
+    tmp = tmpfile();
+    okay = false;
+
+    assert(tmp != NULL);
+
+    for (size_t i=0; !okay && i<expected; i++) {
+      tx   = va_arg(va, Type*);
+      okay = is_instance(tg, tx);
+
+      if (!okay) {
+        if (i == 0)
+          fprintf(tmp, "expected a value of type %s", tx->name->name);
+
+        else if (i + 1 < expected)
+          fprintf(tmp, ", %s", tx->name->name);
+
+        else
+          fprintf(tmp, ", or %s, got a value of type %s",
+                  tx->name->name, tg->name->name);
+      }
+    }
+
+    if (!okay) {
+      char* msg = read_file("<tmp>", tmp);
+      print_error(fname, msg);
+      deallocate(NULL, msg, 0);
+      rl_longjmp(1);
+    }
+  }
+
+  return tg;
+}
+
+size_t argcos(size_t expected, size_t got, const char* fname, ...) {
+  static const char* fmt1 = "expected %zu arguments, got %zu";
+  static const char* fmt2 = "expected %zu or %zu arguments, got %zu";
+  static const char* fmt3 = "expected %zu, %zu, or %zu arguments, got %zu";
+
+  va_list va;
+  bool okay;
+  FILE* tmp;
+  size_t ex, ey, ez;
+
+  va_start(va, fname);
+  okay = true;
+
+  if (expected == 1) {
+    ex = va_arg(va, size_t);
+    va_end(va);
+    require(got == ex, fname, fmt1, ex, got);
+  } else if (expected == 2) {
+    ex = va_arg(va, size_t);
+    ey = va_arg(va, size_t);
+    va_end(va);
+    require(got == ex || got == ey, fname, fmt2, ex, ey, got);
+  } else if (expected == 3) {
+    ex = va_arg(va, size_t);
+    ey = va_arg(va, size_t);
+    ez = va_arg(va, size_t);
+    va_end(va);
+    require(got == ex || got == ey || got == ez, fname, fmt3, ex, ey, ez, got);
+  } else {
+    tmp = tmpfile();
+    okay = false;
+
+    assert(tmp != NULL);
+
+    for (size_t i=0; !okay && i<expected; i++) {
+      ex   = va_arg(va, size_t);
+      okay = got == ex;
+
+      if (!okay) {
+        if (i == 0)
+          fprintf(tmp, "expected %zu", ex);
+
+        else if (i + 1 < expected)
+          fprintf(tmp, ", %zu", ex);
+
+        else
+          fprintf(tmp, ", or %zu arguments, got  %zu", ex, got);
+      }
+    }
+
+    if (!okay) {
+      char* msg = read_file("<tmp>", tmp);
+      print_error(fname, msg);
+      deallocate(NULL, msg, 0);
+      rl_longjmp(1);
+    }
+  }
+
+  return got;
+}
+
+
+size_t vargcos(size_t expected, size_t got, const char* fname, ...) {
+  static const char* fmt1 = "expected at least %zu arguments, got %zu";
+  static const char* fmt2 = "expected %zu or at least %zu arguments, got %zu";
+  static const char* fmt3 = "expected %zu, %zu, or at least %zu arguments, got %zu";
+
+  va_list va;
+  bool okay;
+  FILE* tmp;
+  size_t ex, ey, ez;
+
+  va_start(va, fname);
+  okay = true;
+
+  if (expected == 1) {
+    ex = va_arg(va, size_t);
+    va_end(va);
+    require(got >= ex, fname, fmt1, ex, got);
+  } else if (expected == 2) {
+    ex = va_arg(va, size_t);
+    ey = va_arg(va, size_t);
+    va_end(va);
+    require(got == ex || got >= ey, fname, fmt2, ex, ey, got);
+  } else if (expected == 3) {
+    ex = va_arg(va, size_t);
+    ey = va_arg(va, size_t);
+    ez = va_arg(va, size_t);
+    va_end(va);
+    require(got == ex || got == ey || got >= ez, fname, fmt3, ex, ey, ez, got);
+  } else {
+    tmp = tmpfile();
+    okay = false;
+
+    assert(tmp != NULL);
+
+    for (size_t i=0; !okay && i<expected; i++) {
+      ex   = va_arg(va, size_t);
+      okay = i + 1 == expected ? got >= ex : got == ex;
+
+      if (!okay) {
+        if (i == 0)
+          fprintf(tmp, "expected %zu", ex);
+
+        else if (i + 1 < expected)
+          fprintf(tmp, ", %zu", ex);
+
+        else
+          fprintf(tmp, ", or at least %zu arguments, got  %zu", ex, got);
+      }
+    }
+
+    if (!okay) {
+      char* msg = read_file("<tmp>", tmp);
+      print_error(fname, msg);
+      deallocate(NULL, msg, 0);
+      rl_longjmp(1);
+    }
+  }
+
+  return got;
+}
+
 
 #undef SIGNAL_ERROR
 
@@ -136,13 +343,13 @@ void init_vm(Vm* vm) {
 
   // initialize reader
   vm->r.table   = new_table(0, NULL, hash_word, same);
-  vm->r.frame   = NULL;
+  vm->r.frame   = ReadFrames;
 
   // initialize compiler
-  vm->c.frame = NULL;
+  vm->c.frame = CompFrames;
 
   // initialize interpreter
-  vm->e.frame  = NULL;
+  vm->e.frame  = ExecFrames;
   vm->e.upvals = NULL;
   vm->e.sp     = 0;
 }
@@ -357,11 +564,25 @@ void* allocate(Vm* vm, size_t n_bytes) {
   return out;
 }
 
+// memory API
 void* duplicate(Vm* vm, void* pointer, size_t n_bytes) {
   void* cpy = allocate(vm, n_bytes);
 
   memcpy(cpy, pointer, n_bytes);
 
+  return cpy;
+}
+
+char* duplicates(Vm* vm, char* s, size_t n_chars) {
+  char* cpy;
+  
+  assert(s != NULL);
+  
+  if (n_chars == 0)
+    n_chars = strlen(s);
+
+  cpy = allocate(vm, n_chars+1);
+  strcpy(cpy, s);
   return cpy;
 }
 

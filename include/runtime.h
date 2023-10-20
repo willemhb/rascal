@@ -215,10 +215,14 @@ void save_state(Context* ctx);
 void restore_state(Context* ctx);
 
 void   error(const char* fname, const char* fmt, ...);
+void   syntax_error(List* form, const char* fmt, ...);
 bool   require(bool test, const char* fname, const char* fmt, ...);
 size_t argco(size_t expected, size_t got, const char* fname);
 size_t vargco(size_t expected, size_t got, const char* fname);
 Type*  argtype(Type* expected, Value got, const char* fname);
+size_t argcos(size_t expected, size_t got, const char* fname, ...);
+size_t vargcos(size_t expected, size_t got, const char* fname, ...);
+Type*  argtypes(size_t expected, Value got, const char* fname, ...);
 
 #define try                                                             \
   Context _ctx; int l__tr, l__ca;                                       \

@@ -1,8 +1,8 @@
 #include "util/number.h"
 #include "util/hashing.h"
 
-#include "vm.h"
-#include "memory.h"
+#include "runtime.h"
+
 #include "equal.h"
 
 #include "collection.h"
@@ -35,31 +35,27 @@ bool del_fl(void* p, flags_t f) {
   Obj* o    = p;
   bool r    = !!(o->flags & f);
   o->flags &= ~f;
-
+  
   return r;
 }
 
 void* new_obj(Type* t, flags_t fl, size_t e) {
   void* o;
-  size_t ns;
-  
-  ns = save(1, tag(t));
+
+  save(1, tag(t));
   o = allocate(&RlVm, t->v_table->obj_size + e);
   init_obj(o, t, fl);
-  unsave(ns);
 
   return o;
 }
 
 void* clone_obj(void* p) {
   Obj* o;
-  size_t ns;
   
   assert(p != NULL);
-  ns = save(1, tag(p));
+  save(1, tag(p));
   o = duplicate(&RlVm, p, size_of(p));
   add_to_heap(o);
-  unsave(ns);
   return o;
 }
 

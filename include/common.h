@@ -140,7 +140,8 @@ typedef enum {
 } ReadState;
 
 typedef enum {
-  COMPILER_READY, COMPILER_REPL, COMPILER_SCRIPT, COMPILER_FUNCTION, COMPILER_MACRO,
+  COMPILER_READY, COMPILER_REPL, COMPILER_SCRIPT, COMPILER_FUNCTION,
+  COMPILER_DEFUN, COMPILER_DEFMAC, COMPILER_HANDLE,
 } CompState;
 
 typedef enum {
@@ -148,7 +149,18 @@ typedef enum {
 } Encoding;
 
 // function pointer types
-typedef Value    (*NativeFn)(size_t n, Value* a);
+typedef Value    (*NativeFn0)(void);
+typedef Value    (*NativeFn1)(Value x);
+typedef Value    (*NativeFn2)(Value x, Value y);
+typedef Value    (*NativeFnN)(size_t n, Value* a);
+
+typedef union {
+  NativeFn0 n0;
+  NativeFn1 n1;
+  NativeFn2 n2;
+  NativeFnN nn;
+} NativeFn;
+
 typedef size_t   (*CompileFn)(List* form);
 typedef void     (*ReadFn)(Vm* vm, int dispatch);
 typedef void     (*TraceFn)(void* p);

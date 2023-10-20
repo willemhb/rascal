@@ -11,9 +11,13 @@ struct Chunk {
 };
 
 // globals
-extern Value FunSym, MacSym, VarSym, PutSym,
-  IfSym, WithSym, QuoteSym, DoSym, UseSym,
-  PerformSym, HandleSym, ResumeSym;
+// special forms
+extern Value DefSym, PutSym, LmbSym, // binding forms
+  DoSym, IfSym, QuoteSym,            // miscellaneous control forms
+  HandleSym, PerformSym, ResumeSym;  // effect forms
+
+// other syntax
+extern Value AmpSym;
 
 extern struct Type ChunkType;
 
@@ -22,6 +26,6 @@ Chunk*   new_chunk(void);
 Value    macro_expand(Function* macro, Environment* envt, List* form);
 Closure* compile(void* name, CompState state, Value xpr);
 
-void     init_special_forms(void);
+void init_syntax(void);
 
 #endif

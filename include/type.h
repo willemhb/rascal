@@ -71,6 +71,8 @@ extern Type NoneType, AnyType, TermType, TypeType;
 
 // external API
 // accessors
+#define t_name(t) ((t)->name->name)
+
 Kind get_kind(Type* type);
 bool is_instance(Type* xt, Type* yt);
 

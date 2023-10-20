@@ -4,117 +4,75 @@
 #include "util/hashing.h"
 #include "util/io.h"
 
-#include "vm.h"
-#include "interpreter.h"
+#include "runtime.h"
+
+#include "type.h"
+#include "function.h"
+#include "environment.h"
+#include "collection.h"
+#include "stream.h"
+
+#include "read.h"
+#include "compile.h"
+#include "eval.h"
 
 // version information
-#define MAJOR 0
-#define MINOR 0
-#define PATCH 4
-#define DEV   "a"
+#define M_V 0
+#define m_V 0
+#define P_V 4
+#define D_V   "a"
 #define VFMT "%.2d.%.2d.%.2d.%s"
 
-
-// majority of global state lives in vm
-Vm vm;
-
-// global stack space
-Value TheStack[N_STACK];
-
-// empty singleton objects
-List emptyList = {
-  .obj={
-    .next  =NULL,
-    .annot =NULL,
-    .hash  =0,
-    .type  =LIST,
-    .hashed=false,
-    .flags =0,
-    .black =false,
-    .gray  =true
-  },
-  .tail =&emptyList,
-  .arity=0,
-  .head =NUL
-};
-
-Vector emptyVector = {
-  .obj={
-    .next  =NULL,
-    .annot =NULL,
-    .hash  =0,
-    .type  =VECTOR,
-    .hashed=false,
-    .flags =0,
-    .black =false,
-    .gray  =true
-  },
-  .arity=0,
-  
-};
-
-Map emptyMap = {
-  
-};
-
-// special forms and other important symbols
-Value FunSym, VarSym, IfSym, WithSym, QuoteSym, DoSym, UseSym;
-
 // startup helpers & shutdown
-static void welcomeMessage(void) {
-  fprintf(stdout,
-          "Welcome to Rascal version "VFMT"!\n",
-          MAJOR,
-          MINOR,
-          PATCH,
-          DEV);
+static void welcome_message(void) {
+  fprintf(stdout, "Welcome to Rascal version "VFMT"!\n", M_V, m_V, P_V, D_V);
 }
 
-static void goodbyeMessage(void) {
+static void goodbye_message(void) {
   fprintf(stdout, "Goodbye!\n");
 }
 
-static void initRascal(void) {
-  // initialize hashes for global singletons
-  emptyList.obj.hash   = hashPtr(&emptyList);
-  emptyList.obj.hashed = true;
+static void init_cli_args(const int argc, const char* argv[]) {
+  Value buf[argc];
 
-  // initialize virtual machine (contains most global state)
-  initVm(&vm);
+  for (int i=0; i<=argc; i++) {
+    char* s  = (char*)argv[i];
+    size_t l = strlen(s);
 
-  // initialize special forms
-  extern size_t compileFun(Vm* vm, List* form);
-  extern size_t compileVar(Vm* vm, List* form);
-  extern size_t compileIf(Vm* vm, List* form);
-  extern size_t compileWith(Vm* vm, List* form);
-  extern size_t compileQuote(Vm* vm, List* form);
-  extern size_t compileDo(Vm* vm, List* form);
-  extern size_t compileUse(Vm* vm, List* form);
+    buf[i] = tag(new_str(s, l, ASCII));
+  }
 
-  FunSym   = defineSpecial("fun", compileFun);
-  VarSym   = defineSpecial("var", compileVar);
-  IfSym    = defineSpecial("if", compileIf);
-  WithSym  = defineSpecial("with", compileWith);
-  QuoteSym = defineSpecial("quote", compileQuote);
-  DoSym    = defineSpecial("do", compileDo);
-  UseSym   = defineSpecial("use", compileUse);
+  List* args = new_list(argc, buf);
 
-  // print welcome
-  welcomeMessage();
+  define(NULL, symbol("&args"), tag(args), CONSTANT);
 }
 
-static void finalizeRascal(void) {
-  freeVm(&vm);
-  goodbyeMessage();
+static void init_rascal(const int argc, const char* argv[]) {
+  // initialize hashes for global singletons
+  init_global_singletons();
+  init_vm(&RlVm);
+  init_builtin_types();
+  init_options();
+  init_std_streams();
+  init_builtin_functions();
+  init_builtin_readers();
+  init_special_forms();
+  init_cli_args(argc, argv);
+
+  RlVm.m.init = true;
+  // print welcome
+  welcome_message();
+}
+
+static void finalize_rascal(void) {
+  free_vm(&RlVm);
+  goodbye_message();
 }
 
 int main(const int argc, const char* argv[]) {
-  (void)argc;
-  (void)argv;
-
-  initRascal();
-  repl(&vm);
-  finalizeRascal();
-
+  init_rascal(argc, argv);
+  repl();
+  finalize_rascal();
+  
   return 0;
 }

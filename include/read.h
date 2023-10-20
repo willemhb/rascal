@@ -3,18 +3,15 @@
 
 #include "object.h"
 
-/* reader, io types */
-// C types
-struct Stream {
-  Obj     obj;
-  FILE*   ios;
-};
-
 // globals
 extern Value QuoteSym;
 
 // external API
+// reading expressions
 Value read(void);
 Value read_line(void);
+
+// initialization
+void init_builtin_readers(void);
 
 #endif

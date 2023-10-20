@@ -10,7 +10,7 @@
     V val;                                                              \
   } T##Kv;                                                              \
                                                                         \
-  typedef void (*T##InternFn)(T* t, T##Kv* kv, K k, void* s, V* b);    \
+  typedef void (*T##InternFn)(T* t, T##Kv* kv, K k, void* s, V* b);     \
   typedef hash_t (*T##HashFn)(K k);                                     \
   typedef bool (*T##EgalFn)(K x, K y);                                  \
                                                                         \
@@ -82,11 +82,13 @@ typedef enum {
 
 TABLE_TYPE(SymbolTable, char*, Symbol*);
 TABLE_TYPE(Table, Value, Value);
+TABLE_TYPE(Handlers, List*, Chunk*);
 ORDERED_TABLE_TYPE(NameSpace, Symbol*, Binding*);
 
 // external APIs
 TABLE_API(SymbolTable, char*, Symbol*, symbol_table);
 TABLE_API(Table, Value, Value, table);
+TABLE_API(Handlers, List*, Chunk*, handlers);
 ORDERED_TABLE_API(NameSpace, Symbol*, Binding*, name_space);
 
 // utilities

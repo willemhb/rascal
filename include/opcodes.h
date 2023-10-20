@@ -13,12 +13,16 @@ typedef enum OpCode {
   OP_EMPTY_STR, OP_EMPTY_BITS,  OP_ZERO, OP_ONE,
 
   /* other load/store instructions */
-  OP_LOADI16,
-  OP_LOADG16,
-  OP_LOADV,          /* value (constant store) */
-  OP_LOADS, OP_PUTS, /* stack (local values) */
-  OP_LOADU, OP_PUTU, /* upvalue (captured from surrounding scope) */
-  OP_LOADG, OP_PUTG, /* global (toplevel scope) */
+  OP_GETI16,
+  OP_GETG16,
+  OP_GETV,          /* value (constant store) */
+  OP_GETL, OP_PUTL, /* stack (local values) */
+  OP_GETU, OP_PUTU, /* upvalue (captured from surrounding scope) */
+  OP_GETG, OP_PUTG, /* global (toplevel scope) */
+
+  /* multimethods */
+  OP_SPECL,         /* */
+  OP_SPECG,
 
   /* jump instructions */
   OP_JUMP,  /* unconditional jump. */
@@ -26,8 +30,8 @@ typedef enum OpCode {
   OP_JUMPT, /* jump if top of stack is truthy (discards TOS). */
 
   /* function calls */
-  OP_CALL0,  OP_CALL1,  OP_CALL2,  OP_CALLN,  OP_CALLV,  /* handles calls like (f x y & more). */
-  OP_TCALL0, OP_TCALL1, OP_TCALL2, OP_TCALLN, OP_TCALLV, /* same as above, but in tail position. */
+  OP_CALL0,  OP_CALL1,  OP_CALL2,  OP_CALLN,  /* */
+  OP_TCALL0, OP_TCALL1, OP_TCALL2, OP_TCALLN, /* */
   OP_RETURN,
 
   /* closures */
@@ -45,6 +49,6 @@ typedef enum OpCode {
 } OpCode;
 
 // external API
-size_t opCodeArgc(OpCode op);
+size_t opcode_argc(OpCode op);
 
 #endif

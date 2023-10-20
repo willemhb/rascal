@@ -2,6 +2,8 @@
 
 #include "runtime.h"
 
+#include "stream.h"
+#include "number.h"
 #include "type.h"
 #include "collection.h"
 #include "environment.h"
@@ -11,9 +13,9 @@
 #include "compile.h"
 
 // globals
-Value FunSym, MacSym, VarSym, IfSym,
-  QuoteSym, DoSym, UseSym, PerformSym,
-  HandleSym, ResumeSym;
+Value DefSym, PutSym, LmbSym,
+  DoSym, IfSym, QuoteSym,
+  HandleSym, PerformSym, ResumeSym;
 
 // chunk API
 extern void free_chunk(void* p);
@@ -61,33 +63,52 @@ Chunk* new_chunk(void) {
 }
 
 // special forms
-size_t fun_form(List* form);
-size_t mac_form(List* form);
-size_t var_form(List* form);
+size_t def_form(List* form);
 size_t put_form(List* form);
-size_t if_form(List* form);
-size_t quote_form(List* form);
+size_t lmb_form(List* form);
 size_t do_form(List* form);
-size_t use_form(List* form);
-size_t perform_form(List* form);
+size_t quote_form(List* form);
 size_t handle_form(List* form);
+size_t perform_form(List* form);
 
 // helpers
-static CompFrame* push_compiler_frame(CompState state, void* name) {
-  if (RlVm.c.frame == NULL) {
-    
-  } else {
-    
-  }
+static CompFrame* push_compiler_frame(CompState state, Obj* name) {
+  assert(RlVm.c.frame < &CompFrames[N_COMP]);
+  CompFrame*   frame = RlVm.c.frame++;
+  ScopeType    stype = state < COMPILER_FUNCTION ? GLOBAL_SCOPE : FUNCTION_SCOPE;
+  Environment* penvt = frame > CompFrames && state > COMPILER_SCRIPT ? (frame-1)->envt : NULL;
+  Handlers*    hndl  = frame > CompFrames ? (frame-1)->hndl : NULL;
+
+  frame->state = state;
+  frame->flags = 0;
+  frame->name  = is_sym(name) ? as_sym(name)->name : as_str(name)->data;
+  frame->code  = new_chunk();
+  frame->envt  = new_envt(penvt, stype);
+  frame->hndl  = state == COMPILER_HANDLE ? new_handlers(0, NULL, NULL, NULL) : hndl;
+
+  set_annot(frame->code, NameOpt, tag(name));
+  set_annot(frame->code, EnvtOpt, tag(frame->envt));
+
+  return frame;
 }
 
 static Chunk* pop_compiler_frame(void) {
+  assert(RlVm.c.frame > CompFrames);
   
+  return (--RlVm.c.frame)->code;
 }
 
-static size_t compile_val(Value val);
-static size_t compile_var(Symbol* name);
+static size_t comp_val(Value val);
+static size_t comp_var(Symbol* name);
 static size_t compile_comb(List* form);
+
+static bool is_def_form(List* form) {
+  return form->head == DefSym;
+}
+
+static bool is_lmb_form(List* form) {
+  return form->head == LmbSym;
+}
 
 static bool is_literal(Value val) {
   if (is_sym(val))
@@ -99,49 +120,81 @@ static bool is_literal(Value val) {
   return true;
 }
 
-static size_t compile_xpr(Value xpr) {
+static size_t comp_xpr(Value xpr) {
   if (is_literal(xpr))
-    return compile_val(xpr);
+    return comp_val(xpr);
 
   else if (is_sym(xpr))
-    return compile_var(as_sym(xpr));
+    return comp_var(as_sym(xpr));
 
   else
     return compile_comb(as_list(xpr));
 }
 
-static char* get_chunk_name(void) {
-  Chunk* chunk = RlVm.compiler.chunk;
+static CompFrame* comp_frame(void) {
+  return RlVm.c.frame;
+}
 
-  if (is_sym(chunk->name))
-    return as_sym(chunk->name)->name;
+static Alist* comp_stack(void) {
+  return &RlVm.c.stack;
+}
 
-  return as_str(chunk->name)->data;
+static flags_t comp_fl(void) {
+  return RlVm.c.frame->flags;
+}
+
+static CompState comp_state(void) {
+  return RlVm.c.frame->state;
+}
+
+static Handlers* comp_hndl(void) {
+  return RlVm.c.frame->hndl;
+}
+
+static Environment* comp_envt(void) {
+  return RlVm.c.frame->envt;
+}
+
+static Chunk* comp_code(void) {
+  return RlVm.c.frame->code;
+}
+
+static Binary16* comp_instr(void) {
+  return RlVm.c.frame->code->code;
+}
+
+static Alist* comp_vals(void) {
+  return RlVm.c.frame->code->vals;
+}
+
+static char* comp_name(void) {
+  return RlVm.c.frame->name;
 }
 
 static bool is_identifier(Value val) {
   return is_sym(val) && !get_fl(as_sym(val), LITERAL);
 }
 
+static bool is_keyword(Value val) {
+  return is_sym(val) && get_fl(as_sym(val), LITERAL);
+}
+
 static bool is_special_form(List* form) {
   return is_sym(form->head) && as_sym(form->head)->special != NULL;
 }
 
-static Binding* is_macro_call(List* form) {
-  CompFrame* frame;
-  Binding* out = NULL;
-  
-  frame = RlVm.c.frame;
+static Function* is_macro_call(List* form) {
+  Function* out = NULL;
 
   if (is_sym(form->head))
-    out = lookup_syntax(frame->envt, as_sym(form->head));
+    out = lookup_syntax(comp_envt(), as_sym(form->head));
 
   return out;
 }
 
 static size_t emit_instr(Chunk* code, OpCode op, ...) {
   uint16_t buf[3] = { op, 0, 0 };
-  size_t argc = opCodeArgc(op);
+  size_t argc = opcode_argc(op);
   size_t n = 1;
   va_list va; va_start(va, op);
 
@@ -160,6 +213,20 @@ static size_t add_value(Chunk* code, Value val) {
   return alist_push(code->vals, val);
 }
 
+static Value* peek_subxpr(int i) {
+  Alist* stk = comp_stack();
+  
+  if (i < 0)
+    i += stk->cnt;
+
+  assert(i >= 0 && i < (int)stk->cnt);
+  return &stk->data[i];
+}
+
+static size_t push_subxpr(Value x) {
+  return alist_push(&RlVm.c.stack, x);
+}
+
 static Value pop_subxpr(void) {
   return alist_pop(&RlVm.c.stack);
 }
@@ -175,7 +242,7 @@ static size_t push_subxprs(List* form) {
   return out;
 }
 
-static size_t compile_var(Symbol* name) {
+static size_t comp_var(Symbol* name) {
   CompFrame* frame;
   Chunk* code;
   Binding* bind;
@@ -183,30 +250,31 @@ static size_t compile_var(Symbol* name) {
   
   frame = RlVm.c.frame;
   code  = frame->code;
-  bind  = lookup(frame->envt, name);
+  bind  = lookup(frame->envt, name, true);
 
-  if (bind == NULL) // create binding, but raise an error if it isn't initialized by runtime
-    bind = define(NULL, name, NOTHING, false);
+  require(bind != NULL, comp_name(), "unbound symbol `%s`", name);
 
   NsType type = get_ns_type(bind->ns);
 
   if (type == GLOBAL_NS)
-    out = emit_instr(code, OP_LOADG, bind->offset);
+    out = emit_instr(code, OP_GETG, bind->offset);
 
   else if (type == NONLOCAL_NS)
-    out = emit_instr(code, OP_LOADS, bind->offset);
+    out = emit_instr(code, OP_GETU, bind->offset);
 
   else
-    out = emit_instr(code, OP_LOADU, bind->offset);
+    out = emit_instr(code, OP_GETL, bind->offset);
 
   return out;
 }
 
-static size_t compile_val(Value val) {
+static size_t comp_val(Value val) {
+  CompFrame* frame;
   Chunk* code;
   size_t out, off;
 
-  code = RlVm.compiler.chunk;
+  frame = RlVm.c.frame;
+  code  = frame->code;
 
   if (val == NUL)
     out = emit_instr(code, OP_NUL);
@@ -241,9 +309,15 @@ static size_t compile_val(Value val) {
   else if (val == tag(&EmptyMap))
     out = emit_instr(code, OP_EMPTY_MAP);
 
+  else if (is_small(val) && fits(val, INT16_MIN, INT16_MAX))
+    out = emit_instr(code, OP_GETI16, as_small(val));
+
+  else if (is_glyph(val) && fits(val, 0, INT16_MAX))
+    out = emit_instr(code, OP_GETG16, as_glyph(val));
+      
   else {
     off = add_value(code, val);
-    out = emit_instr(code, OP_LOADV, off);
+    out = emit_instr(code, OP_GETV, off);
   }
 
   return out;
@@ -251,20 +325,18 @@ static size_t compile_val(Value val) {
 
 static size_t compile_comb(List* form) {
   size_t out;
-  Binding* macrob;
-  Chunk* chunk;
+  CompFrame* frame;
   Function* macro;
   Value xpr;
 
-  chunk = RlVm.compiler.chunk;
+  frame = RlVm.c.frame;
 
   if (is_special_form(form))
     out =as_sym(form->head)->special(form);
 
-  else if ((macrob=is_macro_call(form))) {
-    macro = as_func(macrob->value);
-    xpr   = macro_expand(macro, chunk->envt, form);
-    out   = compile_xpr(xpr);
+  else if ((macro=is_macro_call(form))) {
+    xpr   = macro_expand(macro, frame->envt, form);
+    out   = comp_xpr(xpr);
   } else {
     
   }
@@ -272,56 +344,222 @@ static size_t compile_comb(List* form) {
   return out;
 }
 
-// special forms
-size_t quote_form(List* form) {
-  argco(2, form->arity, "quote");
-  return compile_val(form->tail->head);
+
+static size_t comp_defun(Symbol* name, List* lmb) {
+  Binding* bind = defun(comp_envt(), name, FINAL);
+  NsType nst = get_ns_type(bind->ns);
+  size_t out = 0;
+
+  push_compiler_frame(COMPILER_DEFUN, (Obj*)name);
+  lmb_form(lmb);
+
+  if (nst == GLOBAL_NS)
+    out = emit_instr(comp_code(), OP_SPECG, bind->offset);
+
+  else
+    out = emit_instr(comp_code(), OP_SPECL, bind->offset);
+
+  return out;
 }
 
-size_t use_form(List* form) {
-  argco(2, form->arity, "use");
+static size_t comp_defmac(Symbol* name, List* lmb) {
+  Environment* envt = comp_envt();
 
-  List* modules    = as_list_s(form->tail->head, "use");
-  size_t n_modules = push_subxprs(modules);
-  Value value      = NUL;
+  require(get_scope_type(envt) == GLOBAL_SCOPE,
+          "def",
+          "local macro definitions are not supported.");
+  
+  Binding* bind     = defmac(comp_envt(), name, FINAL);
 
-  for (size_t i=0; i < n_modules; i++) {
-    Value module_name = pop_subxpr();
+  push_compiler_frame(COMPILER_DEFMAC, (Obj*)name);
+  lmb_form(lmb);
 
-    if (is_str(module_name))
-      value = use_module(as_str(module_name)->data);
+  Chunk* code  = pop_compiler_frame();
+  Tuple* sig   = as_tuple(get_annot(code, SignatureOpt));
+  bool va      = get_annot(code, VaOpt) == TRUE;
+  Function* fn = as_func(bind->value);
 
-    else if (is_sym(module_name))
-      value = use_module(as_sym(module_name)->name);
+  add_method(fn, sig, (Obj*)code, MACRO|va*VARIADIC);
 
-    else
-      error("use",
-            "expected type was `Symbol` or `String`, actual was `%s`",
-            type_of(module_name)->name->name);
-  }
-
-  return compile_xpr(value);
+  return comp_instr()->cnt;
 }
 
-size_t do_form(List* form) {
-  size_t arity, out;
+static size_t comp_seq(List* body) {
+  size_t arity;
+  size_t out;
   Value xpr;
+  
+  
+  if (body->arity == 1)
+    out = comp_xpr(body->head);
 
-  arity = vargco(2, form->arity, "do");
-
-  if (arity == 2)
-    out = compile_xpr(form->tail->head);
-
-  else {
-    arity = push_subxprs(form->tail);
+   else {
+    arity = push_subxprs(body);
 
     for (size_t i=0; i<arity; i++) {
       xpr = pop_subxpr();
-      out = compile_xpr(xpr);
+      out = comp_xpr(xpr);
 
       if (i+1 < arity)
-        emit_instr(RlVm.c.frame->code, OP_POP);
+        emit_instr(comp_code(), OP_POP);
     }
+    
+    return out;
+}
+
+// special forms
+size_t quote_form(List* form) {
+  argco(2, form->arity, "quote");
+  return comp_val(form->tail->head);
+}
+
+size_t do_form(List* form) {
+  vargco(2, form->arity, "do");
+  
+  return comp_seq(form->tail);
+}
+
+size_t def_form(List* form) {
+  Symbol* name;
+  Binding* bind;
+  Value val;
+  size_t out;
+  NsType nst;
+
+  argco(3, form->arity, "def");
+  save(1, tag(form));
+
+  name = as_sym_s(form->tail->head, "def");
+  val  = list_get(form, 2);
+  bind = lookup(comp_envt(), name, false);
+
+  if (is_list(val) && is_lmb_form(as_list(val))) {
+      List* lmb = as_list(val);
+
+      if (get_annot(lmb, MacroOpt) == TRUE)
+        return comp_defmac(name, lmb);
+
+      else
+        return comp_defun(name, lmb);
+  }
+
+  require(!is_bound(comp_envt(), name), "def",
+          "redefinition of bound symbol `%s`",
+          name->name);
+
+  comp_xpr(val);
+  
+  nst = get_ns_type(bind->ns);
+  out = emit_instr(comp_code(), nst == GLOBAL_NS ? OP_PUTG : OP_PUTL, bind->offset);
+
+  return out;
+}
+
+static void process_formals(List* form, List* formals) {
+  size_t n_args, n_annot = 0;
+
+  bool va = false;
+  Tuple* sig;
+  Environment* envt = comp_envt();
+
+  for (; formals->arity > 0; formals=formals->tail) {
+    Value formal = formals->head;
+    Symbol* var;
+    Type* type;
+
+    if (is_list(formal)) {
+      if (va)
+        syntax_error(form, "typed variadic arguments are not supported");
+
+      List* tf = as_list(formal);
+
+      Value   t_xpr = tf->head;
+      var   = as_sym_s(tf->tail->head, "lmb");
+
+      if (!is_type(t_xpr)) {
+        Symbol* t_name  = as_sym_s(t_xpr, "lmb");
+        Binding* t_bind = lookup(comp_envt(), t_name, false);
+
+        if (t_bind == NULL)
+          syntax_error(form, "`%s` does not name a type", t_name->name);
+
+        else if (get_ns_type(t_bind->ns) != GLOBAL_NS)
+          syntax_error(form, "could not resolve type for `%s`", t_name->name);
+
+        else if (!is_type(t_bind->value))
+          syntax_error(form, "`%s` does not name a type", t_name->name);
+
+        else
+          type = as_type(t_bind->value);
+      } else {
+        type = as_type(t_xpr);
+      }
+    } else if (is_sym(formal)) {
+      if (formal == AmpSym) {
+        if (formals->arity != 2)
+          syntax_error(form, "extra arguments after `&`");
+
+        va = true;
+        continue;
+      } else {
+        var  = as_sym(formal);
+        type = &AnyType;
+      }
+    } else {
+      syntax_error(form, "formal argument is not an identifier");
+    }
+
+    if (is_bound(envt, var))
+      syntax_error(form, "formal argument appears twice");
+
+    n_args++;
+
+    if (!va) {
+      n_annot++;
+      push_subxpr(tag(type));
+    }
+
+    define(envt, var, NUL, 0);
+  }
+
+  /* compute and save signature */ 
+  sig = new_tuple(n_annot, peek_subxpr(-n_annot));
+
+  set_annot(comp_code(), SignatureOpt, tag(sig));
+  set_annot(comp_code(), VaOpt, tag(va));
+}
+
+static void capture_upvalues(List* body) {
+  
+}
+
+size_t lmb_form(List* form) {
+  vargco(3, form->arity, "lmb");
+
+  Chunk* ca_code, * cl_code;
+  CompState state;
+  List* formals, * body;
+  size_t out, off;
+  
+  state   = comp_state();
+  formals = as_list_s(form->tail->head, "lmb");
+  body    = form->tail->tail;
+
+  if (state == COMPILER_DEFMAC) {
+    merge_annot(comp_code(), form);
+    process_formals(form, formals);
+    compile_sequence(body);
+    out = 0;
+  } else if (state == COMPILER_DEFUN) {
+    merge_annot(comp_code(), form);
+    process_formals(form, formals);
+  } else {
+    process_formals(form, formals);
+    compile_sequence(body);
+
+    cl_code = pop_compiler_frame();
+    ca_code = comp_code();
+    off     = add_value(ca_code, tag(cl_code));
   }
 
   return out;
@@ -332,12 +570,33 @@ size_t put_form(List* form) {
   Binding* bind;
   Value var;
   Chunk* chunk;
-  
+  NsType nst;
+  size_t out;
+
   argco(3, form->arity, "put");
-  chunk = RlVm.compiler.chunk;
+  save(1, tag(form));
+
   name  = as_sym_s(form->head, "put");
   var   = list_get(form, 2);
-  bind  = lookup(chunk->envt, name);
+  bind  = lookup(comp_envt(), name, true);
+
+  require(bind != NULL, comp_name(), "unbound symbol `%s`", name->name);
+  require(!get_fl(bind, FINAL), comp_name(), "can't rebind final symbol `%s`", name->name);
+  comp_xpr(var);
+
+  nst   = get_ns_type(bind->ns);
+  chunk = comp_code();
+
+  if (nst == GLOBAL_NS)
+    out = emit_instr(chunk, OP_PUTG);
+
+  else if (nst == LOCAL_NS)
+    out = emit_instr(chunk, OP_PUTL);
+
+  else
+    out = emit_instr(chunk, OP_PUTU);
+
+  return out;
 }
 
 size_t if_form(List* form) {
@@ -345,7 +604,7 @@ size_t if_form(List* form) {
   Value  test, then, otherwise;
   Chunk* chunk;
 
-  chunk = RlVm.compiler.chunk;
+  chunk = comp_code();
 
   /* consequent is otpional */
   argcos(2, form->arity, "if", 3, 4);
@@ -353,17 +612,17 @@ size_t if_form(List* form) {
   arity     = push_subxprs(form->tail);
   test      = pop_subxpr();
 
-  compile_xpr(test);
+  comp_xpr(test);
 
   offset1   = emit_instr(chunk, OP_JUMPF, 0);
   then      = pop_subxpr();
 
-  compile_xpr(then);
+  comp_xpr(then);
 
   offset2   = emit_instr(chunk, OP_JUMP, 0);
   otherwise = arity == 3 ? NUL : pop_subxpr();
 
-  offset3   = compile_xpr(otherwise);
+  offset3   = comp_xpr(otherwise);
 
   /* fill in jumps */
   chunk->code->data[offset1-1] = offset2-offset1;
@@ -373,26 +632,6 @@ size_t if_form(List* form) {
 }
 
 // external API
-Value macro_expand(Function* macro, Environment* envt, List* form) {
-  size_t nsv, argc, sig_max;
-  Value exp;
-  Tuple* sig;
-  Method* method;
-
-  nsv     = save(3, tag(macro), tag(envt), tag(form));
-  sig_max = get_sig_max(macro);
-  sig     = get_macro_sig(sig_max, form->tail);
-  method  = get_method(macro, sig);
-  argc    = push_macro_args(envt, form);
-  exp     = apply_cl(as_cls(method->fn), argc);
-
-  unsave(nsv);
-
-  return exp;
-}
-
-Closure* compile(void* name, CompilerState state, Value xpr);
-
 static Value new_special_form(char* name, CompileFn special) {
   Symbol* sym;
 
@@ -402,15 +641,17 @@ static Value new_special_form(char* name, CompileFn special) {
   return tag(sym);
 }
 
-void init_special_forms(void) {
-  FunSym     = new_special_form("fun", fun_form);
-  MacSym     = new_special_form("mac", mac_form);
-  VarSym     = new_special_form("var", var_form);
-  PutSym     = new_special_form("put", put_form);
+void init_syntax(void) {
+  DefSym     = new_special_form("def", def_form);
+  PutSym     = new_special_form("mac", put_form);
+  LmbSym     = new_special_form("var", lmb_form);
+  DoSym      = new_special_form("do", do_form);
   IfSym      = new_special_form("if",  if_form);
   QuoteSym   = new_special_form("quote", quote_form);
-  DoSym      = new_special_form("do", do_form);
-  UseSym     = new_special_form("use", use_form);
+  HandleSym  = new_special_form("do", handle_form);
   PerformSym = new_special_form("perform", perform_form);
-  HandleSym  = new_special_form("handle", handle_form);
+
+  // other syntax
+  AmpSym     = tag(symbol("&"));
+  ResumeSym  = tag(symbol("resume"));
 }

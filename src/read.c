@@ -1,8 +1,4 @@
-#include <stdlib.h>
-#include <ctype.h>
-#include <stdarg.h>
-
-#include "vm.h"
+#include "runtime.h"
 #include "read.h"
 
 // character classes
