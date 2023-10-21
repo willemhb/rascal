@@ -5,9 +5,20 @@
 
 /* reader, io types */
 // C types
+typedef enum {
+  CREATE_MODE   = 0x001,
+  UPDATE_MODE   = 0x002,
+  TEXT_STREAM   = 0x004,
+  BINARY_STREAM = 0x008,
+  INPUT_STREAM  = 0x010,
+  OUTPUT_STREAM = 0x020,
+} StrmFl;
+
 struct Stream {
-  Obj     obj;
-  FILE*   ios;
+  Obj      obj;
+  FILE*    ios;
+  Encoding end;
+  flags_t  mode;
 };
 
 // globals
