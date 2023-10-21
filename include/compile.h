@@ -13,7 +13,7 @@ struct Chunk {
 // globals
 // special forms
 extern Value DefSym, PutSym, LmbSym, // binding forms
-  DoSym, IfSym, QuoteSym,            // miscellaneous control forms
+  DoSym, IfSym, QuoteSym, CCallSym,  // miscellaneous forms
   HandleSym, PerformSym, ResumeSym;  // effect forms
 
 // other syntax

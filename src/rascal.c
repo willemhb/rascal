@@ -1,5 +1,4 @@
-#include <stdlib.h>
-#include <stdio.h>
+#include <getopt.h>
 
 #include "util/hashing.h"
 #include "util/io.h"
@@ -44,7 +43,8 @@ static void init_cli_args(const int argc, const char* argv[]) {
 
   List* args = new_list(argc, buf);
 
-  define(NULL, symbol("&args"), tag(args), CONSTANT);
+  define(NULL, symbol("&args"), tag(args), FINAL);
+  define(NULL, symbol("&opts"), tag(&EmptyList), FINAL);
 }
 
 static void init_rascal(const int argc, const char* argv[]) {
@@ -56,12 +56,16 @@ static void init_rascal(const int argc, const char* argv[]) {
   init_std_streams();
   init_builtin_functions();
   init_builtin_readers();
-  init_special_forms();
+  init_syntax();
   init_cli_args(argc, argv);
 
+  // start garbage collecting
   RlVm.m.init = true;
+  
   // print welcome
   welcome_message();
+
+  load();
 }
 
 static void finalize_rascal(void) {

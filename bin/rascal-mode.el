@@ -9,9 +9,17 @@
 (define-generic-mode
   'rascal-mode
   '(";" ("#|" . "|#"))
-  '("def" "put" "lmb"            ;; binding forms
-    "if" "do" "quote"            ;; local control
-    "handle" "perform" "resume") ;; nonlocal control
+  '("def" "put" "lmb"             ;; binding forms
+    "if" "do" "quote"             ;; local control forms
+    "c-call"                      ;; miscellaneous forms
+    "handle" "perform" "resume"   ;; nonlocal control forms
+    "let" "fun" "mac" "var" "val" ;; binding macros
+    "label" "for" "while" "in"    ;; iteration macros
+    "and" "or" "cond"             ;; branching macros
+    "unless" "when"               ;; branching macros
+    "guard" "raise"               ;; exception handling
+    "use" "do*"                   ;; misc macros
+    )
   '(("[^:]:[-a-zA-Z?*+0-9/]+" . font-lock-type-face)
     ("[^~]@[-a-zA-Z?*+0-9/]+" . font-lock-type-face)
     ;; special constants

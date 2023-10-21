@@ -1,4 +1,5 @@
 ;; bootstrapping the base language.
+(load "prelude.rl")
 
 ;; binding forms.
 (def
@@ -55,47 +56,63 @@
   ((Symbol name) val)
   (list 'def (annot name :final true) val))
 
-;; a few helper function definitions.
-(fun hd head)
-(fun tl tail)
-(fun hhd
-  ((List xs))
-  (hd (hd xs)))
-
-(fun htl
-  ((List xs))
-  (hd (tl xs)))
-
-(fun thd
-  ((List xs))
-  (tl (hd xs)))
-
-(fun ttl
-  ((List xs))
-  (tl (tl xs)))
-
-(fun httl
-  ((List xs))
-  (hd (tl (tl xs))))
-
-(fun build-list
-  "Make a list with x repeated n times."
-  (x (Integer n))
-  (if (= n 0)
-    ()
-    (cons x (build-list x (- n 1)))))
-
-(mac _let
-  ((List formals) & body)
-  (cons (cons 'lmb (map hhd formals) body) (map htl formals)))
-
 (mac let
+  "Standard syntax for introducing temporary variables. Should probably implement destructuring at some point."
   ((List formals) & body)
-  (_let ((arity (len formals))
-         (names (map hhd formals))
-         (vals  (map thd formals))
-         (init  (map (fun (f) (list 'put (htl f) (httl f))) formals)))
-        (cons (cons 'lmb names (cat init body)) (build-list nul arity))))
+  (fun exp0
+    (formal)
+    (list 'put (htl formal) (httl formal)))
+  (fun exp1
+    (formals body)
+    (cons '_let formals body))
+  (fun exp2
+    (formals body)
+    (_let ((arity (len formals))
+           (names (map hhd  formals))
+           (vals  (map thd  formals))
+           (init  (map exp0 formals)))
+      (cons (cons 'lmb names (cat init body)) (build-list nul arity))))
+  (if (= (len formals) 1) ;; Simple optimization for common cases.
+      (exp1 formals body)
+      (exp2 formals body)))
+
+(mac inc!
+  "Common macro for rebinding counters."
+  (counter)
+  (list 'put counter (list '+ counter 1)))
+
+(mac dec!
+  "Common macro for rebinding counters."
+  (counter)
+  (list 'put counter (list '- counter 1)))
+
+;; exceptions.
+(mac guard
+  "Sets a save point for calls to `raise`."
+  ((List handlers) & body)
+  (fun expand-handler
+    (handler)
+    (cons (cons (cons* :exception (hhd handler))
+                (thd handler))
+          (tl handler)))
+  (cons 'handle
+        (map expand-handler handlers)
+        body))
+
+(mac raise
+  "Returns to a save point previously established by guard, invoking the matching handler."
+  ((String msg) & args)
+  (cons 'perform :exception msg & args))
+
+(mac raise
+  "Exceptions can be matched on an exception type."
+  ((Symbol type) (String msg) & args)
+  (cons 'perform (list :exception type) msg args))
+
+(mac raise
+  "Or a namespaced exception type."
+  ((List type) (String msg) & args)
+  (cons 'perform (cons :exception type) msg args))
 
 ;; branching forms.
 (mac when
@@ -121,32 +138,140 @@
 (mac and
   "With many, only evaluate tail if head is true."
   (x & more)
-  (let (())
+  (let ((tmp (sym)))
+    (cons 'let
+          (list (list tmp x))
+          (list 'if tmp (cons 'and more) tmp))))
+
+(mac or
+  "Classic recursive definition. With 0 inputs, returns false."
+  () false)
+
+(mac or
+  "With 1 input, returns its value."
+  (x) x)
+
+(mac or
+  "With many, only evaluate tail if head is false."
+  (x & more)
+  (let ((tmp (sym)))
+    (cons 'let
+          (list (list tmp x))
+          (list 'if tmp tmp (cons 'or more)))))
 
 (mac cond
   "Classic lisp semantics."
-  (fun expand-cond-clause
-    ((List clause))
-    (if ())))
+  (& clauses)
+  (if (id? clauses '())
+      (list 'raise "Unhandled `cond` case.")
+      (if (id? (hhd clauses) 'otherwise)
+          (cons 'do (thd clauses))
+          (list 'if
+                (hhd clauses)
+                (cons 'do (thd clauses))
+                (cons 'cond (tl clauses))))))
 
-;; cache of loaded modules.
-(val &used (table))
+(mac do*
+  "Like `do`, but returns its first input."
+  (x & more)
+  (let ((result (sym)))
+    (list 'let
+          (list (list result x))
+          (cons 'do more)
+          result)))
 
-(fun each
-  "Apply `fn` to the elements of `xs` in turn."
-  ((Function fn) (List xs))
-  (if (id? xs '())
-    nul
-    (if (= (len xs) 1)
-      (fn (head xs))
-      (do (fn (head xs))
-        (each fn (tail xs))))))
+;; quasiquote.
+(mac unquote
+  (_)
+  (list 'raise :syntax-error "Bare unquote."))
 
+(mac splice
+  (_)
+  (list 'raise :syntax-error "Bare splice."))
+
+(fun expand-backquote
+  "Handler for backquote."
+  (quoted)
+  (cond ((not (list? quoted))      (list 'quote quoted))
+        ((id? 'unqote (hd quoted)) (htl quoted))
+        ((id? 'splice (hd quoted)) ())
+        (otherwise                 ())))
+
+(mac backquote
+  "Entry point for `backquote`."
+  (expression)
+  (expand-backquote expression 0))
+
+;; more difficult macros (like yield) defined after backquote.
+;; iteration macros.
+(mac label
+  ((Symbol name) (List formals) & body)
+  `(do (fun ~name ~(map hd formals) ~@body)
+       (~name ~@(map htl formals))))
+
+(mac for
+  ((Symbol loop-var) :in collection :do & body)
+  `(let ((#c collection))
+    (if (empty? #c)
+        nul
+        (label #l ((~loop-var (first #c))
+                       (#c    (rest #c)))
+          (let ((#r (do ~@body)))
+            (if (empty? #c)
+                #r
+                (#l (first #c)
+                    (rest #c))))))))
+
+(mac while
+  (test :do & body)
+  `(label #l ((#r nul))
+     (if ~test
+         #r
+         (#l (do ~@body)))))
+
+;; generators.
+(mac yield
+  "Pass argument out of the generator."
+  (arg)
+  `(perform :yield ~arg))
+
+(mac generator
+  "Creates an anonymous generator."
+  ((List args) & body)
+  `(fun ~args
+     (let ((#r nul))
+       (handle
+         (((:yield #x) (put #r resume) #x))
+         (fun (#v)
+           (if #r (#r #v) (do ~@body)))))))
+
+(mac generator
+  "Creates a named generator."
+  ((Symbol name) (List args) & body)
+  `(fun ~name ~args
+     (let ((#r nul))
+       (handle
+         (((:yield #x) (put #r resume) #x))
+         (fun (#v)
+           (if #r (#r #v) (do ~@body)))))))
+
+(mac generator
+  "Support docstring."
+  ((Symbol name) (String doc) (List args) & body)
+  `(fun ~(annot name :doc doc) ~args
+    (let ((#r nul))
+      (handle
+        (((:yield #x) (put #r resume) #x))
+        (fun (#v)
+          (if #r (#r #v) (do ~@body)))))))
+
+;; miscellaneous.
 (mac use
   "We don't have any sort of namespacing yet so this is the best we can do."
   ((List modules))
-  (each (fun (module)
-          (unless (has? &used module)
-            (xef &used module (load module)))
-          (ref &used module))
-        modules))
+  (for module in modules do
+    (unless (has? &used module)
+      (let ((result (load module)))
+        (xef &used module result)))
+    (ref &used module)))
+

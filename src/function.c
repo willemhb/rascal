@@ -457,6 +457,31 @@ Value native_identity(Value x) {
  * 
 **/
 
+Value native_abs_small(Value x) {
+  Small s = as_small(x);
+
+  return tag(s < 0 ? -s : s);
+}
+
+Value native_abs_arity(Value x) {
+  Arity a = as_arity(x);
+
+  return tag(new_big(-(int64_t)a));
+}
+
+Value native_abs_float(Value x) {
+  Float f = as_float(x);
+
+  return tag(f < 0 ? -f : f);
+}
+
+Value native_abs_big(Value x) {
+  Big *b    = as_big(x);
+  int64_t v = b->val;
+
+  return tag(new_big(v < 0 ? -v : v));
+}
+
 Value native_add_small_small(Value x, Value y) {
   int64_t r = as_small(x) + as_small(y);
   Value out = r >= INT32_MIN || r <= INT32_MAX ? tag_small(r) : tag(new_big(r));
@@ -528,6 +553,14 @@ Value native_tail(Value x) {
   return tag(xs->tail);
 }
 
+Value native_walk_function_list(Value fn, Value xs) {
+  
+}
+
+Value native_walk_closure_list(Value fn, Value xs) {
+  
+}
+
 // initialization
 static Tuple* builtin_function_signature_v(size_t n, va_list va) {
   Type* type;
@@ -558,7 +591,7 @@ static Function* init_builtin_function(char* name) {
 
   sym  = symbol(name);
   func = new_func(sym, 0, NULL);
-  define(NULL, sym, tag(func), CONSTANT);
+  define(NULL, sym, tag(func), FINAL);
 
   return func;
 }
@@ -582,7 +615,7 @@ static void init_builtin_final_function(char* name, Native* fn, bool va, size_t 
   sym  = symbol(name);
   meth = new_method((Obj*)fn, sig, va);
   func = new_func(sym, FINAL, (Obj*)meth);
-  define(NULL, sym, tag(func), CONSTANT);
+  define(NULL, sym, tag(func), FINAL);
   va_end(va_l);
 }
 
@@ -630,6 +663,10 @@ NATIVE_FN1(Hash, hash);
 NATIVE_FN1(Identity, identity);
 
 /* arithmetic */
+NATIVE_FN1(AbsSmall,        abs_small);
+NATIVE_FN1(AbsFloat,        abs_float);
+NATIVE_FN1(AbsArity,        abs_arity);
+NATIVE_FN1(AbsBig,          abs_big);
 NATIVE_FN2(AddSmallSmall,   add_small_small);
 NATIVE_FN2(AddFloatFloat,   add_float_float);
 NATIVE_FN2(AddArityArity,   add_arity_arity);
@@ -662,6 +699,13 @@ void init_builtin_functions(void) {
    *
    * Generally speaking, arithmetic functions 
    **/
+
+  func = init_builtin_function("abs");
+
+  add_builtin_method(func, &NativeAbsSmall, false, 1, &SmallType);
+  add_builtin_method(func, &NativeAbsArity, false, 1, &ArityType);
+  add_builtin_method(func, &NativeAbsFloat, false, 1, &FloatType);
+  add_builtin_method(func, &NativeAbsBig,   false, 1, &BigType);
 
   func = init_builtin_function("+");
 
@@ -707,6 +751,16 @@ void init_builtin_functions(void) {
   func = init_builtin_function("add");
 
   func = init_builtin_function("del");
+
+  func = init_builtin_function("walk");
+
+  func = init_builtin_function("keep");
+
+  func = init_builtin_function("fold");
+
+  func = init_builtin_function("cat");
+
+  func = init_builtin_function("rev");
 
   
 }
