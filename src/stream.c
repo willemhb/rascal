@@ -4,6 +4,7 @@
 
 #include "environment.h"
 #include "type.h"
+#include "table.h"
 #include "stream.h"
 
 // globals
@@ -15,8 +16,10 @@ Stream Ins = {
     .annot   =&EmptyMap,
     .no_sweep=true,
     .no_free =true,
-    .gray    =true
-  }
+    .gray    =true,
+    .flags   =INPUT_STREAM | TEXT_STREAM | READ_MODE,
+  },
+  .enc=ASCII,
 };
 
 Stream Outs = {
@@ -25,8 +28,10 @@ Stream Outs = {
     .annot   =&EmptyMap,
     .no_sweep=true,
     .no_free =true,
-    .gray    =true
-  }
+    .gray    =true,
+    .flags   =OUTPUT_STREAM | TEXT_STREAM | WRITE_MODE,
+  },
+  .enc=ASCII,
 };
 
 Stream Errs = {
@@ -35,13 +40,24 @@ Stream Errs = {
     .annot   =&EmptyMap,
     .no_sweep=true,
     .no_free =true,
-    .gray    =true
-  }
+    .gray    =true,
+    .flags   =OUTPUT_STREAM | TEXT_STREAM | WRITE_MODE,
+  },
+  .enc=ASCII,
 };
 
 // external API
 // constructors
-Stream* new_stream(FILE* ios);
+Stream* new_stream(FILE* ios, Encoding enc, flags_t mode) {
+  assert(ios != NULL);
+
+  Stream* out = new_obj(&StreamType, mode, 0);
+
+  out->ios = ios;
+  out->enc = enc;
+
+  return out;
+}
 
 // 
 
@@ -147,4 +163,7 @@ void init_std_streams(void) {
   define(NULL, symbol("&ins"),  tag(&Ins),  FINAL);
   define(NULL, symbol("&outs"), tag(&Outs), FINAL);
   define(NULL, symbol("&errs"), tag(&Errs), FINAL);
+
+  // initialize modes-to-strings table
+  
 }

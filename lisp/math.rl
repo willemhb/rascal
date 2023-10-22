@@ -1,6 +1,11 @@
-;; math standard library.
+;; math standard library (nb: trig functions defined ).
 
 (use (base))
+
+;; common numeric constants.
+(val &pi  3.141592)
+(val &e   2.718281)
+(val &inf inf)
 
 ;; compound numeric types.
 (struct (Rational Ratio)
@@ -175,3 +180,4 @@
 (fun min
   ((Function f) xs)
   (fold (fun (x y) (if (> (f x) (f y)) y x)) xs))
+

@@ -6,8 +6,10 @@
 /* reader, io types */
 // C types
 typedef enum {
+  READ_MODE     = 0x000,
   CREATE_MODE   = 0x001,
   UPDATE_MODE   = 0x002,
+  WRITE_MODE    = 0x003,
   TEXT_STREAM   = 0x004,
   BINARY_STREAM = 0x008,
   INPUT_STREAM  = 0x010,
@@ -17,17 +19,17 @@ typedef enum {
 struct Stream {
   Obj      obj;
   FILE*    ios;
-  Encoding end;
-  flags_t  mode;
+  Encoding enc;
 };
 
 // globals
 extern struct Type StreamType, GlyphType;
 extern struct Stream Ins, Outs, Errs;
+extern struct Table ModesToFlags;
 
 // external API
 // constructors
-Stream* new_stream(FILE* ios);
+Stream* new_stream(FILE* ios, Encoding enc, flags_t mode);
 
 // stream API (largely wraps C file API)
 Stream* sopen(Obj* path, const char* fname, const char* opts);
