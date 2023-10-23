@@ -269,6 +269,18 @@
         (fun (#v)
           (if #r (#r #v) (do ~@body)))))))
 
+;; asynchronous code.
+(mac async
+  "Wraps asynchronous code with proper effect handler."
+  (& body)
+  `(handle (((:await #cb) (schedule #cb resume)))
+     ~@body))
+
+(mac await
+  "Wrap the scheduled task in a thunk."
+  (expression)
+  `(perform :await (thunk ~expression)))
+
 ;; miscellaneous.
 (mac use
   "We don't have any sort of namespacing yet so this is the best we can do."

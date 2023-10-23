@@ -577,11 +577,10 @@ size_t lmb_form(List* form) {
     ca_code   = comp_code();
     off       = add_value(ca_code, tag(cl_code));
 
-    // 
     emit_instr(ca_code, OP_GETV, off);
     capture_upvalues(cl_upvals);
 
-    
+    // insert 
     
   } else {
     process_formals(form, formals);

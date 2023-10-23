@@ -20,8 +20,9 @@
     "and" "or" "cond"             ;; branching macros
     "unless" "when"               ;; branching macros
     "guard" "raise"               ;; exception handling
-    "generator" "yield"           ;; coroutines
-    "ps" "await" "send" "receive" ;; concurrency syntax
+    "generator" "yield"           ;; generator syntax
+    "async" "await"               ;; coroutine syntax
+    "ps" "send" "receive"         ;; process syntax
     "use" "do*"                   ;; misc macros
     )
   '(("[^:]:[-a-zA-Z?*+0-9/]+" . font-lock-type-face)

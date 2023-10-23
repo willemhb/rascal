@@ -34,8 +34,6 @@
         ((zero? i)   xs)
         (otherwise   (drop (dec i) (tl xs)))))
 
-()
-
 ;; operating system interface.
 (fun environ
   ((String k))
@@ -45,7 +43,7 @@
   ((String k) (String v))
   (c-call putenv String (String String) (k v)))
 
-@final
+@singleton
 (fun pwd
   ()
   (c-call pwd String () ()))
@@ -56,3 +54,4 @@
 (val &user (environ "USER"))
 (val &host (environ "HOSTNAME"))
 
+;; networking and IO.
