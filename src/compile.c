@@ -94,13 +94,16 @@ static CompFrame* push_compiler_frame(CompState state, Obj* name) {
 
 static Chunk* pop_compiler_frame(void) {
   assert(RlVm.c.frame > CompFrames);
-  
+
   return (--RlVm.c.frame)->code;
 }
 
 static size_t comp_val(Value val);
 static size_t comp_var(Symbol* name);
 static size_t comp_comb(List* form);
+static void   process_formals(List* formals, List* form);
+static void   caputre_upvalues(NameSpace* ns);
+
 
 static bool is_def_form(List* form) {
   return form->head == DefSym;
@@ -393,18 +396,19 @@ static size_t comp_seq(List* body) {
   if (body->arity == 1)
     out = comp_xpr(body->head);
 
-   else {
+  else {
     arity = push_subxprs(body);
-
+    
     for (size_t i=0; i<arity; i++) {
       xpr = pop_subxpr();
       out = comp_xpr(xpr);
-
+      
       if (i+1 < arity)
         emit_instr(comp_code(), OP_POP);
     }
-    
-    return out;
+  }
+  
+  return out;
 }
 
 // special forms
@@ -529,18 +533,28 @@ static void process_formals(List* form, List* formals) {
   set_annot(comp_code(), VaOpt, tag(va));
 }
 
-static void capture_upvalues(List* body) {
-  
+static void capture_upvalues(NameSpace* ns) {
+  Chunk*       chunk = comp_code();
+  Binary16*    code  = chunk->code;
+
+  emit_instr(chunk, OP_CLOSURE, ns->kv_cnt);
+
+  for (size_t i=0; i<ns->kv_cnt; i++) {
+    Binding* bind = ns->kvs[i].val;
+
+    binary16_pushn(code, 2, is_local_upval(bind), bind->offset);
+  }
 }
 
 size_t lmb_form(List* form) {
   vargco(3, form->arity, "lmb");
 
+  NameSpace* cl_upvals;
   Chunk* ca_code, * cl_code;
   CompState state;
   List* formals, * body;
   size_t out, off;
-  
+
   state   = comp_state();
   formals = as_list_s(form->tail->head, "lmb");
   body    = form->tail->tail;
@@ -549,10 +563,26 @@ size_t lmb_form(List* form) {
     merge_annot(comp_code(), form);
     process_formals(form, formals);
     comp_seq(body);
+    
+    ca_code = pop_compiler_frame();
+
     out = 0;
   } else if (state == COMPILER_DEFUN) {
     merge_annot(comp_code(), form);
     process_formals(form, formals);
+    comp_seq(body);
+
+    cl_upvals = comp_envt()->upvals;
+    cl_code   = pop_compiler_frame();
+    ca_code   = comp_code();
+    off       = add_value(ca_code, tag(cl_code));
+
+    // 
+    emit_instr(ca_code, OP_GETV, off);
+    capture_upvalues(cl_upvals);
+
+    
+    
   } else {
     process_formals(form, formals);
     comp_seq(body);
@@ -560,6 +590,7 @@ size_t lmb_form(List* form) {
     cl_code = pop_compiler_frame();
     ca_code = comp_code();
     off     = add_value(ca_code, tag(cl_code));
+    
   }
 
   return out;

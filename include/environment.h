@@ -71,6 +71,7 @@ Value  set_annot_obj(void* p, Value key, Value value);
 
 // accessors
 ScopeType get_scope_type(Environment* envt);
+bool      is_local_upval(Binding* bind);
 
 // constructors
 Symbol*      new_symbol(char* name, flags_t fl);

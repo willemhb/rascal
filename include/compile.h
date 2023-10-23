@@ -18,7 +18,6 @@ extern Value DefSym, PutSym, LmbSym, // binding forms
 
 // other syntax
 extern Value AmpSym;
-
 extern struct Type ChunkType;
 
 // external API
