@@ -2,16 +2,20 @@
 (load "prelude.rl")
 
 ;; binding forms.
-(def
-  @final
-  @type Function
-  @doc "Standard form for introducing macro bindings."
-  mac
-  @macro
+@final
+@type Function
+@doc "Standard form for introducing macro bindings."
+@macro
+(def mac
   (lmb ((List &form) (Envrionment &envt) (Symbol name) (List args) & body)
     (list 'def
           (annot name :type Function :final true)
-          (annot (cons 'lmb (cons (list List '&form) (list Envrionment '&envt) args) body) :macro true))))
+          (annot (cons 'lmb (cons (list List '&form)
+                                  (list Envrionment '&envt)
+                                  args)
+                             body)
+                 :macro
+                 true))))
 
 (mac mac
   ((Symbol name) (String doc) (List args) & body)
@@ -200,7 +204,7 @@
 (mac backquote
   "Entry point for `backquote`."
   (expression)
-  (expand-backquote expression 0))
+  (expand-backquote expression))
 
 ;; more difficult macros (like yield) defined after backquote.
 ;; iteration macros.
@@ -274,4 +278,3 @@
       (let ((result (load module)))
         (xef &used module result)))
     (ref &used module)))
-

@@ -21,7 +21,7 @@
     "use" "do*"                   ;; misc macros
     )
   '(("[^:]:[-a-zA-Z?*+0-9/]+" . font-lock-type-face)
-    ("[^~]@[-a-zA-Z?*+0-9/]+" . font-lock-type-face)
+    ("@[-a-zA-Z?*+0-9/]+" . font-lock-type-face)
     ;; special constants
     ("\\_<nothing\\_>" . font-lock-constant-face)
     ("\\_<nul\\_>" . font-lock-constant-face)

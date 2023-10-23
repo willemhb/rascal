@@ -34,6 +34,8 @@
         ((zero? i)   xs)
         (otherwise   (drop (dec i) (tl xs)))))
 
+()
+
 ;; operating system interface.
 (fun environ
   ((String k))
@@ -42,6 +44,11 @@
 (fun environ
   ((String k) (String v))
   (c-call putenv String (String String) (k v)))
+
+@final
+(fun pwd
+  ()
+  (c-call pwd String () ()))
 
 (val &home (environ "HOME"))
 (val &path (environ "PATH"))
