@@ -100,7 +100,7 @@ static Chunk* pop_compiler_frame(void) {
 
 static size_t comp_val(Value val);
 static size_t comp_var(Symbol* name);
-static size_t compile_comb(List* form);
+static size_t comp_comb(List* form);
 
 static bool is_def_form(List* form) {
   return form->head == DefSym;
@@ -128,7 +128,7 @@ static size_t comp_xpr(Value xpr) {
     return comp_var(as_sym(xpr));
 
   else
-    return compile_comb(as_list(xpr));
+    return comp_comb(as_list(xpr));
 }
 
 static CompFrame* comp_frame(void) {
@@ -323,7 +323,7 @@ static size_t comp_val(Value val) {
   return out;
 }
 
-static size_t compile_comb(List* form) {
+static size_t comp_comb(List* form) {
   size_t out;
   CompFrame* frame;
   Function* macro;
@@ -548,14 +548,14 @@ size_t lmb_form(List* form) {
   if (state == COMPILER_DEFMAC) {
     merge_annot(comp_code(), form);
     process_formals(form, formals);
-    compile_sequence(body);
+    comp_seq(body);
     out = 0;
   } else if (state == COMPILER_DEFUN) {
     merge_annot(comp_code(), form);
     process_formals(form, formals);
   } else {
     process_formals(form, formals);
-    compile_sequence(body);
+    comp_seq(body);
 
     cl_code = pop_compiler_frame();
     ca_code = comp_code();

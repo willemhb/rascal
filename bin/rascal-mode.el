@@ -14,10 +14,14 @@
     "c-call"                      ;; miscellaneous forms
     "handle" "perform" "resume"   ;; nonlocal control forms
     "let" "fun" "mac" "var" "val" ;; binding macros
+    "type" "record" "struct"      ;; binding macros (continued)
+    "union" "abstract"            ;; binding macros (continued)
     "label" "for" "while" "in"    ;; iteration macros
     "and" "or" "cond"             ;; branching macros
     "unless" "when"               ;; branching macros
     "guard" "raise"               ;; exception handling
+    "generator" "yield"           ;; coroutines
+    "ps" "await" "send" "receive" ;; concurrency syntax
     "use" "do*"                   ;; misc macros
     )
   '(("[^:]:[-a-zA-Z?*+0-9/]+" . font-lock-type-face)

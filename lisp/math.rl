@@ -180,4 +180,3 @@
 (fun min
   ((Function f) xs)
   (fold (fun (x y) (if (> (f x) (f y)) y x)) xs))
-
