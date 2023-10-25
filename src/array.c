@@ -1,7 +1,7 @@
 #include "util/number.h"
 #include "util/collection.h"
 
-#include "memory.h"
+#include "runtime.h"
 
 #include "type.h"
 #include "function.h"
@@ -48,6 +48,14 @@
     a->cnt = new_cnt;                                                   \
     assert(a->cap >= a->cnt);                                           \
     return old_cnt;                                                     \
+  }                                                                     \
+                                                                        \
+  X*     _a##_peek(A* a, int i) {                                       \
+    if (i < 0)                                                          \
+      i += (int)a->cnt;                                                 \
+                                                                        \
+    assert(i >= 0 && i < (int)a->cnt);                                  \
+    return &a->data[i];                                                 \
   }                                                                     \
                                                                         \
   size_t _a##_push(A* a, X x) {                                         \

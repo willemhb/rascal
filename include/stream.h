@@ -25,7 +25,6 @@ struct Stream {
 // globals
 extern struct Type StreamType, GlyphType;
 extern struct Stream Ins, Outs, Errs;
-extern struct Table ModesToFlags;
 
 // external API
 // constructors

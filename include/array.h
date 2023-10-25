@@ -22,6 +22,7 @@
   void   init_##_a(A* a);                                               \
   void   free_##_a(void* p);                                            \
   size_t resize_##_a(A* a, size_t new_cnt);                             \
+  X*     _a##_peek(A* a, int i);                                        \
   size_t _a##_push(A* a, X x);                                          \
   size_t _a##_write(A* a, size_t n, X* d);                              \
   size_t _a##_pushn(A* a, size_t n, ...);                               \

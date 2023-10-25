@@ -8,8 +8,9 @@ extern Value QuoteSym;
 
 // external API
 // reading expressions
-Value read(void);
-Value read_line(void);
+Value read(Stream* source);
+Value read_line(Stream* source);
+Value read_file(Stream* source);
 
 // initialization
 void init_builtin_readers(void);

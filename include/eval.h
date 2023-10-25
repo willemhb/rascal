@@ -6,6 +6,7 @@
 
 // external API
 Value  apply_cl(Closure* cl, size_t n);
+Value  apply_cl_v(Closure* cl, size_t n, ...);
 Value  load(Obj* path);
 Value  use_module(Obj* path);
 Value  exec(Closure* code);

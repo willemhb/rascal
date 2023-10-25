@@ -162,7 +162,7 @@ typedef union {
 } NativeFn;
 
 typedef size_t   (*CompileFn)(List* form);
-typedef void     (*ReadFn)(Vm* vm, int dispatch);
+typedef void     (*ReadFn)(int dispatch);
 typedef void     (*TraceFn)(void* p);
 typedef void     (*FreeFn)(void* p);
 typedef hash_t   (*HashFn)(Value p);

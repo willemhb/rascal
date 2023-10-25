@@ -61,9 +61,13 @@ extern Value ReplSym;
 // external API
 #define get_annot(x, k)    generic2(get_annot, x, x, k)
 #define set_annot(x, k, v) generic2(set_annot, x, x, k, v)
+#define get_annots(x)      generic2(get_annots, x, x)
 
+// annotations
 void   merge_annot(void* dst, void* src);
-
+void   copy_annot(void* dst, void* src, Value key, Value fallback);
+Map*   get_annots_val(Value x);
+Map*   get_annots_obj(void* p);
 Value  get_annot_val(Value x, Value key);
 Value  get_annot_obj(void* p, Value key);
 Value  set_annot_val(Value x, Value key, Value value);
@@ -80,7 +84,9 @@ Binding*     new_bind(Binding* parent, Symbol* name, NameSpace* ns, size_t offse
 
 // convenience constructors
 Symbol* symbol(char* token);
+Symbol* keyword(char* token);
 Symbol* gensym(char* name);
+Symbol* genkey(char* name);
 
 // utilities
 bool      is_bound(Environment* envt, Symbol* name);

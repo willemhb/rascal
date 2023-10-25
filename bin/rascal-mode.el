@@ -13,20 +13,9 @@
     "if" "do" "quote"             ;; local control forms
     "c-call"                      ;; miscellaneous forms
     "handle" "perform" "resume"   ;; nonlocal control forms
-    "let" "fun" "mac" "var" "val" ;; binding macros
-    "type" "record" "struct"      ;; binding macros (continued)
-    "union" "abstract"            ;; binding macros (continued)
-    "label" "for" "while" "in"    ;; iteration macros
-    "and" "or" "cond"             ;; branching macros
-    "unless" "when"               ;; branching macros
-    "guard" "raise"               ;; exception handling
-    "generator" "yield"           ;; generator syntax
-    "async" "await"               ;; coroutine syntax
-    "ps" "send" "receive"         ;; process syntax
-    "use" "do*"                   ;; misc macros
     )
-  '(("[^:]:[-a-zA-Z?*+0-9/]+" . font-lock-type-face)
-    ("@[-a-zA-Z?*+0-9/]+" . font-lock-type-face)
+  '(("\\(?:[^:]:[-a-zA-Z?*+0-9/]+\\)\\|\\(?:^:[-a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
+    ("\\(?:[^~]@[-a-zA-Z?*+0-9/]+\\)\\|\\(?:^@[-a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ;; special constants
     ("\\_<nothing\\_>" . font-lock-constant-face)
     ("\\_<nul\\_>" . font-lock-constant-face)

@@ -1,4 +1,13 @@
 #include "runtime.h"
+
+#include "value.h"
+#include "collection.h"
+#include "array.h"
+#include "table.h"
+#include "stream.h"
+#include "environment.h"
+
+#include "eval.h"
 #include "read.h"
 
 // character classes
@@ -10,342 +19,399 @@
 #define PUNCT  "?!_-+*/=$^<>"
 
 // globals
-Value QuoteSym;
+// pseudo accessors
+static ReadFrame* read_frame(void);
+static Table*     read_table(void);
+static Stream*    read_source(void);
+static ReadState  read_state(void);
+static flags_t    read_flags(void);
+static Alist*     read_stack(void);
+static Buffer8*   read_buffer(void);
+static char*      read_token(void);
 
-// internal API
-// declarations
-// helpers
-// reader interface
-static bool   reof(Vm* vm);
-static int    getCh(Vm* vm);
-static int    ungetCh(Vm* vm, int ch);
-static int    peekCh(Vm* vm);
-static void   takeCh(Vm* vm, int ch);
-static int    accumCh(Vm* vm, int ch, bool consume);
-static ReadFn getReadFn(Vm* vm, int dispatch);
-static void   saveExpression(Vm* vm, Value expression);
-static void   giveExpression(Vm* vm, Value expression, ReaderState state);
-static Value  consumeExpressions(Vm* vm, size_t n, Value (*ctor)(size_t n, Value* args));
-static Value  popExpression(Vm* vm);
-static Value  takeExpression(Vm* vm);
+// stream manipulation
+static Glyph peek_gl(void);
+static Glyph get_gl(void);
+static Glyph unget_gl(Glyph gl);
 
-// errors
-static void readError(Vm* vm, const char* fmt, ...);
+// buffer manipulation
+static size_t accumulate(int ch);
+static void   clear_buffer(void);
+static void   init_buffer(void);
+
+// stack manipulation
+static ReadFrame* push_frame(Stream* source);
+static void       pop_frame(void);
+static size_t     save_subx(Value x);
+static Value      pop_subx(void);
+static Value      consume_subx(size_t n, Value (*ctor)(Value* a, size_t n));
+
+// misc utilities
+static Value get_reader(int ch);
+static void  give_expr(Value expr);
+static Value take_expr(void);
 
 // predicates and tests
-static bool isRlSpace(int ch);
-static bool isSymChar(int ch);
-static bool tokenMatches(Vm* vm, const char* match);
+static bool is_rl_space(int ch);
+static bool is_sym_char(int ch);
+static bool token_matches(const char* match);
+
+// miscellaneous helpers
+static Value read_sequence(int term, Value (*ctor)(Value* a, size_t n));
 
 // toplevel read helper
-static Value readExpression(Vm* vm);
+static Value read_expr(void);
 
 // adding dispatch handlers
-static void addReaderDispatch(Reader* reader, int dispatch, ReadFn handler);
-static void addReaderDispatches(Reader* reader, const char* dispatches, ReadFn handler);
+static void add_reader_dispatch(int dispatch, ReadFn handler);
+static void add_reader_dispatches(const char* dispatches, ReadFn handler);
 
-// reader dispatches
-void readEOF(Vm* vm, int dispatch);
-void readQuote(Vm* vm, int dispatch);
-void readSpace(Vm* vm, int dispatch);
-void readComment(Vm* vm, int dispatch);
-void readAtom(Vm* vm, int dispatch);
-void readString(Vm* vm, int dispatch);
-void readList(Vm* vm, int dispatch);
-void readBits(Vm* vm, int dispatch);
-void readNumber(Vm* vm, int dispatch);
+// builtin readers
+void read_eof(int dispatch);
+void read_quote(int dispatch);
+void read_space(int dispatch);
+void read_line_comment(int dispatch);
+void read_block_comment(int dispatch);
+void read_atom(int dispatch);
+void read_str(int dispatch);
+void read_list(int dispatch);
+void read_tuple(int dispatch);
+void read_number(int dispatch);
+void read_annot(int dispatch);
 
 // implementations
-static bool reof(Vm* vm) {
-  return feof(source(vm));
+// pseudo accessors
+static ReadFrame* read_frame(void) {
+  assert(RlVm.r.frame > ReadFrames);
+
+  return RlVm.r.frame-1;
 }
 
-static int getCh(Vm* vm) {
-  if (reof(vm))
-    return EOF;
-
-  return fgetc(source(vm));
+static Table* read_table(void) {
+  return read_frame()->table;
 }
 
-static int ungetCh(Vm* vm, int ch) {
-  if (ch != EOF)
-    ungetc(ch, source(vm));
-
-  return ch;
+static Stream* read_source(void) {
+  return read_frame()->source;
 }
 
-static int peekCh(Vm* vm) {
-  int next = getCh(vm);
-
-  if (next != EOF)
-    ungetCh(vm, next);
-
-  return next;
+static ReadState read_state(void) {
+  return read_frame()->state;
 }
 
-static void takeCh(Vm* vm, int ch) {
-  int next = peekCh(vm);
-  assert(next == ch);
-  getCh(vm);
+static flags_t read_flags(void) {
+  return read_frame()->flags;
 }
 
-static int accumCh(Vm* vm, int ch, bool consume) {
-  assert(ch != EOF);
-  assert(ch != '\0');
-  writeTextBuffer(readBuffer(vm), ch);
-
-  if (consume) {
-    getCh(vm);
-    ch = peekCh(vm);
-  }
-
-  return ch;
+static Alist* read_stack(void) {
+  return &RlVm.r.stack;
 }
 
-static ReadFn getReadFn(Vm* vm, int dispatch) {
-  ReadFn out;
-  readTableGet(readTable(vm), dispatch, &out);
+static Buffer8* read_buffer(void) {
+  return &read_frame()->buffer;
+}
+
+static char* read_token(void) {
+  return read_buffer()->data;
+}
+
+
+// stream manipulation
+static Glyph peek_gl(void) {
+  Stream* s = read_source();
+
+  return speek(s);
+}
+
+static Glyph get_gl(void) {
+  Stream* s = read_source();
+
+  return sget(s);
+}
+
+static Glyph unget_gl(Glyph gl) {
+  Stream* s = read_source();
+
+  return sunget(s, gl);
+}
+
+// token manipulation
+static size_t accumulate(int ch) {
+  return buffer8_push(read_buffer(), ch);
+}
+
+static void clear_buffer(void) {
+  Buffer8* buffer = read_buffer();
+
+  free_buffer8(buffer);
+}
+
+static void init_buffer(void) {
+  Buffer8* buffer = read_buffer();
+
+  obj_head(buffer, Buffer8, 0, .no_sweep=true);
+  init_buffer8(buffer);
+}
+
+// stack manipulation
+static ReadFrame* push_frame(Stream* source) {
+  ReadFrame* out = RlVm.r.frame++;
+
+  // initialize data
+  out->source    = source;
+  out->table     = RlVm.r.table;
+  out->flags     = 0;
+  out->state     = READER_READY;
+
+  // initialize buffer
+  init_buffer();
+
   return out;
 }
 
-static void  giveExpression(Vm* vm, Value expression, ReaderState status) {
-  assert(readState(vm) == READER_READY);
+static void pop_frame(void) {
+  clear_buffer();
+  RlVm.r.frame--;
+}
+
+static size_t save_subx(Value x) {
+  return alist_push(read_stack(), x);
+}
+
+static Value pop_subx(void) {
+  return alist_pop(read_stack());
+}
+
+static Value consume_subx(size_t n, Value (*ctor)(Value* a, size_t n)) {
+  Value* buf = alist_peek(read_stack(), -n);
+  Value out  = ctor(buf, n);
   
-  if (expression != NOTHING_VAL)
-    saveExpression(vm, expression);
-
-  reader(vm)->state = status;
-}
-
-static void saveExpression(Vm* vm, Value expression) {
-  writeValues(readStack(vm), expression);
-}
-
-static Value  consumeExpressions(Vm* vm, size_t n, Value (*ctor)(size_t n, Value* args)) {
-  Value* data = readStack(vm)->data;
-  Value* args = &data[readStack(vm)->count-n];
-  Value  out  = ctor(n, args);
-
-  popValuesN(readStack(vm), n);
-  return out;
-}
-
-static Value popExpression(Vm* vm) {
-  assert(readStack(vm)->count > 0);
-  return popValues(readStack(vm));
-}
-
-static Value takeExpression(Vm* vm) {
-  if (readState(vm) == READER_DONE || readState(vm) == READER_ERROR)
-    return NUL_VAL;
-
-  freeTextBuffer(readBuffer(vm));
-
-  Value out         = popExpression(vm);
-  reader(vm)->state = READER_READY;
+  alist_popn(read_stack(), n);
 
   return out;
 }
 
-// errors
-static void readError(Vm* vm, const char* fmt, ...) {
-  if (panicking(vm))
-    return;
+// misc utilities
+static Value get_reader(int ch) {
+  Table* table = read_table();
+  Value val;
 
-  // indicate error
-  reader(vm)->state = READER_ERROR;
+  table_get(table, tag((Glyph)ch), &val);
 
-  // panic
-  va_list va;
-  va_start(va, fmt);
-  vpanic(vm, NOTHING_VAL, NULL, fmt, va);
-  va_end(va);
+  return val;
+}
+
+static void  give_expr(Value expr) {
+  ReadFrame* frame = read_frame();
+  
+  assert(frame->state != READER_EXPRESSION);
+  save_subx(expr);
+
+  frame->state = READER_EXPRESSION;
+}
+
+static Value take_expr(void) {
+  ReadFrame* frame = read_frame();
+  Value out = pop_subx();
+  frame->state = READER_READY;
+  clear_buffer();
+
+  return out;
 }
 
 // predicates and tests
-static bool isRlSpace(int ch) {
+static bool is_rl_space(int ch) {
   return strchr(RLSPC, ch);
 }
 
-static bool isSymChar(int ch) {
-  return strchr(UPPER LOWER DIGIT PUNCT, ch);
+static bool is_sym_char(int ch) {
+  return strchr(LOWER UPPER DIGIT PUNCT, ch);
 }
 
-static bool tokenMatches(Vm* vm, const char* match) {
-  return strcmp(token(vm), match) == 0;
+static bool token_matches(const char* str) {
+  char* token = read_token();
+
+  return strcmp(token, str) == 0;
 }
 
-static Value readExpression(Vm* vm) {
-  while (!readState(vm)) {
-    int dispatch  = peekCh(vm);
-    ReadFn readfn = getReadFn(vm, dispatch);
-
-    if (readfn == NULL)
-      readError(vm, "Unreadable character %c", dispatch);
-    else
-      readfn(vm, dispatch);
-  }
-
-  return takeExpression(vm);
-}
-
-// adding dispatch handlers
-static void addReaderDispatch(Reader* reader, int dispatch, ReadFn handler) {
-  readTableSet(&reader->table, dispatch, handler);
-}
-
-static void addReaderDispatches(Reader* reader, const char* dispatches, ReadFn handler) {
-  for ( ;*dispatches != '\0'; dispatches++ )
-    addReaderDispatch(reader, *dispatches, handler);
-}
-
-// reader dispatches
-void readEOF(Vm* vm, int dispatch) {
-  (void)dispatch;
-  giveExpression(vm, NOTHING_VAL, READER_DONE);
-}
-
-void readQuote(Vm* vm, int dispatch) {
-  (void)dispatch;
-
-  getCh(vm); // clear initial '.
-
-  Value quoted   = read(vm);
-  List* expanded = newList2(QuoteSym, quoted);
-  giveExpression(vm, TAG_OBJ(expanded), READER_EXPRESSION);
-}
-
-void readSpace(Vm* vm, int dispatch) {
-  while (isRlSpace(dispatch))
-    dispatch = getCh(vm);
-
-  ungetCh(vm, dispatch);
-}
-
-void readComment(Vm* vm, int dispatch) {
-  while (dispatch != EOF && dispatch != '\n')
-    dispatch = getCh(vm);
-
-  if (dispatch != EOF)
-    getCh(vm);
-}
-
-void readAtom(Vm* vm, int dispatch) {
-  while (isSymChar(dispatch))
-    dispatch = accumCh(vm, dispatch, true);
-
-  if (tokenMatches(vm, "true"))
-    giveExpression(vm, TRUE_VAL, READER_EXPRESSION);
-
-  else if (tokenMatches(vm, "false"))
-    giveExpression(vm, FALSE_VAL, READER_EXPRESSION);
-
-  else if (tokenMatches(vm, "nul"))
-    giveExpression(vm, NUL_VAL, READER_EXPRESSION);
-
-  else {
-    Symbol* sym = getSymbol(token(vm));
-    giveExpression(vm, TAG_OBJ(sym), READER_EXPRESSION);
-  }
-}
-
-void readString(Vm* vm, int dispatch) {
-  getCh(vm); // clear opening '"'
+// miscellaneous helpers
+static Value read_sequence(int term, Value (*ctor)(Value* a, size_t n)) {
+  Stream* source = read_source();
+  size_t n = 0;
+  Value xpr;
   
-  while (dispatch != '"') {
-    if (dispatch == EOF) {
-      readError(vm, "Unexpected EOF reading String");
-      break;
-    }
-
-    dispatch = accumCh(vm, dispatch, true);
+  while (peek_gl() != term) {
+    require(!seof(source), "read", "unexpected EOF looking for \\%c", term);
+    xpr = read_expr();
+    save_subx(xpr);
+    n++;
   }
 
-  if (!panicking(vm)) {
-    takeCh(vm, '"'); // consume closing '"'
-    giveExpression(vm, TAG_OBJ(newString(token(vm), readBuffer(vm)->count)), READER_EXPRESSION);
-  }
+  get_gl(); // clear terminal character
+
+  return consume_subx(n, ctor);
 }
 
-void readList(Vm* vm, int dispatch) {
-  size_t i = 0;
+// toplevel read helper
+static Value read_expr(void) {
+  Stream* stream = read_source();
 
-  for (dispatch=getCh(vm); dispatch != ')'; i++, dispatch=peekCh(vm) ) {
-    if (dispatch == EOF) {
-      readError(vm, "Unexpected EOF reading List");
-      break;
+  while (!read_state()) {
+    int dispatch = peek_gl();
+    Value reader = get_reader(dispatch);
+
+    require(reader != NOTHING, "read", "Unreadable character \\%c", dispatch);
+
+    if (is_fptr(reader)) {
+      ReadFn cfun = (ReadFn)as_fptr(reader);
+      cfun(dispatch);
+    } else {
+      Closure* cl = as_cls_s(reader, "read");
+      Value val = apply_cl_v(cl, 2, tag(stream), tag((Glyph)dispatch));
+      give_expr(val);
     }
-
-    Value element = readExpression(vm);
-    saveExpression(vm, element);
   }
 
-  if (!panicking(vm)) {
-    takeCh(vm, ')'); // consume closing ')'
-    giveExpression(vm, consumeExpressions(vm, i, mkListN), READER_EXPRESSION);
-  }
-}
-
-void readNumber(Vm* vm, int dispatch) {
-  while (isdigit(dispatch))
-    dispatch = accumCh(vm, dispatch, true);
-
-  if (dispatch == '.') {
-    dispatch = accumCh(vm, dispatch, true);
-
-    while (isdigit(dispatch))
-      dispatch = accumCh(vm, dispatch, true);
-  }
-
-  if (isSymChar(dispatch))
-    readAtom(vm, dispatch);
+  if (read_state() == READER_EXPRESSION)
+    return take_expr();
 
   else
-    giveExpression(vm, TAG_NUM(strtod(token(vm), NULL)), READER_EXPRESSION);
+    return NUL;
 }
 
-// external API
-void  initReader(Reader* reader) {
-  reader->source    = stdin;
-  reader->state     = READER_READY;
+// builtin readers
+void read_eof(int dispatch) {
+  (void)dispatch;
 
-  initReadTable(&reader->table);
-  initTextBuffer(&reader->buffer);
-  initValues(&reader->stack);
-
-  // add dispatches to reader table
-  addReaderDispatch(reader, EOF, readEOF);
-  addReaderDispatch(reader, '\'', readQuote);
-  addReaderDispatch(reader, '(', readList);
-  addReaderDispatch(reader, '"', readString);
-  addReaderDispatch(reader, ';', readComment);
-
-  addReaderDispatches(reader, " \n\t\r\v,", readSpace);
-  addReaderDispatches(reader, DIGIT, readNumber);
-  addReaderDispatches(reader, ":" UPPER LOWER PUNCT, readAtom);
+  ReadFrame* frame = read_frame();
+  frame->state = READER_DONE;
 }
 
-void freeReader(Reader* reader) {
-  freeReadTable(&reader->table);
-  freeTextBuffer(&reader->buffer);
-  freeValues(&reader->stack);
+void read_quote(int dispatch) {
+  (void)dispatch;
+  Value quoted, form;
+  
+  get_gl(); // clear initial `'`
+  save_subx(QuoteSym);
+  quoted = read_expr();
+  save_subx(quoted);
+  form = consume_subx(2, mk_list);
+  give_expr(form);
 }
 
-void resetReader(Reader* reader) {
-  reader->state = READER_READY;
+void read_space(int dispatch) {
+  (void)dispatch;
 
-  freeTextBuffer(&reader->buffer);
-  freeValues(&reader->stack);
+  while (is_rl_space(peek_gl()))
+    get_gl();
 }
 
-void syncReader(Reader* reader) {
-  FILE* ios = reader->source;
-
-  while (!feof(ios))
-    fgetc(ios);
+void read_line_comment(int dispatch) {
+  while ((dispatch=peek_gl()) != EOF && dispatch != '\n')
+    get_gl();
 }
 
-Value read(Vm* vm) {
-  resetReader(&vm->reader);
-  return readExpression(vm);
+void read_block_comment(int dispatch) {
+  int dispatch0;
+  Stream* source;
+
+  source = read_source();
+  dispatch0 = dispatch;
+  get_gl(); // clear opening '#'
+  dispatch = peek_gl();
+
+  if (dispatch != '|') {
+    accumulate(dispatch0);
+    read_atom(dispatch);
+  } else {
+    get_gl(); // clear opening '|'
+
+    while (true) {
+      require(!seof(source), "read", "unclosed block quote");
+
+      dispatch = get_gl();
+
+      if (dispatch == '#') {
+        require(!seof(source), "read", "unclosed block quote");
+        dispatch = get_gl();
+
+        if (dispatch == '|') {
+          get_gl();
+          break;
+        }
+      }
+    }
+  }
+}
+void read_atom(int dispatch) {
+  Stream* source = read_source();
+  accumulate(dispatch);
+
+  for (dispatch=peek_gl(); ! seof(source) && is_sym_char(dispatch); get_gl())
+    accumulate(dispatch);
+
+  if (token_matches("nul"))
+    give_expr(NUL);
+
+  else if (token_matches("true"))
+    give_expr(TRUE);
+
+  else if (token_matches("false"))
+    give_expr(FALSE);
+
+  else
+    give_expr(tag(symbol(read_token())));
+}
+
+void read_str(int dispatch) {
+  bool escaped = false;
+
+  
+}
+
+void read_list(int dispatch) {
+  get_gl(); // clear '('
+  
+  Value xpr = read_sequence(')', mk_list);
+  give_expr(xpr);
+}
+
+void read_tuple(int dispatch) {
+  get_gl(); // clear '['
+
+  Value xpr = read_sequence(']', mk_tuple);
+  give_expr(xpr);
+}
+
+void read_number(int dispatch);
+void read_annot(int dispatch);
+
+// adding dispatch handlers
+static void add_reader_dispatch(int dispatch, ReadFn handler) {
+  Table* table = read_table();
+
+  table_set(table, tag((Glyph)dispatch), tag((funcptr_t)handler));
+}
+
+static void add_reader_dispatches(const char* dispatches, ReadFn handler) {
+  for (char ch=*dispatches; ch != '\0'; dispatches++, ch=*dispatches)
+    add_reader_dispatch(ch, handler);
+}
+
+// toplevel initialization
+void init_builtin_readers(void) {
+  // initialize builtin readers
+  add_reader_dispatch(EOF, read_eof);
+  add_reader_dispatch('\'', read_quote);
+  add_reader_dispatch(';', read_line_comment);
+  add_reader_dispatch('#', read_block_comment);
+  add_reader_dispatch('@', read_annot);
+  add_reader_dispatch('"', read_str);
+  add_reader_dispatch('(', read_list);
+  add_reader_dispatch('[', read_tuple);
+
+  // initialize builtin readers (for ranges)
+  add_reader_dispatches(RLSPC, read_space);
+  add_reader_dispatches(DIGIT, read_number);
+  add_reader_dispatches(LOWER UPPER PUNCT, read_atom);
 }

@@ -29,6 +29,7 @@ struct ReadFrame {
   flags_t   flags;      // miscellaneous flags
   Table*    table;      // current readtable
   Stream*   source;     // input source
+  Buffer8   buffer;
 };
 
 /* execution frame */

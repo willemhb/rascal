@@ -93,6 +93,8 @@ Map*      new_map(size_t n, Value* kvs);
 // convenience constructors
 List*     cons(Value head, List* tail);
 List*     consn(Value* vs, size_t n);
+Value     mk_list(Value* vs, size_t cnt);
+Value     mk_tuple(Value* vs, size_t cnt);
 
 // collection interfaces
 Bits*     clone_bits(Bits* b);
