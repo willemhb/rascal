@@ -81,25 +81,24 @@ extern struct Type BitsType, StringType, TupleType,
 
 // external AP
 // constructors
-Bits*     new_bits(void* data, size_t count, flags_t fl);
-String*   new_str(char* chars, size_t count, flags_t fl);
-Tuple*    new_tuple(size_t n, Value* vs);
-List*     new_list(size_t n, Value* vs);
-Vector*   new_vec(size_t n, Value* vs);
-VecNode*  new_vecn(Obj** children, size_t n, int flags);
+Bits*     new_bits(void* data, size_t cnt);
+String*   new_str(char* chars, size_t cnt);
+Tuple*    new_tuple(Value* vs, size_t cnt);
+List*     new_list(Value* vs, size_t cnt);
+Vector*   new_vec(Value* vs, size_t cnt);
+VecNode*  new_vecn(Obj** children, size_t n, flags_t fl);
 VecLeaf*  new_vecl(Value* tail);
 Map*      new_map(size_t n, Value* kvs);
 
 // convenience constructors
 List*     cons(Value head, List* tail);
+List*     consn(Value* vs, size_t n);
 
 // collection interfaces
-size_t    get_elsize(Bits* b);
-bool      fits_elsize(Bits* b, int i);
 Bits*     clone_bits(Bits* b);
 Value     bits_get(Bits* b, size_t n);
-Bits*     bits_add(Bits* b, int i);
-Bits*     bits_set(Bits* b, size_t n, int i);
+Bits*     bits_add(Bits* b, byte_t x);
+Bits*     bits_set(Bits* b, size_t n, byte_t x);
 Bits*     bits_del(Bits* b, size_t n);
 
 Encoding  get_encoding(String* s);

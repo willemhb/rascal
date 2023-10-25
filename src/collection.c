@@ -1,155 +1,242 @@
-#include "collection.h"
+#include "runtime.h"
 
+#include "collection.h"
 
 
 // collection interfaces
 // bits interface
-size_t getElSize(Bits* b) {
-  return b->obj.flags & 0x7;
-}
+Bits EmptyBits = {
+  .obj={
+    .type    =&BitsType,
+    .annot   =&EmptyMap,
+    .no_sweep=true,
+    .gray    =true,
+  },
+  .data =NULL,
+  .arity=0
+};
 
-bool fitsElSize(Bits* b, int i) {
-  size_t es = getElSize(b);
-  bool out;
+Bits* clone_bits(Bits* b) {
+  if (b->arity == 0)
+    return b;
 
-  if (es == 1)
-    out = i <= INT8_MAX && i >= INT8_MIN;
-
-  else if (es == 2)
-    out = i <= INT16_MAX && i >= INT16_MIN;
-
-  else
-    out = true;
-
-  return out;
-}
-
-Bits* cloneBits(Bits* b) {
-  Bits* o   = cloneObj(b);
-  size_t es = getElSize(o);
-  o->data   = duplicate(NULL, b->data, b->arity * es);
-
-  return o;
-}
-
-Value bitsGet(Bits* b, size_t n) {
-  assert(n < b->arity);
-
-  size_t es = getElSize(b);
-  int o;
-
-  memcpy(&o, b->data+n*es, es);
-
-  return tag(o);
-}
-
-Bits* bitsAdd(Bits* b, int i) {
-  assert(fitsElSize(b, i));
   save(1, tag(b));
-  size_t es = getElSize(b);
-  Bits* o = newBits(NULL, b->arity+1, es);
-  memcpy(o->data, b->data, es*b->arity);
-  memcpy(o->data+es*b->arity, &i, es);
-  unsave(1);
+
+  Bits* o = clone_obj(b);
+  o->data = duplicate(NULL, b->data, b->arity);
+
   return o;
 }
 
-Bits* bitsSet(Bits* b, size_t n, int i) {
+Value bits_get(Bits* b, size_t n) {
   assert(n < b->arity);
-  assert(fitsElSize(b, i));
-  size_t es = getElSize(b);
-  Bits* o = cloneBits(b);
-  memcpy(o->data+n*es, &i, es);
-  return o;
+
+  return tag((Small)b->data[n]);
 }
 
-Bits* bitsDel(Bits* b, size_t n) {
-  assert(n < b->arity);
+Bits* bits_add(Bits* b, byte_t x) {
   save(1, tag(b));
-  size_t es = getElSize(b);
-  Bits* o = newBits(NULL, b->arity-1, es);
-  memcpy(o->data, b->data, (n-1)*es);
-  memcpy(o->data, b->data+n*es, (b->arity-n)*es);
-  unsave(1);
+
+  Bits* o = new_bits(NULL, b->arity+1);
+  memcpy(o->data, b->data, b->arity);
+  o->data[o->arity-1] = x;
+
+  return o;
+}
+
+Bits* bits_set(Bits* b, size_t n, byte_t x) {
+  assert(n < b->arity);
+
+  Bits* o = clone_bits(b);
+  o->data[n] = x;
+
+  return o;
+}
+
+Bits* bits_del(Bits* b, size_t n) {
+  assert(n < b->arity);
+
+  save(1, tag(b));
+
+  Bits* o = new_bits(NULL, b->arity-1);
+  memcpy(o->data, b->data, n-1);
+  memcpy(o->data+n-1, b->data+n, b->arity-n);
+
   return o;
 }
 
 // string interface
-String emptyString = {
+String EmptyString = {
   .obj={
-    .type   =&StringType,
-    .annot  =&emptyMap,
-    .noSweep=true,
-    .noFree =true,
-    .gray   =true
+    .type    =&StringType,
+    .annot   =&EmptyMap,
+    .no_sweep=true,
+    .no_free =true,
+    .gray    =true,
+    .flags   =ASCII,
   },
   .data ="",
-  .arity=0
+  .arity=0,
 };
 
-Encoding getEncoding(String* s) {
+Encoding get_encoding(String* s) {
   assert(s != NULL);
   return s->obj.flags & 0x7;
 }
 
-String* cloneString(String* s) {
+String* clone_str(String* s) {
   if (s->arity == 0)
     return s;
 
-  String* o = cloneObj(s);
+  String* o = clone_obj(s);
   o->data   = duplicates(NULL, s->data, s->arity);
 
   return o;
 }
 
-Value strGet(String* s, size_t n) {
+Value str_get(String* s, size_t n) {
   assert(n < s->arity);
-  Glyph g = s->data[n];
 
-  return tag(g);
+  return tag((Glyph)s->data[n]);
 }
 
-String* strAdd(String* s, Glyph g) {
+String* str_add(String* s, Glyph g) {
   save(1, tag(s));
-  Encoding e = getEncoding(s);
-  String* o = newString(NULL, s->arity+1, e);
-  o->data[s->arity] = g;
+
+  String* o = new_str(NULL, s->arity+1);
   memcpy(o->data, s->data, s->arity);
-  unsave(1);
+  o->data[s->arity] = g;
+
   return o;
 }
 
-String* strSet(String* s, size_t n, Glyph g) {
+String* str_set(String* s, size_t n, Glyph g) {
   assert(n < s->arity);
   save(1, tag(s));
-  String* o = cloneString(s);
+
+  String* o = clone_str(s);
   o->data[n] = g;
-  unsave(1);
+
   return o;
 }
 
-String* strDel(String* s, size_t n) {
-  
+String* str_del(String* s, size_t n) {
+  assert(n < s->arity);
+
+  save(1, tag(s));
+
+  String* o = new_str(NULL, s->arity-1);
+  memcpy(o->data, s->data, n-1);
+  memcpy(o->data+n-1, s->data+n, s->arity-n);
+
+  return o;
 }
 
 // tuple interface
-Tuple* cloneTuple(Tuple* t) {
+Tuple EmptyTuple = {
+  .obj={
+    .type    =&TupleType,
+    .annot   =&EmptyMap,
+    .no_sweep=true,
+    .no_free =true,
+    .gray    =true,
+  },
+  .slots=NULL,
+  .arity=0
+};
+
+Tuple* clone_tuple(Tuple* t) {
   Tuple* o = t;
   
-  if (t->arity > 0) // don't clone empty tuple
-    o = cloneObj(t);
+  if (t->arity > 0) { // don't clone empty tuple
+    o = clone_obj(t);
+    o->slots = duplicate(NULL, t->slots, t->arity * sizeof(Value));
+  }
 
   return o;
 }
 
+Value tuple_get(Tuple* t, size_t n) {
+  assert(n < t->arity);
+
+  return t->slots[n];
+}
+
+Tuple* tuple_add(Tuple* t, Value x) {
+  save(1, tag(t));
+
+  Tuple* o = new_tuple(NULL, t->arity+1);
+  memcpy(o->slots, t->slots, t->arity*sizeof(Value));
+  o->slots[o->arity-1] = x;
+
+  return o;
+}
+
+Tuple* tuple_set(Tuple* t, size_t n, Value x) {
+  assert(n < t->arity);
+  save(1, tag(t));
+
+  Tuple* o = clone_tuple(t);
+  o->slots[n] = x;
+
+  return o;
+}
+
+Tuple* tuple_del(Tuple* t, size_t n) {
+  assert(n < t->arity);
+  save(1, tag(t));
+
+  Tuple* o = new_tuple(NULL, n-1);
+
+  if (o->arity > 1) {
+    memcpy(o->slots, t->slots, (n-1)*sizeof(Value));
+    memcpy(&o->slots[n], &t->slots[n+1], (t->arity-n)*sizeof(Value));
+  }
+
+  return t;
+}
+
+// list interface
+List EmptyList = {
+  .obj={
+    .type    =&ListType,
+    .annot   =&EmptyMap,
+    .no_sweep=true,
+    .no_free =true,
+    .gray    =true,
+  },
+  .arity=0,
+  .head =NUL,
+  .tail =&EmptyList
+};
+
+Value list_get(List* l, size_t n) {
+  assert(n < l->arity);
+
+  while (n--)
+    l = l->tail;
+
+  return l->head;
+}
+
+List* list_add(List* l, Value x) {
+  return cons(x, l);
+}
+
+List* list_set(List* l, size_t n, Value x) {
+  assert(n < l->arity);
+
+  
+}
+
 // vector & map interfaces
-size_t getNodeIndex(uint32_t shift, uint64_t key) {
+size_t get_node_idx(uint32_t shift, uint64_t key) {
   return key >> shift & INDEX_MASK;
 }
 
 // map interface
-bool mapNodeHasIndex(uint64_t bitMap, uint32_t shift, uint64_t hash) {
-  size_t index = getNodeIndex(shift, hash);
+bool map_node_has_dx(uint64_t bitMap, uint32_t shift, uint64_t hash) {
+  size_t index = get_node_idx(shift, hash);
 
   return !!(bitMap & (1 << index));
 }

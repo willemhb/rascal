@@ -1,6 +1,50 @@
 ;; bootstrapping the base language.
 (load "prelude.rl")
 
+#|
+  eventual standard library:
+
+  Runtime & system:
+    * vm      - interface to vm
+    * os      - interface to operating system (POSIX bindings)
+    * time    - standard time utilities
+    * dt      - utilties and types for working with dates and times
+
+  Text:
+    * re      - regular expressions
+    * pc      - a rascal parser combinator library
+
+  Math:
+    * math    - common mathematical functions and types
+    * stats   - statistics & probability functions
+    * linalg  - linear algebra & matrix operations
+    * rand    - random number utilties
+    * crypt   - cryptography utilities
+    * base64  - base64 encoding/decoding
+
+  Datastructures & algorithm:
+    * mutable - exposes builtin mutable collection types
+    * stencil - exposes a stencil array type for building HAMT-like types
+    * tree    - exposes several tree types
+    * graph   - exposes utilities & types for working with graphs
+
+  Application development:
+    * test    - unit testing framework
+    * log     - logging functions
+    * pkg     - rascal package manager
+
+  Trait libraries (rascal libraries should be written in such a way that they conform to these trait types):
+    * trait/coll - interface for collection types
+    * trait/seq  - interface for sequence types
+    * trait/num  - interface for numeric types
+    * trait/io   - interface for io types
+    * trait/net  - interface for network io types
+    * trait/ser  - interface for types representing serialized data
+    * trait/db   - interface for database connection types
+    * trait/cli  - interface for CLI libraries
+    * trait/gui  - interface for GUI libraries
+|#
+
 ;; binding forms.
 @final
 @type Function
@@ -280,6 +324,15 @@
   "Wrap the scheduled task in a thunk."
   (expression)
   `(perform :await (thunk ~expression)))
+
+#|
+
+(fun gets 
+  (ios)
+  (async 
+    (await (c-call gets String (File) (ios))))
+
+|#
 
 ;; miscellaneous.
 (mac use
