@@ -11,12 +11,18 @@
   '(";" ("#|" . "|#"))
   '("def" "put" "lmb"             ;; binding forms
     "if" "do" "quote"             ;; local control forms
-    "c-call"                      ;; miscellaneous forms
     "handle" "perform" "resume"   ;; nonlocal control forms
+    "c-call"                      ;; miscellaneous forms
     "fun" "mac" "var" "val"       ;; binding macros
     "struct" "union" "abstract"   ;; binding macros
     "let" "label"                 ;; binding macros
     "and" "or" "cond"             ;; branching macros
+    "guard" "raise"               ;; exception macros
+    "yield"                       ;; generator macros
+    "async" "await"               ;; coroutine macros
+    "ps" "send" "receive"         ;; process macros
+    "for" "while" "in"            ;; looping macros
+    "use" "do*"                   ;; misc macros
     )
   '(("\\(?:[^:]:[-a-zA-Z?*+0-9/]+\\)\\|\\(?:^:[-a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ("\\(?:[^~]@[-a-zA-Z?*+0-9/]+\\)\\|\\(?:^@[-a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
