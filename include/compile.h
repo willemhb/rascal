@@ -21,7 +21,7 @@ extern Value AmpSym;
 extern struct Type ChunkType;
 
 // external API
-Chunk*   new_chunk(void);
+Chunk*   new_chunk(Map* annot);
 Value    macro_expand(Function* macro, Environment* envt, List* form);
 Closure* compile(void* name, CompState state, Value xpr);
 

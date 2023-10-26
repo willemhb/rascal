@@ -47,7 +47,7 @@ bool get_fl(void* p, flags_t f);
 bool set_fl(void* p, flags_t f);
 bool del_fl(void* p, flags_t f);
 
-void* new_obj(Type* type, flags_t fl, size_t extra);
+void* new_obj(Type* type, flags_t fl, size_t extra, Map* annot);
 void  init_obj(void* p, Type* type, flags_t fl);
 void  free_obj(void* p);
 void  trace_obj(void* p);

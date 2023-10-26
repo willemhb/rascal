@@ -75,8 +75,9 @@ bool   has_va_methods(Function* f);
 
 // constructors
 Function* new_func(Symbol* name, flags_t fl, Obj* leaf);
-Tuple*  get_sig(size_t max_a, size_t n, Value* vals);
-Tuple*  get_macro_sig(size_t max_a, List* args);
+Tuple*    get_sig(size_t max_a, size_t n, Value* vals);
+Tuple*    get_macro_sig(size_t max_a, List* args);
+Closure*  new_cls(Chunk* code, size_t n, Obj** upvals);
 
 // internal types
 // function and dispatch types

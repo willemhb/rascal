@@ -13,6 +13,10 @@
     "if" "do" "quote"             ;; local control forms
     "c-call"                      ;; miscellaneous forms
     "handle" "perform" "resume"   ;; nonlocal control forms
+    "fun" "mac" "var" "val"       ;; binding macros
+    "struct" "union" "abstract"   ;; binding macros
+    "let" "label"                 ;; binding macros
+    "and" "or" "cond"             ;; branching macros
     )
   '(("\\(?:[^:]:[-a-zA-Z?*+0-9/]+\\)\\|\\(?:^:[-a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ("\\(?:[^~]@[-a-zA-Z?*+0-9/]+\\)\\|\\(?:^@[-a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)

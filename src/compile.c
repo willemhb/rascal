@@ -52,10 +52,10 @@ Type ChunkType = {
   .idno   =CHUNK,
 };
 
-Chunk* new_chunk(void) {
+Chunk* new_chunk(Map* annot) {
   Chunk* out;
 
-  out         = new_obj(&ChunkType, 0, 0); save(1, tag(out));
+  out         = new_obj(&ChunkType, 0, 0, annot); save(1, tag(out));
   out->vals   = new_alist(0);
   out->code   = new_binary16(0);
 
@@ -440,7 +440,7 @@ size_t def_form(List* form) {
   if (is_list(val) && is_lmb_form(as_list(val))) {
       List* lmb = as_list(val);
 
-      if (get_annot(lmb, MacroOpt) == TRUE)
+      if (get_annot(form, MacroOpt) == TRUE)
         return comp_defmac(name, lmb);
 
       else
@@ -563,14 +563,13 @@ size_t lmb_form(List* form) {
     merge_annot(comp_code(), form);
     process_formals(form, formals);
     comp_seq(body);
-    
-    ca_code = pop_compiler_frame();
-
+    emit_instr(comp_code(), OP_RETURN);   
     out = 0;
   } else if (state == COMPILER_DEFUN) {
     merge_annot(comp_code(), form);
     process_formals(form, formals);
     comp_seq(body);
+    emit_instr(comp_code(), OP_RETURN);
 
     cl_upvals = comp_envt()->upvals;
     cl_code   = pop_compiler_frame();
@@ -580,7 +579,7 @@ size_t lmb_form(List* form) {
     emit_instr(ca_code, OP_GETV, off);
     capture_upvalues(cl_upvals);
 
-    // insert 
+    // insert appropriate call
     
   } else {
     process_formals(form, formals);
