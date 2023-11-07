@@ -11,26 +11,26 @@
   '(";" ("#|" . "|#"))
   '("def" "put" "lmb"             ;; binding forms
     "if" "do" "quote"             ;; local control forms
-    "handle" "perform" "resume"   ;; nonlocal control forms
+    "handle" "perform"            ;; nonlocal control forms
     "c-call"                      ;; miscellaneous forms
     "fun" "mac" "var" "val"       ;; binding macros
     "struct" "union" "abstract"   ;; binding macros
     "let" "label"                 ;; binding macros
-    "and" "or" "cond"             ;; branching macros
+    "and" "or" "cond" "case"      ;; branching macros
     "guard" "raise"               ;; exception macros
     "yield"                       ;; generator macros
     "async" "await"               ;; coroutine macros
     "ps" "send" "receive"         ;; process macros
-    "for" "while" "in"            ;; looping macros
+    "for" "while" "while*" "in"   ;; looping macros
     "use" "do*"                   ;; misc macros
     )
   '(("\\(?:[^:]:[-a-zA-Z?*+0-9/]+\\)\\|\\(?:^:[-a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ("\\(?:[^~]@[-a-zA-Z?*+0-9/]+\\)\\|\\(?:^@[-a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ;; special constants
-    ("\\_<nothing\\_>" . font-lock-constant-face)
-    ("\\_<nul\\_>" . font-lock-constant-face)
-    ("\\_<true\\_>" . font-lock-constant-face)
-    ("\\_<false\\_>" . font-lock-constant-face)
+    ("\\_<nothing[[:space:][:cntrl:],\\s)]" . font-lock-constant-face)
+    ("\\_<nul[[:space:][:cntrl:],\\s)]" . font-lock-constant-face)
+    ("\\_<true[[:space:][:cntrl:],\\s)]" . font-lock-constant-face)
+    ("\\_<false[[:space:][:cntrl:],\\s)]" . font-lock-constant-face)
     ;; types
     ("\\_<[A-Z][a-zA-Z0-9]*\\_>" . font-lock-type-face)
     ;; syntax
