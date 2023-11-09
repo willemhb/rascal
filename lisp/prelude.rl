@@ -1,26 +1,4 @@
-;; All of the standard function definitions to be used in core.rl
+;; functions and macros required for `core.rl`.
 
-@final
-@type Function
-@doc "Alias for `head`."
-(def hd head)
+;; very simple syntactic predicates.
 
-@final
-@type Function
-@doc "Alias for `tail`."
-(def
-  @final
-  @type Function
-  @doc "Alias for `tail`."
-  tl
-  tail)
-
-(def
-  @final
-  @type Function
-  hhd
-  (lmb
-    ((List xs))
-    (hd (hd xs))))
-
-;; macros that are either very simple or useful for making other macros.
