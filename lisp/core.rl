@@ -2,21 +2,12 @@
 
 (load "prelude.rl")
 
-;; branching macros.
-(mac when
-  "Like `if`, but with implicit `do` and no consequent."
-  (test & body)
-  `(if ~test (do ~@body)))
+;; binding macros.
 
-(mac unless
-  "Like `when`, but negates the test."
-  (test & body)
-  `(if (not ~test) (do ~@body)))
+;; exceptions.
+(mac guard
+  "Set an escape point for calls to `raise`."
+  ((List handler-clause) & body)
+  `(handle
+    ((#op #args ))))
 
-(mac use
-  "Checks whether a file has already been loaded before loading it."
-  (names)
-  (each names
-        #(if (table-has? &used %)
-             (table-get &used %)
-             (table-set &used % (load %)))))

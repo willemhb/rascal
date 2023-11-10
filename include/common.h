@@ -86,35 +86,29 @@ typedef funcptr_t       FuncPtr;  // C function pointer
 typedef struct Symbol   Symbol;   // first-class identifier type
 typedef struct Type     Type;     // first-class representation of a rascal type
 typedef struct Stream   Stream;   // IO stream
-typedef struct Big      Big;      // arbitrary precision integer
+typedef struct Big      Big;      // 64-bit integer
 
 // utility array types
 typedef struct Buffer8   Buffer8;
-typedef struct Buffer16  Buffer16;
-typedef struct Buffer32  Buffer32;
 typedef struct Binary8   Binary8;
 typedef struct Binary16  Binary16;
-typedef struct Binary32  Binary32;
 typedef struct Alist     Alist;
 typedef struct Objects   Objects;
 
 // utility table types
 typedef struct Table       Table;
 typedef struct SymbolTable SymbolTable;
-typedef struct Handlers    Handlers;
-typedef struct NameSpace   NameSpace;
 
 // immutable collection types
 typedef struct Bits     Bits;     // unencoded binary data
 typedef struct String   String;   // encoded binary data
-typedef struct Tuple    Tuple;    // a simple, fixed-size imutable collection
 typedef struct List     List;     // classic linked list
 typedef struct Vector   Vector;   // clojure-like vector
-typedef struct VecNode  VecNode;
-typedef struct VecLeaf  VecLeaf;
-typedef struct Map      Map;      // clojure-like hashmap (with reader support for sets)
-typedef struct MapNode  MapNode;
-typedef struct MapLeaf  MapLeaf;
+typedef struct VecNode  VecNode;  // internal vector node
+typedef struct VecLeaf  VecLeaf;  // vector leaf node
+typedef struct Map      Map;      // clojure-like hashmap
+typedef struct MapNode  MapNode;  // internal map node
+typedef struct MapLeaf  MapLeaf;  // map leaf node
 
 // function & method types
 typedef struct Function    Function;    // generic function object
@@ -126,11 +120,11 @@ typedef struct Native      Native;      // native function
 typedef struct Closure     Closure;     // packages a chunk/namespace with names
 
 // execution and control
-typedef struct Chunk       Chunk;
+typedef struct Chunk       Chunk;       // compiled code representation
 typedef struct Control     Control;     // reified partial continuation
 
 // names & environments
-typedef struct Binding     Binding;
+typedef struct Binding     Binding;     // 
 typedef struct Environment Environment; // a reified naming context, including values
 typedef struct UpValue     UpValue;     // a captured local binding
 
