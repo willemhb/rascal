@@ -7,103 +7,119 @@
   (x)
   (isa? x List))
 
-(fun empty?
-  "Empty sequence predicate for Lists."
-  ((List xs))
-  (id? xs ()))
-
 (fun vector?
   "Vector type predicate."
-  (x)
+  [x]
   (isa? x Vector))
 
-(fun empty?
-  "Empty sequence predicate for Vectors."
-  ((Vector xs))
-  (id? xs []))
-
 (fun map?
-  "Type predicate for maps."
-  (x)
+  "Map type predicate."
+  [x]
   (isa? x Map))
 
-(fun empty?
-  "Empty sequence predicate for maps."
-  ((Map kvs))
-  (id? kvs {}))
+(fun bits?
+  "Bits type predicate."
+  [x]
+  (isa? x Bits))
+
+(fun string?
+  "String type predicate."
+  [x]
+  (isa? x String))
 
 (fun symbol?
   "Symbol type predicate."
-  (x)
+  [x]
   (isa? x Symbol))
 
 (fun type?
   "Type type predicate."
-  (x)
+  [x]
   (isa? x Type))
 
-;; simple binding macros.
-(mac val
-  "Standard syntax for introducing new constant bindings."
-  ((Symbol name) value)
-  `(do (var ~name ~value)
-       (set-metadata! (resolve ~name) :final true)
-       (set-metadata! (resolve ~name) :type  (type ~name))))
+(fun empty?
+  ("Empty List predicate."
+   [xs::List]
+   (id? xs ()))
+  ("Empty Vector predicate."
+   [vs::Vector]
+   (id? vs []))
+  ("Empty Map predicate."
+   [kvs::Map]
+   (id? kvs {})))
 
-(mac let*
-  "Bitchmade let."
-  ((List bindings) & body)
-  `((fun ~(map hd bindings) ~@body) ~@(map hd|tl bindings)))
+;; simple syntax manipulation helpers and macros.
+(fun syntax-error
+  "Helper for raising a syntax error."
+  [&form &envt message]
+  (perform (:exception :syntax-error) ("syntax error in `#{&form}`: #{message}.")))
 
-(mac mac*
-  "Introduce multiple methods at once."
-  ((Symbol name) & argspecs)
-  (fun expand-argspec
-    (argspec)
-    `(mac ~name ~(hd argspec) ~@(tl argspec)))
-  `(do ~@(map expand-argspec argspecs)))
-
-(mac mac*
-  "Support docstrings."
-  ((Symbol name) (String doc) & argspecs)
-  (fun expand-argspec
-    (argspec)
-    `(mac ~name ~doc ~(hd argspec) ~@(tl argspec)))
-  `(do ~@(map expand-argspec argspecs)))
-
-(mac* fun*
-  "Introduce multiple methods at once."
-  (((Symbol name) & argspecs)
-   (fun expand-argspec
-     (argspec)
-     `(fun ~name ~(hd argspec) ~@(tl argspec)))
-   `(do ~@(map expand-argspec argspecs)))
-  (((Symbol name) (String doc) & argspecs)
-   (fun expand-argspec
-     (argspec)
-     `(fun ~name ~doc ~(hd argspec) ~@(tl argspec)))
-   `(do ~@(map expand-argspec argspecs))))
-
-(mac* iflet*
-  "Like if, but saves test to supplied binding."
-  (((Symbol test-name) test then)
-   `(let* ((~test-name ~test))
-      (if ~test-name ~then)))
-  (((Symbol test-name) test then else)
-   `(let* ((~test-name ~test))
-      (if ~test-name ~then ~else))))
+(fun unhandled-condtion
+  [&form]
+  (perform (:exception :unhandled-condition) "unhandled condition in #{&form}."))
 
 ;; simple branching macros.
-(mac* and
+(mac and
   "Classic definition."
-  (() true)
-  ((x) x)
-  ((x & more)
-   `(iflet* #test ~x (and ~@more) #test)))
+  ([] true)
+  ([x] x)
+  ([x & more]
+   `(let [#test ~x]
+      (if #test
+          (and ~@more)
+          #test))))
 
-(mac* or
+(mac or
   "Classic definition."
-  (() false)
-  ((x) x)
-  ((x & more)
-   `(iflet* #test #test (or ~@more))))
+  ([] false)
+  ([x] x)
+  ([x & more]
+   `(let [#test ~x]
+      (if #test
+          #test
+          (or ~@more)))))
+
+(mac cond
+  "Branching macro for multiple cases."
+  ([]
+   `(unhandled-condition ~&form))
+  ([test then]
+   (if (id? test 'otherwise)
+       then
+       `(if ~test
+            ~then
+            (unhandled-condition ~&form))))
+  ([test then & else]
+   `(if ~test
+        ~then
+        (cond ~@else))))
+
+;; advanced syntax manipulation helpers and macros.
+(fun cons?
+  "Pseudo-type predicate for non-empty lists."
+  [x]
+  (and (list? x)
+       (not|empty? x)))
+
+(fun atom?
+  "Syntactic type predicate for terminals."
+  [x]
+  (or (not|list? x)
+      (empty? x)))
+
+(fun identifier?
+  "Syntactic type predicate for symbols used to name things."
+  [x]
+  (and (symbol? x)
+       (not|metadata x :literal)))
+
+(fun keyword?
+  "Syntactic type predicate for symbols that always evaluate to themselves without quoting."
+  [x]
+  (and (symbol? x)
+       (metadata x :literal)))
+
+(fun annotation?
+  "Sytactic type predicate for annotated names."
+  [x]
+  (and (l)))

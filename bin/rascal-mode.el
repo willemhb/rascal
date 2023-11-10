@@ -33,7 +33,8 @@
     ;; syntax
     ("\\_<otherwise\\_>" . font-lock-function-name-face)
     ("\\_<&\\_>" . font-lock-function-name-face)
-    ("\\_<&&\\_>" . font-lock-function-name-face))
+    ("\\_<&&\\_>" . font-lock-function-name-face)
+    ("::" . font-lock-comment-face))
   '("\\.rl$" "\\.rl.d$" "\\.rl.o$") ;; source file, serialization format, object file
   (list 'rainbow-delimiters-mode)
   "A major mode for rascal files.")
