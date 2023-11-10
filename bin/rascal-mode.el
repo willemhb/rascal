@@ -9,17 +9,17 @@
 (define-generic-mode
   'rascal-mode
   '(";" ("#|" . "|#"))
-  '("def" "put" "with" "fn"     ;; binding forms
-    "cond" "do" "quote"         ;; local control forms
-    "handle" "perform"          ;; nonlocal control forms
-    "c-call"                    ;; miscellaneous forms
-    "fun" "fun*" "mac" "mac*"   ;; binding macros
-    "struct" "union" "abstract" ;; binding macros
-    "var" "val" "let" "label"   ;; binding macros
-    "and" "or" "case"           ;; branching macros
-    "if" "when" "unless"        ;; branching macros
-    "guard" "raise"             ;; exception macros
-    "use" "do*"                 ;; misc macros
+  '("fun" "mac" "struct"   ;; binding forms
+    "var" "put" "with"     ;; binding forms
+    "if" "do" "quote"      ;; local control forms
+    "handle" "perform"     ;; nonlocal control forms
+    "c-call"               ;; miscellaneous forms
+    "fun*" "mac*" "val"    ;; binding macros
+    "let" "label"          ;; binding macros
+    "and" "or" "case"      ;; branching macros
+    "cond" "when" "unless" ;; branching macros
+    "guard" "raise"        ;; exception macros
+    "use" "do*"            ;; misc macros
     )
   '(("\\(?:[^:]:[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ("\\(?:[^~]@[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^@[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
