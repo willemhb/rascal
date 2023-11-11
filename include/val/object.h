@@ -58,6 +58,7 @@ void merge_obj_meta(Obj* obj, Dict* meta);
 
 // lifetime methods
 Obj* new_obj(Type* type, flags_t flags, flags_t memfl, size_t extra);
+Obj* clone_obj(Obj* obj);
 void init_obj(Obj* slf, Type* type, flags_t flags, flags_t memfl);
 void trace_obj(Obj* obj);
 void finalize_obj(Obj* obj);

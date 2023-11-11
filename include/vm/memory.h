@@ -4,6 +4,19 @@
 #include "vm/context.h"
 
 /* interface to rascal's memory management system. */
+
+void unsave_gc_frame(GcFrame* frame);
+
+#define save(n, args...)                             \
+  Value __gc_frame_vals[(n)] = { args };             \
+  GcFrame __gc_frame cleanup(unsave_gc_frame) = {    \
+    .next=Ctx.gcframes,                              \
+    .cnt =(n),                                       \
+    .data=__gc_frame_vals                            \
+  }
+
+#define add_saved(n, val) __gc_frame_vals[(n)] = (val)
+
 void  add_to_heap(RlCtx* ctx, Obj* obj);
 void  add_to_grays(RlCtx* ctx, Obj* obj);
 void* allocate(RlCtx* ctx, size_t n_bytes);

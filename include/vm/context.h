@@ -14,11 +14,11 @@ struct GcFrame {
 
 struct RlCtx {
   // heap state
-  size_t  heap_size;
-  size_t  heap_cap;
-  GcFrame gcframes;
-  Objects grays;
-  Obj     objects;
+  size_t   heap_size;
+  size_t   heap_cap;
+  GcFrame* gcframes;
+  Objects  grays;
+  Obj*     objects;
 
   // execution state
   

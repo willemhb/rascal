@@ -149,17 +149,6 @@ size_t pushn(size_t n);
 Value  popn(size_t n);
 Value* peek(int i);
 
-void unsave_gc_frame(GcFrame* frame);
-
-#define save(n, args...)                             \
-  Value __gc_frame_vals[(n)] = { args };             \
-  GcFrame __gc_frame cleanup(unsave_gc_frame) = {    \
-    .next=RlVm.h.frame,                              \
-    .cnt =(n),                                       \
-    .vals=__gc_frame_vals                            \
-  }
-
-#define add_saved(n, val) __gc_frame_vals[(n)] = (val)
 
 #define SAFE_ALLOC(func, args...)                           \
   ({                                                        \

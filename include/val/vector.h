@@ -24,7 +24,7 @@ struct Vector {
   VecNode* root;
   size_t   arity;
   size_t   shift;
-  Value    tail[];
+  Value    tail[64];
 };
 
 /* Globals */
@@ -38,7 +38,6 @@ bool    obj_is_vec(Obj* obj);
 Vector* as_vec(Value x);
 
 // constructors
-Vector* new_vec(size_t n);
 Vector* mk_vec(size_t n, Value* a);
 
 // accessors & modifiers
