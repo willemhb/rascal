@@ -4,16 +4,19 @@
 #include "val/value.h"
 
 /* C types */
-// common object header
+// object flag types
+// allocation flags
 typedef enum {
-  BLACK  =0x80000000U,
-  GRAY   =0x40000000U,
-  NOTRACE=0x20000000U,
-  NOSWEEP=0x10000000U,
-  NOFREE =0x08000000U,
-  EDITP  =0x04000000U, // for HAMT types, indicates that the object can be modified in-place
+  BLACK  =0x01u,
+  GRAY   =0x02u,
+  NOTRACE=0x04u,
+  NOSWEEP=0x08u,
+  NOFREE =0x10u,
+  EDITP  =0x20u, // for HAMT types, indicates that the object can be modified in-place
+  HASHED =0x40u,
 } MemFl;
 
+// common object header
 struct Obj {
   Obj*    next;   // invasive live objects list
   hash_t  hash;   // cached hash code 

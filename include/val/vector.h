@@ -23,8 +23,7 @@ struct Vector {
   HEADER;
   VecNode* root;
   size_t   arity;
-  size_t   shift;
-  Value    tail[64];
+  Value    tail[];
 };
 
 /* Globals */
@@ -36,6 +35,8 @@ extern Type VectorType, VecNodeType, VecLeafType;
 bool    val_is_vec(Value x);
 bool    obj_is_vec(Obj* obj);
 Vector* as_vec(Value x);
+size_t  vec_shift(Vector* vec);
+size_t  vec_cnt(Vector* vec);
 
 // constructors
 Vector* mk_vec(size_t n, Value* a);

@@ -28,7 +28,7 @@ typedef struct Set    Set;
 typedef struct Stream Stream;
 
 // utility mutable object types
-typedef struct Table    Table;
+typedef struct MutDict  MutDict;
 typedef struct MutSet   MutSet;
 typedef struct Alist    Alist;
 typedef struct Objects  Objects;
@@ -46,13 +46,14 @@ typedef struct UpValue   UpValue;
 
 /* Globals */
 // tags and such
-#define SMALL_TAG   0x7ffc000000000000UL
-#define BOOL_TAG    0x7ffd000000000000UL
-#define NUL_TAG     0x7ffe000000000000UL
-#define GLYPH_TAG   0x7fff000000000000UL
-#define PTR_TAG     0xfffc000000000000UL
-#define FPTR_TAG    0xfffd000000000000UL
-#define OBJ_TAG     0xfffe000000000000UL
+#define SYS_TAG     0x7ffc000000000000UL // internal value with no external representation
+#define SMALL_TAG   0x7ffd000000000000UL
+#define BOOL_TAG    0x7ffe000000000000UL
+#define NUL_TAG     0x7fff000000000000UL
+#define GLYPH_TAG   0xfffc000000000000UL
+#define PTR_TAG     0xfffd000000000000UL
+#define FPTR_TAG    0xfffe000000000000UL
+#define OBJ_TAG     0xffff000000000000UL
 
 #define TAG_MASK    0xffff000000000000UL
 #define VAL_MASK    0x0000ffffffffffffUL
@@ -61,7 +62,8 @@ typedef struct UpValue   UpValue;
 #define TRUE        (BOOL_TAG  | 1UL)
 #define FALSE       (BOOL_TAG  | 0UL)
 #define NUL         (NUL_TAG   | 0UL)
-#define NOTHING     (NUL_TAG   | 1UL) // invalid value marker
+#define NOTHING     (SYS_TAG   | 1UL) // invalid value marker
+#define TOMBSTONE   (SYS_TAG   | 2ul) // indicates deleted table entry
 #define ZERO        (SMALL_TAG | 0UL)
 #define ONE         (SMALL_TAG | 1UL)
 #define NULL_OBJ    (OBJ_TAG   | 0UL)

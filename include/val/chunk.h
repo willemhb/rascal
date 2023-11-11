@@ -16,15 +16,15 @@ struct Binary16 {
 
 struct Chunk {
   HEADER;
-  Envt     envt;
-  Alist    values;
-  Binary16 code;
+  Envt*     envt;
+  Alist*    values;
+  Binary16* code;
 };
 
 /* globals */
 extern struct Type ChunkType, Binary16Type;
 
 /* external API */
-
+Chunk* new_chunk(void);
 
 #endif

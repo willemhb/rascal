@@ -24,6 +24,5 @@ extern struct Type StringType, Buffer8Type, GlyphType;
 
 /* External APIs */
 
-/* initialization */
 
 #endif

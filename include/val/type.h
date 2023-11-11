@@ -39,6 +39,48 @@ struct Type {
 extern struct Type NoneType, AnyType, TermType, TypeType;
 
 /* external API */
+#define INIT_OBJECT_TYPE(_Type, _size, _trace, _finalize)             \
+  Symbol _Type##Symbol = {                                            \
+    .obj={                                                            \
+      .type =&SymbolType,                                             \
+      .meta =&EmptyDict,                                              \
+      .memfl=NOSWEEP|NOFREE|GRAY,                                     \
+    },                                                                \
+    .name =#_Type,                                                    \
+  };                                                                  \
+                                                                      \
+  Func _Type##Ctor = {                                                \
+    .obj={                                                            \
+      .type =&FuncType,                                               \
+      .meta =&EmptyDict,                                              \
+      .memfl=NOSWEEP|GRAY,                                            \
+    },                                                                \
+    .name=&_Type##Symbol,                                             \
+  };                                                                  \
+                                                                      \
+  Vtable _Type##Vtable = {                                            \
+    .vsize   =sizeof(_Type*),                                         \
+    .osize   =sizeof(_Type),                                          \
+    .tag     =OBJ_TAG,                                                \
+    .size    =_size,                                                  \
+    .trace   =_trace,                                                 \
+    .finalize=_finalize,                                              \
+  };                                                                  \
+                                                                      \
+  Type _Type##Type = {                                                \
+    .obj={                                                            \
+      .type =&TypeType,                                               \
+      .meta =&EmptyDict,                                              \
+      .flags=DATA_KIND,                                               \
+      .memfl=NOSWEEP|NOFREE|GRAY,                                     \
+    },                                                                \
+    .parent=&TermType,                                                \
+    .name  =&_Type##Symbol,                                           \
+    .ctor  =&_Type##Ctor,                                             \
+    .vtable=&_Type##Vtable,                                           \
+  }
+
+
 void register_builtin_type(Type* type);
 
 #endif

@@ -7,69 +7,15 @@
 #include "val/type.h"
 #include "val/symbol.h"
 
-
 /* Globals */
 idno_t SymbolCounter = 0;
 Symbol* Symbols      = NULL;
 Symbol* Keywords     = NULL;
 
-Symbol SymbolName = {
-  .obj={
-    .next =NULL,
-    .hash =0,
-    .type =&SymbolType,
-    .meta =&EmptyDict,
-    .flags=0,
-    .memfl=NOSWEEP|NOFREE|GRAY,
-  },
-  .left =NULL,
-  .right=NULL,
-  .name ="Symbol",
-  .idno =0,
-  .form =NULL
-};
-
-Func SymbolCTor = {
-  .obj={
-    .next =NULL,
-    .hash =0,
-    .type =&FuncType,
-    .meta =&EmptyDict,
-    .flags=0,
-    .memfl=NOSWEEP|NOFREE|GRAY,
-  },
-  .name=&SymbolName,
-  .func=NULL,
-};
-
 extern void trace_sym(Obj* slf);
 extern void free_sym(Obj* slf);
 
-Vtable SymbolVtable = {
-  .vsize    =sizeof(Symbol*),
-  .osize    =sizeof(Symbol),
-  .tag      =OBJ_TAG,
-  .size     =NULL,
-  .trace    =trace_sym,
-  .finalize =free_sym,
-};
-
-Type SymbolType = {
-  .obj={
-    .next =NULL,
-    .hash =0,
-    .type =&TypeType,
-    .meta =&EmptyDict,
-    .flags=DATA_KIND,
-    .memfl=NOSWEEP|NOFREE|GRAY,
-  },
-  .idno   =0,
-  .parent =&TermType,
-  .name   =&SymbolName,
-  .ctor   =&SymbolCTor,
-  .members=NULL,
-  .vtable =&SymbolVtable,
-};
+INIT_OBJECT_TYPE(Symbol, NULL, trace_sym, free_sym);
 
 /* external API */
 Symbol* as_sym(Value x) {

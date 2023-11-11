@@ -17,8 +17,8 @@
 typedef size_t (*SpclForm)(List form);
 
 typedef enum {
-  INTERNED=0x01,
-  LITERAL =0x02,
+  INTERNED=0x01u,
+  LITERAL =0x02u,
 } SymFl;
 
 struct Symbol {

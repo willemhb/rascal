@@ -37,6 +37,10 @@ typedef struct RlCtx RlCtx;
 typedef uintptr_t  Value; // tagged value
 typedef struct Obj Obj;   // boxed object (includes type information)
 
+// internal function pointer types
+typedef hash_t (*HashFn)(Value x);
+typedef bool   (*EgalFn)(Value x, Value y);
+
 /* globals */
 extern struct RlCtx Ctx;
 

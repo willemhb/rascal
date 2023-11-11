@@ -21,17 +21,17 @@ struct Func {
 struct MethTable {
   HEADER;
 
-  Table*     cache;
+  MutDict*   cache;
   MethTRoot* fixed;
   MethTRoot* variadic;
 };
 
 struct MethTNode {
   HEADER;
-  size_t    offset;
+  size_t     offset;
   MethTLeaf* leaf;
-  Table*     exact_methods;
-  Table*     abstract_methods;
+  MutDict*   exact_methods;
+  MutDict*   abstract_methods;
   Alist*     union_methods;
   MethTNode* any_method;
 };
@@ -53,6 +53,6 @@ extern Type FuncType, NativeType, ClosureType,
   MethTNodeType;
 
 /* External API */
-Func new_func(Dict meta);
+Func new_func(Symbol* name);
 
 #endif

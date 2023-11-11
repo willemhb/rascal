@@ -1,9 +1,9 @@
 ;;; package --- Summary:
 
-;;; keeping this here so it's in the repo
+;;; keeping this here so it's in the repo.
 
 ;;; Commentary:
-;;; elisp doc formatting is extraordinarily fucked up
+;;; elisp doc formatting is extraordinarily fucked up.
 
 ;;; Code:
 (define-generic-mode
@@ -14,9 +14,26 @@
     ;; local control forms
     "if" "do" "quote"
     ;; nonlocal control forms (effects system)
-    "handle" "perform"
+    "handle" "perform" "enter" "exit"
     ;; miscellaneous forms
-    "c-call")
+    "c-call"
+    ;; binding macros
+    "var" "val"
+    "fun" "fun*" "mac" "mac*"
+    "struct" "union" "abstract"
+    "let" "label"
+    ;; branching macros
+    "and" "or" "cond" "case"
+    ;; exception handling macros
+    "guard" "raise"
+    ;; generator macros
+    "generator" "yield"
+    ;; async macros
+    "async" "sync" "await"
+    ;; actor macros
+    "ps" "send" "receive"
+    ;; miscellaneous macros
+    "use" "with" "do*")
   '(("\\(?:[^:]:[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ("\\(?:[^~]@[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^@[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ;; special constants
