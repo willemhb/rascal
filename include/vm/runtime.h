@@ -204,14 +204,6 @@ void  unmark_obj(void* obj);
 void  unmark_vals(Value* vals, size_t n);
 void  unmark_objs(void** objs, size_t n);
 
-void  add_to_heap(void* p);
-
-void* allocate(Vm* vm, size_t nBytes);
-void* duplicate(Vm* vm, void* pointer, size_t n_bytes);
-char* duplicates(Vm* vm, char* chars, size_t n_chars);
-void* reallocate(Vm* vm, void* pointer, size_t old_size, size_t new_size);
-void  deallocate(Vm* vm, void* pointer, size_t n_bytes);
-
 void save_state(Context* ctx);
 void restore_state(Context* ctx);
 

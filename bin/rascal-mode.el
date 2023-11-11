@@ -9,18 +9,14 @@
 (define-generic-mode
   'rascal-mode
   '(";" ("#|" . "|#"))
-  '("fun" "mac" "struct"   ;; binding forms
-    "var" "put" "with"     ;; binding forms
-    "if" "do" "quote"      ;; local control forms
-    "handle" "perform"     ;; nonlocal control forms
-    "c-call"               ;; miscellaneous forms
-    "fun*" "mac*" "val"    ;; binding macros
-    "let" "label"          ;; binding macros
-    "and" "or" "case"      ;; branching macros
-    "cond" "when" "unless" ;; branching macros
-    "guard" "raise"        ;; exception macros
-    "use" "do*"            ;; misc macros
-    )
+  '(;; binding forms
+    "def*" "fn*" "put"
+    ;; local control forms
+    "if" "do" "quote"
+    ;; nonlocal control forms (effects system)
+    "handle" "perform"
+    ;; miscellaneous forms
+    "c-call")
   '(("\\(?:[^:]:[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ("\\(?:[^~]@[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^@[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ;; special constants
@@ -33,8 +29,7 @@
     ;; syntax
     ("\\_<otherwise\\_>" . font-lock-function-name-face)
     ("\\_<&\\_>" . font-lock-function-name-face)
-    ("\\_<&&\\_>" . font-lock-function-name-face)
-    ("::" . font-lock-comment-face))
+    ("\\_<&&\\_>" . font-lock-function-name-face))
   '("\\.rl$" "\\.rl.d$" "\\.rl.o$") ;; source file, serialization format, object file
   (list 'rainbow-delimiters-mode)
   "A major mode for rascal files.")
