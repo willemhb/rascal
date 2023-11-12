@@ -17,9 +17,7 @@ typedef enum OpCode {
   OP_GETG, OP_PUTG, /* global (toplevel scope) */
 
   /* multimethods */
-  OP_SPECL,
-  OP_SPECU,
-  OP_SPECG,
+  OP_SPECL, OP_SPECU, OP_SPECG,
 
   /* jump instructions */
   OP_JUMP,  /* unconditional jump. */
@@ -33,16 +31,13 @@ typedef enum OpCode {
 
   /* closures */
   OP_CLOSURE,       /* Create a new closure object. */
-  OP_CLOSE_UPVALUE, /* Close the `x`th local upvalue (move its value from the stack to the upvalue object). */
+  OP_CLOSE_UPVAL,
 
   /* control (effects) */
-  OP_PROMPT,  /* Set the prompt pointer to the current frame's offset. */
-  OP_CONTROL, /* Create a new Control object reifying the top `x` prompt frames.
-                 Preserve the top `y` stack values (arguments to effect handlers).
-                 Discard everything else in the prompt frame. */
+  OP_PROMPT, OP_CONTROL,
 
   /* FFI */
-  OP_CCALL,  /* perform an FFI call and interpret the result. */
+  OP_CCALL,  // perform an FFI call and interpret the result.
 } OpCode;
 
 // external API

@@ -12,22 +12,21 @@
 
 /* Globals */
 /* Alist type */
-extern void trace_alist(Obj* slf);
-extern void finalize_alist(Obj* slf);
+extern void trace_alist(void* obj);
+extern void finalize_alist(void* obj);
 
 INIT_OBJECT_TYPE(Alist, NULL, trace_alist, finalize_alist);
 
 /* Objects type */
-extern void trace_objects(Obj* slf);
-extern void finalize_objects(Obj* slf);
+extern void trace_objects(void* obj);
+extern void finalize_objects(void* obj);
 
 INIT_OBJECT_TYPE(Objects, NULL, trace_objects, finalize_objects);
 
 /* External APIs */
 /* Alist API */
 Alist* new_alist(void) {
-  Alist* out;
-  out = (Alist*)new_obj(&AlistType, 0, 0, 0);
+  Alist* out = new_obj(&AlistType, 0, 0, 0);
   init_alist(out);
   return out;
 }
@@ -123,8 +122,7 @@ Value alist_popn(Alist* arr, size_t n) {
 
 /* Objects API */
 Objects* new_objects(void) {
-  Objects* out;
-  out = (Objects*)new_obj(&ObjectsType, 0, 0, 0);
+  Objects* out = new_obj(&ObjectsType, 0, 0, 0);
   init_objects(out);
   return out;
 }

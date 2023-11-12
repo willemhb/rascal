@@ -5,143 +5,151 @@
 #include "val/object.h"
 
 // casts, predicates, accessors, bit twiddling
-bool is_obj(Value x) {
-  return tag_of(x) == OBJ_TAG;
+Type* type_of_obj(void* obj) {
+  assert(obj);
+  Obj* o = obj;
+  return o->type;
 }
 
-Obj* as_obj(Value x) {
-  return (Obj*)untag_48(x);
+size_t size_of_obj(void* obj) {
+  Obj* o = obj;
+  
+  if (o->type->vtable->sizefn)
+    return o->type->vtable->sizefn(obj);
+
+  return o->type->vtable->osize;
 }
 
-size_t size_of_obj(Obj* obj) {
-  if (obj->type->vtable->size)
-    return obj->type->vtable->size(obj);
+bool has_type_obj(void* obj, Type* type) {
+  assert(obj);
+  Obj* o = obj;
 
-  return obj->type->vtable->osize;
+  return is_instance(o->type, type);
 }
 
-bool get_obj_fl(Obj* obj, flags_t fl) {
-  return !!(obj->flags & fl);
-}
 
-bool set_obj_fl(Obj* obj, flags_t fl) {
-  bool out    = get_obj_fl(obj, fl);
-  obj->flags |= fl;
-
-  return out;
-}
-
-bool del_obj_fl(Obj* obj, flags_t fl) {
-  bool out    = get_obj_fl(obj, fl);
-  obj->flags &= ~fl;
-
-  return out;
-}
-
-bool get_obj_mfl(Obj* obj, flags_t mfl) {
-  return !!(obj->memfl & mfl);
-}
-
-bool set_obj_mfl(Obj* obj, flags_t mfl) {
-  bool out    = get_obj_mfl(obj, mfl);
-  obj->memfl |= mfl;
-
-  return out;
-}
-
-bool del_obj_mfl(Obj* obj, flags_t mfl) {
-  bool out    = get_obj_mfl(obj, mfl);
-  obj->memfl &= ~mfl;
-
-  return out;
-}
-
-bool obj_is_black(Obj* obj) {
-  return get_obj_mfl(obj, BLACK);
-}
-
-bool obj_is_gray(Obj* obj) {
-  return get_obj_mfl(obj, GRAY);
-}
-
-bool obj_is_notrace(Obj* obj) {
-  return get_obj_mfl(obj, NOTRACE);
-}
-
-bool obj_is_nosweep(Obj* obj) {
-  return get_obj_mfl(obj, NOSWEEP);
-}
-
-bool obj_is_nofree(Obj* obj) {
-  return get_obj_mfl(obj, NOFREE);
-}
-
-void obj_mark_black(Obj* obj) {
-  set_obj_mfl(obj, BLACK);
-}
-
-void obj_unmark_black(Obj* obj) {
-  del_obj_mfl(obj, BLACK);
-}
-
-void obj_mark_gray(Obj* obj) {
-  set_obj_mfl(obj, GRAY);
-}
-
-void obj_unmark_gray(Obj* obj) {
-  del_obj_mfl(obj, GRAY);
-}
-
-void mark_obj(Obj* obj) {
+void mark_obj(void* obj) {
   if (obj) {
-    if (obj_is_nosweep(obj))
+    if (get_mfl(obj, NOTRACE))
       return;
 
-    if (obj_is_black(obj))
+    if (get_mfl(obj, BLACK))
       return;
 
-    obj_mark_black(obj);
+    set_mfl(obj, BLACK);
+    Type* t = type_of(obj);
 
-    if (obj->type->vtable->trace)
+    if (t->vtable->tracefn)
       add_to_grays(&Ctx, obj);
 
     else
-      obj_unmark_gray(obj);
+      del_mfl(obj, GRAY);
   }
 }
 
-void unmark_obj(Obj* obj) {
+void trace_obj(void* obj) {
   if (obj) {
-    obj_unmark_black(obj);
-    obj_mark_gray(obj);
+    Type* t = type_of(obj);
+    
+    if (t->vtable->tracefn)
+      t->vtable->tracefn(obj);
+
+    del_mfl(obj, GRAY);
   }
+}
+
+bool get_mfl_obj(void* obj, flags_t mfl) {
+  assert(obj);
+  Obj* o = obj;
+  return !!(o->memfl & mfl);
+}
+
+bool set_mfl_obj(void* obj, flags_t mfl) {
+  assert(obj);
+  Obj* o = obj;
+  bool out = !!(o->memfl & mfl);
+  o->memfl |= mfl;
+
+  return out;
+}
+
+bool del_mfl_obj(void* obj, flags_t mfl) {
+  assert(obj);
+  Obj* o = obj;
+  bool out = get_mfl_obj(obj, mfl);
+  o->memfl &= ~mfl;
+
+  return out;
+}
+
+bool get_fl_obj(void* obj, flags_t fl) {
+  assert(obj);
+  Obj* o = obj;
+  return !!(o->flags & fl);
+}
+
+bool set_fl_obj(void* obj, flags_t fl) {
+  assert(obj);
+  Obj* o = obj;
+  bool out = !!(o->flags & fl);
+  o->flags |= fl;
+
+  return out;
+}
+
+bool del_fl_obj(void* obj, flags_t fl) {
+  assert(obj);
+  Obj* o = obj;
+  bool out = !!(o->flags & fl);
+  o->flags &= ~fl;
+
+  return out;
 }
 
 // metadata
-Dict* get_obj_meta(Obj* obj) {
-  return obj->meta;
+Dict* get_meta_dict_obj(void* obj) {
+  assert(obj);
+  Obj* o = obj;
+  return o->meta;
 }
 
-void set_obj_meta(Obj* obj, Dict* meta) {
-  obj->meta = meta;
+Dict* set_meta_dict_obj(void* obj, Dict* meta) {
+  assert(obj);
+  Obj* o = obj;
+  o->meta = meta;
+  return meta;
 }
 
-void put_obj_meta(Obj* obj, Value key, Value val) {
-  obj->meta = dict_set(obj->meta, key, val);
+Value get_meta_obj(void* obj, Value key) {
+  assert(obj);
+  Obj* o = obj;
+  return dict_get(o->meta, key);
 }
-void merge_obj_meta(Obj* obj, Dict* meta) {
-  obj->meta = dict_join(obj->meta, meta);
+
+Value set_meta_obj(void* obj, Value key, Value val) {
+  assert(obj);
+  Obj* o = obj;
+  o->meta = dict_set(o->meta, key, val);
+  return val;
+}
+
+Dict* join_meta_obj(void* obj, Dict* d) {
+  assert(obj);
+  Obj* o = obj;
+  o->meta = join_dicts(o->meta, d);
+  return o->meta;
 }
 
 // lifetime methods
-Obj* new_obj(Type* type, flags_t flags, flags_t memfl, size_t extra) {
+void* new_obj(Type* type, flags_t flags, flags_t memfl, size_t extra) {
   Obj* out = allocate(&Ctx, type->vtable->osize + extra);
   init_obj(out, type, flags, memfl);
 
   return out;
 }
 
-void init_obj(Obj* slf, Type* type, flags_t flags, flags_t memfl) {
+void init_obj(void* obj, Type* type, flags_t flags, flags_t memfl) {
+  Obj* slf = obj;
   add_to_heap(&Ctx, slf);
 
   slf->hash  = 0;
@@ -151,30 +159,23 @@ void init_obj(Obj* slf, Type* type, flags_t flags, flags_t memfl) {
   slf->flags = flags;
 }
 
-void trace_obj(Obj* obj) {
+void finalize_obj(void* obj) {
   if (obj) {
-    if (obj->type->vtable->trace)
-      obj->type->vtable->trace(obj);
+    Obj* slf = obj;
+    
+    if (get_mfl(slf, NOFREE))
+      return;
 
-    obj_unmark_gray(obj);
+    if (slf->type->vtable->finalizefn)
+      slf->type->vtable->finalizefn(slf);
   }
 }
 
-void finalize_obj(Obj* obj) {
+void free_obj(void* obj) {
   if (obj) {
-    if (obj_is_nofree(obj))
+    if (get_mfl(obj, NOSWEEP))
       return;
-
-    if (obj->type->vtable->finalize)
-      obj->type->vtable->finalize(obj);
-  }
-}
-
-void free_obj(Obj* obj) {
-  if (obj) {
-    if (obj_is_nosweep(obj))
-      return;
-
+    
     deallocate(&Ctx, obj, size_of_obj(obj));
   }
 }

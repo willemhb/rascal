@@ -45,6 +45,8 @@ typedef struct Binding   Binding;
 typedef struct UpValue   UpValue;
 
 /* Globals */
+extern struct MutDict ValueMeta;
+
 // tags and such
 #define SYS_TAG     0x7ffc000000000000UL // internal value with no external representation
 #define SMALL_TAG   0x7ffd000000000000UL
@@ -70,22 +72,79 @@ typedef struct UpValue   UpValue;
 
 /* external APIs */
 // utility macros
-#define untag_48(v)   ((v) & VAL_MASK)
-#define untag_32(v)   ((v) & SMALL_MASK)
-
+#define untag48(v)    ((v) & VAL_MASK)
+#define untag32(v)    ((v) & SMALL_MASK)
 #define tag_of(x)     ((x) & TAG_MASK)
-#define tag_val(p, t) (((Value)(p)) | (t))
-#define tag_small(s)  tag_val(s,  SMALL_TAG)
-#define tag_glyph(g)  tag_val(g,  GLYPH_TAG)
-#define tag_obj(o)    tag_val(o,  OBJ_TAG)
-#define tag_fptr(fp)  tag_val(fp, FPTR_TAG)
-#define tag_ptr(p)    tag_val(p,  PTR_TAG)
+#define has_tag(x, t) (tag_of(x) == (t))
+#define as(T, c, x)   ((T)c(x))
 
-#define as(T, v, c) ((T)c(v))
+// forward declarations & generics
+extern Type*  type_of_obj(void* obj);
+extern size_t size_of_obj(void* obj);
+extern bool   has_type_obj(void* obj, Type* type);
+extern void   mark_obj(void* obj);
+extern void   trace_obj(void* obj);
+extern bool   get_mfl_obj(void* obj, flags_t mfl);
+extern bool   set_mfl_obj(void* obj, flags_t mfl);
+extern bool   del_mfl_obj(void* obj, flags_t mfl);
+extern bool   get_fl_obj(void* obj, flags_t fl);
+extern bool   set_fl_obj(void* obj, flags_t fl);
+extern bool   del_fl_obj(void* obj, flags_t fl);
+extern Dict*  get_meta_dict_obj(void* obj);
+extern Dict*  set_meta_dict_obj(void* obj, Dict* meta);
+extern Value  get_meta_obj(void* obj, Value key);
+extern Value  set_meta_obj(void* obj, Value key, Value val);
+extern Dict*  join_meta_obj(void* obj, Dict* meta);
 
-// forward declarations
-Type* type_of(Value x);
-void  mark_val(Value x);
-void  trace_val(Value x);
+Type*  type_of_val(Value val);
+size_t size_of_val(Value val);
+bool   has_type_val(Value val, Type* type);
+void   mark_val(Value val);
+void   trace_val(Value val);
+bool   get_mfl_val(Value val, flags_t mfl);
+bool   set_mfl_val(Value val, flags_t mfl);
+bool   del_mfl_val(Value val, flags_t mfl);
+bool   get_fl_val(Value val, flags_t fl);
+bool   set_fl_val(Value val, flags_t fl);
+bool   del_fl_val(Value val, flags_t fl);
+Dict*  get_meta_dict_val(Value val);
+Dict*  set_meta_dict_val(Value val, Dict* meta);
+Value  get_meta_val(Value val, Value key);
+Value  set_meta_val(Value val, Value key, Value kval);
+Dict*  join_meta_val(Value val, Dict* meta);
+
+#define type_of(x)          generic2(type_of, x, x)
+#define has_type(x, T)      generic2(has_type, x, x, T)
+#define mark(x)             generic2(mark, x, x)
+#define trace(x)            generic2(trace, x, x)
+#define get_mfl(x, fl)      generic2(get_mfl, x, x, fl)
+#define set_mfl(x, fl)      generic2(set_mfl, x, x, fl)
+#define del_mfl(x, fl)      generic2(del_mfl, x, x, fl)
+#define get_fl(x, fl)       generic2(get_fl, x, x, fl)
+#define set_fl(x, fl)       generic2(set_fl, x, x, fl)
+#define del_fl(x, fl)       generic2(del_fl, x, x, fl)
+#define get_meta_dict(x)    generic2(get_meta_dict, x, x)
+#define set_meta_dict(x, d) generic2(set_meta_dict, x, x, d)
+#define get_meta(x, k)      generic2(get_meta, x, x, k)
+#define set_meta(x, k, v)   generic2(set_meta, x, x, k, v)
+#define join_meta(x, d)     generic2(join_meta, x, x, d)
+
+Value tag_float(Float f);
+Value tag_small(Small s);
+Value tag_bool(Boolean b);
+Value tag_glyph(Glyph gl);
+Value tag_ptr(Pointer p);
+Value tag_fptr(FuncPtr f);
+Value tag_obj(void* obj);
+
+#define tag(x)                                  \
+  generic((x),                                  \
+          Float:tag_float,                      \
+          Small:tag_small,                      \
+          Boolean:tag_bool,                     \
+          Glyph:tag_glyph,                      \
+          Pointer:tag_ptr,                      \
+          FuncPtr:tag_fptr,                     \
+          default:tag_obj)(x)
 
 #endif

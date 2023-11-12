@@ -7,13 +7,12 @@
 // object flag types
 // allocation flags
 typedef enum {
-  BLACK  =0x01u,
-  GRAY   =0x02u,
-  NOTRACE=0x04u,
-  NOSWEEP=0x08u,
-  NOFREE =0x10u,
-  EDITP  =0x20u, // for HAMT types, indicates that the object can be modified in-place
-  HASHED =0x40u,
+  BLACK  =0x80000000u,
+  GRAY   =0x40000000u,
+  NOTRACE=0x20000000u,
+  NOSWEEP=0x10000000u,
+  NOFREE =0x08000000u,
+  HASHED =0x04000000u,
 } MemFl;
 
 // common object header
@@ -27,44 +26,36 @@ struct Obj {
   byte_t  data[];
 };
 
-/* API */
+/* external APIs */
 // convenience macros
 #define HEADER struct Obj obj
 
-// casts, predicates, accessors, bit twiddling
-bool   is_obj(Value x);
-Obj*   as_obj(Value x);
-size_t size_of_obj(Obj* obj);
-bool   get_obj_fl(Obj* obj, flags_t fl);
-bool   set_obj_fl(Obj* obj, flags_t fl);
-bool   del_obj_fl(Obj* obj, flags_t fl);
-bool   get_obj_mfl(Obj* obj, flags_t mfl);
-bool   set_obj_mfl(Obj* obj, flags_t mfl);
-bool   del_obj_mfl(Obj* obj, flags_t mfl);
-bool   obj_is_black(Obj* obj);
-bool   obj_is_gray(Obj* obj);
-bool   obj_is_notrace(Obj* obj);
-bool   obj_is_nosweep(Obj* obj);
-bool   obj_is_nofree(Obj* obj);
-void   obj_mark_black(Obj* obj);
-void   obj_unmark_black(Obj* obj);
-void   obj_mark_gray(Obj* obj);
-void   obj_unmark_gray(Obj* obj);
-void   mark_obj(Obj* obj);
-void   unmark_obj(Obj* obj);
+#define is_obj(x) has_tag(x, OBJ_TAG)
+#define as_obj(x) as(Obj*, untag48, x)
 
-// metadata
-Dict* get_obj_meta(Obj* obj);
-void set_obj_meta(Obj* obj, Dict* meta);
-void put_obj_meta(Obj* obj, Value key, Value val);
-void merge_obj_meta(Obj* obj, Dict* meta);
+// casts, predicates, accessors, bit twiddling
+Type*  type_of_obj(void* obj);
+size_t size_of_obj(void* obj);
+bool   has_type_obj(void* obj, Type* type);
+void   mark_obj(void* obj);
+void   trace_obj(void* obj);
+bool   get_mfl_obj(void* obj, flags_t mfl);
+bool   set_mfl_obj(void* obj, flags_t mfl);
+bool   del_mfl_obj(void* obj, flags_t mfl);
+bool   get_fl_obj(void* obj, flags_t fl);
+bool   set_fl_obj(void* obj, flags_t fl);
+bool   del_fl_obj(void* obj, flags_t fl);
+Dict*  get_meta_dict_obj(void* obj);
+Dict*  set_meta_dict_obj(void* obj, Dict* meta);
+Value  get_meta_obj(void* obj, Value key);
+Value  set_meta_obj(void* obj, Value key, Value val);
+Dict*  join_meta_obj(void* obj, Dict* meta);
 
 // lifetime methods
-Obj* new_obj(Type* type, flags_t flags, flags_t memfl, size_t extra);
-Obj* clone_obj(Obj* obj);
-void init_obj(Obj* slf, Type* type, flags_t flags, flags_t memfl);
-void trace_obj(Obj* obj);
-void finalize_obj(Obj* obj);
-void free_obj(Obj* obj);
+void* new_obj(Type* type, flags_t flags, flags_t memfl, size_t extra);
+void* clone_obj(void* obj);
+void  init_obj(void* slf, Type* type, flags_t flags, flags_t memfl);
+void  finalize_obj(void* obj);
+void  free_obj(void* obj);
 
 #endif

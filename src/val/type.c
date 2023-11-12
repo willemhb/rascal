@@ -1,143 +1,61 @@
 #include "util/hashing.h"
 
-#include "environment.h"
-#include "function.h"
+#include "lang/envt.h"
 
-#include "vm.h"
+#include "val/symbol.h"
+#include "val/type.h"
 
-#include "type.h"
+/* globals */
+size_t TypeCounter = 0;
 
-// external API
-// accessors
-Kind getKind(Type* type) {
-  return type->obj.flags & 0x7;
+/* External API */
+Kind get_kind(Type* type) {
+  return type->obj.flags;
 }
 
-// constructors
-Type*   newStructType(Type* parent, Symbol* name, List* slots, Tuple* signature);
-Type*   newRecordType(Type* parent, Symbol* name, List* slots, Tuple* signature);
-Type*   newAbstractType(Type* parent, Symbol* name);
-Type*   newUnionType(Type* parent, Symbol* name, size_t count, Type** members);
+bool is_instance(Type* vt, Type* type) {
+  switch (get_kind(type)) {
+    case BOTTOM_KIND:
+      return false;
+      
+    case DATA_KIND:
+      return vt == type;
+      
+    case DATA_UNION_KIND: {
+        MutSet* members = type->members;
+        
+        return mset_has(members, tag(vt));
+      }
+      
+    case ABSTRACT_KIND: {
+      bool out = false;
 
-// utilities
-Tuple*  rankTypes(Tuple* sig);
-int     orderSigs(Tuple* sigx, Tuple* sigy);
+      for (;!out && vt != &AnyType; vt=vt->parent)
+        out = vt == type;
 
-// initialization
-static void initializeBuiltinType(char* name, Type* type) {
-  type->name       = symbol(name);
-  type->obj.hash   = hashWord(type->idno);
-  type->obj.hashed = true;
+      return out;
+    }
 
-  if (type->ctor != NULL)
-    type->ctor->name = type->name;
+    case ABSTRACT_UNION_KIND: {
+      MutSet* members = type->members;
+      bool out = false;
 
-  Binding* binding = define(NULL, type->name, tag(type), false);
+      for (;!out && vt != &AnyType; vt=vt->parent)
+        out = mset_has(members, tag(vt));
 
-  setFl(binding, CONSTANT); 
+      return out;
+    }
+
+    case TOP_KIND:
+      return true;
+  }
+
+  unreachable();
 }
 
-void initializeBuiltinTypes(void) {
-  // numeric
-  extern Type FloatType, ArityType, SmallType, BigType,
-    NumberType, RealType, RationalType, IntegerType;
-
-  // mutable array types
-  extern Type Buffer8Type, Buffer16Type, Buffer32Type, Binary8Type, Binary16Type,
-    Binary32Type, AlistType, ObjectsType;
-
-  // mutable table types
-  extern Type SymbolTableType, TableType, NameSpaceType;
-
-  // environment
-  extern Type SymbolType, EnvironmentType, BindingType, UpValueType;
-
-  // collections
-  extern Type BitsType, StringType, TupleType, ListType, VectorType, VecNodeType,
-    VecLeafType, MapType, MapNodeType, MapLeafType;
-
-  // functions
-  extern Type FunctionType, MethodTableType, MethodMapType, MethodNodeType, MethodType,
-    NativeType, ClosureType;
-
-  // execution & control
-  extern Type ChunkType, ControlType;
-
-  // miscellaneous
-  extern Type PointerType, FuncPtrType, BooleanType, UnitType, GlyphType, StreamType;
-  
-  struct { char* name; Type* type; } types[] = {
-    // fucked up
-    [TOP]          = { "Any",         &AnyType         },
-    [BOTTOM]       = { "None",        &NoneType        },
-    [UNIT]         = { "Unit",        &UnitType        },
-    [TERM]         = { "Term",        &TermType        },
-    [TYPE]         = { "Type",        &TypeType        },
-
-    // numeric
-    [FLOAT]        = { "Float",       &FloatType       },
-    [ARITY]        = { "Arity",       &ArityType       },
-    [SMALL]        = { "Small",       &SmallType       },
-    [BIG]          = { "Big",         &BigType         },
-    [NUMBER]       = { "Number",      &NumberType      },
-    [REAL]         = { "Real",        &RealType        },
-    [RATIONAL]     = { "Rational",    &RationalType    },
-    [INTEGER]      = { "Integer",     &IntegerType     },
-
-    // mutable arrays
-    [BUFFER8]      = { "Buffer8",     &Buffer8Type     },
-    [BUFFER16]     = { "Buffer16",    &Buffer16Type    },
-    [BUFFER32]     = { "Buffer32",    &Buffer32Type    },
-    [BINARY8]      = { "Binary8",     &Binary8Type     },
-    [BINARY16]     = { "Binary16",    &Binary16Type    },
-    [BINARY32]     = { "Binary32",    &Binary32Type    },
-    [ALIST]        = { "Alist",       &AlistType       },
-    [OBJECTS]      = { "Objects",     &ObjectsType     },
-
-    // mutable tables
-    [SYMBOL_TABLE] = { "SymbolTable", &SymbolTableType },
-    [TABLE]        = { "Table",       &TableType       },
-    [NAME_SPACE]   = { "NameSpace",   &NameSpaceType   },
-
-    // environment
-    [SYMBOL]       = { "Symbol",      &SymbolType      },
-    [ENVIRONMENT]  = { "Environment", &EnvironmentType },
-    [BINDING]      = { "Binding",     &BindingType     },
-    [UPVALUE]      = { "UpValue",     &UpValueType     },
- 
-    // collections
-    [BITS]         = { "Bits",        &BitsType        },
-    [STRING]       = { "String",      &StringType      },
-    [TUPLE]        = { "Tuple",       &TupleType       },
-    [LIST]         = { "List",        &ListType        },
-    [VECTOR]       = { "Vector",      &VectorType      },
-    [VEC_NODE]     = { "VecNode",     &VecNodeType     },
-    [VEC_LEAF]     = { "VecLeaf",     &VecLeafType     },
-    [MAP]          = { "Map",         &MapType         },
-    [MAP_NODE]     = { "MapNode",     &MapNodeType     },
-    [MAP_LEAF]     = { "MapLeaf",     &MapLeafType     },
-
-    // functions
-    [FUNCTION]     = { "Function",    &FunctionType    },
-    [METHOD_TABLE] = { "MethodTable", &MethodTableType },
-    [METHOD_MAP]   = { "MethodMap",   &MethodMapType   },
-    [METHOD_NODE]  = { "MethodNode",  &MethodNodeType  },
-    [METHOD]       = { "Method",      &MethodType      },
-    [NATIVE]       = { "Native",      &NativeType      },
-    [CLOSURE]      = { "Closure",     &ClosureType     },
-
-    // runtime, execution & control
-    [CHUNK]        = { "Chunk",       &ChunkType       },
-    [CONTROL]      = { "Control",     &ControlType     },
-
-    // miscellaneous
-    [POINTER]      = { "Pointer",     &PointerType     },
-    [FUNCPTR]      = { "FuncPtr",     &FuncPtrType     },
-    [BOOLEAN]      = { "Boolean",     &BooleanType     },
-    [GLYPH]        = { "Glyph",       &GlyphType       },
-    [STREAM]       = { "Stream",      &StreamType      },
-  };
-
-  for (size_t i=0;i <= INTEGER; i++)
-    initializeBuiltinType(types[i].name, types[i].type);
+void init_builtin_data_type(Type* type) {
+  intern_sym(type->name);
+  type->idno = ++TypeCounter;
+  Binding* b = defval(type->name, NULL);
+  b->value   = tag(type);
 }

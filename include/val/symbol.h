@@ -34,13 +34,12 @@ struct Symbol {
 extern struct Type SymbolType;
 extern Symbol* Symbols, * Keywords;
 
-/* external API */
-Symbol* as_sym(Value x);
-bool    val_is_sym(Value x);
-bool    obj_is_sym(Obj* obj);
-bool    is_literal_sym(Symbol* s);
-bool    is_interned_sym(Symbol* s);
+#define is_sym(x)      has_type(x, &SymbolType)
+#define as_sym(x)      as(Symbol*, untag48, x)
+#define is_literal(x)  get_fl(x, LITERAL)
+#define is_interned(x) get_fl(x, INTERNED)
 
+/* external API */
 Symbol* new_sym(char* name, flags_t fl);
 Symbol* mk_sym(char* name, bool gensym);
 Symbol* intern_sym(Symbol* sym);           // add static symbol to symbol table

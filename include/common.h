@@ -40,12 +40,16 @@ typedef struct Obj Obj;   // boxed object (includes type information)
 // internal function pointer types
 typedef hash_t (*HashFn)(Value x);
 typedef bool   (*EgalFn)(Value x, Value y);
+typedef size_t (*SizeFn)(void* obj);
+typedef void   (*TraceFn)(void* obj);
+typedef void   (*FinalizeFn)(void* obj);
 
 /* globals */
 extern struct RlCtx Ctx;
 
 /* utility macros */
 #define generic _Generic
+#define unreachable __builtin_unreachable
 
 #define cleanup(f) __attribute__ ((__cleanup__(f)))
 

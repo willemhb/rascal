@@ -6,7 +6,9 @@
 /* shared global state object required by one rascal vm instance. */
 typedef struct GcFrame    GcFrame;
 typedef struct ErrorFrame ErrorFrame;
+typedef struct ReadFrame  ReadFrame;
 typedef struct ExecFrame  ExecFrame;
+
 
 struct GcFrame {
   GcFrame* next;
@@ -16,7 +18,7 @@ struct GcFrame {
 
 struct ExecFrame {
   Closure*  code;  // code being executed
-  Chunk*    guard; // 
+  Chunk*    guard; // guard handler
   uint16_t* ip;    // instruction pointer
   size_t    bp;    // base pointer
   size_t    cp;    // catch pointer

@@ -21,7 +21,12 @@ struct Objects {
 };
 
 /* Globals */
-extern struct Type AlistType, ObjectsType;
+extern Type AlistType, ObjectsType;
+
+#define is_alist(x)   has_type(x, &AlistType)
+#define as_alist(x)   as(Alist*, untag48, x)
+#define is_objects(x) has_type(x, &ObjectsType)
+#define as_objects(x) as(Objects*, untag48, x)
 
 /* External APIs */
 Alist*   new_alist(void);

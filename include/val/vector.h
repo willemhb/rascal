@@ -23,7 +23,8 @@ struct Vector {
   HEADER;
   VecNode* root;
   size_t   arity;
-  Value    tail[];
+  size_t   shift;
+  Value    tail[64];
 };
 
 /* Globals */
@@ -45,5 +46,6 @@ Vector* mk_vec(size_t n, Value* a);
 Value   vec_ref(Vector* vec, size_t n);
 Vector* vec_set(Vector* vec, size_t n, Value v);
 Vector* vec_add(Vector* vec, Value v);
+Vector* vec_del(Vector* vec);
 
 #endif

@@ -3,19 +3,19 @@
 
 #include "common.h"
 
-// C types
+/* C types */
 typedef union {
-  double    number;
+  double    dbl;
   word_t    word;
   struct {
     uintptr_t frac : 52;
     uintptr_t expt : 11;
     uintptr_t sign :  1;
   } bits;
-} IEEE_754_64;
+} ieee_64_t;
 
-// external APIs
-double word_to_double(uintptr_t word);
-
+/* external APIs */
+double word_to_double(word_t word);
+word_t double_to_word(double dbl);
 
 #endif
