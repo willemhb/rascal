@@ -81,6 +81,7 @@ static bool space_in_root(Vector* vec) {
 
 static void add_to_node(VecNode* node, Value* a) {
   size_t shift = get_hamt_shift(node);
+
   
 }
 
@@ -189,3 +190,51 @@ Vector* vec_add(Vector* vec, Value v) {
 }
 
 Vector* vec_set(Vector* vec, size_t n, Value v);
+
+/* freeze/unfreeze */
+Vector* freeze_vec(Vector* vec) {
+  if (del_mfl(vec, EDITP)) {
+    freeze_hamt_array(vec, (void**)&vec->tail, sizeof(Value));
+
+    if (vec->root != NULL)
+      vec->root = freeze(vec->root);
+  }
+
+  return vec;
+}
+
+Vector* unfreeze_vec(Vector* vec) {
+  if (!is_editp(vec)) {
+    vec = clone_obj(vec);
+    set_mfl(vec, EDITP);
+  }
+
+  return vec;
+}
+
+VecNode* freeze_vec_node(VecNode* n) {
+  if (del_mfl(n, EDITP)) {
+    size_t shift = get_hamt_shift(n);
+
+    if (shift > 0) {
+      freeze_hamt_array(n, (void**)n->children, sizeof(VecNode*));
+      size_t cnt = get_hamt_cnt(n);
+
+      for (size_t i=0; i < cnt; i++) {
+        if (is_editp(n->children[i]))
+          freeze_vec_node(n->children[i]);
+      }
+    }
+  }
+
+  return n;
+}
+
+VecNode* unfreeze_vec_node(VecNode* n) {
+  if (!is_editp(n)) {
+    n = clone_obj(n);
+    set_mfl(n, EDITP);
+  }
+
+  return n;
+}

@@ -82,5 +82,6 @@ size_t hamt_index_for_level(size_t i, size_t sh);
 void*  freeze_hamt(void* obj);
 void   init_hamt(void* obj, void** arr, void* data, size_t cnt, size_t sh, size_t es);
 size_t resize_hamt_array(void* obj, void** arr, size_t new_cnt, size_t els);
+void   freeze_hamt_array(void* obj, void** arr, size_t els);
 
 #endif

@@ -21,9 +21,10 @@
     "var" "val"
     "fun" "fun*" "mac" "mac*"
     "struct" "union" "abstract"
-    "let" "label"
+    "let" "label" "loop"
     ;; branching macros
     "and" "or" "cond" "case"
+    "when" "unless"
     ;; exception handling macros
     "guard" "raise"
     ;; generator macros
@@ -32,6 +33,10 @@
     "async" "sync" "await"
     ;; actor macros
     "ps" "send" "receive"
+    ;; module system macros
+    "import" "export" "module"
+    ;; looping macros.
+    "for" "while" "while*" "in"
     ;; miscellaneous macros
     "use" "with" "do*")
   '(("\\(?:[^:]:[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
