@@ -1,7 +1,10 @@
-#ifndef rascal_stream_h
-#define rascal_stream_h
+#ifndef rl_val_stream_h
+#define rl_val_stream_h
 
-#include "object.h"
+#include "util/io.h"
+#include "util/unicode.h"
+
+#include "val/object.h"
 
 /* reader, io types */
 // C types
@@ -17,14 +20,15 @@ typedef enum {
 } StrmFl;
 
 struct Stream {
-  Obj      obj;
+  HEADER;
+
   FILE*    ios;
   Encoding enc;
 };
 
 // globals
-extern struct Type StreamType, GlyphType;
-extern struct Stream Ins, Outs, Errs;
+extern Type StreamType, GlyphType;
+extern Stream Ins, Outs, Errs;
 
 // external API
 // constructors

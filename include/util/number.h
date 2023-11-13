@@ -34,6 +34,6 @@
            uint64_t:__builtin_clzl)(n)
 
 // general numeric utilities
-uint64_t ceil_2(uint64_t word);
+uint64_t ceil2(uint64_t word);
 
 #endif

@@ -1,30 +1,23 @@
-#ifndef rascal_compile_h
-#define rascal_compile_h
+#ifndef rl_lang_compile_h
+#define rl_lang_compile_h
 
-#include "environment.h"
+#include "lang/envt.h"
 
 // C types
-struct Chunk {
-  Obj          obj;
-  Alist*       vals;
-  Binary16*    code;
-};
-
 // globals
 // special forms
-extern Value DefSym, PutSym, LmbSym, // binding forms
-  DoSym, IfSym, QuoteSym, CCallSym,  // miscellaneous forms
-  HandleSym, PerformSym, ResumeSym;  // effect forms
+extern Value DefSym, FnSym, PutSym,  // binding forms
+  DoSym, IfSym, QuoteSym,            // local control forms
+  HandleSym, PerformSym,             // effect forms
+  CCallSym;                          // miscellaneous forms
 
 // other syntax
 extern Value AmpSym;
-extern struct Type ChunkType;
 
-// external API
-Chunk*   new_chunk(Map* annot);
-Value    macro_expand(Function* macro, Environment* envt, List* form);
-Closure* compile(void* name, CompState state, Value xpr);
+/* External API */
+Chunk* compile_toplevel(Value x);
+Chunk* compile_sequence(List* exprs);
 
-void init_syntax(void);
+void   init_syntax(void);
 
 #endif

@@ -1,5 +1,5 @@
-#ifndef rascal_util_io_h
-#define rascal_util_io_h
+#ifndef rl_util_io_h
+#define rl_util_io_h
 
 #include <stdio.h>
 

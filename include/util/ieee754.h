@@ -1,5 +1,5 @@
-#ifndef rascal_util_ieee754_h
-#define rascal_util_ieee754_h
+#ifndef rl_util_ieee754_h
+#define rl_util_ieee754_h
 
 #include "common.h"
 

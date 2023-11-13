@@ -43,6 +43,7 @@ typedef struct Native    Native;
 typedef struct MethTable MethTable;
 typedef struct Binding   Binding;
 typedef struct UpValue   UpValue;
+typedef struct Seq       Seq;
 
 /* Globals */
 extern struct MutDict ValueMeta;

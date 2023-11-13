@@ -1,5 +1,5 @@
-#ifndef rascal_util_hashing_h
-#define rascal_util_hashing_h
+#ifndef rl_util_hashing_h
+#define rl_util_hashing_h
 
 #include "common.h"
 

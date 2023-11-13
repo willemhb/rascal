@@ -17,14 +17,14 @@
 #define LOADF 0.625
 
 /* Table type */
-extern void trace_mdict(Obj* slf);
-extern void finalize_mdict(Obj* slf);
+extern void trace_mdict(void* obj);
+extern void finalize_mdict(void* obj);
 
 INIT_OBJECT_TYPE(MutDict, NULL, trace_mdict, finalize_mdict);
 
 /* MutSet type */
-extern void trace_mutset(Obj* slf);
-extern void finalize_mutset(Obj* slf);
+extern void trace_mutset(void* slf);
+extern void finalize_mutset(void* slf);
 
 INIT_OBJECT_TYPE(MutSet, NULL, trace_mutset, finalize_mutset);
 
@@ -58,24 +58,8 @@ static Entry* find_mdict_entry(Entry* kvs, bool fast, size_t c, Value k) {
   }
 }
 
-bool val_is_mdict(Value val) {
-  return type_of(val) == &MutDictType;
-}
-
-bool obj_is_mdict(Obj* obj) {
-  return obj->type == &MutDictType;
-}
-
-bool mdict_is_fasthash(MutDict* slf) {
-  return get_obj_fl((Obj*)slf, FASTHASH);
-}
-
 size_t mdict_arity(MutDict* slf) {
   return slf->cnt - slf->nts;
-}
-
-MutDict* as_mdict(Value val) {
-  return (MutDict*)untag_48(val);
 }
 
 MutDict* new_mdict(bool fast) {
@@ -124,7 +108,7 @@ void resize_mdict(MutDict* slf, size_t new_cnt) {
         bool fast;
         Entry* src, * dst;
 
-        fast = mdict_is_fasthash(slf);
+        fast = is_fasthash(slf);
         slf->cnt = 0;
         slf->nts = 0;
 
@@ -150,7 +134,7 @@ void resize_mdict(MutDict* slf, size_t new_cnt) {
 }
 
 Entry* mdict_find(MutDict* slf, Value key) {
-  bool fast = mdict_is_fasthash(slf);
+  bool fast = is_fasthash(slf);
   size_t cap = slf->cap;
   Entry* out = find_mdict_entry(slf->data, fast, cap, key);
 
@@ -273,30 +257,14 @@ static Value* find_mset_entry(Value* kvs, bool fast, size_t c, Value k) {
   }
 }
 
-bool val_is_mset(Value val) {
-  return type_of(val) == &MutSetType;
-}
-
-bool obj_is_mset(Obj* obj) {
-  return obj->type == &MutSetType;
-}
-
-bool mset_is_fasthash(MutSet* slf) {
-  return get_obj_fl((Obj*)slf, FASTHASH);
-}
-
 size_t mset_arity(MutSet* slf) {
   return slf->cnt - slf->nts;
-}
-
-MutSet* as_mset(Value val) {
-  return (MutSet*)untag_48(val);
 }
 
 MutSet* new_mset(bool fast) {
   MutSet* out;
 
-  out = (MutSet*)new_obj(&MutSetType, fast, 0, 0);
+  out = new_obj(&MutSetType, fast, 0, 0);
   init_mset(out);
 
   return out;  
@@ -340,7 +308,7 @@ void resize_mset(MutSet* slf, size_t new_cnt) {
 
         Value* src, * dst;
 
-        fast = mset_is_fasthash(slf);
+        fast = is_fasthash(slf);
         slf->cnt = 0;
         slf->nts = 0;
 
@@ -365,7 +333,7 @@ void resize_mset(MutSet* slf, size_t new_cnt) {
 }
 
 Value*  mset_find(MutSet* slf, Value key) {
-  bool fast = mset_is_fasthash(slf);
+  bool fast = is_fasthash(slf);
   size_t cap = slf->cap;
   Value* out = find_mset_entry(slf->data, fast, cap, key);
 

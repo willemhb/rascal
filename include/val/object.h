@@ -13,6 +13,7 @@ typedef enum {
   NOSWEEP=0x10000000u,
   NOFREE =0x08000000u,
   HASHED =0x04000000u,
+  EDITP  =0x02000000u,
 } MemFl;
 
 // common object header

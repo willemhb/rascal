@@ -1,44 +1,43 @@
 #ifndef rl_val_vector_h
 #define rl_val_vector_h
 
-#include "val/object.h"
+#include "val/hamt.h"
 
 /* Clojure-like immutable persistent ordered collection type. */
 
 /* C types */
 typedef struct VecNode VecNode;
-typedef struct VecLeaf VecLeaf;
+typedef struct VecNode VecLeaf;
 
 struct VecNode {
   HEADER;
-  Obj*  data[64];
-};
 
-struct VecLeaf {
-  HEADER;
-  Value  data[64];
+  union {
+    Value*    data;
+    VecNode** children;
+  };
 };
 
 struct Vector {
   HEADER;
-  VecNode* root;
+  Value*   tail;
   size_t   arity;
-  size_t   shift;
-  Value    tail[64];
+  VecNode* root;
 };
 
 /* Globals */
 extern Vector EmptyVec;
-extern Type VectorType, VecNodeType, VecLeafType;
+extern Type VectorType, VecNodeType;
 
 /* External API */
 // predicates & casts
-bool    val_is_vec(Value x);
-bool    obj_is_vec(Obj* obj);
-Vector* as_vec(Value x);
-size_t  vec_shift(Vector* vec);
-size_t  vec_cnt(Vector* vec);
+#define is_vec(x) has_type(x, &VectorType)
+#define as_vec(x) as(Vector*, untag48, x)
 
+#define is_vec_node(x) has_type(x, &VecNodeType)
+#define as_vec_node(x) as(VecNode*, untag48, x)
+
+// miscellaneous helpers
 // constructors
 Vector* mk_vec(size_t n, Value* a);
 

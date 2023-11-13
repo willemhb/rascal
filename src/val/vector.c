@@ -1,7 +1,10 @@
 #include <string.h>
 
+#include "util/number.h"
+
 #include "vm/memory.h"
 
+#include "val/seq.h"
 #include "val/vector.h"
 
 /* globals */
@@ -12,128 +15,146 @@
 
 /* internal API */
 static size_t tail_off(size_t arity) {
-  if (arity < NODE_SIZE)
+  if (arity < HAMT_LEVEL_SIZE)
     return 0;
 
-  return ((arity - 1) >> LEVEL_SHIFT) << LEVEL_SHIFT;
+  return ((arity - 1) >> HAMT_SHIFT) << HAMT_SHIFT;
 }
 
-static size_t tail_size(size_t arity) {
-  return arity & LEVEL_MASK ? : NODE_SIZE;
+static bool is_leaf_node(VecNode* node) {
+  return get_hamt_shift(node) == 0;
 }
 
-static bool tail_has_space(size_t arity) {
-  return tail_size(arity) < NODE_SIZE;
+static bool children_are_leaves(VecNode* node) {
+  return get_hamt_shift(node) == HAMT_SHIFT;
+}
+
+static VecNode* last_vec_node_child(VecNode* node) {
+  assert(!is_leaf_node(node));
+  
+  size_t cnt = get_hamt_cnt(node);
+
+  return node->children[cnt-1];
+}
+
+static bool is_editp(void* obj) {
+  return get_mfl(obj, EDITP);
 }
 
 static Value* array_for(Vector* vec, size_t i) {
   if (i >= tail_off(vec->arity))
     return vec->tail;
 
-  Obj* node = (Obj*)vec->root;
+  VecNode* node = vec->root;
+  size_t shift = get_hamt_shift(node);
 
-  for (int level=vec->shift; level > 0; level -= LEVEL_SHIFT)
-    node = ((VecNode*)node)->data[(i >> level) & LEVEL_MASK];
-
-  return ((VecLeaf*)node)->data;
-}
-
-static void freeze_vec_leaf(VecLeaf* leaf) {
-  if (leaf)
-    del_obj_mfl((Obj*)leaf, EDITP);
-}
-
-static VecLeaf* unfreeze_vec_leaf(VecLeaf* leaf) {
-  if (!get_obj_mfl((Obj*)leaf, EDITP)) {
-    leaf = (VecLeaf*)clone_obj((Obj*)leaf);
-    set_obj_mfl((Obj*)leaf, EDITP);
+  for (; shift > 0; shift -= HAMT_SHIFT) {
+    size_t index = hamt_index_for_level(i, shift);
+    node = node->children[index];
   }
 
-  return leaf;
+  return node->data;
 }
 
-static VecNode* unfreeze_vec_node(VecNode* node) {
-  if (!get_obj_mfl((Obj*)node, EDITP)) {
-    node = (VecNode*)clone_obj((Obj*)node);
-    set_obj_mfl((Obj*)node, EDITP);
-  }
-
-  return node;
+static bool space_in_tail(Vector* vec) {
+  return get_hamt_cnt(vec) < HAMT_LEVEL_SIZE;
 }
 
-static Vector* unfreeze_vec(Vector* vec) {
-  if (!get_obj_mfl((Obj*)vec, EDITP)) {
-    vec = (Vector*)clone_obj((Obj*)vec);
-    set_obj_mfl((Obj*)vec, EDITP);
-  }
+static bool space_in_node(VecNode* node) {
+  if (is_leaf_node(node))
+    return false;
 
-  return vec;
+  if (get_hamt_cnt(node) < HAMT_LEVEL_SIZE)
+    return true;
+
+  return space_in_node(last_vec_node_child(node));
 }
 
-static void freeze_vec_node(VecNode* node) {
-  if (node && del_obj_mfl((Obj*)node, EDITP)) {
-    for (size_t i=0; node->data[i] && i < NODE_SIZE; i++) {
-      if (node->data[i]->type == &VecLeafType)
-        freeze_vec_leaf((VecLeaf*)node->data[i]);
-      else
-        freeze_vec_node((VecNode*)node->data[i]);
-    }
-  }
-}
-
-static void freeze_vec(Vector* vec) {
-  if (del_obj_mfl((Obj*)vec, EDITP))
-    freeze_vec_node(vec->root);
-}
-
-/* External API */
-// predicates & casts
-bool val_is_vec(Value x) {
-  return type_of(x) == &VectorType;
-}
-
-bool obj_is_vec(Obj* obj) {
-  return obj->type == &VectorType;
-}
-
-Vector* as_vec(Value x) {
-  return (Vector*)untag_48(x);
-}
-
-// constructors
-VecLeaf* mk_vec_leaf(Value* a) {
-  VecLeaf* out = (VecLeaf*)new_obj(&VecLeafType, 0, 0, 0);
-
-  memcpy(out->data, a, NODE_SIZE * sizeof(Value));
+static bool space_in_root(Vector* vec) {
+  bool out = false;
+  
+  if (vec->root != NULL)
+    out = space_in_node(vec->root);
 
   return out;
 }
 
-Vector* mk_vec(size_t n, Value* a) {
-  if (n == 0)
-    return &EmptyVec;
+static void add_to_node(VecNode* node, Value* a) {
+  size_t shift = get_hamt_shift(node);
+  
+}
 
-  else {
-    Vector* out = (Vector*)new_obj(&VectorType, 0, EDITP, 0);
+static void add_to_tail(Vector* vec, Value v) {
+  size_t cnt = get_hamt_cnt(vec);
+  resize_hamt_array(vec, (void**)vec->tail, cnt+1, sizeof(Value));
+  vec->tail[cnt] = v;
+}
 
-    out->root  = NULL;
-    out->shift = 0;
-    out->arity = 0;
+/* internal API */
+// constructors
+const size_t VecLeafHamtFl  = 0x00404000u;
+const size_t VecLeafArrSize = HAMT_LEVEL_SIZE * sizeof(Value);
 
-    if (n <= NODE_SIZE) {
-      memcpy(out->tail, a, n*sizeof(Value));
-      out->arity = n;
-    } else {
-      save(1, tag_obj(out));
-    
-      for (size_t i=0; i<n; i++)
-        vec_add(out, a[i]);
-    }
-    
-    freeze_vec(out);
+static void init_vec_leaf_data(VecLeaf* l, Value* a) {
+  assert(a);
+  memcpy(l->data, a, VecLeafArrSize);
+}
 
-    return out;
+static VecNode* mk_vec_leaf(Value* a) {
+  VecLeaf* out = new_obj(&VecNodeType, VecLeafHamtFl, 0, 0);
+
+  out->data = allocate(NULL, VecLeafArrSize);
+
+  if (a)
+    init_vec_leaf_data(out, a);
+
+  return out;
+}
+
+static VecNode* mk_vec_node(Obj** data, bool editp, size_t cnt, size_t sh) {
+  VecNode* out = new_obj(&VecNodeType, 0, editp*EDITP, 0);
+
+  init_hamt(out, (void**)&out->data, data, cnt, sh, sizeof(Obj*));
+
+  return out;
+}
+
+static Vector* new_vec(Value* a, VecNode* root, bool editp, size_t n, size_t sh) {
+  Vector* out;
+
+  if (root != NULL) {
+    save(1, tag(root));
+    out = new_obj(&VectorType, 0, editp*EDITP, 0);
+  } else {
+    out = new_obj(&VectorType, 0, editp*EDITP, 0);
   }
+
+  out->root = root;
+  init_hamt(out, (void**)&out->tail, a, n, sh, sizeof(Value));
+
+  return out;
+}
+
+/* external API */
+
+Vector* mk_vec(size_t n, Value* a) {
+  Vector* out;
+  
+  if (n == 0)
+    out = &EmptyVec;
+
+  else if (n <= HAMT_LEVEL_SIZE) {
+    out = new_vec(a, NULL, false, n, 0);
+  } else {
+    out = new_vec(NULL, NULL, true, 0, 0);
+
+    for (size_t i=0; i<n; i++)
+      vec_add(out, a[i]);
+
+    freeze(out);
+  }
+
+  return out;
 }
 
 // accessors & modifiers
@@ -146,11 +167,25 @@ Value vec_ref(Vector* vec, size_t n) {
 }
 
 Vector* vec_add(Vector* vec, Value v) {
-  if (get_obj_mfl((Obj*)vec, EDITP)) {
-    
+  if (is_editp(vec)) {
+    if (space_in_tail(vec))
+      add_to_tail(vec, v);
+
+    else {
+      save(2, tag(vec), v);
+
+      if (space_in_root(vec)) {
+        
+      }
+    }
   } else {
-    
+    save(2, tag(vec), v);
+    vec = unfreeze(vec);
+    vec = vec_add(vec, v);
+    vec = freeze(vec);
   }
+
+  return vec;
 }
 
 Vector* vec_set(Vector* vec, size_t n, Value v);

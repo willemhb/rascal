@@ -9,7 +9,7 @@
 struct String {
   HEADER;
   char*  data;
-  size_t cnt;
+  size_t arity;
 };
 
 struct Buffer8 {
