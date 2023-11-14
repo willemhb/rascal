@@ -22,20 +22,22 @@ typedef struct Type   Type;
 typedef struct Func   Func;
 typedef struct List   List;
 typedef struct String String;
+typedef struct Binary Binary;
 typedef struct Vector Vector;
 typedef struct Dict   Dict;
 typedef struct Set    Set;
 typedef struct Stream Stream;
 
 // utility mutable object types
+typedef struct MutList  MutList;
 typedef struct MutDict  MutDict;
 typedef struct MutSet   MutSet;
-typedef struct Alist    Alist;
-typedef struct Objects  Objects;
-typedef struct Buffer8  Buffer8;
-typedef struct Binary16 Binary16;
+typedef struct MutVec   MutVec;
+typedef struct MutStr   MutStr;
+typedef struct MutBin   MutBin;
 
 // internal object types
+typedef struct Objects   Objects;
 typedef struct Envt      Envt;
 typedef struct Chunk     Chunk;
 typedef struct Closure   Closure;

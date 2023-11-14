@@ -12,7 +12,7 @@ struct String {
   size_t arity;
 };
 
-struct Buffer8 {
+struct MutStr {
   HEADER;
   char*  data;
   size_t cnt;
@@ -20,7 +20,7 @@ struct Buffer8 {
 };
 
 /* Globals */
-extern struct Type StringType, Buffer8Type, GlyphType;
+extern struct Type StringType, MutStrType, GlyphType;
 
 /* External APIs */
 

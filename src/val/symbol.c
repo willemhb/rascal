@@ -2,7 +2,7 @@
 
 #include "vm/memory.h"
 
-#include "val/map.h"
+#include "val/table.h"
 #include "val/func.h"
 #include "val/type.h"
 #include "val/symbol.h"
@@ -12,10 +12,16 @@ idno_t SymbolCounter = 0;
 Symbol* Symbols      = NULL;
 Symbol* Keywords     = NULL;
 
-extern void trace_sym(void* obj);
-extern void free_sym(void* obj);
+extern void   trace_sym(void* obj);
+extern void   finalize_sym(void* obj);
+extern hash_t hash_sym(Value x);
+extern int    order_syms(Value x, Value y);
 
-INIT_OBJECT_TYPE(Symbol, NULL, trace_sym, free_sym, NULL);
+INIT_OBJECT_TYPE(Symbol,
+                 .tracefn=trace_sym,
+                 .finalizefn=finalize_sym,
+                 .hashfn=hash_sym,
+                 .ordfn=order_syms);
 
 /* external API */
 static Symbol** find_in_symt(char* name, Symbol** root) {

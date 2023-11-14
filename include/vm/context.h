@@ -3,7 +3,7 @@
 
 #include <setjmp.h>
 
-#include "val/alist.h"
+#include "val/object.h"
 
 /* shared global state object required by one rascal vm instance. */
 typedef struct GcFrame   GcFrame;
@@ -60,8 +60,8 @@ struct RlCtx {
   // reader state
   MutDict*    readt;
   Stream*     input;
-  Buffer8*    buffer;
-  Alist*      readstk;
+  MutStr*     buffer;
+  MutVec*     readstk;
 
   // compiler state
   Chunk*      compiling;

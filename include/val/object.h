@@ -16,7 +16,7 @@ typedef enum {
   EDITP  =0x02000000u,
 } MemFl;
 
-// common object header
+/* common object header */
 struct Obj {
   Obj*    next;   // invasive live objects list
   hash_t  hash;   // cached hash code 
@@ -27,8 +27,23 @@ struct Obj {
   byte_t  data[];
 };
 
+
+/* Mutable dynamic array for storing untagged objects.
+
+   Internal use only (for now). */
+
+struct Objects {
+  Obj    obj;
+  Obj**  data;
+  size_t cnt;
+  size_t cap;
+};
+
+/* globals */
+extern Type ObjectsType;
+
 /* external APIs */
-// convenience macros
+/* Common Object API */
 #define HEADER struct Obj obj
 
 #define is_obj(x)     has_tag(x, OBJ_TAG)
@@ -65,5 +80,15 @@ void* clone_obj(void* obj);
 void  init_obj(void* slf, Type* type, flags_t flags, flags_t memfl);
 void  finalize_obj(void* obj);
 void  free_obj(void* obj);
+
+// Objects API
+Objects* new_objects(void);
+void     init_objects(Objects* arr);
+void     free_objects(Objects* arr);
+void     resize_objects(Objects* arr, size_t new_cnt);
+size_t   objects_push(Objects* arr, size_t new_cnt, Obj** data);
+size_t   objects_pushn(Objects* arr, size_t n, ...);
+Obj*     objects_pop(Objects* arr);
+Obj*     objects_popn(Objects* arr, size_t n);
 
 #endif

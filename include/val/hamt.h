@@ -82,8 +82,9 @@ size_t hamt_shift_to_level(size_t shift);
 int    hamt_hash_to_index(hash_t h, size_t sh, size_t bm);
 size_t hamt_index_for_level(size_t i, size_t sh);
 void*  freeze_hamt(void* obj);
-void   init_hamt_header(void* obj, bool editp, size_t cnt, size_t sh, size_t bm);
 void   init_hamt(void* obj, void* arr, void* data, size_t cnt, size_t sh);
 size_t hamt_push(void* obj, void* arr, void* data);
+size_t hamt_pop(void* obj, void* arr);
+size_t resize_hamt_array(void* obj, void* arr, size_t new_cnt);
 
 #endif

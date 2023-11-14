@@ -21,6 +21,12 @@ typedef struct Vtable {
   TraceFn    tracefn;    // called by the GC to trace owned pointers
   FinalizeFn finalizefn; // called by the GC to free managed data
   CloneFn    clonefn;
+
+  // comparison & hashing methods
+  EgalFn     egalfn;
+  HashFn     hashfn;
+  RankFn     rankfn;
+  OrdFn      ordfn;
 } Vtable;
 
 struct Type {
@@ -29,7 +35,7 @@ struct Type {
   Type*   parent;  // abstract parent
   Symbol* name;    // common name
   Func*   ctor;    // constructor for this type
-  MutSet* members; // union members (if any)
+  Set*    members; // union members (if any)
   Vtable* vtable;  // instance data
 };
 
@@ -38,7 +44,7 @@ struct Type {
 extern struct Type NoneType, AnyType, TermType, TypeType;
 
 /* external API */
-#define INIT_OBJECT_TYPE(_Type, _size, _trace, _finalize, _clone)     \
+#define INIT_OBJECT_TYPE(_Type, methods...)                           \
   Symbol _Type##Symbol = {                                            \
     .obj={                                                            \
       .type =&SymbolType,                                             \
@@ -61,10 +67,7 @@ extern struct Type NoneType, AnyType, TermType, TypeType;
     .vsize     =sizeof(_Type*),                                       \
     .osize     =sizeof(_Type),                                        \
     .tag       =OBJ_TAG,                                              \
-    .sizefn    =_size,                                                \
-    .tracefn   =_trace,                                               \
-    .finalizefn=_finalize,                                            \
-    .clonefn   =_clone,                                               \
+    methods                                                           \
   };                                                                  \
                                                                       \
   Type _Type##Type = {                                                \

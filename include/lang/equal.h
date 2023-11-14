@@ -1,5 +1,5 @@
-#ifndef rascal_equal_h
-#define rascal_equal_h
+#ifndef rl_equal_h
+#define rl_equal_h
 
 #include "common.h"
 

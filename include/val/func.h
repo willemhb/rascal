@@ -32,7 +32,7 @@ struct MethTNode {
   MethTLeaf* leaf;
   MutDict*   exact_methods;
   MutDict*   abstract_methods;
-  Alist*     union_methods;
+  Objects*   union_methods;
   MethTNode* any_method;
 };
 

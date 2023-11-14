@@ -35,5 +35,8 @@
 
 // general numeric utilities
 uint64_t ceil2(uint64_t word);
+bool     ispow2(uint64_t word);
+bool     ispow64(uint64_t word);
+uint64_t log64(uint64_t word);
 
 #endif

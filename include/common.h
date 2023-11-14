@@ -41,6 +41,8 @@ typedef struct Obj Obj;   // boxed object (includes type information)
 // internal function pointer types
 typedef hash_t (*HashFn)(Value x);
 typedef bool   (*EgalFn)(Value x, Value y);
+typedef int    (*RankFn)(Value x, Value y);
+typedef int    (*OrdFn)(Value x, Value y);
 typedef size_t (*SizeFn)(void* obj);
 typedef void   (*TraceFn)(void* obj);
 typedef void   (*FinalizeFn)(void* obj);
