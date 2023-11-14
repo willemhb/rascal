@@ -13,20 +13,20 @@
 #include "val/table.h"
 
 /* Globals */
-/* macros */
+/* Magic numbers */
 #define LOADF 0.625
 
 /* Table type */
 extern void trace_mdict(void* obj);
 extern void finalize_mdict(void* obj);
 
-INIT_OBJECT_TYPE(MutDict, NULL, trace_mdict, finalize_mdict);
+INIT_OBJECT_TYPE(MutDict, NULL, trace_mdict, finalize_mdict, NULL);
 
 /* MutSet type */
 extern void trace_mutset(void* slf);
 extern void finalize_mutset(void* slf);
 
-INIT_OBJECT_TYPE(MutSet, NULL, trace_mutset, finalize_mutset);
+INIT_OBJECT_TYPE(MutSet, NULL, trace_mutset, finalize_mutset, NULL);
 
 /* External APIs */
 /* MutSet API */

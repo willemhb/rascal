@@ -9,18 +9,19 @@
    (internal vector, dict, and set node types).    */
 
 /* C types */
-typedef struct VecNode     VecNode;
-typedef struct VecNode     VecLeaf;
-typedef struct DictNode    DictNode;
-typedef struct DictLeaf    DictLeaf;
-typedef struct SetNode     SetNode;
-typedef struct SetLeaf     SetLeaf;
+typedef struct VecNode  VecNode;
+typedef struct VecNode  VecLeaf;
+typedef struct DictNode DictNode;
+typedef struct DictLeaf DictLeaf;
+typedef struct SetNode  SetNode;
+typedef struct SetLeaf  SetLeaf;
 
 /* Globals */
-#define HAMT_LEVEL_SIZE 0x40 // 64
-#define HAMT_SHIFT      0x06 // 06
-#define HAMT_MAX_SHIFT  0x30 // 48
-#define HAMT_LEVEL_MASK 0x3f // 63
+#define HAMT_LEVEL_SIZE 64
+#define HAMT_SHIFT       6
+#define HAMT_MAX_SHIFT  48
+#define HAMT_LEVEL_MASK 63
+#define HAMT_MAX_LEVELS  8
 
 /* External API */
 void*            freeze_hamt(void* obj);
@@ -67,21 +68,22 @@ extern SetLeaf*  unfreeze_set_leaf(SetLeaf* l);
           SetLeaf*:unfreeze_set_leaf,             \
           default:unfreeze_hamt)(x)
 
-
 bool   get_hamt_editp(void* obj);
 bool   set_hamt_editp(void* obj);
 size_t get_hamt_cnt(void* obj);
 size_t set_hamt_cnt(void* obj, size_t n);
-size_t get_hamt_cap(void* obj);
-size_t set_hamt_cap(void* obj, size_t n);
 size_t get_hamt_shift(void* obj);
 size_t set_hamt_shift(void* obj, size_t n);
+size_t inc_hamt_shift(void* obj);
+size_t get_hamt_depth(void* obj);
+size_t set_hamt_depth(void* obj);
 
+size_t hamt_shift_to_level(size_t shift);
 int    hamt_hash_to_index(hash_t h, size_t sh, size_t bm);
 size_t hamt_index_for_level(size_t i, size_t sh);
 void*  freeze_hamt(void* obj);
-void   init_hamt(void* obj, void** arr, void* data, size_t cnt, size_t sh, size_t es);
-size_t resize_hamt_array(void* obj, void** arr, size_t new_cnt, size_t els);
-void   freeze_hamt_array(void* obj, void** arr, size_t els);
+void   init_hamt_header(void* obj, bool editp, size_t cnt, size_t sh, size_t bm);
+void   init_hamt(void* obj, void* arr, void* data, size_t cnt, size_t sh);
+size_t hamt_push(void* obj, void* arr, void* data);
 
 #endif

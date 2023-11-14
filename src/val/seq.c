@@ -34,10 +34,6 @@ static void* mk_iseq(Type* type, bool editp, Obj* src) {
   return out;
 }
 
-static bool is_editp(void* obj) {
-  return get_mfl(obj, EDITP);
-}
-
 void trace_iseq(void* obj) {
   ISeq* seq = obj;
 
@@ -45,8 +41,8 @@ void trace_iseq(void* obj) {
   mark(seq->seq.nested);
 }
 
-#define INIT_ISEQ_TYPE(_T)                      \
-  INIT_OBJECT_TYPE(_T, NULL, trace_iseq, NULL)
+#define INIT_ISEQ_TYPE(_T)                              \
+  INIT_OBJECT_TYPE(_T, NULL, trace_iseq, NULL, NULL)
 
 /* External APIs */
 /* Sequence interface for Lists. */

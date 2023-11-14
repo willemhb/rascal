@@ -28,6 +28,7 @@ typedef void     (*funcptr_t)(void);
 typedef uint32_t   flags_t;
 typedef uint64_t   wflags_t;
 typedef uint16_t   ushort_t;
+typedef uint32_t   uint_t;
 typedef uint64_t   idno_t;
 
 // global context object type -- all global state stored here
@@ -43,6 +44,7 @@ typedef bool   (*EgalFn)(Value x, Value y);
 typedef size_t (*SizeFn)(void* obj);
 typedef void   (*TraceFn)(void* obj);
 typedef void   (*FinalizeFn)(void* obj);
+typedef void*  (*CloneFn)(void* obj);
 
 /* globals */
 extern struct RlCtx Ctx;

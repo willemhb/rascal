@@ -6,15 +6,12 @@
 /* Clojure-like immutable persistent ordered collection type. */
 
 /* C types */
-typedef struct VecNode VecNode;
-typedef struct VecNode VecLeaf;
-
 struct VecNode {
   HEADER;
-
   union {
-    Value*    data;
+    void*     data;
     VecNode** children;
+    Value*    slots;
   };
 };
 
@@ -27,12 +24,15 @@ struct Vector {
 
 /* Globals */
 extern Vector EmptyVec;
-extern Type VectorType, VecNodeType;
+extern Type VectorType, VecNodeType, VecLeafType;
 
 /* External API */
 // predicates & casts
-#define is_vec(x) has_type(x, &VectorType)
-#define as_vec(x) as(Vector*, untag48, x)
+#define is_vec(x)      has_type(x, &VectorType)
+#define as_vec(x)      as(Vector*, untag48, x)
+
+#define is_vec_leaf(x) has_type(x, &VectorLeaf)
+#define as_vec_leaf(x) as(VecLeaf*, untag48, x)
 
 #define is_vec_node(x) has_type(x, &VecNodeType)
 #define as_vec_node(x) as(VecNode*, untag48, x)

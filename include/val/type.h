@@ -20,6 +20,7 @@ typedef struct Vtable {
   SizeFn     sizefn;     // called to determine size of owned data
   TraceFn    tracefn;    // called by the GC to trace owned pointers
   FinalizeFn finalizefn; // called by the GC to free managed data
+  CloneFn    clonefn;
 } Vtable;
 
 struct Type {
@@ -37,7 +38,7 @@ struct Type {
 extern struct Type NoneType, AnyType, TermType, TypeType;
 
 /* external API */
-#define INIT_OBJECT_TYPE(_Type, _size, _trace, _finalize)             \
+#define INIT_OBJECT_TYPE(_Type, _size, _trace, _finalize, _clone)     \
   Symbol _Type##Symbol = {                                            \
     .obj={                                                            \
       .type =&SymbolType,                                             \
@@ -63,6 +64,7 @@ extern struct Type NoneType, AnyType, TermType, TypeType;
     .sizefn    =_size,                                                \
     .tracefn   =_trace,                                               \
     .finalizefn=_finalize,                                            \
+    .clonefn   =_clone,                                               \
   };                                                                  \
                                                                       \
   Type _Type##Type = {                                                \

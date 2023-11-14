@@ -5,9 +5,12 @@
 
 ;; binding macros.
 (mac let
-  ((List formals
+  "Evaluate name/binding pairs in formals sequentially, then evaluate body in a context with those bindings."
+  ((List formals) & body)
+  `((fn* () ~@(map formals #`(val ~(hd %) ~(hd|tl %))) ~@body)))
 
 ;; exceptions.
+
 
 ;; module system macros.
 (val &used (MutDict))
@@ -16,7 +19,9 @@
   "Load files just once."
   ((List files))
   (for (file files)
-    (unless (has? &used file)
-      (assoc! &used file (load file)))
-    (ref &used file)))
-
+    (var fname (if (string? file)
+                   file
+                   (as-file-name file)))
+    (unless (has? &used fname)
+      (assoc! &used fname (load fname)))
+    (ref &used fname)))

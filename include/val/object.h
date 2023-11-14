@@ -31,8 +31,15 @@ struct Obj {
 // convenience macros
 #define HEADER struct Obj obj
 
-#define is_obj(x) has_tag(x, OBJ_TAG)
-#define as_obj(x) as(Obj*, untag48, x)
+#define is_obj(x)     has_tag(x, OBJ_TAG)
+#define as_obj(x)     as(Obj*, untag48, x)
+#define is_black(x)   get_mfl(x, BLACK)
+#define is_gray(x)    get_mfl(x, GRAY)
+#define is_notrace(x) get_mfl(x, NOTRACE)
+#define is_nosweep(x) get_mfl(x, NOSWEEP)
+#define is_nofree(x)  get_mfl(x, NOFREE)
+#define is_hashed(x)  get_mfl(x, HASHED)
+#define is_editp(x)   get_mfl(x, EDITP)
 
 // casts, predicates, accessors, bit twiddling
 Type*  type_of_obj(void* obj);

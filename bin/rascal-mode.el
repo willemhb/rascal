@@ -36,7 +36,7 @@
     ;; module system macros
     "import" "export" "module"
     ;; looping macros.
-    "for" "while" "while*" "in"
+    "for" "while" "while*"
     ;; miscellaneous macros
     "use" "with" "do*")
   '(("\\(?:[^:]:[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)

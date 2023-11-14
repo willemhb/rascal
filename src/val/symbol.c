@@ -15,7 +15,7 @@ Symbol* Keywords     = NULL;
 extern void trace_sym(void* obj);
 extern void free_sym(void* obj);
 
-INIT_OBJECT_TYPE(Symbol, NULL, trace_sym, free_sym);
+INIT_OBJECT_TYPE(Symbol, NULL, trace_sym, free_sym, NULL);
 
 /* external API */
 static Symbol** find_in_symt(char* name, Symbol** root) {

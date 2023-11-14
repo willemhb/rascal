@@ -15,13 +15,13 @@
 extern void trace_alist(void* obj);
 extern void finalize_alist(void* obj);
 
-INIT_OBJECT_TYPE(Alist, NULL, trace_alist, finalize_alist);
+INIT_OBJECT_TYPE(Alist, NULL, trace_alist, finalize_alist, NULL);
 
 /* Objects type */
 extern void trace_objects(void* obj);
 extern void finalize_objects(void* obj);
 
-INIT_OBJECT_TYPE(Objects, NULL, trace_objects, finalize_objects);
+INIT_OBJECT_TYPE(Objects, NULL, trace_objects, finalize_objects, NULL);
 
 /* External APIs */
 /* Alist API */
