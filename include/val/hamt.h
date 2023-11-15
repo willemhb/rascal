@@ -77,7 +77,6 @@ size_t get_hamt_shift(void* obj);
 size_t set_hamt_shift(void* obj, size_t n);
 
 size_t hamt_shift_to_level(size_t sh);
-size_t hamt_first_child_index(size_t bm);
 size_t hamt_hash_to_aindex(hash_t h, size_t sh);
 size_t hamt_hash_to_imask(hash_t h, size_t sh);
 int    hamt_hash_to_index(hash_t h, size_t sh, size_t bm);

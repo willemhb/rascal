@@ -182,16 +182,63 @@ static Value* find_mset_entry(Value* kvs, bool fast, size_t c, Value k) {
   }
 }
 
-static DictLeaf* new_dict_leaf(Value key, Value val, DictLeaf* next) {
+
+static DictLeaf* new_dict_leaf(Value key, Value val, bool editp, DictLeaf* next) {
   save(3, key, val, tag(next));
 
-  DictLeaf* out = new_obj(&DictLeafType, 0, 0, 0);
+  DictLeaf* out = new_obj(&DictLeafType, 0, editp*EDITP, 0);
 
   out->key  = key;
   out->val  = val;
   out->next = next;
 
   return out;
+}
+
+static DictLeaf* insert_in_dict_leaf(DictLeaf* head, DictLeaf* sentinel, Value val) {
+  save(2, tag(head), tag(sentinel));
+
+  DictLeaf* out = clone_obj(head), *curr = out;
+
+  add_saved(0, tag(out));
+
+  do {
+    curr->next = clone_obj(curr->next);
+    curr = curr->next;
+  } while (curr != sentinel);
+
+  curr->val = val;
+
+  return out;
+}
+
+  static DictLeaf* update_dict_leaf(DictLeaf* lorig, DictLeaf* lnew, bool editp) {
+  DictLeaf* lcurr = lorig;
+  DictLeaf* lout = NULL;
+
+  while (lcurr != NULL) {
+    if (equal(lcurr->key, lnew->key)) {
+      if (equal(lcurr->val, lnew->val)) {
+        lout = lorig;
+      } else if (is_editp(lorig)) {
+        lcurr->val = lnew->val;
+        lout = lorig;
+        break;
+      } else {
+        lout = insert_in_dict_leaf(lorig, lcurr, lnew->val);
+      }
+    } else {
+      lcurr = lcurr->next;
+    }
+  }
+
+  if (lout == NULL)
+    lout = new_dict_leaf(lnew->key, lnew->val, editp, lorig);
+
+  if (editp)
+    freeze(lout);
+
+  return lout;
 }
 
 static DictNode* new_dict_node(bool editp, size_t sh) {
@@ -244,17 +291,41 @@ static void add_dict_leaf_to_node(DictNode* n, DictLeaf* l, hash_t h) {
   hamt_add_to_bitmap(n, (void***)&n->children, l, &n->bitmap, h);
 }
 
-static void* resolve_collision(DictLeaf* lorig, hash_t hnew, DictLeaf* lnew) {
+static size_t find_split(hash_t hx, hash_t hy) {
+  size_t shift = HAMT_MAX_SHIFT;
+
+  for (; shift > 0; shift -= HAMT_SHIFT) {
+    size_t hxs = hamt_index_for_level(hx, shift);
+    size_t hys = hamt_index_for_level(hy, shift);
+
+    if (hxs != hys)
+      break;
+  }
+
+  return shift;
+}
+
+static void* resolve_collision(DictLeaf* lorig, DictLeaf* lnew, hash_t hnew, bool editp) {
   hash_t horig = hash(lorig->key);
 
-  if ((horig & VAL_MASK) == (hnew & VAL_MASK)) { // true collision
-    return new_dict_leaf(lnew->key, lnew->val, lorig);
-  } else { // find the level where they split and create a new node to hold the two leaves
-    
+  if ((horig & VAL_MASK) == (hnew & VAL_MASK)) // true collision
+    return update_dict_leaf(lorig, lnew, editp);
+  else { // find the level where they split and create a new node to hold the two leaves
+    save(2, tag(lorig), NUL);
+    size_t sh = find_split(horig, hnew);
+    DictNode* out = new_dict_node(NULL, sh);
+    add_saved(1, tag(out));
+    add_dict_leaf_to_node(out, lorig, horig);
+    add_dict_leaf_to_node(out, lnew, hnew);
+
+    if (!editp)
+      freeze(out);
+
+    return out;
   }
 }
 
-static DictNode* add_dict_leaf(DictNode* n, bool editp, DictLeaf* l, hash_t h) {
+static DictNode* add_dict_leaf(DictNode* n, DictLeaf* l, hash_t h, bool editp) {
   /* first key */
   if (n == NULL) {
     n = new_dict_node(editp, HAMT_MAX_SHIFT);
@@ -263,14 +334,29 @@ static DictNode* add_dict_leaf(DictNode* n, bool editp, DictLeaf* l, hash_t h) {
   } else {
     if (!is_editp(n))
       n = unfreeze(n);
-      
+ 
     save(1, tag(n));
 
-    
-    
-    if (!editp)
-      freeze(n);
+    size_t sh = get_hamt_shift(n);
+    size_t bm = n->bitmap;
+    int index = hamt_hash_to_index(h, sh, bm);
+
+    if (index < 0)
+      add_dict_leaf_to_node(n, l, h);
+
+    else {
+      Obj* child = n->children[index];
+
+      if (child->type == &DictLeafType)
+        n->children[index] = resolve_collision((DictLeaf*)child, l, h, editp);
+
+      else
+        n->children[index] = (Obj*)add_dict_leaf((DictNode*)child, l, h, editp);
+    }
   }
+
+  if (!editp)
+    freeze(n);
 
   return n;
 }
@@ -630,6 +716,30 @@ Value dict_get(Dict* d, Value k) {
     return NOTHING;
 
   return l->val;
+}
+
+Dict* dict_add(Dict* d, Value k, Value v) {
+  if (!is_editp(d)) {
+    save(2, k, v);
+    d = clone_obj(d);
+    d = dict_add(d, k, v);
+    d = freeze(d);
+  } else {
+    DictLeaf l = {
+      .obj={
+        .type =&DictNodeType,
+        .meta =&EmptyDict,
+        .memfl=NOSWEEP|GRAY,
+      },
+      .key=k,
+      .val=v
+    };
+
+    save(1, tag(&l));
+    d->root = add_dict_leaf(d->root, &l, hash(k), false);
+  }
+
+  return d;
 }
 
 /* Dict HAMT apis */
