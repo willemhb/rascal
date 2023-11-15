@@ -43,7 +43,7 @@ struct MutSet {
 
 struct DictNode {
   HEADER;
-  Obj**   data;
+  Obj**   children;
   size_t  bitmap;
 };
 
@@ -62,7 +62,7 @@ struct Dict {
 
 struct SetNode {
   HEADER;
-  Obj**  data;
+  Obj**  children;
   size_t bitmap;
 };
 
@@ -132,13 +132,20 @@ void    join_msets(MutSet* slf, MutSet* other);
 #define is_dict_leaf(x) has_type(x, &DictLeafType)
 #define as_dict_leaf(x) as(DictLeaf*, untag48, x)
 
-Dict* new_dict(bool fast);
 Dict* mk_dict(size_t n, Value* kvs);
 Value dict_get(Dict* d, Value k);
 bool  dict_has(Dict* d, Value k);
 Dict* dict_set(Dict* d, Value k, Value v);
 Dict* dict_del(Dict* d, Value k);
 Dict* join_dicts(Dict* dx, Dict* dy);
+
+/* Dict HAMT apis */
+Dict*     freeze_dict(Dict* d);
+Dict*     unfreeze_dict(Dict* d);
+DictNode* freeze_dict_node(DictNode* n);
+DictNode* unfreeze_dict_node(DictNode* n);
+DictLeaf* freeze_dict_leaf(DictLeaf* l);
+DictLeaf* unfreeze_dict_leaf(DictLeaf* l);
 
 /* Set API */
 #define is_set(x)       has_type(x, &SetType)
@@ -148,11 +155,18 @@ Dict* join_dicts(Dict* dx, Dict* dy);
 #define is_set_leaf(x)  has_type(x, &SetLeafType)
 #define as_set_leaf(x)  as(SetLeaf*, untag48, x)
 
-Set*  new_set(bool fast);
 Set*  mk_set(size_t n, Value* ks);
 bool  set_has(Set* s, Value k);
 Set*  set_add(Set* s, Value k);
 Set*  set_del(Set* s, Value k);
 Set*  join_sets(Set* sx, Set* sy);
+
+/* Set HAMT apis */
+Set*     freeze_set(Set* s);
+Set*     unfreeze_set(Set* s);
+SetNode* freeze_set_node(SetNode* n);
+SetNode* unfreeze_set_node(SetNode* n);
+SetLeaf* freeze_set_leaf(SetLeaf* l);
+SetLeaf* unfreeze_set_leaf(SetLeaf* l);
 
 #endif

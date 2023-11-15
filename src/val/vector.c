@@ -1,6 +1,7 @@
 #include <stdarg.h>
 #include <string.h>
 
+#include "util/collection.h"
 #include "util/number.h"
 
 #include "vm/memory.h"
@@ -144,7 +145,7 @@ static VecNode* vec_node_set(VecNode* node, size_t n, Value v) {
 
 static VecNode* mk_vec_node(Obj** children, bool editp, size_t cnt, size_t sh) {
   VecNode* out = new_obj(&VecNodeType, 0, editp*EDITP, 0);
-  init_hamt(out, &out->children, children, cnt, sh);
+  init_hamt(out, (void***)&out->children, children, cnt, sh);
   return out;
 }
 
@@ -158,7 +159,7 @@ static VecLeaf* mk_vec_leaf(Value* slots) {
 
 static Vector* new_vec(void) {
   Vector* out = new_obj(&VectorType, 0, EDITP, 0);
-  init_hamt(out, &out->tail, NULL, 0, 0);
+  init_hamt(out, (void***)&out->tail, NULL, 0, 0);
   out->arity = 0;
   out->root  = NULL;
 
@@ -182,12 +183,12 @@ static VecNode* fork_vec_node(bool editp, size_t sh, VecLeaf* leaf) {
 static void write_tail(Vector* vec, Value* a, size_t n) {
   assert(n < HAMT_LEVEL_SIZE);
 
-  resize_hamt_array(vec, &vec->tail, n);
+  resize_hamt_array(vec, (void***)&vec->tail, n);
   memcpy(vec->tail, a, n * sizeof(Value));
 }
 
 static void add_to_tail(Vector* vec, Value x) {
-  hamt_push(vec, &vec->tail, (void*)x);
+  hamt_push(vec, (void***)&vec->tail, (void*)x);
 }
 
 static VecNode* add_leaf(VecNode* node, bool editp, VecLeaf* leaf) {
@@ -210,7 +211,7 @@ static VecNode* add_leaf(VecNode* node, bool editp, VecLeaf* leaf) {
       out = node;
       
       if (shift == HAMT_SHIFT)
-        hamt_push(node, &node->children, leaf);
+        hamt_push(node, (void***)&node->children, leaf);
       
       else if (space_in_node(node->children[cnt-1])) {
         child = node->children[cnt-1];
@@ -219,13 +220,13 @@ static VecNode* add_leaf(VecNode* node, bool editp, VecLeaf* leaf) {
 
       else {
         child = fork_vec_node(editp, shift - HAMT_SHIFT, leaf);
-        hamt_push(node, &node->children, child);
+        hamt_push(node, (void***)&node->children, child);
       }
     } else {
       out = mk_vec_node((Obj**)&node, editp, 1, shift + HAMT_SHIFT);
       save(1, tag(out));
       child = fork_vec_node(editp, shift, leaf);
-      hamt_push(out, &out->children, child);
+      hamt_push(out, (void***)&out->children, child);
     }
   }
 
@@ -277,7 +278,7 @@ static VecNode* pop_leaf_from_node(VecNode* node) {
     VecNode* child = pop_leaf_from_node(node->children[cnt-1]);
 
     if (child == NULL)
-      resize_hamt_array(node, &node->children, cnt-1);
+      resize_hamt_array(node, (void***)&node->children, cnt-1);
 
     else
       node->children[cnt-1] = child;
@@ -395,7 +396,7 @@ Vector* vec_add_(Vector* vec, Value v, bool editp) {
   } else {
     if (!space_in_tail(vec)) {
       push_tail(vec, editp, vec->tail);
-      resize_hamt_array(vec, &vec->tail, 0);
+      resize_hamt_array(vec, (void***)&vec->tail, 0);
     }
 
     add_to_tail(vec, v);
@@ -421,7 +422,7 @@ Vector* vec_del(Vector* vec) {
     vec = freeze(vec);
   } else {
     size_t new_size = get_hamt_cnt(vec) - 1;
-    resize_hamt_array(vec, &vec->tail, new_size);
+    resize_hamt_array(vec, (void***)&vec->tail, new_size);
 
     if (new_size == 0) {
       VecLeaf* l = pop_leaf(vec);

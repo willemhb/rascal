@@ -17,20 +17,115 @@
 #define LOADF 0.625
 
 /* Table type */
-extern void trace_mdict(void* obj);
-extern void finalize_mdict(void* obj);
+extern void  trace_mdict(void* obj);
+extern void  finalize_mdict(void* obj);
+extern void* clone_mdict(void* obj);
 
 INIT_OBJECT_TYPE(MutDict,
-                 .tracefn=trace_mdict);
+                 .tracefn=trace_mdict,
+                 .finalizefn=finalize_mdict,
+                 .clonefn=clone_mdict);
 
 /* MutSet type */
-extern void trace_mutset(void* slf);
-extern void finalize_mutset(void* slf);
+extern void  trace_mset(void* obj);
+extern void  finalize_mset(void* obj);
+extern void* clone_mset(void* obj);
 
-INIT_OBJECT_TYPE(MutSet, NULL, trace_mutset, finalize_mutset, NULL);
+INIT_OBJECT_TYPE(MutSet,
+                 .tracefn=trace_mset,
+                 .finalizefn=finalize_mset,
+                 .clonefn=clone_mset);
 
-/* External APIs */
-/* MutSet API */
+/* Dict type */
+extern void   trace_dict(void* obj);
+extern void   finalize_dict(void* obj);
+extern void*  clone_dict(void* obj);
+extern hash_t hash_dict(Value x);
+extern bool   equal_dicts(Value x, Value y);
+extern int    order_dicts(Value x, Value y);
+
+INIT_OBJECT_TYPE(Dict,
+                 .tracefn=trace_dict,
+                 .finalizefn=finalize_dict,
+                 .clonefn=clone_dict,
+                 .hashfn=hash_dict,
+                 .egalfn=equal_dicts,
+                 .ordfn=order_dicts);
+
+/* DictNode type */
+extern void   trace_dict_node(void* obj);
+extern void   finalize_dict_node(void* obj);
+extern void*  clone_dict_node(void* obj);
+
+INIT_OBJECT_TYPE(DictNode,
+                 .tracefn=trace_dict_node,
+                 .finalizefn=finalize_dict_node,
+                 .clonefn=clone_dict_node);
+
+/* Dict leaf type */
+extern void  trace_dict_leaf(void* obj);
+extern void  finalize_dict_leaf(void* obj);
+
+INIT_OBJECT_TYPE(DictLeaf,
+                 .tracefn=trace_dict_leaf,
+                 .finalizefn=finalize_dict_leaf);
+
+/* Set type */
+extern void   trace_set(void* obj);
+extern void   finalize_set(void* obj);
+extern void*  clone_set(void* obj);
+extern hash_t hash_set(Value x);
+extern bool   equal_sets(Value x, Value y);
+extern int    order_sets(Value x, Value y);
+
+INIT_OBJECT_TYPE(Set,
+                 .tracefn=trace_set,
+                 .finalizefn=finalize_set,
+                 .clonefn=clone_set,
+                 .hashfn=hash_set,
+                 .egalfn=equal_sets,
+                 .ordfn=order_sets);
+
+/* Set node type */
+extern void  trace_set_node(void* obj);
+extern void  finalize_set_node(void* obj);
+extern void* clone_set_node(void* obj);
+
+INIT_OBJECT_TYPE(SetNode,
+                 .tracefn=trace_set_node,
+                 .finalizefn=finalize_set_node,
+                 .clonefn=clone_set_node);
+
+/* Set leaf type */
+extern void trace_set_leaf(void* obj);
+extern void finalize_set_leaf(void* obj);
+
+INIT_OBJECT_TYPE(SetLeaf,
+                 .tracefn=trace_set_leaf,
+                 .finalizefn=finalize_set_leaf);
+
+/* Empty singletons */
+Dict EmptyDict = {
+  .obj={
+    .type =&DictType,
+    .meta =&EmptyDict,
+    .memfl=NOSWEEP|NOFREE|NOTRACE|GRAY,
+  },
+  .root =NULL,
+  .arity=0,
+};
+
+Set EmptySet = {
+  .obj={
+    .type =&SetType,
+    .meta =&EmptyDict,
+    .memfl=NOSWEEP|NOFREE|NOTRACE|GRAY,
+  },
+  .root =NULL,
+  .arity=0,
+};
+
+/* Internal APIs */
 static Entry* find_mdict_entry(Entry* kvs, bool fast, size_t c, Value k) {
   HashFn hasher;
   EgalFn cmpr;
@@ -59,6 +154,162 @@ static Entry* find_mdict_entry(Entry* kvs, bool fast, size_t c, Value k) {
   }
 }
 
+static Value* find_mset_entry(Value* kvs, bool fast, size_t c, Value k) {
+  HashFn hasher;
+  EgalFn cmpr;
+  hash_t h;
+  size_t i, m;
+  Value* ts;
+
+  hasher = fast ? hash_word : hash;
+  cmpr = fast ? same : equal;
+  h = hasher(k);
+  m = c - 1;
+  i = h & m;
+  ts = NULL;
+
+  for (;;) {
+      Value* kv = &kvs[i];
+
+      if (*kv == NOTHING)
+        return ts ? ts : kv;
+      else if (*kv == TOMBSTONE)
+        ts = ts ? : kv;
+      else if (cmpr(*kv, k))
+        return kv;
+      else
+        i = (i + 1) & m;
+  }
+}
+
+static DictLeaf* new_dict_leaf(Value key, Value val, DictLeaf* next) {
+  save(3, key, val, tag(next));
+
+  DictLeaf* out = new_obj(&DictLeafType, 0, 0, 0);
+
+  out->key  = key;
+  out->val  = val;
+  out->next = next;
+
+  return out;
+}
+
+static DictNode* new_dict_node(bool editp, size_t sh) {
+  DictNode* out = new_obj(&DictNodeType, 0, editp*EDITP, 0);
+
+  init_hamt(out, (void***)&out->children, NULL, 0, sh);
+  out->bitmap = 0;
+
+  return out;
+}
+
+static DictLeaf* find_dict_leaf(DictNode* n, Value k) {
+  DictLeaf* out = NULL;
+
+  if (n != NULL) {
+    hash_t h = hash(k);
+
+    for (;out == NULL;) {
+      size_t shift  = get_hamt_shift(n);
+      size_t bitmap = n->bitmap;
+      int index = hamt_hash_to_index(h, shift, bitmap);
+
+      if (index < 0)
+        break;
+
+      Obj* child = n->children[index];
+
+      if (child->type == &DictNodeType)
+        n = (DictNode*)child;
+      else {
+        DictLeaf* leaf = (DictLeaf*)child;
+
+        for (;out == NULL && leaf != NULL; leaf=leaf->next)
+          if (equal(k, leaf->key))
+            out = leaf;
+      }
+    }
+  }
+
+  return out;
+}
+
+static void add_dict_leaf_to_node(DictNode* n, DictLeaf* l, hash_t h) {
+  if (is_nosweep(l) || l->next != NULL) {
+    save(1, tag(n));
+    l = clone_obj(l);
+    l->next = NULL;
+  }
+  
+  hamt_add_to_bitmap(n, (void***)&n->children, l, &n->bitmap, h);
+}
+
+static void* resolve_collision(DictLeaf* lorig, hash_t hnew, DictLeaf* lnew) {
+  hash_t horig = hash(lorig->key);
+
+  if ((horig & VAL_MASK) == (hnew & VAL_MASK)) { // true collision
+    return new_dict_leaf(lnew->key, lnew->val, lorig);
+  } else { // find the level where they split and create a new node to hold the two leaves
+    
+  }
+}
+
+static DictNode* add_dict_leaf(DictNode* n, bool editp, DictLeaf* l, hash_t h) {
+  /* first key */
+  if (n == NULL) {
+    n = new_dict_node(editp, HAMT_MAX_SHIFT);
+    save(1, tag(n));
+    add_dict_leaf_to_node(n, l, h);
+  } else {
+    if (!is_editp(n))
+      n = unfreeze(n);
+      
+    save(1, tag(n));
+
+    
+    
+    if (!editp)
+      freeze(n);
+  }
+
+  return n;
+}
+
+static SetLeaf* find_set_leaf(SetNode* n, bool fast, Value v) {
+  SetLeaf* out = NULL;
+
+  if (n != NULL) {
+    HashFn hasher = fast ? hash_word : hash;
+    EgalFn cmper = fast ? same : equal;
+    hash_t hash = hasher(v);
+    
+    for (;out == NULL;) {
+      size_t shift  = get_hamt_shift(n);
+      size_t bitmap = n->bitmap;
+      int index = hamt_hash_to_index(hash, shift, bitmap);
+
+      if (index < 0)
+        break;
+
+      Obj* child = n->children[index];
+
+      if (child->type == &SetNodeType)
+        n = (SetNode*)child;
+      else {
+        SetLeaf* leaf = (SetLeaf*)child;
+
+        for (;out == NULL && leaf != NULL; leaf=leaf->next)
+          if (cmper(v, leaf->val))
+            out = leaf;
+      }
+    }
+  }
+
+  return out;
+}
+
+/* External APIs */
+/* MutSet API */
 size_t mdict_arity(MutDict* slf) {
   return slf->cnt - slf->nts;
 }
@@ -230,34 +481,6 @@ void join_mdicts(MutDict* slf, MutDict* other) {
 }
 
 /* MutSet API */
-static Value* find_mset_entry(Value* kvs, bool fast, size_t c, Value k) {
-  HashFn hasher;
-  EgalFn cmpr;
-  hash_t h;
-  size_t i, m;
-  Value* ts;
-
-  hasher = fast ? hash_word : hash;
-  cmpr = fast ? same : equal;
-  h = hasher(k);
-  m = c - 1;
-  i = h & m;
-  ts = NULL;
-
-  for (;;) {
-      Value* kv = &kvs[i];
-
-      if (*kv == NOTHING)
-        return ts ? ts : kv;
-      else if (*kv == TOMBSTONE)
-        ts = ts ? : kv;
-      else if (cmpr(*kv, k))
-        return kv;
-      else
-        i = (i + 1) & m;
-  }
-}
-
 size_t mset_arity(MutSet* slf) {
   return slf->cnt - slf->nts;
 }
@@ -399,186 +622,89 @@ void join_msets(MutSet* slf, MutSet* other) {
   }
 }
 
-/* empty singletons */
-Dict EmptyDict = {
-  .obj={
-    .type =&DictType,
-    .meta =&EmptyDict,
-    .memfl=NOSWEEP|NOFREE|GRAY,
-  },
-  .root =NULL,
-  .arity=0,
-};
-
-Set EmptySet = {
-  .obj={
-    .type =&SetType,
-    .meta =&EmptyDict,
-    .memfl=NOSWEEP|NOFREE|GRAY,
-  },
-  .root =NULL,
-  .arity=0,
-};
-
-/* type objects */
-extern void trace_set(void* obj);
-extern void finalize_set(void* obj);
-
-INIT_OBJECT_TYPE(Set, NULL, trace_set, finalize_set);
-
-extern void trace_set_node(void* obj);
-extern void finalize_set_node(void* obj);
-
-INIT_OBJECT_TYPE(SetNode, NULL, trace_set_node, finalize_set_node);
-
-extern void trace_set_leaf(void* obj);
-extern void finalize_set_leaf(void* obj);
-
-INIT_OBJECT_TYPE(SetLeaf, NULL, trace_set_leaf, finalize_set_leaf);
-
-extern void trace_dict(void* obj);
-extern void finalize_dict(void* obj);
-
-INIT_OBJECT_TYPE(Dict, NULL, trace_dict, finalize_dict);
-
-extern void trace_dict_node(void* obj);
-extern void finalize_dict_node(void* obj);
-
-INIT_OBJECT_TYPE(DictNode, NULL, trace_dict_node, finalize_dict_node);
-
-extern void trace_dict_leaf(void* obj);
-extern void finalize_dict_leaf(void* obj);
-
-INIT_OBJECT_TYPE(DictLeaf, NULL, trace_dict_leaf, finalize_dict_leaf);
-
-/* Internal APIs */
-static void add_dict_leaf(Dict* d, DictLeaf* l);
-static void add_set_leaf(Set* s, SetLeaf* l);
-
-/* External APIs */
 /* Dict API */
-static Dict* add_to_dict(Dict* d, Value key, )
-  
 Value dict_get(Dict* d, Value k) {
-  Value out = NOTHING;
+  DictLeaf* l = find_dict_leaf(d->root, k);
 
-  if (d->arity > 0) {
-    bool fast = is_fasthash(d);
-    HashFn hasher = fast ? hash_word : hash;
-    EgalFn cmper = fast ? same : equal;
-    hash_t hash = hasher(k);
-    DictNode* node = d->root;
-    
-    for (;;) {
-      size_t shift  = get_hamt_shift(node);
-      size_t bitmap = node->bitmap;
-      int index = hamt_hash_to_index(hash, shift, bitmap);
+  if (l == NULL)
+    return NOTHING;
 
-      if (index > -1) {
-        Obj* child = node->data[index];
+  return l->val;
+}
 
-        if (child->type == &DictNodeType) {
-          node = (DictNode*)child;
-        } else {
-          DictLeaf* leaf = (DictLeaf*)child;
+/* Dict HAMT apis */
+Dict* freeze_dict(Dict* d) {
+  if (del_mfl(d, EDITP))
+    freeze_dict_node(d->root);
 
-          for (;out == NOTHING && leaf != NULL; leaf=leaf->next) {
-            if (cmper(k, leaf->key))
-              out = leaf->val;
-          }
+  return d;
+}
 
-          break;
-        }
-      } else {
-        break;
+Dict* unfreeze_dict(Dict* d) {
+  if (!is_editp(d)) {
+    d = clone_obj(d);
+    set_mfl(d, EDITP);
+  }
+
+  return d;
+}
+
+DictNode* freeze_dict_node(DictNode* n) {
+  if (del_mfl(n, EDITP)) {
+    size_t cnt = get_hamt_cnt(n);
+
+    for (size_t i=0; i<cnt; i++) {
+      Obj* child = n->children[i];
+
+      if (is_editp(child)) {
+        if (child->type == &DictLeafType)
+          freeze_dict_leaf((DictLeaf*)child);
+        else
+          freeze_dict_node((DictNode*)child);
       }
+    }
+
+    freeze_hamt(n);
+  }
+
+  return n;
+}
+
+DictNode* unfreeze_dict_node(DictNode* n) {
+  if (!is_editp(n)) {
+    n = clone_obj(n);
+    set_mfl(n, EDITP);
+  }
+
+  return n;
+}
+
+DictLeaf* freeze_dict_leaf(DictLeaf* l) {
+  if (del_mfl(l, EDITP)) {
+    DictLeaf* n = l->next;
+
+    while (n != NULL) {
+      del_mfl(l, EDITP);
+      n = n->next;
     }
   }
 
-  return out;
+  return l;
 }
 
-Dict* join_dicts(Dict* dx, Dict* dy) {
-  Dict* out;
-
-  if (dx->arity == 0)
-    out = dy;
-
-  else if (dy->arity == 0)
-    out = dx;
-
-  else {
-    out = unfreeze(dx);
-    DictSeq* seq = mk_seq(dy, true);
-    save(2, tag(out), tag(seq));
-
-    for (Value x=first(seq); seq != NULL; seq=rest(seq), x=first(seq))
-      add_dict_leaf(out, as_dict_leaf(x));
+DictLeaf* unfreeze_dict_leaf(DictLeaf* l) {
+  if (!is_editp(l)) {
+    l = clone_obj(l);
+    set_mfl(l, EDITP);
   }
 
-  freeze(out);
-
-  return out;
+  return l;
 }
 
 /* Set API */
 bool set_has(Set* s, Value k) {
-  bool out = false;
-  
-  if (s->arity > 0) {  
-    bool fast = is_fasthash(s);
-    HashFn hasher = fast ? hash_word : hash;
-    EgalFn cmper = fast ? same : equal;
-    hash_t hash = hasher(k);
-    SetNode* node = s->root;
-
-    for (;;) {
-      size_t shift  = get_hamt_shift(node);
-      size_t bitmap = node->bitmap;
-      int index = hamt_hash_to_index(hash, shift, bitmap);
-
-      if (index > -1) {
-        Obj* child = node->data[index];
-
-        if (child->type == &SetNodeType) {
-          node = (SetNode*)child;
-        } else {
-          SetLeaf* leaf = (SetLeaf*)child;
-
-          for (;!out && leaf != NULL; leaf=leaf->next)
-            out = cmper(k, leaf->val);
-
-          break;
-        }
-      } else {
-        break;
-      }
-    }
-  }
-
-  return out;
-}
-
-Set* join_sets(Set* sx, Set* sy) {
-  Set* out;
-
-  if (sx->arity == 0)
-    out = sy;
-
-  else if (sy->arity == 0)
-    out = sx;
-
-  else {
-    save(2, tag(sx), tag(sy));
-    out = unfreeze(sx);
-    add_saved(0, tag(out));
-    SetSeq* seq = mk_seq(sy, true);
-
-    for (Value x=first(seq); seq != NULL; seq=rest(seq), x=first(seq))
-      add_set_leaf(out, as_set_leaf(x));
-  }
-
-  freeze(out);
+  SetLeaf* l = find_set_leaf(s->root, is_fasthash(s), k);
+  bool out = l != NULL;
 
   return out;
 }

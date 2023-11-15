@@ -3,12 +3,13 @@
 
 #include <setjmp.h>
 
-#include "val/object.h"
+#include "val/hamt.h"
 
 /* shared global state object required by one rascal vm instance. */
 typedef struct GcFrame   GcFrame;
 typedef struct ErrFrame  ErrFrame;
 typedef struct ExecFrame ExecFrame;
+typedef struct HamtBuf   HamtBuf;
 
 struct GcFrame {
   GcFrame* next;
@@ -16,13 +17,24 @@ struct GcFrame {
   size_t   cnt;
 };
 
+/* a specialized gc frame for traversing HAMT-like structures. */
+struct HamtBuf {
+  HamtBuf* next;
+  void*    hamt;
+  void*    root;
+  void*    leaf;
+  size_t   maxsh;
+  size_t   offs[HAMT_MAX_LEVELS];
+  size_t   shifts[HAMT_MAX_LEVELS];
+  void*    nodes[HAMT_MAX_LEVELS];
+};
+
 struct ErrFrame {
   ErrFrame* next;
 
   // saved heap state
   GcFrame*  frames;
-
-  // 
+  HamtBuf*  htbufs;
 
   // saved execution state
   Closure*  code;
@@ -50,6 +62,7 @@ struct RlCtx {
   size_t      heap_size;
   size_t      heap_cap;
   GcFrame*    gcframes;
+  HamtBuf*    htbufs;
   Obj*        objects;
   Objects*    grays;
 

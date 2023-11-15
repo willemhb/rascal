@@ -19,7 +19,7 @@ typedef struct SetLeaf  SetLeaf;
 /* Globals */
 #define HAMT_LEVEL_SIZE 64
 #define HAMT_SHIFT       6
-#define HAMT_MAX_SHIFT  48
+#define HAMT_MAX_SHIFT  40
 #define HAMT_LEVEL_MASK 63
 #define HAMT_MAX_LEVELS  8
 
@@ -68,23 +68,25 @@ extern SetLeaf*  unfreeze_set_leaf(SetLeaf* l);
           SetLeaf*:unfreeze_set_leaf,             \
           default:unfreeze_hamt)(x)
 
-bool   get_hamt_editp(void* obj);
-bool   set_hamt_editp(void* obj);
 size_t get_hamt_cnt(void* obj);
 size_t set_hamt_cnt(void* obj, size_t n);
+size_t inc_hamt_cnt(void* obj);
+size_t get_hamt_cap(void* obj);
+size_t set_hamt_cap(void* obj, size_t n);
 size_t get_hamt_shift(void* obj);
 size_t set_hamt_shift(void* obj, size_t n);
-size_t inc_hamt_shift(void* obj);
-size_t get_hamt_depth(void* obj);
-size_t set_hamt_depth(void* obj);
 
-size_t hamt_shift_to_level(size_t shift);
+size_t hamt_shift_to_level(size_t sh);
+size_t hamt_first_child_index(size_t bm);
+size_t hamt_hash_to_aindex(hash_t h, size_t sh);
+size_t hamt_hash_to_imask(hash_t h, size_t sh);
 int    hamt_hash_to_index(hash_t h, size_t sh, size_t bm);
 size_t hamt_index_for_level(size_t i, size_t sh);
 void*  freeze_hamt(void* obj);
-void   init_hamt(void* obj, void* arr, void* data, size_t cnt, size_t sh);
-size_t hamt_push(void* obj, void* arr, void* data);
-size_t hamt_pop(void* obj, void* arr);
-size_t resize_hamt_array(void* obj, void* arr, size_t new_cnt);
+void   init_hamt(void* obj, void*** abuf, void* data, size_t cnt, size_t sh);
+void   hamt_add_to_bitmap(void* obj, void*** abuf, void* data, size_t* bm, hash_t h);
+size_t hamt_push(void* obj, void*** abuf, void* data);
+size_t hamt_pop(void* obj, void** buf);
+size_t resize_hamt_array(void* obj, void*** abuf, size_t new_cnt);
 
 #endif
