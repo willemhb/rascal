@@ -27,7 +27,7 @@ struct Stream {
 };
 
 // globals
-extern Type StreamType, GlyphType;
+extern Type StreamType;
 extern Stream Ins, Outs, Errs;
 
 // external API

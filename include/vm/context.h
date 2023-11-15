@@ -9,7 +9,6 @@
 typedef struct GcFrame   GcFrame;
 typedef struct ErrFrame  ErrFrame;
 typedef struct ExecFrame ExecFrame;
-typedef struct HamtBuf   HamtBuf;
 
 struct GcFrame {
   GcFrame* next;
@@ -17,24 +16,11 @@ struct GcFrame {
   size_t   cnt;
 };
 
-/* a specialized gc frame for traversing HAMT-like structures. */
-struct HamtBuf {
-  HamtBuf* next;
-  void*    hamt;
-  void*    root;
-  void*    leaf;
-  size_t   maxsh;
-  size_t   offs[HAMT_MAX_LEVELS];
-  size_t   shifts[HAMT_MAX_LEVELS];
-  void*    nodes[HAMT_MAX_LEVELS];
-};
-
 struct ErrFrame {
   ErrFrame* next;
 
   // saved heap state
   GcFrame*  frames;
-  HamtBuf*  htbufs;
 
   // saved execution state
   Closure*  code;
@@ -44,6 +30,7 @@ struct ErrFrame {
   size_t    cp;
   size_t    sp;
   size_t    fp;
+  UpValue*  upvals;
 
   // saved C context
   jmp_buf   Cstate;
@@ -62,7 +49,6 @@ struct RlCtx {
   size_t      heap_size;
   size_t      heap_cap;
   GcFrame*    gcframes;
-  HamtBuf*    htbufs;
   Obj*        objects;
   Objects*    grays;
 
@@ -78,6 +64,7 @@ struct RlCtx {
 
   // compiler state
   Chunk*      compiling;
+  MutVec*     compstk;
 
   // execution state
   Closure*    code;
@@ -87,15 +74,23 @@ struct RlCtx {
   size_t      cp;
   size_t      sp;
   size_t      fp;
+  UpValue*    upvals;
 
   // error state
   ErrFrame*   err;
 };
 
-/* globals */
+/* Globals */
 extern Value     ValueStack[];
 extern ExecFrame CallStack[];
 
-/* external API */
+/* External API */
+Value*   rl_peek(int n);
+void     rl_push(Value val);
+Value    rl_pop(void);
+void     rl_pushf(void);
+void     rl_popf(void);
+UpValue* get_upval(size_t i);
+void     close_upvals(size_t bp);
 
 #endif
