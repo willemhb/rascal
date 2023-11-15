@@ -5,15 +5,16 @@
 
 /* C types */
 // object flag types
-// allocation flags
+// memory flags
 typedef enum {
-  BLACK  =0x80000000u,
-  GRAY   =0x40000000u,
-  NOTRACE=0x20000000u,
-  NOSWEEP=0x10000000u,
-  NOFREE =0x08000000u,
-  HASHED =0x04000000u,
-  EDITP  =0x02000000u,
+  BLACK  =0x80000000u, // GC mark bit
+  GRAY   =0x40000000u, // GC trace bit
+  NOTRACE=0x20000000u, // skip tracing this object
+  NOSWEEP=0x10000000u, // don't free this object (allocated statically or in C stack)
+  NOFREE =0x08000000u, // don't free this object's owned data (allocated statically or in C stack)
+  NOHASH =0x04000000u, // don't cache this object's hash (hash field does not store own hash)
+  HASHED =0x02000000u, // valid hash
+  EDITP  =0x01000000u, // object is open for updating
 } MemFl;
 
 /* common object header */
@@ -26,7 +27,6 @@ struct Obj {
   flags_t memfl;  // memory flags
   byte_t  data[];
 };
-
 
 /* Mutable dynamic array for storing untagged objects.
 
@@ -43,7 +43,7 @@ struct Objects {
 extern Type ObjectsType;
 
 /* external APIs */
-/* Common Object API */
+/* Common Obj API */
 #define HEADER struct Obj obj
 
 #define is_obj(x)     has_tag(x, OBJ_TAG)
@@ -54,6 +54,7 @@ extern Type ObjectsType;
 #define is_nosweep(x) get_mfl(x, NOSWEEP)
 #define is_nofree(x)  get_mfl(x, NOFREE)
 #define is_hashed(x)  get_mfl(x, HASHED)
+#define is_nohash(x)  get_fml(x, NOHASH)
 #define is_editp(x)   get_mfl(x, EDITP)
 
 // casts, predicates, accessors, bit twiddling

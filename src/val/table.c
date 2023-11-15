@@ -182,12 +182,16 @@ static Value* find_mset_entry(Value* kvs, bool fast, size_t c, Value k) {
   }
 }
 
+static inline bool hashes_colide(hash_t hx, hash_t hy) {
+  /* Check whether the first 48 bits of the hash are equal. */
+  return ((hx & VAL_MASK) == (hy & VAL_MASK));
+}
 
-static DictLeaf* new_dict_leaf(Value key, Value val, bool editp, DictLeaf* next) {
+static DictLeaf* new_dict_leaf(Value key, Value val, DictLeaf* next, hash_t h, bool editp) {
   save(3, key, val, tag(next));
 
-  DictLeaf* out = new_obj(&DictLeafType, 0, editp*EDITP, 0);
-
+  DictLeaf* out = new_obj(&DictLeafType, 0, NOHASH|editp*EDITP, 0);
+  out->obj.hash = h;
   out->key  = key;
   out->val  = val;
   out->next = next;
@@ -233,7 +237,7 @@ static DictLeaf* insert_in_dict_leaf(DictLeaf* head, DictLeaf* sentinel, Value v
   }
 
   if (lout == NULL)
-    lout = new_dict_leaf(lnew->key, lnew->val, editp, lorig);
+    lout = new_dict_leaf(lnew->key, lnew->val, lorig, lnew->obj.hash, editp);
 
   if (editp)
     freeze(lout);
@@ -241,10 +245,21 @@ static DictLeaf* insert_in_dict_leaf(DictLeaf* head, DictLeaf* sentinel, Value v
   return lout;
 }
 
-static DictNode* new_dict_node(bool editp, size_t sh) {
-  DictNode* out = new_obj(&DictNodeType, 0, editp*EDITP, 0);
+static bool shares_prefix(DictNode* node, DictLeaf* leaf) {
+  hash_t prefix = node->obj.hash;
+  hash_t leafh = leaf->obj.hash;
+  size_t shift = get_hamt_shift(node);
+  hash_t leafpfx = (leafh & VAL_MASK) >> (shift + HAMT_SHIFT);
+
+  return prefix == leafpfx;
+}
+
+static DictNode* new_dict_node(hash_t hash, size_t sh, bool editp) {
+  hash_t prefix = (hash & VAL_MASK) >> (sh + HAMT_SHIFT);
+  DictNode* out = new_obj(&DictNodeType, 0, NOHASH|editp*EDITP, 0);
 
   init_hamt(out, (void***)&out->children, NULL, 0, sh);
+  out->obj.hash = prefix; // store the common prefix of all child nodes
   out->bitmap = 0;
 
   return out;
@@ -272,7 +287,7 @@ static DictLeaf* find_dict_leaf(DictNode* n, Value k) {
         DictLeaf* leaf = (DictLeaf*)child;
 
         for (;out == NULL && leaf != NULL; leaf=leaf->next)
-          if (equal(k, leaf->key))
+          if (h== leaf->obj.hash && equal(k, leaf->key))
             out = leaf;
       }
     }
@@ -281,7 +296,15 @@ static DictLeaf* find_dict_leaf(DictNode* n, Value k) {
   return out;
 }
 
-static void add_dict_leaf_to_node(DictNode* n, DictLeaf* l, hash_t h) {
+static void add_dict_node_to_node(DictNode* nx, DictNode* ny) {
+  hash_t h = ny->obj.hash;
+
+  hamt_add_to_bitmap(nx, (void***)&nx->children, ny, &nx->bitmap, h);
+}
+
+static void add_dict_leaf_to_node(DictNode* n, DictLeaf* l) {
+  hash_t h = l->obj.hash;
+
   if (is_nosweep(l) || l->next != NULL) {
     save(1, tag(n));
     l = clone_obj(l);
@@ -291,8 +314,10 @@ static void add_dict_leaf_to_node(DictNode* n, DictLeaf* l, hash_t h) {
   hamt_add_to_bitmap(n, (void***)&n->children, l, &n->bitmap, h);
 }
 
-static size_t find_split(hash_t hx, hash_t hy) {
-  size_t shift = HAMT_MAX_SHIFT;
+static size_t find_split(size_t maxsh, void* obx, void* oby) {
+  size_t shift = maxsh;
+  hash_t hx = ((Obj*)obx)->hash;
+  hash_t hy = ((Obj*)oby)->hash;
 
   for (; shift > 0; shift -= HAMT_SHIFT) {
     size_t hxs = hamt_index_for_level(hx, shift);
@@ -305,18 +330,20 @@ static size_t find_split(hash_t hx, hash_t hy) {
   return shift;
 }
 
-static void* resolve_collision(DictLeaf* lorig, DictLeaf* lnew, hash_t hnew, bool editp) {
-  hash_t horig = hash(lorig->key);
+static void* resolve_collision(DictLeaf* lorig, DictLeaf* lnew, bool editp) {
+  hash_t hnew = lnew->obj.hash;
+  hash_t horig = lorig->obj.hash;
 
-  if ((horig & VAL_MASK) == (hnew & VAL_MASK)) // true collision
+  if (hashes_colide(hnew, horig)) // true collision
     return update_dict_leaf(lorig, lnew, editp);
+
   else { // find the level where they split and create a new node to hold the two leaves
     save(2, tag(lorig), NUL);
-    size_t sh = find_split(horig, hnew);
-    DictNode* out = new_dict_node(NULL, sh);
+    size_t sh = find_split(HAMT_MAX_SHIFT, lorig, lnew);
+    DictNode* out = new_dict_node(hnew, sh, editp);
     add_saved(1, tag(out));
-    add_dict_leaf_to_node(out, lorig, horig);
-    add_dict_leaf_to_node(out, lnew, hnew);
+    add_dict_leaf_to_node(out, lorig);
+    add_dict_leaf_to_node(out, lnew);
 
     if (!editp)
       freeze(out);
@@ -325,12 +352,14 @@ static void* resolve_collision(DictLeaf* lorig, DictLeaf* lnew, hash_t hnew, boo
   }
 }
 
-static DictNode* add_dict_leaf(DictNode* n, DictLeaf* l, hash_t h, bool editp) {
+static DictNode* add_dict_leaf(DictNode* n, DictLeaf* l, bool editp) {
+  hash_t h = l->obj.hash;
+
   /* first key */
   if (n == NULL) {
-    n = new_dict_node(editp, HAMT_MAX_SHIFT);
+    n = new_dict_node(0, HAMT_MAX_SHIFT, editp);
     save(1, tag(n));
-    add_dict_leaf_to_node(n, l, h);
+    add_dict_leaf_to_node(n, l);
   } else {
     if (!is_editp(n))
       n = unfreeze(n);
@@ -342,16 +371,24 @@ static DictNode* add_dict_leaf(DictNode* n, DictLeaf* l, hash_t h, bool editp) {
     int index = hamt_hash_to_index(h, sh, bm);
 
     if (index < 0)
-      add_dict_leaf_to_node(n, l, h);
+      add_dict_leaf_to_node(n, l);
 
     else {
       Obj* child = n->children[index];
 
       if (child->type == &DictLeafType)
-        n->children[index] = resolve_collision((DictLeaf*)child, l, h, editp);
+        n->children[index] = resolve_collision((DictLeaf*)child, l, editp);
+
+      else if (!shares_prefix((DictNode*)child, l)) {
+        size_t sh = find_split(get_hamt_shift(child), child, l);
+        DictNode* split = new_dict_node(l->obj.hash, sh, editp);
+        add_dict_node_to_node(split, (DictNode*)child);
+        add_dict_leaf_to_node(split, l);
+        n->children[index] = (Obj*)split;
+      }
 
       else
-        n->children[index] = (Obj*)add_dict_leaf((DictNode*)child, l, h, editp);
+        n->children[index] = (Obj*)add_dict_leaf((DictNode*)child, l, editp);
     }
   }
 
@@ -368,7 +405,7 @@ static SetLeaf* find_set_leaf(SetNode* n, bool fast, Value v) {
     HashFn hasher = fast ? hash_word : hash;
     EgalFn cmper = fast ? same : equal;
     hash_t hash = hasher(v);
-    
+
     for (;out == NULL;) {
       size_t shift  = get_hamt_shift(n);
       size_t bitmap = n->bitmap;
@@ -718,6 +755,10 @@ Value dict_get(Dict* d, Value k) {
   return l->val;
 }
 
+bool dict_has(Dict* d, Value k) {
+  return dict_get(d, k) != NOTHING;
+}
+
 Dict* dict_add(Dict* d, Value k, Value v) {
   if (!is_editp(d)) {
     save(2, k, v);
@@ -729,14 +770,14 @@ Dict* dict_add(Dict* d, Value k, Value v) {
       .obj={
         .type =&DictNodeType,
         .meta =&EmptyDict,
-        .memfl=NOSWEEP|GRAY,
+        .memfl=NOHASH|NOSWEEP|GRAY,
       },
       .key=k,
       .val=v
     };
 
     save(1, tag(&l));
-    d->root = add_dict_leaf(d->root, &l, hash(k), false);
+    d->root = add_dict_leaf(d->root, &l, false);
   }
 
   return d;
@@ -818,3 +859,4 @@ bool set_has(Set* s, Value k) {
 
   return out;
 }
+

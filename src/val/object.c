@@ -4,10 +4,10 @@
 
 #include "vm/memory.h"
 
+#include "val/table.h"
 #include "val/symbol.h"
 #include "val/func.h"
 #include "val/type.h"
-#include "val/map.h"
 #include "val/object.h"
 
 /* Globals */

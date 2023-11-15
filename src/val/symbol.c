@@ -1,4 +1,5 @@
 #include "util/unicode.h"
+#include "util/hashing.h"
 
 #include "vm/memory.h"
 
@@ -12,10 +13,50 @@ idno_t SymbolCounter = 0;
 Symbol* Symbols      = NULL;
 Symbol* Keywords     = NULL;
 
-extern void   trace_sym(void* obj);
-extern void   finalize_sym(void* obj);
-extern hash_t hash_sym(Value x);
-extern int    order_syms(Value x, Value y);
+void trace_sym(void* obj) {
+  Symbol* sym = obj;
+
+  mark(sym->left);
+  mark(sym->right);
+}
+
+void finalize_sym(void* obj) {
+  Symbol* sym = obj;
+
+  if (sym != NULL)
+    deallocate(NULL, sym->name, 0);
+}
+
+hash_t hash_sym(Value x) {
+  Symbol* sym = as_sym(x);
+  hash_t hbase = hash_string(sym->name);
+  hash_t hidno = hash_word(sym->idno);
+  hash_t final = mix_hashes(hidno, hbase);
+
+  return final;
+}
+
+int order_syms(Value x, Value y) {
+  Symbol* symx = as_sym(x);
+  Symbol* symy = as_sym(y);
+  int out;
+
+  // keywords always precede identifiers
+  if (is_literal(symx) && !is_literal(symy))
+    out = -1;
+
+  else if (is_literal(symy))
+    out = 1;
+
+  else {
+    out = strcmp(symx->name, symy->name);
+
+    if (out == 0)
+      out = 0 - (symx->idno < symy->idno) + (symx->idno > symy->idno);
+  }
+
+  return out;
+}
 
 INIT_OBJECT_TYPE(Symbol,
                  .tracefn=trace_sym,
