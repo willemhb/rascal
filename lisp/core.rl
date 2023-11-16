@@ -9,8 +9,15 @@
   ((List formals) & body)
   `((fn* () ~@(map formals #`(val ~(hd %) ~(hd|tl %))) ~@body)))
 
-;; exceptions.
+;; looping macros.
+(mac for
+  "Loop over elements of a collection."
+  ((List bindings) & body)
+  (let ((inits   (template ((#producer (seq %2)) (%1 (fst #producer))) bindings))
+        (rebinds (template )))
+    `()))
 
+;; exceptions.
 
 ;; module system macros.
 (val &used (MutDict))
@@ -18,7 +25,7 @@
 (mac use
   "Load files just once."
   ((List files))
-  (for (file files)
+  (for ((file files))
     (var fname (if (string? file)
                    file
                    (as-file-name file)))
