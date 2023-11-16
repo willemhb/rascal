@@ -12,8 +12,15 @@
 
 /* Globals */
 /* Objects type */
-extern void trace_objects(void* obj);
-extern void finalize_objects(void* obj);
+void trace_objects(void* obj) {
+  Objects* objs = obj;
+
+  mark(objs->data, objs->cnt);
+}
+
+void finalize_objects(void* obj) {
+  free_objects(obj);
+}
 
 INIT_OBJECT_TYPE(Objects,
                  .tracefn=trace_objects,
@@ -283,11 +290,14 @@ void finalize_obj(void* obj) {
   }
 }
 
-void free_obj(void* obj) {
-  if (obj) {
-    if (get_mfl(obj, NOSWEEP))
-      return;
-    
-    deallocate(&Ctx, obj, size_of_obj(obj));
+void dealloc_obj(RlCtx* ctx, void* obj) {
+  if (obj && !is_nosweep(obj)) {
+    Type* t = type_of(obj);
+
+    if (t->vtable->deallocfn)
+      t->vtable->deallocfn(ctx, obj);
+
+    else
+      deallocate(ctx, obj, size_of(obj));
   }
 }

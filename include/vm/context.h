@@ -20,7 +20,7 @@ struct ErrFrame {
   ErrFrame* next;
 
   // saved heap state
-  GcFrame*  frames;
+  GcFrame*  gcframes;
 
   // saved execution state
   Closure*  code;
@@ -31,6 +31,12 @@ struct ErrFrame {
   size_t    sp;
   size_t    fp;
   UpValue*  upvals;
+
+  // saved reader state
+  size_t    readsp;
+
+  // saved compiler state
+  size_t    compsp;
 
   // saved C context
   jmp_buf   Cstate;

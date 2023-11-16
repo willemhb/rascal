@@ -14,13 +14,15 @@ typedef enum {
 typedef struct Vtable {
   size_t     vsize;      // size of the tagged value
   size_t     osize;      // base object size
-  uintptr_t  tag;        // tag used for values of given type
+  uintptr_t  tag;        // tag used for values of the given type
 
   // lifetime & memory methods
-  SizeFn     sizefn;     // called to determine size of owned data
-  TraceFn    tracefn;    // called by the GC to trace owned pointers
-  FinalizeFn finalizefn; // called by the GC to free managed data
+  SizeFn     sizefn;
+  TraceFn    tracefn;
+  FinalizeFn finalizefn;
   CloneFn    clonefn;
+  DeallocFn  deallocfn;
+  AllocFn    allocfn;
 
   // comparison & hashing methods
   EgalFn     egalfn;

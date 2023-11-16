@@ -1,32 +1,55 @@
+#include <stdarg.h>
+
 #include "util/io.h"
 #include "util/number.h"
 #include "util/hashing.h"
 
-#include "environment.h"
-#include "type.h"
-#include "equal.h"
+#include "lang/envt.h"
+#include "lang/equal.h"
 
-#include "runtime.h"
+#include "vm/error.h"
+#include "vm/memory.h"
+
+#include "val/symbol.h"
+#include "val/type.h"
+#include "val/vector.h"
 
 // external API
-void save_state(Context* ctx) {
-  assert(ctx != NULL);
+void save_state(ErrFrame* err) {
+  assert(err != NULL);
 
-  ctx->next    = RlVm.m.ctx;
-  ctx->g_frame = RlVm.h.frame;
-  ctx->r_frame = RlVm.r.frame;
-  ctx->c_frame = RlVm.c.frame;
-  ctx->e_frame = RlVm.e.frame;
+  err->next     = Ctx.err;
+  err->gcframes = Ctx.gcframes;
+  err->effh     = Ctx.effh;
+  err->ip       = Ctx.ip;
+  err->bp       = Ctx.bp;
+  err->cp       = Ctx.cp;
+  err->sp       = Ctx.sp;
+  err->fp       = Ctx.fp;
+  err->upvals   = Ctx.upvals;
+  err->readsp   = Ctx.readstk->cnt;
+  err->compsp   = Ctx.compstk->cnt;
 }
 
-void restore_state(Context* ctx) {
-  assert(ctx != NULL);
+void restore_state(ErrFrame* err) {
+  assert(err != NULL);
   
-  RlVm.m.ctx   = ctx;
-  RlVm.h.frame = ctx->g_frame;
-  RlVm.r.frame = ctx->r_frame;
-  RlVm.c.frame = ctx->c_frame;
-  RlVm.e.frame = ctx->e_frame;
+  Ctx.err      = err->next;
+  Ctx.gcframes = err->gcframes;
+  Ctx.effh     = err->effh;
+  Ctx.ip       = err->ip;
+  Ctx.bp       = err->bp;
+  Ctx.cp       = err->cp;
+  Ctx.sp       = err->sp;
+  Ctx.fp       = err->fp;
+  Ctx.upvals   = err->upvals;
+
+  // TODO: is this the right thing to do?
+  if (err->readsp < Ctx.readstk->cnt)
+    resize_mvec(Ctx.readstk, err->readsp);
+
+  if (err->compsp < Ctx.compstk->cnt)
+    resize_mvec(Ctx.compstk, err->compsp);
 }
 
 static void vprint_error(const char* fname, const char* fmt, va_list va) {
@@ -43,11 +66,11 @@ static void print_error(const char* fname, const char* fmt, ...) {
 }
 
 static void rl_longjmp(int status) {
-  if (RlVm.m.ctx == NULL) {
+  if (Ctx.err == NULL) {
     fprintf(stderr, "Exiting due to unhandled error.\n");
     exit(1);
   } else {
-    longjmp(RlVm.m.ctx->buf, status);
+    longjmp(Ctx.err->Cstate, status);
   }
 }
 
@@ -283,333 +306,4 @@ size_t vargcos(size_t expected, size_t got, const char* fname, ...) {
   return got;
 }
 
-
 #undef SIGNAL_ERROR
-
-// external API
-void init_vm(Vm* vm) {
-  // initialize miscellaneous state
-  vm->m.ctx   = NULL;
-  vm->m.init  = false;
-
-  // initialize global stacks
-  vm->h.stack = (Objects) {
-    .obj={
-      .type    =&ObjectsType,
-      .annot   =&EmptyMap,
-      .no_trace=true,
-      .no_sweep=true,
-    },
-    .data=NULL,
-    .cnt =0,
-    .cap =0,
-  };
-
-  vm->r.stack   = (Alist) {
-    .obj={
-      .type    =&AlistType,
-      .annot   =&EmptyMap,
-      .no_sweep=true,
-      .gray    =true,
-    },
-    .data=NULL,
-    .cnt =0,
-    .cap =0,
-  };
-
-  vm->c.stack = (Alist) {
-    .obj={
-      .type    =&AlistType,
-      .annot   =&EmptyMap,
-      .no_sweep=true,
-      .gray    =true,
-    },
-    .data=NULL,
-    .cnt =0,
-    .cap =0,
-  };
-
-  // initialize heap
-  vm->h.objs  = NULL;
-  vm->h.used  = 0;
-  vm->h.cap   = N_HEAP;
-  vm->h.frame = NULL;
-
-  // initialize environment
-  vm->n.symbols = new_symbol_table(0, NULL, NULL, NULL);
-  vm->n.globals = new_name_space(0, NULL, NULL, NULL);
-  vm->n.annot   = new_table(0, NULL, NULL, NULL);
-  vm->n.used    = new_table(0, NULL, NULL, NULL);
-
-  // initialize reader
-  vm->r.table   = new_table(0, NULL, hash_word, same);
-  vm->r.frame   = ReadFrames;
-
-  // initialize compiler
-  vm->c.frame = CompFrames;
-
-  // initialize interpreter
-  vm->e.frame  = ExecFrames;
-  vm->e.upvals = NULL;
-  vm->e.sp     = 0;
-}
-
-void free_vm(Vm* vm) {
-  // deallocate global objects
-  free_objects(&vm->h.stack);
-  free_alist(&vm->r.stack);
-  free_alist(&vm->c.stack);
-
-  // traverse free objects list
-  Obj* o = vm->h.objs;
-
-  while (o != NULL) {
-    Obj* n  = o;
-    o       = o->next;
-
-    if (!n->no_free)
-      free_obj(n);
-
-    if (!n->no_sweep)
-      free(n);
-  }
-}
-
-void sync_vm(Vm* vm) {
-  (void)vm;
-}
-
-size_t push(Value x) {
-  assert(RlVm.e.sp < N_VALUES);
-  
-  size_t out = RlVm.e.sp;
-  StackSpace[RlVm.e.sp++] = x;
-  return out;
-}
-
-Value pop(void) {
-  assert(RlVm.e.sp > 0);
-  return StackSpace[--RlVm.e.sp];
-}
-
-size_t pushn(size_t n) {
-  assert(RlVm.e.sp + n < N_VALUES);
-  size_t out = RlVm.e.sp;
-  RlVm.e.sp += n;
-
-  return out;
-}
-
-Value popn(size_t n) {
-  assert(n <= RlVm.e.sp);
-  Value out = StackSpace[RlVm.e.sp-n];
-  RlVm.e.sp -= n;
-  return out;
-}
-
-Value* peek(int i) {
-  if (i < 0)
-    i += RlVm.e.sp;
-
-  assert(i >= 0 && (size_t)i < RlVm.e.sp);
-
-  return StackSpace+i;
-}
-
-// internal GC helpers
-static void add_gray(void* ptr) {
-  objects_push(&RlVm.h.stack, ptr);
-}
-
-void mark_vals(Value* vs, size_t n) {
-  for (size_t i=0; i<n; i++)
-    mark(vs[i]);
-}
-
-void mark_objs(void** objs, size_t n) {
-  for (size_t i=0; i<n; i++)
-    mark(objs[i]);
-}
-
-void mark_obj(void* p) {
-  if (p != NULL) {
-    Obj* o = p;
-
-    if (o->black == false) {
-      o->black = true;
-      mark_obj(o->annot);
-
-      Type* t = type_of(o);
-
-      if (t->v_table->trace)
-        add_gray(o);
-
-      else
-        o->gray = false;
-    }
-  }
-}
-
-void mark_val(Value val) {
-  if (is_obj(val))
-    mark_obj(as_obj(val));
-}
-
-static void mark_vm(Vm* vm) {
-  (void)vm;
-}
-
-static void trace_vm(Vm* vm) {
-  Objects* grays = &vm->h.stack;
-  Type* t; Obj* o;
-
-  while (grays->cnt > 0) {
-    o = objects_pop(grays);
-    // assert(obj->gray == false);
-    t = type_of(o);
-    if (t->v_table->trace)
-      t->v_table->trace(o);
-    o->gray = false;
-  }
-}
-
-static void sweep_vm(Vm* vm) {
-  Obj** l = &vm->h.objs, *c = vm->h.objs, *t;
-  Type* tp;
-
-  while (c != NULL) {
-    if (c->black) {
-      c->black = false;
-      c->gray  = true;
-      l        = &c->next;
-    } else {
-      t  = c;
-      *l = c->next;
-      tp = type_of(t);
-
-      if (tp->v_table->free && !t->no_free)
-        tp->v_table->free(t);
-
-      if (!t->no_sweep)
-        deallocate(vm, t, size_of(t));
-    }
-
-    c  = *l;
-  }
-}
-
-static void resize_vm(Vm* vm) {
-  size_t allocated = vm->h.used, available = vm->h.cap;
-
-  if (!vm->m.init) {
-    vm->h.cap <<= 1;
-  } else {
-    if (allocated >= available) {
-      fprintf(stderr, "fatal error: gc couldn't free enough memory.");
-      exit(1);
-    }
-    
-    if (allocated > available * HEAP_LF && available < MAX_ARITY) {
-      if (available == MAX_POW2)
-        vm->h.cap = MAX_ARITY;
-      
-      else
-        vm->h.cap <<= 1;
-    }
-  }
-}
-
-static void manage_vm(Vm* vm) {
-  if (vm->m.init) {
-    mark_vm(vm);
-    trace_vm(vm);
-    sweep_vm(vm);
-  }
-  
-  resize_vm(vm);
-}
-
-static void manage_heap(Vm* vm, size_t n_bytes_added, size_t n_bytes_removed) {
-  assert(vm != NULL);
-
-  if (n_bytes_added > n_bytes_removed) {
-    size_t diff = n_bytes_added - n_bytes_removed;
-
-    if (diff + vm->h.used > vm->h.cap)
-      manage_vm(vm);
-
-    vm->h.used += diff;
-  } else {
-    size_t diff    = n_bytes_removed - n_bytes_added;
-    vm->h.used -= diff;
-  }
-}
-
-// external GC helpers
-void add_to_heap(void* p) {
-  assert(p != NULL);
-
-  Obj* o      = p;
-  o->next     = RlVm.h.objs;
-  RlVm.h.objs = o;
-}
-
-void* allocate(Vm* vm, size_t n_bytes) {
-  if (vm)
-    manage_heap(vm, n_bytes, 0);
-
-  void* out = SAFE_MALLOC(n_bytes);
-  memset(out, 0, n_bytes);
-
-  return out;
-}
-
-// memory API
-void* duplicate(Vm* vm, void* pointer, size_t n_bytes) {
-  void* cpy = allocate(vm, n_bytes);
-
-  memcpy(cpy, pointer, n_bytes);
-
-  return cpy;
-}
-
-char* duplicates(Vm* vm, char* s, size_t n_chars) {
-  char* cpy;
-  
-  assert(s != NULL);
-  
-  if (n_chars == 0)
-    n_chars = strlen(s);
-
-  cpy = allocate(vm, n_chars+1);
-  strcpy(cpy, s);
-  return cpy;
-}
-
-void* reallocate(Vm* vm, void* pointer, size_t old_size, size_t new_size) {
-  void* out;
-  
-  if (new_size == 0) {
-    deallocate(vm, pointer, old_size);
-    out = NULL;
-  }
-  
-  else {
-    if (vm)
-      manage_heap(vm, old_size, new_size);
-
-    out = SAFE_REALLOC(pointer, new_size);
-
-    if (new_size > old_size)
-      memset(out+old_size, 0, new_size-old_size);
-  }
-  
-  return out;
-}
-
-void deallocate(Vm* vm, void* pointer, size_t n_bytes) {
-  if (vm)
-    manage_heap(vm, 0, n_bytes);
-
-  free(pointer);
-}

@@ -117,9 +117,8 @@ Value  set_meta_val(Value val, Value key, Value kval);
 Dict*  join_meta_val(Value val, Dict* meta);
 
 #define type_of(x)          generic2(type_of, x, x)
+#define size_of(x)          generic2(size_of, x, x)
 #define has_type(x, T)      generic2(has_type, x, x, T)
-#define mark(x)             generic2(mark, x, x)
-#define trace(x)            generic2(trace, x, x)
 #define get_mfl(x, fl)      generic2(get_mfl, x, x, fl)
 #define set_mfl(x, fl)      generic2(set_mfl, x, x, fl)
 #define del_mfl(x, fl)      generic2(del_mfl, x, x, fl)

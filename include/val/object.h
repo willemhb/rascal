@@ -76,18 +76,19 @@ Value  set_meta_obj(void* obj, Value key, Value val);
 Dict*  join_meta_obj(void* obj, Dict* meta);
 
 // lifetime methods
-void* new_obj(Type* type, flags_t flags, flags_t memfl, size_t extra);
-void* clone_obj(void* obj);
-void  init_obj(void* slf, Type* type, flags_t flags, flags_t memfl);
-void  finalize_obj(void* obj);
-void  free_obj(void* obj);
+void*  new_obj(Type* type, flags_t flags, flags_t memfl, size_t extra);
+void*  clone_obj(void* obj);
+void   init_obj(void* slf, Type* type, flags_t flags, flags_t memfl);
+void   finalize_obj(void* obj);
+void   dealloc_obj(RlCtx* ctx, void* obj);
 
 // Objects API
 Objects* new_objects(void);
 void     init_objects(Objects* arr);
 void     free_objects(Objects* arr);
 void     resize_objects(Objects* arr, size_t new_cnt);
-size_t   objects_push(Objects* arr, size_t new_cnt, Obj** data);
+size_t   objects_push(Objects* arr, Obj* obj);
+size_t   objects_write(Objects* arr, size_t n, Obj** data);
 size_t   objects_pushn(Objects* arr, size_t n, ...);
 Obj*     objects_pop(Objects* arr);
 Obj*     objects_popn(Objects* arr, size_t n);

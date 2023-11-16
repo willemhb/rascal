@@ -1,6 +1,5 @@
 #include "util/ieee754.h"
 
-#include "val/map.h"
 #include "val/table.h"
 #include "val/type.h"
 #include "val/object.h"
@@ -45,16 +44,6 @@ size_t size_of_val(Value val) {
 
 bool has_type_val(Value val, Type* type) {
   return is_instance(type_of(val), type);
-}
-
-void mark_val(Value x) {
-  if (is_obj(x))
-    mark_obj(as_obj(x));
-}
-
-void trace_val(Value x) {
-  if (is_obj(x))
-    trace_obj(as_obj(x));
 }
 
 bool get_mfl_val(Value val, flags_t mfl) {

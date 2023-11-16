@@ -37,16 +37,38 @@ typedef struct RlCtx RlCtx;
 // basic rascal Vm types
 typedef uintptr_t  Value; // tagged value
 typedef struct Obj Obj;   // boxed object (includes type information)
+typedef struct Type Type; // object representing a rascal type
 
-// internal function pointer types
+/* internal function pointer types */
+// called to compute the value part of an object's hash
 typedef hash_t (*HashFn)(Value x);
+
+// called for non-trival equality tests (does not attempt to detect cycles)
 typedef bool   (*EgalFn)(Value x, Value y);
-typedef int    (*RankFn)(Value x, Value y);
+
+// called for deep comparison of two totally orderable values (does not attempt to detect cycles)
 typedef int    (*OrdFn)(Value x, Value y);
+
+// called for deep comparison of two partially orderable values (does not attempt to detect cycles)
+typedef int    (*RankFn)(Value x, Value y);
+
+// called to determine to the object size (only specialized if an object )
 typedef size_t (*SizeFn)(void* obj);
+
+// called to trace an object's owned pointers
 typedef void   (*TraceFn)(void* obj);
+
+// called to handle freeing of an object's owned pointers or other cleanup (closing files, etc)
 typedef void   (*FinalizeFn)(void* obj);
+
+// called to create a copy of an object (only specialized if an object has owned pointers that shouldn't be shared)
 typedef void*  (*CloneFn)(void* obj);
+
+// called to handle freeing of an object (specialized so that objects can maintain a free list or other optimized allocation scheme)
+typedef void   (*DeallocFn)(RlCtx* ctx, void* obj);
+
+// called to create a new instance (specialized so that objects can maintain a free list or other optimized allocation scheme)
+typedef void*  (*AllocFn)(Type* type, flags_t fl, size_t extra);
 
 /* globals */
 extern struct RlCtx Ctx;

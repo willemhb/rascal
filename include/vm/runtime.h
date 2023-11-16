@@ -134,9 +134,6 @@ extern Value     StackSpace[N_VALUES];
 #define STACK_BASE (&StackSpace[0])
 #define STACK_END  (&StackSpace[N_VALUES])
 
-#define N_HEAP  (((size_t)1)<<19)
-#define HEAP_LF 0.625
-
 // external API
 void init_vm(Vm* vm);
 void free_vm(Vm* vm);
@@ -148,72 +145,5 @@ Value  pop(void);
 size_t pushn(size_t n);
 Value  popn(size_t n);
 Value* peek(int i);
-
-
-#define SAFE_ALLOC(func, args...)                           \
-  ({                                                        \
-    void* __out = func(args);                               \
-                                                            \
-    if (__out == NULL) {                                    \
-      fprintf(stderr,                                       \
-              "Out of memory calling %s at %s:%s:%d.\n",    \
-              #func,                                        \
-              __FILE__,                                     \
-              __func__,                                     \
-              __LINE__);                                    \
-      exit(1);                                              \
-    }                                                       \
-    __out;                                                  \
-  })
-
-#define SAFE_MALLOC(nBytes)           SAFE_ALLOC(malloc, nBytes)
-#define SAFE_REALLOC(pointer, nBytes) SAFE_ALLOC(realloc, pointer, nBytes)
-
-#define mark(p, ...)                                        \
-  generic((p),                                              \
-          Value:mark_val,                                   \
-          Value*:mark_vals,                                 \
-          void**:mark_objs,                                 \
-          default:mark_obj)(p __VA_OPT__(,) __VA_ARGS__)
-
-#define unmark(p, ...)                                      \
-  generic((p),                                              \
-          Value:unmark_val,                                 \
-          Value*:unmark_vals,                               \
-          void**:unmark_objs,                               \
-          default:unmark_obj)(p __VA_OPT__(,) __VA_ARGS__)
-
-void  mark_val(Value val);
-void  mark_obj(void* ptr);
-void  mark_vals(Value* vals, size_t n);
-void  mark_objs(void** objs, size_t n);
-
-void  unmark_val(Value val);
-void  unmark_obj(void* obj);
-void  unmark_vals(Value* vals, size_t n);
-void  unmark_objs(void** objs, size_t n);
-
-void save_state(Context* ctx);
-void restore_state(Context* ctx);
-
-void   error(const char* fname, const char* fmt, ...);
-void   syntax_error(List* form, const char* fmt, ...);
-bool   require(bool test, const char* fname, const char* fmt, ...);
-size_t argco(size_t expected, size_t got, const char* fname);
-size_t vargco(size_t expected, size_t got, const char* fname);
-Type*  argtype(Type* expected, Value got, const char* fname);
-size_t argcos(size_t expected, size_t got, const char* fname, ...);
-size_t vargcos(size_t expected, size_t got, const char* fname, ...);
-Type*  argtypes(size_t expected, Value got, const char* fname, ...);
-
-#define try                                                             \
-  Context _ctx; int l__tr, l__ca;                                       \
-  save_state(&_ctx); RlVm.m.ctx = &_ctx;                                \
-  if (!setjmp(_ctx.buf))                                                \
-    for (l__tr=1; l__tr; l__tr=0, (void)(RlVm.m.ctx=_ctx.next))
-
-#define catch                                                   \
-  else                                                          \
-    for (l__ca=1; l__ca; l__ca=0, restore_state(&_ctx))
 
 #endif
