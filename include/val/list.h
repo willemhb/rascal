@@ -15,23 +15,40 @@ struct List {
   Value  head;
 };
 
+struct Pair {
+  HEADER;
+  Value car;
+  Value cdr;
+};
+
+struct MutList {
+  HEADER;
+  List* tail;
+  Value head;
+};
+
+struct MutPair {
+  HEADER;
+  Value car;
+  Value cdr;
+};
+
 /* globals */
-extern struct Type ListType;
-extern struct List EmptyList;
+extern Type ListType;
+extern List EmptyList;
 
-/* external API */
-// casts & predicates
-bool  val_is_list(Value x);
-bool  obj_is_list(Obj* obj);
-List* as_list(Value x);
+/* External APIs */
+/* List API */
+#define is_list(x) has_type(x, &ListType)
+#define as_list(x) as(List*, untag48, x)
 
-// constructors
 List* mk_list(size_t n, Value* a);
 List* cons(Value head, List* tail);
 List* cons_n(size_t n, Value* a);
 
 // accessors
 Value list_ref(List* xs, size_t n);
+
 
 // sequence utilities
 List* list_cat(List* a, List* b);

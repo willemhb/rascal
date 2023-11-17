@@ -7,14 +7,15 @@
 // object flag types
 // memory flags
 typedef enum {
-  BLACK  =0x80000000u, // GC mark bit
-  GRAY   =0x40000000u, // GC trace bit
-  NOTRACE=0x20000000u, // skip tracing this object
-  NOSWEEP=0x10000000u, // don't free this object (allocated statically or in C stack)
-  NOFREE =0x08000000u, // don't free this object's owned data (allocated statically or in C stack)
-  NOHASH =0x04000000u, // don't cache this object's hash (hash field does not store own hash)
-  HASHED =0x02000000u, // valid hash
-  EDITP  =0x01000000u, // object is open for updating
+  BLACK   =0x80000000u, // GC mark bit
+  GRAY    =0x40000000u, // GC trace bit
+  NOTRACE =0x20000000u, // skip tracing this object
+  NOSWEEP =0x10000000u, // don't free this object (allocated statically or in C stack)
+  NOFREE  =0x08000000u, // don't free this object's owned data (allocated statically or in C stack)
+  NOHASH  =0x04000000u, // don't cache this object's hash (hash field does not store own hash)
+  NORESIZE=0x02000000u, // don't resize this object's owned data ()
+  HASHED  =0x01000000u, // valid hash
+  EDITP   =0x00800000u, // object is open for updating
 } MemFl;
 
 /* common object header */
@@ -81,6 +82,10 @@ void*  clone_obj(void* obj);
 void   init_obj(void* slf, Type* type, flags_t flags, flags_t memfl);
 void   finalize_obj(void* obj);
 void   dealloc_obj(RlCtx* ctx, void* obj);
+
+// other utilities
+void* alloc_from_free_list(Obj** free_list);
+void  add_to_free_list(Obj* obj, Obj** free_list);
 
 // Objects API
 Objects* new_objects(void);

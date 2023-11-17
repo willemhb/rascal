@@ -19,12 +19,23 @@ Objects Grays = {
   .cap =0
 };
 
+#define MAX_FREE_LIST_SIZE 256
+
+Obj* FreeLists[MAX_FREE_LIST_SIZE];
+
 #define N_HEAP  (((size_t)1)<<19)
 #define HEAP_LF 0.625
 
 /* Internal API */
+static size_t pad_alloc_size(size_t n) {
+  if (n < sizeof(Value))
+    n = sizeof(Value);
+
+  
+}
+
 static void add_gray(void* ptr) {
-  objects_push(Ctx.grays, ptr);
+  objects_push(Ctx.h.grays, ptr);
 }
 
 static void mark_vm(RlCtx* vm) {
@@ -32,7 +43,7 @@ static void mark_vm(RlCtx* vm) {
 }
 
 static void trace_vm(RlCtx* vm) {
-  Objects* grays = vm->grays;
+  Objects* grays = vm->h.grays;
   Type* t; Obj* o;
 
   while (grays->cnt > 0) {
@@ -44,7 +55,7 @@ static void trace_vm(RlCtx* vm) {
 }
 
 static void sweep_vm(RlCtx* vm) {
-  Obj** l = &vm->objects, *c = vm->objects, *t;
+  Obj** l = &vm->h.objects, *c = vm->h.objects, *t;
   Type* tp;
 
   while (c != NULL) {
@@ -68,20 +79,20 @@ static void sweep_vm(RlCtx* vm) {
 }
 
 static void resize_vm(RlCtx* vm) {
-  size_t allocated = vm->heap_size, available = vm->heap_cap;
+  size_t allocated = vm->h.size, available = vm->h.cap;
 
   /* probably an error */
-  if (allocated >= vm->heap_cap) {
+  if (allocated >= vm->h.cap) {
     fprintf(stderr, "fatal error: gc couldn't free enough memory.");
     exit(1);
   }
     
   if (allocated > available * HEAP_LF && available < MAX_ARITY) {
     if (available == MAX_POW2)
-        vm->heap_cap = MAX_ARITY;
+        vm->h.cap = MAX_ARITY;
       
     else
-      vm->heap_cap <<= 1;
+      vm->h.cap <<= 1;
   }
 }
 
@@ -98,19 +109,19 @@ static void manage_heap(RlCtx* vm, size_t n_bytes_added, size_t n_bytes_removed)
   if (n_bytes_added > n_bytes_removed) {
     size_t diff = n_bytes_added - n_bytes_removed;
 
-    if (diff + vm->heap_size > vm->heap_cap)
+    if (diff + vm->h.size > vm->h.cap)
       manage_vm(vm);
 
-    vm->heap_size += diff;
+    vm->h.size += diff;
   } else {
     size_t diff = n_bytes_removed - n_bytes_added;
-    vm->heap_size -= diff;
+    vm->h.size -= diff;
   }
 }
 
 /* External API */
 void unsave_gc_frame(GcFrame* frame) {
-  Ctx.gcframes = frame->next;
+  Ctx.h.frames = frame->next;
 }
 
 void mark_vals(Value* vs, size_t n) {
@@ -158,8 +169,8 @@ void trace_val(Value x) {
 void add_to_heap(RlCtx* ctx, Obj* o) {
   assert(o != NULL);
 
-  o->next = ctx->objects;
-  ctx->objects = o;
+  o->next = ctx->h.objects;
+  ctx->h.objects = o;
 }
 
 void* allocate(RlCtx* vm, size_t n_bytes) {
@@ -224,9 +235,11 @@ void deallocate(RlCtx* vm, void* pointer, size_t n_bytes) {
 
 /* Initialization */
 void vm_init_memory(void) {
-  Ctx.heap_size = 0;
-  Ctx.heap_cap  = N_HEAP;
-  Ctx.gcframes  = NULL;
-  Ctx.objects   = NULL;
-  Ctx.grays     = &Grays;
+  Ctx.h = (Heap) {
+    .size   =0,
+    .cap    =N_HEAP,
+    .frames =NULL,
+    .objects=NULL,
+    .grays  =&Grays
+  };
 }

@@ -75,7 +75,7 @@ String*  new_str(void* data, Encoding enc, size_t n);
 Value    str_ref(String* str, size_t n);
 String*  str_set(String* str, size_t n, Glyph gl);
 String*  str_add(String* str, Glyph gl);
-String*  str_write(String* str, size_t n, Glyph *gls);
+String*  str_write(String* str, size_t n, void *gls);
 String*  str_del(String* str, size_t n);
 
 /* MutStr API */
@@ -87,16 +87,27 @@ String*  new_mstr(Encoding enc);
 Value    mstr_ref(MutStr* mstr, size_t n);
 void     mstr_set(MutStr* mstr, size_t n, Glyph gl);
 size_t   mstr_add(MutStr* mstr, Glyph gl);
-size_t   mstr_write(MutStr* mstr, size_t n, Glyph *gls);
+size_t   mstr_write(MutStr* mstr, size_t n, void *gls);
 size_t   mstr_del(MutStr* mstr, size_t n);
 
 /* Binary API */
 #define is_bin(x)  has_type(x, &BinaryType)
 #define as_bin(x)  as(Binary*, untag48, x)
 
-
+CType  bin_Ctype(Binary* bin);
+size_t bin_elsize(Binary* bin);
+Value  bin_ref(Binary* bin, size_t n);
 
 /* MutBin API */
+#define is_mbin(x) has_type(x, &MutBinType)
+#define as_mbin(x) as(MutBin*, untag48, x)
+
+CType  mbin_Ctype(MutBin* mbin);
+size_t mbin_elsize(MutBin* mbin);
+Value  mbin_ref(MutBin* mbin, size_t n);
+void   mbin_set(MutBin* mbin, size_t n, uint64_t x);
+size_t mbin_add(MutBin* mbin, size_t n, uint64_t x);
+size_t mbin_write(MutBin* mbin, size_t n, void* d);
 
 
 #endif

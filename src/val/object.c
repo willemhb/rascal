@@ -301,3 +301,16 @@ void dealloc_obj(RlCtx* ctx, void* obj) {
       deallocate(ctx, obj, size_of(obj));
   }
 }
+
+// other utilities
+void* alloc_from_free_list(Obj** free_list) {
+  void* out = *free_list;
+  *free_list = (*free_list)->next;
+
+  return out;
+}
+
+void add_to_free_list(Obj* obj, Obj** free_list) {
+  obj->next = (*free_list);
+  *free_list = obj;
+}

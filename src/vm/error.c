@@ -9,6 +9,7 @@
 
 #include "vm/error.h"
 #include "vm/memory.h"
+#include "vm/envt.h"
 
 #include "val/symbol.h"
 #include "val/type.h"
@@ -19,37 +20,20 @@ void save_state(ErrFrame* err) {
   assert(err != NULL);
 
   err->next     = Ctx.err;
-  err->gcframes = Ctx.gcframes;
-  err->effh     = Ctx.effh;
-  err->ip       = Ctx.ip;
-  err->bp       = Ctx.bp;
-  err->cp       = Ctx.cp;
-  err->sp       = Ctx.sp;
-  err->fp       = Ctx.fp;
-  err->upvals   = Ctx.upvals;
-  err->readsp   = Ctx.readstk->cnt;
-  err->compsp   = Ctx.compstk->cnt;
+  err->gcframes = Ctx.h.frames;
+  err->r        = Ctx.r;
+  err->c        = Ctx.c;
+  err->i        = Ctx.i;
 }
 
 void restore_state(ErrFrame* err) {
   assert(err != NULL);
-  
+
   Ctx.err      = err->next;
-  Ctx.gcframes = err->gcframes;
-  Ctx.effh     = err->effh;
-  Ctx.ip       = err->ip;
-  Ctx.bp       = err->bp;
-  Ctx.cp       = err->cp;
-  Ctx.sp       = err->sp;
-  Ctx.fp       = err->fp;
-  Ctx.upvals   = err->upvals;
-
-  // TODO: is this the right thing to do?
-  if (err->readsp < Ctx.readstk->cnt)
-    resize_mvec(Ctx.readstk, err->readsp);
-
-  if (err->compsp < Ctx.compstk->cnt)
-    resize_mvec(Ctx.compstk, err->compsp);
+  Ctx.h.frames = err->gcframes;
+  Ctx.r        = err->r;
+  Ctx.c        = err->c;
+  Ctx.i        = err->i;
 }
 
 static void vprint_error(const char* fname, const char* fmt, va_list va) {
@@ -67,9 +51,10 @@ static void print_error(const char* fname, const char* fmt, ...) {
 
 static void rl_longjmp(int status) {
   if (Ctx.err == NULL) {
-    fprintf(stderr, "Exiting due to unhandled error.\n");
+    fprintf(stderr, "Exiting due to unhandled runtime error.\n");
     exit(1);
   } else {
+    close_upvals(0); // protectively close upvalues, we don't know what will happen to the stack
     longjmp(Ctx.err->Cstate, status);
   }
 }
@@ -94,6 +79,69 @@ bool require(bool test, const char* fname, const char* fmt, ...) {
   return test;
 }
 
+size_t bound_lt(size_t max, long got, const char* fname, const char* obname) {
+  static const char* fmt = "index %l out of bounds for `%s` of size %zu";
+  
+  require(got > -1 && (size_t)got < max, fname, fmt, got, obname, max);
+
+  return got;
+}
+
+size_t bound_le(size_t max, long got, const char* fname, const char* obname) {
+  static const char* fmt = "index %l out of bounds for `%s` of size %zu";
+
+  require(got > -1 && (size_t)got <= max, fname, fmt, got, obname, max);
+
+  return got;
+}
+
+size_t bound_gt(size_t min, long got, const char* fname, const char* obname) {
+  static const char* fmt = "index %l out of bounds for `%s` with minimum index %zu";
+
+  require(got > -1 && (size_t)got > min, fname, fmt, got, obname, min);
+
+  return got;
+}
+
+size_t bound_ge(size_t min, long got, const char* fname, const char* obname) {
+  static const char* fmt = "index %l out of bounds for `%s` with minimum index %zu";
+
+  require(got > -1 && (size_t)got >= min, fname, fmt, got, obname, min);
+
+  return got;
+}
+
+size_t bound_gl(size_t min, size_t max, long got, const char* fname, const char* obname) {
+  static const char* fmt = "index %l out of bounds for `%s` with valid indices between %zu and %zu";
+  
+  require(got > -1 && (size_t)got > min && (size_t)got < max, fname, fmt, got, obname, min, max);
+  
+  return got;
+}
+
+size_t bound_gel(size_t min, size_t max, long got, const char* fname, const char* obname) {
+  static const char* fmt = "index %l out of bounds for `%s` with valid indices between %zu and %zu";
+
+  require(got > -1 && (size_t)got >= min && (size_t)got < max, fname, fmt, got, obname, min, max);
+
+  return got; 
+}
+
+size_t bound_gle(size_t min, size_t max, long got, const char* fname, const char* obname) {
+  static const char* fmt = "index %l out of bounds for `%s` with valid indices between %zu and %zu";
+
+  require(got > -1 && (size_t)got > min && (size_t)got <= max, fname, fmt, got, obname, min, max);
+
+  return got; 
+}
+
+size_t bound_gele(size_t min, size_t max, long got, const char* fname, const char* obname) {
+  static const char* fmt = "index %l out of bounds for `%s` with valid indices between %zu and %zu";
+
+  require(got > -1 && (size_t)got >= min && (size_t)got <= max, fname, fmt, got, obname, min, max);
+
+  return got; 
+}
 
 size_t argco(size_t expected, size_t got, const char* fname) {
   static const char* fmt = "expected exactly %zu arguments, got %zu";
@@ -307,3 +355,8 @@ size_t vargcos(size_t expected, size_t got, const char* fname, ...) {
 }
 
 #undef SIGNAL_ERROR
+
+/* Initialization. */
+void vm_init_error(void) {
+  Ctx.err = NULL;
+}

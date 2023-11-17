@@ -13,11 +13,11 @@ void unsave_gc_frame(GcFrame* frame);
 #define save(n, args...)                             \
   Value __gc_frame_vals[(n)] = { args };             \
   GcFrame __gc_frame cleanup(unsave_gc_frame) = {    \
-    .next=Ctx.gcframes,                              \
+    .next=Ctx.h.frames,                              \
     .cnt =(n),                                       \
     .data=__gc_frame_vals                            \
   };                                                 \
-  Ctx.gcframes = &__gc_frame
+  Ctx.h.frames = &__gc_frame
 
 #define add_saved(n, val) __gc_frame_vals[(n)] = (val)
 

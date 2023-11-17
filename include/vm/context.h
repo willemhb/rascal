@@ -6,9 +6,51 @@
 #include "val/hamt.h"
 
 /* shared global state object required by one rascal vm instance. */
-typedef struct GcFrame   GcFrame;
-typedef struct ErrFrame  ErrFrame;
-typedef struct ExecFrame ExecFrame;
+typedef struct Heap        Heap;
+typedef struct Reader      Reader;
+typedef struct Compiler    Compiler;
+typedef struct Interpreter Interpreter;
+
+typedef struct GcFrame     GcFrame;
+typedef struct ErrFrame    ErrFrame;
+typedef struct ReadFrame   ReadFrame;
+typedef struct CompFrame   CompFrame;
+typedef struct ExecFrame   ExecFrame;
+
+struct Heap {
+  size_t   size;
+  size_t   cap;
+  GcFrame* frames;
+  Obj*     objects;
+  Objects* grays;
+};
+
+struct Reader {
+  MutDict* rt;
+  MutDict* gs;
+  MutStr*  buf;
+  Stream*  src;
+  size_t   sp;
+  size_t   fp;  
+};
+
+struct Compiler {
+  Envt*   envt;
+  MutBin* code;
+  MutVec* vals;
+  size_t  sp;
+  size_t  fp;
+};
+
+struct Interpreter {
+  Closure*  code;
+  Chunk*    effh;
+  uint16_t* ip;
+  size_t    bp;
+  size_t    cp;
+  size_t    sp;
+  size_t    fp;
+};
 
 struct GcFrame {
   GcFrame* next;
@@ -22,24 +64,30 @@ struct ErrFrame {
   // saved heap state
   GcFrame*  gcframes;
 
-  // saved execution state
-  Closure*  code;
-  Chunk*    effh;
-  uint16_t* ip;
-  size_t    bp;
-  size_t    cp;
-  size_t    sp;
-  size_t    fp;
-  UpValue*  upvals;
-
   // saved reader state
-  size_t    readsp;
+  Reader      r;
 
   // saved compiler state
-  size_t    compsp;
+  Compiler    c;
+
+  // saved execution state
+  Interpreter i;
 
   // saved C context
   jmp_buf   Cstate;
+};
+
+struct ReadFrame {
+  MutDict* rt;
+  MutDict* gs;
+  MutStr*  buf;
+  Stream*  src;
+};
+
+struct CompFrame {
+  Envt*   envt;
+  MutBin* code;
+  MutVec* vals;
 };
 
 struct ExecFrame {
@@ -52,51 +100,27 @@ struct ExecFrame {
 
 struct RlCtx {
   // heap state
-  size_t      heap_size;
-  size_t      heap_cap;
-  GcFrame*    gcframes;
-  Obj*        objects;
-  Objects*    grays;
-
-  // environment state
-  MutDict*    globals;     // global variables
-  MutDict*    meta;        // value metadata
+  Heap h;
 
   // reader state
-  MutDict*    readt;
-  Stream*     input;
-  MutStr*     buffer;
-  MutVec*     readstk;
+  Reader r;
 
   // compiler state
-  Chunk*      compiling;
-  MutVec*     compstk;
+  Compiler c;
 
   // execution state
-  Closure*    code;
-  Chunk*      effh;
-  uint16_t*   ip;
-  size_t      bp;
-  size_t      cp;
-  size_t      sp;
-  size_t      fp;
-  UpValue*    upvals;
+  Interpreter i;
 
   // error state
   ErrFrame*   err;
+
+  // global environment state
+  MutDict* globals;     // global variables
+  MutDict* meta;        // value metadata
+  UpValue* upvals;      // open upvalues
 };
 
-/* Globals */
-extern Value     ValueStack[];
-extern ExecFrame CallStack[];
-
-/* External API */
-Value*   rl_peek(int n);
-void     rl_push(Value val);
-Value    rl_pop(void);
-void     rl_pushf(void);
-void     rl_popf(void);
-UpValue* get_upval(size_t i);
-void     close_upvals(size_t bp);
+/* Initialization. */
+void vm_init_context(void);
 
 #endif

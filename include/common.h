@@ -70,6 +70,9 @@ typedef void   (*DeallocFn)(RlCtx* ctx, void* obj);
 // called to create a new instance (specialized so that objects can maintain a free list or other optimized allocation scheme)
 typedef void*  (*AllocFn)(Type* type, flags_t fl, size_t extra);
 
+// builtin reader function - returns -1 on error, 1 when an expression has been read, and 0 when no expression has been read
+typedef int    (*ReadFn)(int dispatch);
+
 /* globals */
 extern struct RlCtx Ctx;
 

@@ -48,8 +48,6 @@ typedef struct UpValue   UpValue;
 typedef struct Seq       Seq;
 
 /* Globals */
-extern struct MutDict ValueMeta;
-
 // tags and such
 #define SYS_TAG     0x7ffc000000000000UL // internal value with no external representation
 #define SMALL_TAG   0x7ffd000000000000UL
