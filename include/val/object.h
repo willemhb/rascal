@@ -83,10 +83,6 @@ void   init_obj(void* slf, Type* type, flags_t flags, flags_t memfl);
 void   finalize_obj(void* obj);
 void   dealloc_obj(RlCtx* ctx, void* obj);
 
-// other utilities
-void* alloc_from_free_list(Obj** free_list);
-void  add_to_free_list(Obj* obj, Obj** free_list);
-
 // Objects API
 Objects* new_objects(void);
 void     init_objects(Objects* arr);

@@ -20,18 +20,30 @@ Objects Grays = {
 };
 
 #define MAX_FREE_LIST_SIZE 256
+#define OBJ_ALIGNMENT sizeof(Value)
+#define OBJ_ALIGNMENT_MASK (sizeof(Value)-1)
+#define MAX_FREE_LIST_OBJ_SIZE (256*OBJ_ALIGNMENT)
 
-Obj* FreeLists[MAX_FREE_LIST_SIZE];
+Obj* FreeLists[MAX_FREE_LIST_SIZE] = {};
 
 #define N_HEAP  (((size_t)1)<<19)
 #define HEAP_LF 0.625
 
 /* Internal API */
-static size_t pad_alloc_size(size_t n) {
-  if (n < sizeof(Value))
-    n = sizeof(Value);
+static size_t mod_obj_align(size_t n) {
+  return n & OBJ_ALIGNMENT_MASK;
+}
 
-  
+static size_t pad_obj_size(size_t n) {
+  if (n < OBJ_ALIGNMENT)
+    n = OBJ_ALIGNMENT;
+
+  size_t extra = mod_obj_align(n);
+
+  if (extra > 0)
+    n += OBJ_ALIGNMENT - extra;
+
+  return n;
 }
 
 static void add_gray(void* ptr) {
@@ -119,19 +131,46 @@ static void manage_heap(RlCtx* vm, size_t n_bytes_added, size_t n_bytes_removed)
   }
 }
 
+static void* alloc_from_free_lists(RlCtx* ctx, size_t n_bytes) {
+  size_t padded = pad_obj_size(n_bytes);
+  void* out = NULL;
+  manage_heap(ctx, padded, 0);
+
+  if (padded <= MAX_FREE_LIST_OBJ_SIZE) {
+    Obj** free_list = &FreeLists[padded>>3];
+
+    if (*free_list != NULL) {
+      out = *free_list;
+      *free_list = (*free_list)->next;
+    }
+  }
+
+  if (out == NULL) {
+    out = SAFE_MALLOC(padded);
+    memset(out, 0, padded);
+  }
+
+  return out;
+}
+
 /* External API */
 void unsave_gc_frame(GcFrame* frame) {
   Ctx.h.frames = frame->next;
 }
 
-void mark_vals(Value* vs, size_t n) {
-  for (size_t i=0; i<n; i++)
-    mark(vs[i]);
+void trace_val(Value x) {
+  if (is_obj(x))
+    trace_obj(as_obj(x));
 }
 
-void mark_objs(Obj** objs, size_t n) {
-  for (size_t i=0; i<n; i++)
-    mark(objs[i]);
+void trace_obj(void* obj) {
+  assert(obj);
+  type_of(obj)->vtable->tracefn(obj);
+}
+
+void mark_val(Value val) {
+  if (is_obj(val))
+    mark_obj(as_obj(val));
 }
 
 void mark_obj(void* p) {
@@ -155,14 +194,39 @@ void mark_obj(void* p) {
   }
 }
 
-void mark_val(Value val) {
-  if (is_obj(val))
-    mark_obj(as_obj(val));
+void mark_vals(Value* vs, size_t n) {
+  for (size_t i=0; i<n; i++)
+    mark(vs[i]);
 }
 
-void trace_val(Value x) {
-  if (is_obj(x))
-    trace_obj(as_obj(x));
+void mark_objs(Obj** objs, size_t n) {
+  for (size_t i=0; i<n; i++)
+    mark(objs[i]);
+}
+
+void unmark_val(Value val) {
+  if (is_obj(val))
+    unmark_obj(as_obj(val));
+}
+
+void unmark_obj(void* obj) {
+  Obj* o = obj;
+
+  if (o) {
+    del_mfl(o, BLACK);
+    set_mfl(o, GRAY);
+  }
+}
+
+void unmark_vals(Value* vals, size_t n) {
+  for (size_t i=0; i<n; i++)
+    unmark(vals[i]);
+}
+
+void unmark_objs(Obj** objs, size_t n) {
+  if (objs)
+    for (size_t i=0; i<n; i++)
+      unmark(objs[i]);
 }
 
 // external GC helpers
@@ -171,6 +235,29 @@ void add_to_heap(RlCtx* ctx, Obj* o) {
 
   o->next = ctx->h.objects;
   ctx->h.objects = o;
+}
+
+void* alloc_obj(RlCtx* ctx, size_t n_bytes) {
+  assert(ctx);
+  Obj* out = alloc_from_free_lists(ctx, n_bytes);
+  out->next = ctx->h.objects;
+  ctx->h.objects = out;
+  return out;
+}
+
+void dealloc_obj(RlCtx* ctx, void* obj) {
+  size_t obsize = size_of(obj);
+
+  if (obsize <= MAX_FREE_LIST_OBJ_SIZE) {
+    Obj* o = obj;
+    Obj** buf = &FreeLists[obsize>>3];
+    o->next = *buf;
+    *buf = o;
+  } else {
+    free(obj);
+  }
+
+  ctx->h.size -= obsize;
 }
 
 void* allocate(RlCtx* vm, size_t n_bytes) {
@@ -186,9 +273,7 @@ void* allocate(RlCtx* vm, size_t n_bytes) {
 // memory API
 void* duplicate(RlCtx* vm, void* pointer, size_t n_bytes) {
   void* cpy = allocate(vm, n_bytes);
-
   memcpy(cpy, pointer, n_bytes);
-
   return cpy;
 }
 

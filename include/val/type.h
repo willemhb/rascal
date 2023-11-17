@@ -21,8 +21,6 @@ typedef struct Vtable {
   TraceFn    tracefn;
   FinalizeFn finalizefn;
   CloneFn    clonefn;
-  DeallocFn  deallocfn;
-  AllocFn    allocfn;
 
   // comparison & hashing methods
   EgalFn     egalfn;

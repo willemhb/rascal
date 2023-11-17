@@ -4,7 +4,6 @@
 #include "util/memory.h"
 
 #include "vm/context.h"
-
 /* interface to rascal's memory management system. */
 
 /* External API */
@@ -34,6 +33,8 @@ void unmark_obj(void* obj);
 void unmark_vals(Value* vals, size_t n);
 void unmark_objs(Obj** objs, size_t n);
 
+void vm_mark_heap(void);
+
 #define trace(x) generic2(trace, x, x)
 
 #define mark(p, ...)                                        \
@@ -52,8 +53,8 @@ void unmark_objs(Obj** objs, size_t n);
 
 void  add_to_heap(RlCtx* ctx, Obj* obj);
 void  add_to_grays(RlCtx* ctx, Obj* obj);
-bool  alloc_will_overflow(RlCtx* ctx, size_t n_bytes);
-bool  new_obj_will_overflow(Type* type);
+void* alloc_obj(RlCtx* ctx, size_t n_bytes);
+void  dealloc_obj(RlCtx* ctx, void* obj);
 void* allocate(RlCtx* ctx, size_t n_bytes);
 void* duplicate(RlCtx* ctx, void* pointer, size_t n_bytes);
 char* duplicates(RlCtx* ctx, char* chars, size_t n_chars);

@@ -1,8 +1,9 @@
 #ifndef rl_vm_control_h
 #define rl_vm_control_h
 
-#include "common.h"
+#include "vm/context.h"
 
-/* Effect handling system. */
+/* Effect handling API. */
+
 
 #endif

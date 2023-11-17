@@ -38,6 +38,7 @@ typedef struct MutBin   MutBin;
 
 // internal object types
 typedef struct Objects   Objects;
+typedef struct Control   Control;
 typedef struct Envt      Envt;
 typedef struct Chunk     Chunk;
 typedef struct Closure   Closure;
