@@ -11,14 +11,18 @@ Value     InterpreterValues[N_VALUES];
 ExecFrame InterpreterFrames[N_FRAMES];
 
 /* Internal API */
-static void mark_interpreter_frame(ExecFrame* f) {
-  mark(f->code);
-  mark(f->effh);
+void mark_exec_frame(ExecFrame* frame) {
+  mark(frame->code);
+  mark(frame->effh);
 }
 
-static void mark_interpreter_frames(void) {
-  for (size_t i=0; i<Ctx.i.fp; i++)
-    mark_interpreter_frame(&InterpreterFrames[i]);
+void mark_exec_frames(ExecFrame* frames, size_t n) {
+  for (size_t i=0; i<n; i++)
+    mark_exec_frame(frames+i);
+}
+
+static void mark_interp_frames(void) {
+  mark_exec_frames(InterpreterFrames, Ctx.i.fp);
 }
 
 /* External API */
@@ -78,7 +82,7 @@ void vm_mark_interpreter(void) {
   mark(Ctx.i.code);
   mark(Ctx.i.effh);
 
-  mark_interpreter_frames();
+  mark_interp_frames();
 }
 
 /* Initialization. */

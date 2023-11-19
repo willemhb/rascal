@@ -31,7 +31,7 @@ struct Reader {
   MutStr*  buf;
   Stream*  src;
   size_t   sp;
-  size_t   fp;  
+  size_t   fp;
 };
 
 struct Compiler {

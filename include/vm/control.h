@@ -5,5 +5,9 @@
 
 /* Effect handling API. */
 
+/* External APIs */
+void     install_cntl(Control* cntl);
+Control* capture_cntl(size_t cp);
+Control* extend_cntl(Control* cntl, size_t cp);
 
 #endif
