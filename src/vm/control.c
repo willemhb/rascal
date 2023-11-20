@@ -5,9 +5,25 @@
 
 /* External APIs */
 void install_cntl(Control* cntl) {
-  Value* vals_base = write_interp_vals(cntl->values, cntl->n_vals);
-  ExecFrame* frames_base = write_interp_frames(cntl->frames, cntl->n_frames);
+  /* save the current execution state */
+  push_interp_frame();
 
-  
+  /* get the offset of */
+  size_t bp = Ctx.i.sp;
+  size_t cp = Ctx.i.cp;
+  ExecFrame* frames = write_interp_frames(cntl->frames, cntl->n_frames);
+  write_interp_vals(cntl->values, cntl->n_vals);
+
+  for (size_t i=0; i<cntl->n_frames; i++) {
+    frames[i].bp += bp;
+    frames[i].cp  = cp;
+  }
 }
 
+Control* capture_cntl(size_t cp) {
+  ExecFrame* bf = peek_interp_frame(cp);
+  size_t bbp = bf->bp;
+  size_t nval = Ctx.i.sp - bbp;
+  size_t nfrm = Ctx.i.fp - cp;
+  
+}

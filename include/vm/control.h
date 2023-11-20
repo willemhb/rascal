@@ -3,7 +3,7 @@
 
 #include "vm/context.h"
 
-/* Effect handling API. */
+/* Effect handling API */
 
 /* External APIs */
 void     install_cntl(Control* cntl);
