@@ -7,41 +7,38 @@
 
    Symbols are first class identifiers.
 
-   They are typically interned in a global Symbol table, stored as an invasive
-   tree in the Symbol's left and right pointers.
+   Unlike in traditional lisps, Symbols are not interned directly. However, its named components are, allowing for constant-time comparison.
+
+   Symbols have a name part and optional module part, separated by a '/'.
+
+   If the module part is ommitted, it is treated as a lexical reference, meaning
+   that a matching name is searched first in the function scope, then in the module
+   scope, and finally in the global scope.
 
    Keywords are symbols whose name is prefixed with ':'. Keywords are used as flags,
-   options, */
+   options, and syntactic markers. */
 
 /* C types */
-typedef size_t (*SpclForm)(List form);
-
-typedef enum {
-  INTERNED=0x01u,
-  LITERAL =0x02u,
-} SymFl;
 
 struct Symbol {
   HEADER;
-  Symbol*  left, * right;
-  char*    name;
-  idno_t   idno;
-  SpclForm form;
+  String* module;
+  String* name;
+  idno_t  idno;    // Gensym counter. If 0, this is not a gensym.
+  bool    literal; // Indicates whether this symbol should be treated as 
 };
 
 /* globals */
 // symbol tables
 extern struct Type SymbolType;
-extern Symbol* Symbols, * Keywords;
 
-#define is_sym(x)      has_type(x, &SymbolType)
-#define as_sym(x)      as(Symbol*, untag48, x)
-#define is_literal(x)  get_fl(x, LITERAL)
-#define is_interned(x) get_fl(x, INTERNED)
+#define is_sym(x) has_type(x, &SymbolType)
+#define as_sym(x) as(Symbol*, untag48, x)
+
+#define is_gensym(x)  (!!(as_sym(x)->idno))
+#define is_literal(x) (as_sym(x)->literal)
 
 /* external API */
-Symbol* new_sym(char* name, flags_t fl);
-Symbol* mk_sym(char* name, bool gensym);
-Symbol* intern_sym(Symbol* sym);           // add static symbol to symbol table
+Symbol* mk_sym(String* name, String* module, bool gensym);
 
 #endif

@@ -1,5 +1,5 @@
-#ifndef rl_val_func_h
-#define rl_val_func_h
+#ifndef rl_val_function_h
+#define rl_val_function_h
 
 #include "val/object.h"
 
@@ -7,23 +7,21 @@
 
 /* C types */
 typedef Value (*NativeFn)(size_t n, Value* a);
-typedef struct MethTRoot MethTRoot;
 typedef struct MethTNode MethTNode;
 typedef struct MethTLeaf MethTLeaf;
 
 struct Func {
   HEADER;
-
   Symbol* name;
   Obj*    func;
 };
 
 struct MethTable {
   HEADER;
-
   MutDict*   cache;
-  MethTRoot* fixed;
-  MethTRoot* variadic;
+  MethTNode* fixed;
+  MethTNode* variadic;
+  MethTLeaf* thunk;
 };
 
 struct MethTNode {
@@ -31,9 +29,15 @@ struct MethTNode {
   size_t     offset;
   MethTLeaf* leaf;
   MutDict*   exact_methods;
-  MutDict*   abstract_methods;
-  Objects*   union_methods;
   MethTNode* any_method;
+};
+
+struct MethTLeaf {
+  HEADER;
+  size_t arity;
+  bool   variadic;
+  List*  signature;
+  Obj*   method;
 };
 
 struct Native {
@@ -49,10 +53,9 @@ struct Closure {
 
 /* Globals */
 extern Type FuncType, NativeType, ClosureType,
-  MethTableType, MethTLeafType, MethTRootType,
-  MethTNodeType;
+  MethTableType, MethTNodeType, MethTLeafType;
 
 /* External API */
-Func new_func(Symbol* name);
+Func* new_func(Symbol* name);
 
 #endif

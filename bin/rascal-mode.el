@@ -9,36 +9,22 @@
 (define-generic-mode
   'rascal-mode
   '(";" ("#|" . "|#"))
-  '(;; binding forms
-    "def*" "fn*" "put"
-    ;; local control forms
-    "if" "do" "quote"
-    ;; nonlocal control forms (effects system)
-    "handle" "perform" "enter" "exit"
-    ;; miscellaneous forms
-    "c-call"
-    ;; binding macros
-    "var" "val"
-    "fun" "fun*" "mac" "mac*"
-    "struct" "union" "abstract"
-    "let" "label" "loop"
-    ;; branching macros
-    "and" "or" "cond" "case"
-    "when" "unless"
-    ;; exception handling macros
-    "guard" "raise"
-    ;; generator macros
-    "generator" "yield"
-    ;; async macros
-    "async" "sync" "await"
-    ;; actor macros
-    "ps" "send" "receive"
-    ;; module system macros
-    "import" "export" "module"
-    ;; looping macros.
-    "for" "while" "while*"
-    ;; miscellaneous macros
-    "use" "with" "do*")
+  '(
+    ;; binding syntax.
+    "fun" "mac" "type" "val" "var" "put"
+
+    ;; branching syntax
+    "if" "cond" "and" "or"
+
+    ;; effect syntax
+    "handle" "perform"
+
+    ;; package syntax
+    "module" "import" "export"
+
+    ;; miscellaneous syntax
+    "quote" "do" "c-call"
+    )
   '(("\\(?:[^:]:[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ("\\(?:[^~]@[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^@[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ;; special constants

@@ -7,8 +7,7 @@
 /* globals & utilites for working with types. */
 /* C types */
 typedef enum {
-  BOTTOM_KIND, DATA_KIND, DATA_UNION_KIND,
-  ABSTRACT_KIND, ABSTRACT_UNION_KIND, TOP_KIND,
+  BOTTOM_KIND, DATA_KIND, TOP_KIND,
 } Kind;
 
 typedef struct Vtable {
@@ -35,7 +34,6 @@ struct Type {
   Type*   parent;  // abstract parent
   Symbol* name;    // common name
   Func*   ctor;    // constructor for this type
-  Set*    members; // union members (if any)
   Vtable* vtable;  // instance data
 };
 

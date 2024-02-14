@@ -10,68 +10,52 @@
 /* C types */
 struct String {
   HEADER;
-  union {
-    char*     c8;
-    char16_t* c16;
-    char32_t* c32;
-  };
-  size_t   arity;
-};
-
-struct Binary {
-  HEADER;
-  union {
-    uint8_t*  b8;
-    uint16_t* b16;
-    uint32_t* b32;
-    uint64_t* b64;
-  };
+  char* chars;
   size_t arity;
 };
 
 struct MutStr {
   HEADER;
-  union {
-    char*     c8;
-    char16_t* c16;
-    char32_t* c32;
-  };
-
+  char* chars;
   size_t cnt;
   size_t cap;
 };
 
 struct MutBin {
   HEADER;
-  union {
-    uint8_t*  b8;
-    uint16_t* b16;
-    uint32_t* b32;
-    uint64_t* b64;
-  };
-
+  byte_t* data;
   size_t cnt;
   size_t cap;
 };
 
+/* Specialized structure used to store interned strings.
+
+   Strings up to a certain size are interned. */
+
+typedef struct {
+  String** table;
+  size_t cnt;
+  size_t cap;
+} StringTable;
+
 /* Globals */
 /* Types */
-extern Type StringType, MutStrType,
-  BinaryType, MutBinType,
-  GlyphType;
+extern Type StringType, MutStrType, MutBinType, GlyphType;
+
+/* Global String Cache. */
+extern StringTable StringCache;
 
 /* Empty singletons */
-extern String EmptyAscii, EmptyLatin1, EmptyUtf8, EmptyUtf16, EmptyUtf32;
-extern Binary EmptyBin8, EmptyBin16, EmptyBin32, EmptyBin64;
+extern String EmptyString;
 
 /* External APIs */
-
 /* String API */
 #define is_str(x)   has_type(x, &StringType)
 #define as_str(x)   as(String*, untag48, x)
 
 Encoding str_enc(String* str);
-String*  new_str(void* data, Encoding enc, size_t n);
+String*  intern_string(char* data, size_t n);
+String*  new_str(char* data, size_t n);
 Value    str_ref(String* str, size_t n);
 String*  str_set(String* str, size_t n, Glyph gl);
 String*  str_add(String* str, Glyph gl);

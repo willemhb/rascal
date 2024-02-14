@@ -35,9 +35,9 @@ typedef uint64_t   idno_t;
 typedef struct RlCtx RlCtx;
 
 // basic rascal Vm types
-typedef uintptr_t  Value; // tagged value
-typedef struct Obj Obj;   // boxed object (includes type information)
-typedef struct Type Type; // object representing a rascal type
+typedef uintptr_t   Value; // tagged value
+typedef struct Obj  Obj;   // boxed object (includes type information)
+typedef struct Type Type;  // object representing a rascal type
 
 /* internal function pointer types */
 // called to compute the value part of an object's hash

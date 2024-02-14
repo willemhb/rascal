@@ -14,7 +14,7 @@ struct Chunk {
 };
 
 /* globals */
-extern struct Type ChunkType, Binary16Type;
+extern struct Type ChunkType;
 
 /* external API */
 Chunk* new_chunk(Envt* envt, MutVec* values, MutBin* code);

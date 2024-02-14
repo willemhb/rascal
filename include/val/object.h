@@ -7,26 +7,25 @@
 // object flag types
 // memory flags
 typedef enum {
-  BLACK   =0x80000000u, // GC mark bit
-  GRAY    =0x40000000u, // GC trace bit
-  NOTRACE =0x20000000u, // skip tracing this object
-  NOSWEEP =0x10000000u, // don't free this object (allocated statically or in C stack)
-  NOFREE  =0x08000000u, // don't free this object's owned data (allocated statically or in C stack)
-  NOHASH  =0x04000000u, // don't cache this object's hash (hash field does not store own hash)
-  NORESIZE=0x02000000u, // don't resize this object's owned data ()
-  HASHED  =0x01000000u, // valid hash
-  EDITP   =0x00800000u, // object is open for updating
+  BLACK   =0x001ul, // GC mark bit
+  GRAY    =0x002ul, // GC trace bit
+  NOTRACE =0x004ul, // skip tracing this object
+  NOSWEEP =0x008ul, // don't free this object (allocated statically or in C stack)
+  NOFREE  =0x010ul, // don't free this object's owned data (allocated statically or in C stack)
+  NOHASH  =0x020ul, // don't cache this object's hash (hash field does not store own hash)
+  NORESIZE=0x040ul, // don't resize this object's owned data
+  HASHED  =0x080ul, // valid hash
+  EDITP   =0x100ul, // object is open for updating
 } MemFl;
 
 /* common object header */
 struct Obj {
-  Obj*    next;   // invasive live objects list
-  hash_t  hash;   // cached hash code 
-  Type*   type;   // type information
-  Dict*   meta;   // metadta
-  flags_t flags;  // misc flags
-  flags_t memfl;  // memory flags
-  byte_t  data[];
+  Obj*     next;   // invasive live objects list
+  hash_t   hash;   // cached hash code 
+  Type*    type;   // type information
+  Dict*    meta;   // language metadata (visible to users)
+  wflags_t flags;  // runtime metadata (not visible to users, mostly memory information)
+  byte_t   data[];
 };
 
 /* Mutable dynamic array for storing untagged objects.

@@ -25,6 +25,10 @@ typedef struct {
   Value val;
 } Entry;
 
+typedef struct {
+  
+} StringEntry;
+
 struct MutDict {
   HEADER;
   Entry* data;
