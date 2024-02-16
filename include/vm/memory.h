@@ -3,8 +3,24 @@
 
 #include "util/memory.h"
 
-#include "vm/context.h"
+#include "val/value.h"
+
 /* interface to rascal's memory management system. */
+
+/* C types */
+struct GcFrame  {
+  GcFrame* next;
+  size_t   cnt;
+  Value   *saved;
+};
+
+/* Globals */
+extern GcFrame* Saved;              // Values in the C stack that need to be preserved.
+extern Obj*     LiveObjects;        // Linked list of allocated objects.
+extern Obj*     FreeLists[];        // Linked lists of reusable objects, sorted by size.
+extern Objects  GrayObjects;        // Stores objects that have been marked but not traced.
+extern size_t   HeapSize, HeapCap;  // Heap limits.
+extern double   HeapLoadFac;        // Determines whether heap is 'resized' after a collection cycle.
 
 /* External API */
 void unsave_gc_frame(GcFrame* frame);
@@ -12,11 +28,11 @@ void unsave_gc_frame(GcFrame* frame);
 #define save(n, args...)                             \
   Value __gc_frame_vals[(n)] = { args };             \
   GcFrame __gc_frame cleanup(unsave_gc_frame) = {    \
-    .next=Ctx.h.frames,                              \
+    .next=Saved,                                     \
     .cnt =(n),                                       \
     .data=__gc_frame_vals                            \
   };                                                 \
-  Ctx.h.frames = &__gc_frame
+  Saved = &__gc_frame
 
 #define add_saved(n, val) __gc_frame_vals[(n)] = (val)
 
@@ -51,15 +67,15 @@ void vm_mark_heap(void);
           Obj**:unmark_objs,                               \
           default:unmark_obj)(p __VA_OPT__(,) __VA_ARGS__)
 
-void  add_to_heap(RlCtx* ctx, Obj* obj);
-void  add_to_grays(RlCtx* ctx, Obj* obj);
-void* alloc_obj(RlCtx* ctx, size_t n_bytes);
-void  dealloc_obj(RlCtx* ctx, void* obj);
-void* allocate(RlCtx* ctx, size_t n_bytes);
-void* duplicate(RlCtx* ctx, void* pointer, size_t n_bytes);
-char* duplicates(RlCtx* ctx, char* chars, size_t n_chars);
-void* reallocate(RlCtx* ctx, void* pointer, size_t old_size, size_t new_size);
-void  deallocate(RlCtx* ctx, void* pointer, size_t n_bytes);
+void  add_to_heap(Obj* obj);
+void  add_to_grays(Obj* obj);
+void* alloc_obj(size_t n_bytes);
+void  dealloc_obj(void* obj);
+void* allocate(size_t n_bytes, bool use_heap);
+void* duplicate(void* pointer, size_t n_bytes, bool use_heap);
+char* duplicates(char* chars, size_t n_chars, bool use_heap);
+void* reallocate(void* pointer, size_t old_size, size_t new_size, bool use_heap);
+void  deallocate(void* pointer, size_t n_bytes, bool use_heap);
 
 /* Initialization */
 void  vm_init_memory(void);

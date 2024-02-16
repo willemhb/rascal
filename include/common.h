@@ -31,8 +31,16 @@ typedef uint16_t   ushort_t;
 typedef uint32_t   uint_t;
 typedef uint64_t   idno_t;
 
-// global context object type -- all global state stored here
-typedef struct RlCtx RlCtx;
+// runtime & vm structure types
+typedef struct GcFrame       GcFrame;
+typedef struct ReaderFrame   ReaderFrame;
+typedef struct CompilerFrame CompilerFrame;
+typedef struct CallFrame     CallFrame;
+
+typedef struct RlHeap        RlHeap;
+typedef struct RlReader      RlReader;
+typedef struct RlCompiler    RlCompiler;
+typedef struct RlInterpreter RlInterpreter;
 
 // basic rascal Vm types
 typedef uintptr_t   Value; // tagged value
@@ -64,17 +72,14 @@ typedef void   (*FinalizeFn)(void* obj);
 // called to create a copy of an object (only specialized if an object has owned pointers that shouldn't be shared)
 typedef void*  (*CloneFn)(void* obj);
 
-// called to handle freeing of an object (specialized so that objects can maintain a free list or other optimized allocation scheme)
-typedef void   (*DeallocFn)(RlCtx* ctx, void* obj);
+// called to handle freeing of an object
+typedef void   (*DeallocFn)(void* obj);
 
 // called to create a new instance (specialized so that objects can maintain a free list or other optimized allocation scheme)
 typedef void*  (*AllocFn)(Type* type, flags_t fl, size_t extra);
 
 // builtin reader function - returns -1 on error, 1 when an expression has been read, and 0 when no expression has been read
 typedef int    (*ReadFn)(int dispatch);
-
-/* globals */
-extern struct RlCtx Ctx;
 
 /* utility macros */
 #define generic _Generic

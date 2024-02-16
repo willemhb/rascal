@@ -11,18 +11,21 @@
   '(";" ("#|" . "|#"))
   '(
     ;; binding syntax.
-    "fun" "mac" "type" "val" "var" "put"
+    "def" "put" "lmb" "fun" "mac" "struct" "val" "var"
 
-    ;; branching syntax
-    "if" "cond" "and" "or"
+    ;; block and looping syntax.
+    "let" "label" "loop" "for" "while"
 
-    ;; effect syntax
-    "handle" "perform"
+    ;; branching syntax.
+    "if" "cond" "case" "and" "or"
 
-    ;; package syntax
-    "module" "import" "export"
+    ;; advanced control syntax.
+    "handle" "raise" "catch" "throw" "generator" "yield"
 
-    ;; miscellaneous syntax
+    ;; package syntax.
+    "module" "import" "export" "begin"
+
+    ;; miscellaneous syntax.
     "quote" "do" "c-call"
     )
   '(("\\(?:[^:]:[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)

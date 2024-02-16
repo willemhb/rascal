@@ -1,6 +1,6 @@
-(lib base
- "This is the rascal base library."
- (use     (core))
- (provide :all)
-
- (fun ))
+(module base
+  "The rascal base library (builtin functions)."
+  (import (core))
+  (export ())
+  (begin
+    ))

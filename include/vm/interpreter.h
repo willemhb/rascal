@@ -1,29 +1,48 @@
 #ifndef rl_vm_interpreter_h
 #define rl_vm_interpreter_h
 
-#include "vm/context.h"
+#include "val/value.h"
 
 /* Call stack and Value stack API. */
+
+/* C types */
+struct CallFrame {
+  /* Executing code. */
+  Closure* code;
+
+  /* basic pointers */
+  int ip, bp, sp;
+
+  /* saved handler state
+
+     app - active prompt pointer.
+     aap - active abort pointer.
+     ppp - parent prompt pointer.
+     pap - parent abort pointer. */
+  int app, aap, ppp, pap;
+};
+
+struct RlInterpreter {
+  /* open upvalues. */
+  UpValue* upvals;
+
+  /* Executing code. */
+  Closure* code;
+
+  /* instruction pointer. */
+  uint16_t* ip;
+
+  /* base and stack pointers. */
+  Value* bp, * sp;
+
+  /* call stack and handle pointers. */
+  CallFrame* fp, * app, * aap, * ppp, * pap;
+};
+
 /* Globals */
-extern Value     InterpreterValues[];
-extern ExecFrame InterpreterFrames[];
+extern RlInterpreter Interpreter;
 
 /* External API */
-Value* peek_interp_val(int n);
-void   push_interp_val(Value val);
-Value* write_interp_vals(Value* val, size_t n);
-Value  pop_interp_val(void);
-void   pop_interp_vals(size_t n);
-
-ExecFrame* peek_interp_frame(int n);
-void       push_interp_frame(void);
-ExecFrame* write_interp_frames(ExecFrame* f, size_t n);
-void       pop_interp_frame(void);
-void       pop_interp_frames(size_t n);
-
-void mark_exec_frame(ExecFrame* frame);
-void mark_exec_frames(ExecFrame* frames, size_t n);
-void vm_mark_interpreter(void);
 
 /* Initialization. */
 void vm_init_interpreter(void);
