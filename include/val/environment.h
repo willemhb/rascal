@@ -12,6 +12,8 @@ typedef enum {
   MODULE_SCOPE
 } Scope;
 
+
+
 /* The Binding type stores the metadata and the value or offset for a name (depending on the scope).
 
    The way bindings are imported depends on the type.
@@ -45,12 +47,12 @@ struct Dependency {
 };
 
 /* The NameSpace type contains all of the information required to resolve a binding in a given scope. */
-struct NameSpace {
+struct Environment {
   HEADER;
-  NameSpace* parent;
-  Module*    module;
-  MutDict*   locals;
-  MutDict*   upvals;
+  Environment* parent;
+  Module*      module;
+  MutDict*     locals;
+  MutDict*     upvals;
 };
 
 /* An UpValue stores an indirected reference to a stack value captured by a closure.

@@ -80,7 +80,7 @@ void*  new_obj(Type* type, flags_t flags, flags_t memfl, size_t extra);
 void*  clone_obj(void* obj);
 void   init_obj(void* slf, Type* type, flags_t flags, flags_t memfl);
 void   finalize_obj(void* obj);
-void   dealloc_obj(RlCtx* ctx, void* obj);
+void   dealloc_obj(void* obj);
 
 // Objects API
 Objects* new_objects(void);

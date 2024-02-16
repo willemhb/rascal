@@ -10,16 +10,8 @@ struct CallFrame {
   /* Executing code. */
   Closure* code;
 
-  /* basic pointers */
-  int ip, bp, sp;
-
-  /* saved handler state
-
-     app - active prompt pointer.
-     aap - active abort pointer.
-     ppp - parent prompt pointer.
-     pap - parent abort pointer. */
-  int app, aap, ppp, pap;
+  /* instruction pointer, base pointer, prompt pointer, abort pointer */
+  int ip, bp, pp, ap;
 };
 
 struct RlInterpreter {
@@ -36,7 +28,7 @@ struct RlInterpreter {
   Value* bp, * sp;
 
   /* call stack and handle pointers. */
-  CallFrame* fp, * app, * aap, * ppp, * pap;
+  CallFrame* fp, * pp, * ap;
 };
 
 /* Globals */
@@ -44,7 +36,5 @@ extern RlInterpreter Interpreter;
 
 /* External API */
 
-/* Initialization. */
-void vm_init_interpreter(void);
 
 #endif

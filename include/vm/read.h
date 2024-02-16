@@ -1,7 +1,7 @@
 #ifndef rl_vm_read_h
 #define rl_vm_read_h
 
-#include "vm/context.h"
+#include "val/value.h"
 
 /* Global state and external APIs used by the reader. */
 

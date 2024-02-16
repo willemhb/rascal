@@ -10,8 +10,14 @@
 /* C types */
 struct String {
   HEADER;
-  char* chars;
+  char*  chars;
   size_t arity;
+};
+
+struct Binary {
+  HEADER;
+  byte_t* data;
+  size_t  arity;
 };
 
 struct MutStr {
@@ -28,25 +34,13 @@ struct MutBin {
   size_t cap;
 };
 
-/* Specialized structure used to store interned strings.
-
-   Strings up to a certain size are interned. */
-
-typedef struct {
-  String** table;
-  size_t cnt;
-  size_t cap;
-} StringTable;
-
 /* Globals */
 /* Types */
 extern Type StringType, MutStrType, MutBinType, GlyphType;
 
-/* Global String Cache. */
-extern StringTable StringCache;
-
 /* Empty singletons */
 extern String EmptyString;
+extern Binary EmptyBinary;
 
 /* External APIs */
 /* String API */

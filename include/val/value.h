@@ -21,6 +21,7 @@ typedef struct Type   Type;
 typedef struct Func   Func;
 typedef struct List   List;
 typedef struct String String;
+typedef struct Binary Binary;
 typedef struct Vector Vector;
 typedef struct Dict   Dict;
 typedef struct Set    Set;
@@ -34,19 +35,19 @@ typedef struct MutStr   MutStr;
 typedef struct MutBin   MutBin;
 
 // internal object types
-typedef struct Objects    Objects;
-typedef struct Control    Control;
+typedef struct Objects     Objects;
+typedef struct Control     Control;
 
-typedef struct Module     Module;
-typedef struct NameSpace  NameSpace;
-typedef struct Binding    Binding;
-typedef struct Dependency Dependency;
-typedef struct UpValue    UpValue;
+typedef struct Module      Module;
+typedef struct Environment Environment;
+typedef struct Binding     Binding;
+typedef struct Dependency  Dependency;
+typedef struct UpValue     UpValue;
 
-typedef struct Chunk      Chunk;
-typedef struct Closure    Closure;
-typedef struct Native     Native;
-typedef struct Seq        Seq;
+typedef struct Chunk       Chunk;
+typedef struct Closure     Closure;
+typedef struct Native      Native;
+typedef struct Seq         Seq;
 
 /* Globals */
 // tags and such

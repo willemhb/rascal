@@ -3,24 +3,31 @@
 
 #include "util/memory.h"
 
-#include "val/value.h"
+#include "val/object.h"
 
 /* interface to rascal's memory management system. */
 
 /* C types */
+/* Structure for storing values in the C stack that need to be preserved but may not yet be visible from GC roots.
+   
+   This might occur if, for example, initializing a new object triggers a collection. */
 struct GcFrame  {
   GcFrame* next;
   size_t   cnt;
   Value   *saved;
 };
 
+/* Stores all the data necessary for proper memory management. */
+struct RlHeap {
+  size_t   heap_size, heap_cap;
+  double   heap_load_factor;
+  GcFrame* saved;
+  Obj*     live_objects;
+  Objects  gray_objects;
+};
+
 /* Globals */
-extern GcFrame* Saved;              // Values in the C stack that need to be preserved.
-extern Obj*     LiveObjects;        // Linked list of allocated objects.
-extern Obj*     FreeLists[];        // Linked lists of reusable objects, sorted by size.
-extern Objects  GrayObjects;        // Stores objects that have been marked but not traced.
-extern size_t   HeapSize, HeapCap;  // Heap limits.
-extern double   HeapLoadFac;        // Determines whether heap is 'resized' after a collection cycle.
+extern RlHeap Heap;
 
 /* External API */
 void unsave_gc_frame(GcFrame* frame);
@@ -28,11 +35,11 @@ void unsave_gc_frame(GcFrame* frame);
 #define save(n, args...)                             \
   Value __gc_frame_vals[(n)] = { args };             \
   GcFrame __gc_frame cleanup(unsave_gc_frame) = {    \
-    .next=Saved,                                     \
+    .next=Heap.saved,                                \
     .cnt =(n),                                       \
     .data=__gc_frame_vals                            \
   };                                                 \
-  Saved = &__gc_frame
+  Heap.saved = &__gc_frame
 
 #define add_saved(n, val) __gc_frame_vals[(n)] = (val)
 
@@ -48,8 +55,6 @@ void unmark_val(Value val);
 void unmark_obj(void* obj);
 void unmark_vals(Value* vals, size_t n);
 void unmark_objs(Obj** objs, size_t n);
-
-void vm_mark_heap(void);
 
 #define trace(x) generic2(trace, x, x)
 
@@ -76,8 +81,5 @@ void* duplicate(void* pointer, size_t n_bytes, bool use_heap);
 char* duplicates(char* chars, size_t n_chars, bool use_heap);
 void* reallocate(void* pointer, size_t old_size, size_t new_size, bool use_heap);
 void  deallocate(void* pointer, size_t n_bytes, bool use_heap);
-
-/* Initialization */
-void  vm_init_memory(void);
 
 #endif
