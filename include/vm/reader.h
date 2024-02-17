@@ -1,5 +1,5 @@
-#ifndef rl_vm_read_h
-#define rl_vm_read_h
+#ifndef rl_vm_reader_h
+#define rl_vm_reader_h
 
 #include "val/value.h"
 

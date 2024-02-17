@@ -13,7 +13,6 @@ typedef enum {
 } Scope;
 
 
-
 /* The Binding type stores the metadata and the value or offset for a name (depending on the scope).
 
    The way bindings are imported depends on the type.

@@ -3,28 +3,34 @@
 
 #include "val/object.h"
 
-/* Globals and APIs for interacting with the global environment. */
+/* Global environment state */
 
 /* C types */
 
-/* Specialized structure used to store interned strings.
+/* Specialized structure used to store interned strings. */
+typedef struct StringTable StringTable;
 
-   Strings up to a certain size are interned. */
-
-typedef struct {
+struct StringTable {
   String** table;
-  size_t cnt;
-  size_t cap;
-} StringTable;
+  size_t   cnt;
+  size_t   cap;
+};
 
+/* Composite of all global environment state. */
+struct RlContext {
+  StringTable* string_cache;
+  MutDict*     module_name_cache;
+  MutDict*     module_path_cache;
+  Module*      toplevel_module;
+  idno_t       gensym_counter;
+};
+
+/* Globals */
+extern RlContext Context;
 
 /* External API */
-UpValue* get_upval(size_t i);
-void     close_upvals(size_t bp);
-
-void vm_mark_envt(void);
+String* intern_string(const char* chars);
 
 /* Initialization */
-void vm_init_envt(void);
 
 #endif

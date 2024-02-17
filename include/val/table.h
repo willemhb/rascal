@@ -16,18 +16,10 @@
    ACM 16 (1973), 105-109."). */
 
 /* C types */
-typedef enum {
-  FASTHASH=0x01u,
-} TableFl;
-
 typedef struct {
   Value key;
   Value val;
 } Entry;
-
-typedef struct {
-  
-} StringEntry;
 
 struct MutDict {
   HEADER;
@@ -94,7 +86,18 @@ extern Set  EmptySet;
 
 /* External APIs */
 /* general table API. */
-#define is_fasthash(x) get_fl(x, FASTHASH)
+#define GLOBAL_MUT_DICT(Name)                          \
+  MutDict Name = {                                     \
+    .obj={                                             \
+      .type =&MutDictType,                             \
+      .meta =&EmptyDict,                               \
+      .flags=NOSWEEP|GRAY|EDITP                        \
+    },                                                 \
+    .data=NULL,                                        \
+    .cnt =0,                                           \
+    .cap =0,                                           \
+    .nts =0                                            \
+  }
 
 /* MutDict API */
 #define is_mdict(x)    has_type(x, &MutDictType)
