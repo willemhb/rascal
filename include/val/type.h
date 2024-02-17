@@ -22,8 +22,8 @@ typedef struct Vtable {
   CloneFn    clonefn;
 
   // comparison & hashing methods
-  EgalFn     egalfn;
   HashFn     hashfn;
+  EgalFn     egalfn;
   RankFn     rankfn;
   OrdFn      ordfn;
 } Vtable;
@@ -31,57 +31,54 @@ typedef struct Vtable {
 struct Type {
   HEADER;
   idno_t  idno;    // unique identifier determined when object is created
-  Type*   parent;  // abstract parent
+  Kind    kind;    // indicates how to determine type membership
   Symbol* name;    // common name
-  Func*   ctor;    // constructor for this type
   Vtable* vtable;  // instance data
 };
 
 /* globals */
-// fucked up types and TypeType
-extern struct Type NoneType, AnyType, TermType, TypeType;
+// fucked up type objects
+extern struct Type NoneType, AnyType, TypeType;
 
 /* external API */
-#define INIT_OBJECT_TYPE(_Type, methods...)                           \
-  Symbol _Type##Symbol = {                                            \
-    .obj={                                                            \
-      .type =&SymbolType,                                             \
-      .meta =&EmptyDict,                                              \
-      .memfl=NOSWEEP|NOFREE|GRAY,                                     \
-    },                                                                \
-    .name =#_Type,                                                    \
-  };                                                                  \
-                                                                      \
-  Func _Type##Ctor = {                                                \
-    .obj={                                                            \
-      .type =&FuncType,                                               \
-      .meta =&EmptyDict,                                              \
-      .memfl=NOSWEEP|GRAY,                                            \
-    },                                                                \
-    .name=&_Type##Symbol,                                             \
-  };                                                                  \
-                                                                      \
-  Vtable _Type##Vtable = {                                            \
-    .vsize     =sizeof(_Type*),                                       \
-    .osize     =sizeof(_Type),                                        \
-    .tag       =OBJ_TAG,                                              \
-    methods                                                           \
-  };                                                                  \
-                                                                      \
-  Type _Type##Type = {                                                \
-    .obj={                                                            \
-      .type =&TypeType,                                               \
-      .meta =&EmptyDict,                                              \
-      .flags=DATA_KIND,                                               \
-      .memfl=NOSWEEP|NOFREE|GRAY,                                     \
-    },                                                                \
-    .parent=&TermType,                                                \
-    .name  =&_Type##Symbol,                                           \
-    .ctor  =&_Type##Ctor,                                             \
-    .vtable=&_Type##Vtable,                                           \
+#define INIT_OBJECT_TYPE(_Type, methods...)                             \
+  String _Type##Name = {                                                \
+    .obj={                                                              \
+      .type  =&StringType,                                              \
+      .meta  =&EmptyDict,                                               \
+      .flags =NOSWEEP|NOFREE|GRAY,                                      \
+    },                                                                  \
+    .chars = #_Type,                                                    \
+    .arity = sizeof(#_Type) - 1                                         \
+  };                                                                    \
+                                                                        \
+  Symbol _Type##Symbol = {                                              \
+    .obj={                                                              \
+      .type =&SymbolType,                                               \
+      .meta =&EmptyDict,                                                \
+      .flags=NOSWEEP|NOFREE|GRAY,                                       \
+    },                                                                  \
+    .name =&_Type##Name,                                                \
+  };                                                                    \
+                                                                        \
+  Vtable _Type##Vtable = {                                              \
+    .vsize     =sizeof(_Type*),                                         \
+    .osize     =sizeof(_Type),                                          \
+    .tag       =OBJ_TAG,                                                \
+    methods                                                             \
+  };                                                                    \
+                                                                        \
+  Type _Type##Type = {                                                  \
+    .obj={                                                              \
+      .type =&TypeType,                                                 \
+      .meta =&EmptyDict,                                                \
+      .flags=NOSWEEP|NOFREE|GRAY,                                       \
+    },                                                                  \
+    .kind  =DATA_KIND,                                                  \
+    .name  =&_Type##Symbol,                                             \
+    .vtable=&_Type##Vtable,                                             \
   }
 
-Kind get_kind(Type* type);
 bool is_instance(Type* vt, Type* type);
 void init_builtin_data_type(Type* type);
 

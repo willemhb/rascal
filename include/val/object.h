@@ -76,11 +76,12 @@ Value  set_meta_obj(void* obj, Value key, Value val);
 Dict*  join_meta_obj(void* obj, Dict* meta);
 
 // lifetime methods
-void*  new_obj(Type* type, flags_t flags, flags_t memfl, size_t extra);
+void*  new_obj(Type* type, wflags_t fl, size_t extra);
 void*  clone_obj(void* obj);
-void   init_obj(void* slf, Type* type, flags_t flags, flags_t memfl);
+void   init_obj(void* slf, Type* type, wflags_t fl, size_t extra);
 void   finalize_obj(void* obj);
 void   dealloc_obj(void* obj);
+void   set_obj_hash(void* slf, hash_t h);
 
 // Objects API
 Objects* new_objects(void);

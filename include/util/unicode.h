@@ -5,6 +5,8 @@
 
 #include "common.h"
 
+/* unicode and string utilities. */
+
 /* C types */
 typedef enum {
   BINARY, ASCII, LATIN1, UTF8, UTF16, UTF32

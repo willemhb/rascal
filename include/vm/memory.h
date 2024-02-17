@@ -14,7 +14,7 @@
 struct GcFrame  {
   GcFrame* next;
   size_t   cnt;
-  Value   *saved;
+  Value   *data;
 };
 
 /* Stores all the data necessary for proper memory management. */
@@ -77,7 +77,7 @@ void  add_to_grays(Obj* obj);
 void* alloc_obj(size_t n_bytes);
 void  dealloc_obj(void* obj);
 void* allocate(size_t n_bytes, bool use_heap);
-void* duplicate(void* pointer, size_t n_bytes, bool use_heap);
+void* duplicate(const void* pointer, size_t n_bytes, bool use_heap);
 char* duplicates(char* chars, size_t n_chars, bool use_heap);
 void* reallocate(void* pointer, size_t old_size, size_t new_size, bool use_heap);
 void  deallocate(void* pointer, size_t n_bytes, bool use_heap);

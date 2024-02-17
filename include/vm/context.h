@@ -11,9 +11,10 @@
 typedef struct StringTable StringTable;
 
 struct StringTable {
-  String** table;
+  String** data;
   size_t   cnt;
   size_t   cap;
+  size_t   nts;
 };
 
 /* Composite of all global environment state. */
@@ -29,7 +30,8 @@ struct RlContext {
 extern RlContext Context;
 
 /* External API */
-String* intern_string(const char* chars);
+String* intern_string(const char* chars, String* obj);
+void    disintern_string(String* s);
 
 /* Initialization */
 

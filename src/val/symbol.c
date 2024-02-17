@@ -2,123 +2,104 @@
 #include "util/hashing.h"
 
 #include "vm/memory.h"
+#include "vm/context.h"
 
-#include "val/table.h"
-#include "val/func.h"
-#include "val/type.h"
 #include "val/symbol.h"
+#include "val/text.h"
+#include "val/type.h"
 
 /* Globals */
-idno_t SymbolCounter = 0;
-Symbol* Symbols      = NULL;
-Symbol* Keywords     = NULL;
-
-void trace_sym(void* obj) {
-  Symbol* sym = obj;
-
-  mark(sym->left);
-  mark(sym->right);
-}
-
-void finalize_sym(void* obj) {
-  Symbol* sym = obj;
-
-  if (sym != NULL)
-    deallocate(NULL, sym->name, 0);
-}
-
-hash_t hash_sym(Value x) {
-  Symbol* sym = as_sym(x);
-  hash_t hbase = hash_string(sym->name);
-  hash_t hidno = hash_word(sym->idno);
-  hash_t final = mix_hashes(hidno, hbase);
-
-  return final;
-}
-
-int order_syms(Value x, Value y) {
-  Symbol* symx = as_sym(x);
-  Symbol* symy = as_sym(y);
-  int out;
-
-  // keywords always precede identifiers
-  if (is_literal(symx) && !is_literal(symy))
-    out = -1;
-
-  else if (is_literal(symy))
-    out = 1;
-
-  else {
-    out = strcmp(symx->name, symy->name);
-
-    if (out == 0)
-      out = 0 - (symx->idno < symy->idno) + (symx->idno > symy->idno);
-  }
-
-  return out;
-}
+void trace_sym(void* obj);
+hash_t hash_sym(Value x);
+bool egal_syms(Value x, Value y);
+int  order_syms(Value x, Value y);
 
 INIT_OBJECT_TYPE(Symbol,
                  .tracefn=trace_sym,
-                 .finalizefn=finalize_sym,
-                 .hashfn=hash_sym,
-                 .ordfn=order_syms);
+                 .hashfn =hash_sym,
+                 .egalfn =egal_syms,
+                 .ordfn  =order_syms);
 
-/* external API */
-static Symbol** find_in_symt(char* name, Symbol** root) {
-  while (*root) {
-    int o = strcmp(name, (*root)->name);
+/* Internal APIs */
+void trace_sym(void* obj) {
+  Symbol* sym = obj;
 
-    if (o < 0)
-      root = &(*root)->left;
-
-    else if (o > 0)
-      root = &(*root)->right;
-
-    else
-      break;
-  }
-
-  return root;
+  mark(sym->name);
+  mark(sym->ns);
 }
 
-Symbol* new_sym(char* name, flags_t fl) {
-  size_t l = strlen(name);
-  Symbol* out = new_obj(&SymbolType, fl, 0, 0);
-  out->left = out->right = NULL;
-  out->name = duplicates(NULL, name, l);
-  out->idno = ++SymbolCounter;
-  out->form = NULL;
+static hash_t compute_sym_hash(String* name, String* ns, idno_t id) {
+  hash_t h = name->obj.hash;
+
+  if (ns != NULL)
+    h = mix_hashes(h, ns->obj.hash);
+
+  if (id != 0)
+    h = mix_hashes(h, hash_word(id));
+
+  return h;
+}
+
+hash_t hash_sym(Value x) {
+  Symbol* s = as_sym(x);
+
+  return compute_sym_hash(s->name, s->ns, s->idno);
+}
+
+bool egal_syms(Value x, Value y) {
+  // compare on namespace part, then name part, then idno part
+  Symbol* sx = as_sym(x), * sy = as_sym(y);
+  bool out = sx->ns == sy->ns && sx->name == sy->name && sx->idno == sy->idno;
 
   return out;
 }
 
-Symbol* mk_sym(char* name, bool gensym) {
-  bool literalp = *name == ':';
-  flags_t flags = literalp*LITERAL | !(gensym)*INTERNED;
+static int order_ns_parts(Symbol* sx, Symbol* sy) {
+  String* nsx = sx->ns, * nsy = sy->ns;
+  
+  if (nsx == NULL)
+    return nsy == NULL ? 0 : -1;
 
-  if (literalp)
-    name++;
+  else if (nsy == NULL)
+    return 1;
 
-  assert(*name != '\0');
-
-  if (gensym)
-    return new_sym(name, flags);
-
-  Symbol** buf = find_in_symt(name, literalp ? &Keywords : &Symbols);
-
-  if (*buf == NULL)
-    *buf = new_sym(name, flags);
-
-  return *buf;
+  else
+    return strcmp(nsx->chars, nsy->chars);
 }
 
-Symbol* intern_sym(Symbol* sym) {
-  Symbol** buf = find_in_symt(sym->name, is_literal(sym) ? &Keywords : &Symbols);
+static int order_name_parts(Symbol* sx, Symbol* sy) {
+  String* sxn = sx->name, * syn = sy->name;
+  
+  return strcmp(sxn->chars, syn->chars);
+}
 
-  assert(*buf == NULL);
+static int order_id_parts(Symbol* sx, Symbol* sy) {
+  idno_t idx = sx->idno, idy = sy->idno;
 
-  *buf      = sym;
-  sym->idno = ++SymbolCounter;
-  return sym;
+  return 0 - (idx < idy) + (idx > idy);
+}
+
+int order_syms(Value x, Value y) {
+  Symbol* sx = as_sym(x), * sy = as_sym(y);
+  int o      = order_ns_parts(sx, sy);
+  o          = o ? : order_name_parts(sx, sy);
+  o          = o ? : order_id_parts(sx, sy);
+
+  return o;
+}
+
+/* External APIs */
+Symbol* mk_sym(String* name, String* ns, bool gs) {
+  Symbol* out;
+  hash_t sh;
+
+  out          = new_obj(&SymbolType, 0, 0);
+  out->name    = name;
+  out->ns      = ns;
+  out->idno    = gs ? ++Context.gensym_counter : 0;
+  sh           = compute_sym_hash(name, ns, out->idno);
+
+  set_obj_hash(out, sh);
+
+  return out;
 }

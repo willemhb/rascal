@@ -7,37 +7,11 @@
 
 /* C types */
 typedef Value (*NativeFn)(size_t n, Value* a);
-typedef struct MethTNode MethTNode;
-typedef struct MethTLeaf MethTLeaf;
 
-struct Func {
+struct GenericFn {
   HEADER;
-  Symbol* name;
-  Obj*    func;
-};
-
-struct MethTable {
-  HEADER;
-  MutDict*   cache;
-  MethTNode* fixed;
-  MethTNode* variadic;
-  MethTLeaf* thunk;
-};
-
-struct MethTNode {
-  HEADER;
-  size_t     offset;
-  MethTLeaf* leaf;
-  MutDict*   exact_methods;
-  MethTNode* any_method;
-};
-
-struct MethTLeaf {
-  HEADER;
-  size_t arity;
-  bool   variadic;
-  List*  signature;
-  Obj*   method;
+  MutDict* cache;
+  Obj*     methods;
 };
 
 struct Native {
@@ -52,10 +26,8 @@ struct Closure {
 };
 
 /* Globals */
-extern Type FuncType, NativeType, ClosureType,
-  MethTableType, MethTNodeType, MethTLeafType;
+extern Type GenericFnType, NativeType, ClosureType;
 
 /* External API */
-Func* new_func(Symbol* name);
 
 #endif

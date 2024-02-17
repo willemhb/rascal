@@ -18,36 +18,24 @@ typedef struct Obj   Obj;
 // core user object types
 typedef struct Symbol Symbol;
 typedef struct Type   Type;
-typedef struct Func   Func;
-typedef struct List   List;
 typedef struct String String;
 typedef struct Binary Binary;
-typedef struct Vector Vector;
 typedef struct Dict   Dict;
-typedef struct Set    Set;
-typedef struct Stream Stream;
+typedef struct List   List;
 
 // utility mutable object types
 typedef struct MutDict  MutDict;
-typedef struct MutSet   MutSet;
-typedef struct MutVec   MutVec;
-typedef struct MutStr   MutStr;
-typedef struct MutBin   MutBin;
 
 // internal object types
 typedef struct Objects     Objects;
-typedef struct Control     Control;
-
-typedef struct Module      Module;
 typedef struct Environment Environment;
+typedef struct Scope       Scope;
 typedef struct Binding     Binding;
-typedef struct Dependency  Dependency;
-typedef struct UpValue     UpValue;
-
 typedef struct Chunk       Chunk;
+
+typedef struct GenericFn   GenericFn;
 typedef struct Closure     Closure;
 typedef struct Native      Native;
-typedef struct Seq         Seq;
 
 /* Globals */
 // tags and such
@@ -87,9 +75,6 @@ extern size_t size_of_obj(void* obj);
 extern bool   has_type_obj(void* obj, Type* type);
 extern void   mark_obj(void* obj);
 extern void   trace_obj(void* obj);
-extern bool   get_mfl_obj(void* obj, flags_t mfl);
-extern bool   set_mfl_obj(void* obj, flags_t mfl);
-extern bool   del_mfl_obj(void* obj, flags_t mfl);
 extern bool   get_fl_obj(void* obj, flags_t fl);
 extern bool   set_fl_obj(void* obj, flags_t fl);
 extern bool   del_fl_obj(void* obj, flags_t fl);
@@ -119,9 +104,6 @@ Dict*  join_meta_val(Value val, Dict* meta);
 #define type_of(x)          generic2(type_of, x, x)
 #define size_of(x)          generic2(size_of, x, x)
 #define has_type(x, T)      generic2(has_type, x, x, T)
-#define get_mfl(x, fl)      generic2(get_mfl, x, x, fl)
-#define set_mfl(x, fl)      generic2(set_mfl, x, x, fl)
-#define del_mfl(x, fl)      generic2(del_mfl, x, x, fl)
 #define get_fl(x, fl)       generic2(get_fl, x, x, fl)
 #define set_fl(x, fl)       generic2(set_fl, x, x, fl)
 #define del_fl(x, fl)       generic2(del_fl, x, x, fl)
@@ -143,8 +125,10 @@ Value tag_obj(void* obj);
   generic((x),                                  \
           Float:tag_float,                      \
           Small:tag_small,                      \
+          byte_t:tag_small,                     \
           Boolean:tag_bool,                     \
           Glyph:tag_glyph,                      \
+          char:tag_glyph,                       \
           Pointer:tag_ptr,                      \
           FuncPtr:tag_fptr,                     \
           default:tag_obj)(x)

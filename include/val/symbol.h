@@ -22,10 +22,9 @@
 
 struct Symbol {
   HEADER;
-  String* module;
+  String* ns;
   String* name;
   idno_t  idno;    // Gensym counter. If 0, this is not a gensym.
-  bool    literal; // Indicates whether this symbol should be treated as 
 };
 
 /* globals */
@@ -36,9 +35,9 @@ extern struct Type SymbolType;
 #define as_sym(x) as(Symbol*, untag48, x)
 
 #define is_gensym(x)  (!!(as_sym(x)->idno))
-#define is_literal(x) (as_sym(x)->literal)
+#define is_literal(x) (as_sym(x)->name->chars[0] == ':')
 
 /* external API */
-Symbol* mk_sym(String* name, String* module, bool gensym);
+Symbol* mk_sym(String* name, String* ns, bool gs);
 
 #endif

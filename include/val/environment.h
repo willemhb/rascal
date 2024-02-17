@@ -6,94 +6,79 @@
 
 /* All of the types relevant to variable definition and resolution are defined here with their APIs. */
 
-typedef enum {
+/* Scope types */
+enum {
   LOCAL_SCOPE,
-  UPVALUE_SCOPE,
+  UPVAL_SCOPE,
   MODULE_SCOPE
-} Scope;
+};
 
+enum {
+  FUNC_BIND  = 0x01, // name of a function (immutable)
+  MACRO_BIND = 0x03, // name of a macro (immutable)
+  VALUE_BIND = 0x04, // name of a constant (immutable)
+  VAR_BIND   = 0x08, // name of a variable (mutable)
+};
 
-/* The Binding type stores the metadata and the value or offset for a name (depending on the scope).
-
-   The way bindings are imported depends on the type.
-
-   If the binding is a function, its method table is merged into the function with the same name in the current module
-   (if no such function exists, a new binding is created for it and namespaced to the current module).
-
-   If the binding is a variable or constant, it is shared with the current module using the given qualifier (if any). */
-
+/* hold's information on a single binding. */
 struct Binding {
   HEADER;
-  Symbol* name;         // the original name under which this binding was registered.
-  Type*   type;         // the type that the value ought to conform to.
-  Value   value;        // the value associated with this binding.
-  Scope   scope;        // scope type of this binding.
-  uint_t  offset;       // order in which this binding was defined.
-  bool    macro;        // if this is a functional binding at module scope, indicates whether the binding is a macro.
-  bool    initialized;  // if this is a binding at module scope, indicates whether it has been runtime initialized.
-  bool    mutable;      // indicates whether this binding may be altered once initialized (typically false, must explicitly be declared mutable).
-  bool    exported;     // indicates whether this binding is externally visible (false by default, only true if the binding name appears in the export list).
-  bool    local_upval;  // if this is a binding with upvalue scope, indicates whether it's a local upvalue.
+  Symbol*   name;        // the original name under which this binding was registered
+  Value     value;       // the value associated with this binding
+  flags_t   scope_type;  //  
+  flags_t   bind_type;   // 
+  bool      initialized; // 
+  bool      local_upval; // 
 };
 
-/* The Dependency type stores all of the information from a single import spec. */
-struct Dependency {
+typedef struct {
+  Symbol*  name;
+  Binding* bind;
+} ScopeEntry;
+
+struct Scope {
   HEADER;
-  Module* module;
-  Symbol* qualifier;
-  MutSet* only;
-  MutSet* except;
+  ScopeEntry* data;
+  short*      map;
+  flags_t     scope_type;
+  uint_t      cnt;
+  uint_t      mcap;
+  uint_t      ecap;
 };
 
-/* The NameSpace type contains all of the information required to resolve a binding in a given scope. */
+/* The Environment type contains all of the information required to resolve a binding in a given scope */
 struct Environment {
   HEADER;
   Environment* parent;
-  Module*      module;
-  MutDict*     locals;
-  MutDict*     upvals;
-};
-
-/* An UpValue stores an indirected reference to a stack value captured by a closure.
-
-   If the function in which the value was defined has not returned, it is stored at upvalue->location.
-
-   Otherwise, it is stored at upvalue->value.
-
-   The next field is used to store an invasive linked list of open UpValues (those whose bindings haven't yet escaped the stack), ensuring that UpValues are shared correctly. */
-
-struct UpValue {
-  HEADER;
-  UpValue* next;
-  Value*   location; // NULL if this UpValue has been captured.
-  Value    value;
-};
-
-/* The Module type represents the result of compiling a module form.
-
-   Typically, a Module is compiled and executed just once and registered globally.
-
-   The main use case of Modules is organizing code into libraries. */
-
-struct Module {
-  HEADER;
-
-  Symbol*  name;        // the name under which the module is registered (first argument to the module form).
-  String*  path;        // full path to the file where the module was defined.
-  MutDict* depends;     // dependencies defined in an import form.
-  MutDict* bindings;    // module-level bindings belonging to this module.
-  List*    form;        // a copy of the module raw (uncompiled) module as read from the file.
-  Chunk*   body;        // the result of compiling the module body (NULL if the module has not been initialized).
-  Value    value;       // the result of executing the module body.
+  Scope*       module;
+  Scope*       locals;
+  Scope*       upvals;
 };
 
 /* Globals. */
 /* Type objects. */
-extern Type ModuleType, NameSpaceType, BindingType, DependencyType, UpValueType;
-
-/* Module caches. */
-extern MutDict SymbolicModuleCache, PathedModuleCache;
+extern Type EnvironmentType, BindingType, ScopeType;
 
 /* External APIs */
+#define is_bind(x)        has_type(x, &BindingType)
+#define as_bind(x)        as(Binding*, untag48, x)
+
+Binding* new_bind(Symbol* name, flags_t scope_type, flags_t bind_type);
+
+#define is_scope(x) has_type(x, &ScopeType)
+#define as_scope(x) as(Scope*, untag48, x)
+
+Scope* new_scope(flags_t scope_type);
+
+Binding* get_bind(Scope* scope, Symbol* name);
+Binding* add_bind(Scope* scope, Symbol* name, flags_t bind_type);
+
+#define is_envt(x) has_type(x, &EnvironmentType)
+#define as_envt(x) as(Environment*, untag48, x)
+
+Environment* new_envt(Environment* parent);
+
+Binding* resolve(Symbol* name, Environment* envt, bool capture, flags_t* scope_type, size_t* offset);
+Binding* define(Symbol* name, Environment* envt, flags_t bind_type, flags_t* scope_type, size_t* offset);
 
 #endif
