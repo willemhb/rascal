@@ -33,8 +33,6 @@ typedef uint64_t   idno_t;
 
 // runtime & vm structure types
 typedef struct GcFrame       GcFrame;
-typedef struct ReaderFrame   ReaderFrame;
-typedef struct CompilerFrame CompilerFrame;
 typedef struct CallFrame     CallFrame;
 
 typedef struct RlHeap        RlHeap;         // Memory state
@@ -61,6 +59,8 @@ typedef void   (*DeallocFn)(void* obj);                          // manage heap 
 typedef void*  (*AllocFn)(Type* type, flags_t fl, size_t extra); // called to create a new instance
 typedef int    (*ReadFn)(int dispatch);                          // builtin reader function
 typedef Value  (*NativeFn)(size_t n, Value* args);               // signature for native function pointers
+
+
 
 /* utility macros */
 #define generic _Generic

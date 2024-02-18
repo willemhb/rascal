@@ -32,6 +32,14 @@ struct MutDict {
   size_t nts;
 };
 
+struct MutSet {
+  HEADER;
+  Value* data;
+  size_t cnt;
+  size_t cap;
+  size_t nts;
+};
+
 struct Dict {
   HEADER;
   DictNode* root;
@@ -54,7 +62,7 @@ struct DictLeaf {
 
 /* Globals */
 /* Types */
-extern Type MutDictType, DictType;
+extern Type MutDictType, MutSetType, DictType;
 
 /* External APIs */
 /* general table API. */

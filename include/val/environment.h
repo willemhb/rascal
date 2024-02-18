@@ -23,41 +23,51 @@ enum {
 /* hold's information on a single binding. */
 struct Binding {
   HEADER;
-  Symbol*   name;        // the original name under which this binding was registered
-  Value     value;       // the value associated with this binding
-  flags_t   scope_type;  //  
-  flags_t   bind_type;   // 
-  bool      initialized; // 
-  bool      local_upval; // 
+  Symbol*   name;          // the original name under which this binding was registered
+  Value     value;         // the value associated with this binding
+  flags_t   scope_type;    // self explanatory 
+  flags_t   bind_type;     // semantics of the binding
+  bool      initialized;   // has this module-level binding been initialized?
+  bool      local_upval;   // does this upvalue refer to a local binding in the same scope?
+  int       offset;        // order in which this local or upvalue was defined
+  int       parent_offset; // order in which the parent of this upvalue was defined
 };
 
-typedef struct {
-  Symbol*  name;
-  Binding* bind;
-} ScopeEntry;
-
-struct Scope {
+struct Module {
   HEADER;
-  ScopeEntry* data;
-  short*      map;
-  flags_t     scope_type;
-  uint_t      cnt;
-  uint_t      mcap;
-  uint_t      ecap;
+  
+  Symbol*  name;        // common name of the module
+  String*  path;        // absolute path to file where module is defined
+  MutDict* imports;     // map from module names to import specs
+  MutDict* exports;     // map from unqualified variable names to bindings
+  MutDict* bindings;    // actual module-level bindings for this module
+  List*    form;        // the contents of the (begin ...) form
+  Closure* body;        // the result of compiling the (begin ...) form
+  Value    result;      // the result of executing body (also indicates whether module has been initialized)
+};
+
+struct Dependency {
+  HEADER;
+  Module* imported;  // 
+  Symbol* qualifier; // qualified name (if any)
+  MutSet* only;      // include in import (exclude all others)
+  MutSet* except;    // exclude from import
 };
 
 /* The Environment type contains all of the information required to resolve a binding in a given scope */
 struct Environment {
   HEADER;
   Environment* parent;
-  Scope*       module;
-  Scope*       locals;
-  Scope*       upvals;
+  Module*      module;
+  MutDict*     locals;
+  MutDict*     upvals;
 };
+
+
 
 /* Globals. */
 /* Type objects. */
-extern Type EnvironmentType, BindingType, ScopeType;
+extern Type EnvironmentType, ModuleType, DependencyType, BindingType;
 
 /* External APIs */
 #define is_bind(x)        has_type(x, &BindingType)
@@ -65,20 +75,13 @@ extern Type EnvironmentType, BindingType, ScopeType;
 
 Binding* new_bind(Symbol* name, flags_t scope_type, flags_t bind_type);
 
-#define is_scope(x) has_type(x, &ScopeType)
-#define as_scope(x) as(Scope*, untag48, x)
-
-Scope* new_scope(flags_t scope_type);
-
-Binding* get_bind(Scope* scope, Symbol* name);
-Binding* add_bind(Scope* scope, Symbol* name, flags_t bind_type);
-
 #define is_envt(x) has_type(x, &EnvironmentType)
 #define as_envt(x) as(Environment*, untag48, x)
 
 Environment* new_envt(Environment* parent);
 
-Binding* resolve(Symbol* name, Environment* envt, bool capture, flags_t* scope_type, size_t* offset);
-Binding* define(Symbol* name, Environment* envt, flags_t bind_type, flags_t* scope_type, size_t* offset);
+// define/resolve API
+Binding* resolve(Symbol* name, Environment* envt, bool capture);
+Binding* define(Symbol* name, Environment* envt, flags_t bind_type);
 
 #endif

@@ -26,4 +26,21 @@
     (fun tan
       "The `tan` function."
       ((Number x))
-      (c-call :tan :float64 (:float64) (x)))))
+      (c-call :tan :float64 (:float64) (x)))
+
+    ;; other common functions on real numbers.
+    (fun pow
+      "The `pow` function."
+      ((Number base) (Number exp))
+      (c-call :pow :float64 (:float64 :float64) (base exp)))
+
+    (fun sqrt
+      "The `sqrt` function."
+      ((Number x))
+      (c-call :sqrt :float64 (:float64) (x)))
+
+    (fun hypot
+      "The `hypot` function."
+      ((Number x) (Number y))
+      (c-call :hypot :float64 (:float64 :float64) (x y)))))
+

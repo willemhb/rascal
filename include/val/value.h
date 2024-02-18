@@ -25,11 +25,13 @@ typedef struct List   List;
 
 // utility mutable object types
 typedef struct MutDict  MutDict;
+typedef struct MutSet   MutSet;
 
 // internal object types
 typedef struct Objects     Objects;
 typedef struct Environment Environment;
-typedef struct Scope       Scope;
+typedef struct Module      Module;
+typedef struct Dependency  Dependency;
 typedef struct Binding     Binding;
 typedef struct Chunk       Chunk;
 

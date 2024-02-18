@@ -20,7 +20,7 @@
     "if" "cond" "case" "and" "or"
 
     ;; advanced control syntax.
-    "handle" "raise" "catch" "throw" "generator" "yield"
+    "handle" "raise" "abort" "catch" "throw"
 
     ;; package syntax.
     "module" "import" "export" "begin"
