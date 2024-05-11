@@ -6,12 +6,20 @@
 #include <stddef.h>
 #include <stdarg.h>
 #include <assert.h>
+#include <stdio.h>
 
 /* Utility typedefs. */
 typedef uint8_t    byte_t;
 typedef uint64_t   word_t;
 typedef uint64_t   hash_t;
 typedef void     (*funcptr_t)(void);
+
+#if __GNUC__ < 13
+
+typedef void* nullptr_t;
+#define nullptr NULL;
+
+#endif
 
 /* Important limits. */
 #define MAX_ARITY    0x0000ffffffffffffUL // also maximum hash value
@@ -22,27 +30,38 @@ typedef void     (*funcptr_t)(void);
 
 /* status codes */
 typedef enum {
-  /* everything is okay */
+  /* default return value */
   OKAY,
 
-  /* may or may not indicate a problem */
+  /* table lookup status codes */
   NOTFOUND,
+  ADDED,
+  UPDATED,
+  REMOVED,
 
-  /* unambiguous error */
-  SYSTEM_ERROR,
-  RUNTIME_ERROR,
-  BOUNDS_ERROR,
-  READ_ERROR,
-  SYNTAX_ERROR,
-  COMPILE_ERROR,
-  EVAL_ERROR,
+  /* reader status codes */
+  READY,
+  EXPRESSION,
+  END_OF_INPUT,
+
+  /* error codes */
+  /* error codes that may or may not imply a user mistake */
+  SYSTEM_ERROR,     // error originating from OS, eg file not found. Usually fatal
+  RUNTIME_ERROR,    // error originating from runtime, eg stack overflow
+
+  /* error codes that always imply a user mistake */
+  READ_ERROR,       // error originating from reader, eg unclosed '('
+  COMPILE_ERROR,    // error originating from compiler, eg a malformed (def ...)
+  EVAL_ERROR,       // error originating from interpreter, eg a failed type check
+  USER_ERROR,       // error raised by the user
 } rl_status_t;
 
 static inline bool is_error_status(rl_status_t s) {
-  return s >= RUNTIME_ERROR;
+  return s >= SYSTEM_ERROR;
 }
 
 /* redefining important macros with annoying names */
 #define generic _Generic
+#define cleanup(f) __attribute__((cleanup(f)))
 
 #endif

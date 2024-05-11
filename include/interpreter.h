@@ -3,17 +3,13 @@
 
 #include "value.h"
 
-/* Definitions and declarations for virtual machine internals (execution of rascal code). */
-
-extern struct {
-  
-  Value* sp;
-} Interpreter;
-
-/* API */
-void  push(Value x);
-void  pushn(size_t n, ...);
-Value pop(void);
-void  popn(size_t n);
+/* Definitions and declarations for core interpreter functions (read, eval, print, compile, exec, and repl). */
+/* External APIs */
+rl_status_t rl_read(Port* ios, Value* buffer);
+rl_status_t rl_compile(List* form, Chunk** buffer);
+rl_status_t rl_execute(Closure* code, Value* buffer);
+rl_status_t rl_eval(Value val, Value* buffer);
+rl_status_t rl_print(Port* ios, Value val);
+rl_status_t rl_repl(void);
 
 #endif

@@ -9,17 +9,21 @@ typedef word_t Value;
 typedef double Number;
 typedef bool Boolean;
 typedef char Glyph;
-typedef int Small;
 typedef nullptr_t Nul;
 
 // user object types
 typedef struct Object Object;
 typedef struct Type Type;
 typedef struct String String;
-typedef struct Binary Binary;
 typedef struct Symbol Symbol;
 typedef struct List List;
-typedef struct Tuple Tuple;
+typedef struct Port Port;
+
+// mutable user object types (many of these are also used internally)
+typedef struct MutStr MutStr;
+typedef struct MutBin MutBin;
+typedef struct MutVec MutVec;
+typedef struct MutDict MutDict;
 
 // internal object types
 typedef struct Chunk Chunk;
@@ -27,22 +31,25 @@ typedef struct Closure Closure;
 typedef struct Native Native;
 typedef struct UpValue UpValue;
 typedef struct Binding Binding;
+
+// internal mutable dynamic array types
 typedef struct Objects Objects;
-typedef struct Values Values;
-typedef struct Objects Objects;
-typedef struct TextBuffer TextBuffer;
-typedef struct BinaryBuffer BinaryBuffer;
-typedef struct Strings Strings;
+
+// internal mutable hash table types
 typedef struct Scope Scope;
+typedef struct ReadTable ReadTable;
+typedef struct Strings Strings;
 
 // internal function pointer types
 typedef rl_status_t (*rl_trace_fn_t)(Object* obj);
 typedef rl_status_t (*rl_destruct_fn_t)(Object* obj);
+typedef rl_status_t (*rl_reader_fn_t)(Port* stream, Value* buffer);
 typedef hash_t (*rl_hash_fn_t)(Value x);
 typedef bool (*rl_egal_fn_t)(Value x, Value y);
 typedef int (*rl_order_fn_t)(Value x, Value y);
 typedef rl_status_t (*rl_native_fn_t)(size_t argc, Value* args, Value* buffer);
 
+// user object types
 struct Object {
   Object* next;
   Type* type;
@@ -83,19 +90,11 @@ struct String {
   size_t count;
 };
 
-struct Binary {
-  HEADER;
-
-  byte_t* data;
-  size_t count;
-};
-
 struct Symbol {
   HEADER;
 
-  String* namespace;
   String* name;
-  word_t idno;      // non-zero for gensyms, 0 otherwise
+  word_t idno;      // non-zero for gensyms
 };
 
 struct List {
@@ -106,18 +105,18 @@ struct List {
   List*  tail;
 };
 
-struct Tuple {
+struct Port {
   HEADER;
 
-  Value* data;
-  size_t count;
+  FILE* stream;
 };
 
+// internal object types
 struct Chunk {
   HEADER;
 
-  Tuple* vals;
-  Binary* instr;
+  MutVec* vals;
+  MutBin* code;
 };
 
 struct Closure {
@@ -138,18 +137,23 @@ struct UpValue {
 
   UpValue* next;
   Value* location;
-  Value  value;
+  Value value;
 };
+
+typedef enum {
+  LOCAL_SCOPE,
+  LOCAL_UPVALUE_SCOPE,
+  NONLOCAL_UPVALUE_SCOPE,
+  GLOBAL_SCOPE
+} ScopeKind;
 
 struct Binding {
   HEADER;
 
   Symbol* name;
-  Value   value;
-  int     scope_type;
-  int     binding_type;
-  int     offset;
-  int     parent_offset;
+  Value value;
+  ScopeKind scope_type;
+  int offset;
 };
 
 #define DYNAMIC_ARRAY_TYPE(_Type, _X)           \
@@ -160,9 +164,9 @@ struct Binding {
   }
 
 DYNAMIC_ARRAY_TYPE(Objects, Object*);
-DYNAMIC_ARRAY_TYPE(Values, Value);
-DYNAMIC_ARRAY_TYPE(TextBuffer, char);
-DYNAMIC_ARRAY_TYPE(BinaryBuffer, byte_t);
+DYNAMIC_ARRAY_TYPE(MutVec, Value);
+DYNAMIC_ARRAY_TYPE(MutStr, char);
+DYNAMIC_ARRAY_TYPE(MutBin, byte_t);
 
 #undef DYNAMIC_ARRAY_TYPE
 
@@ -180,8 +184,10 @@ DYNAMIC_ARRAY_TYPE(BinaryBuffer, byte_t);
     size_t max_count;                           \
   }
 
-MUTABLE_HASH_TABLE_TYPE(Strings, const char*, String*);
+MUTABLE_HASH_TABLE_TYPE(MutDict, Value, Value);
 MUTABLE_HASH_TABLE_TYPE(Scope, Symbol*, Binding*);
+MUTABLE_HASH_TABLE_TYPE(ReadTable, Glyph, rl_reader_fn_t);
+MUTABLE_HASH_TABLE_TYPE(Strings, const char*, String*);
 
 #undef MUTABLE_HASH_TABLE_TYPE
 
@@ -201,15 +207,20 @@ MUTABLE_HASH_TABLE_TYPE(Scope, Symbol*, Binding*);
 #define TRUE      0x7ffd000000000001UL // BOOL | 1
 #define FALSE     0x7ffd000000000000UL // BOOL | 0
 
+// sentinel values, shouldn't be visible in user code
+#define NOTHING   0x7ffc000000000001UL // NUL | 1
+
 /* Globals */
 // type objects
-extern Type NumberType, BooleanType, GlyphType, SmallType, NulType,
-  TypeType, StringType, BinaryType, SymbolType, ListType, TupleType,
-  ChunkType, ClosureType, NativeType, UpValueType,
+extern Type NumberType, BooleanType, GlyphType, NulType,
 
-  ObjectsType, ValuesType, TextBufferType, BinaryBufferType,
+  TypeType, StringType, SymbolType, ListType, PortType,
 
-  StringsType, ScopeType;
+  ChunkType, ClosureType, NativeType, UpValueType, BindingType,
+
+  ObjectsType, MutVecType, MutStrType, MutBinType, MutDictType,
+
+  ReadTableType, ScopeType, StringsType;
 
 // empty singeltons
 extern String EmptyString;
@@ -223,20 +234,17 @@ extern String EmptyString;
           Number:tag_num,                       \
           Boolean:tag_bool,                     \
           Glyph:tag_glyph,                      \
-          Small:tag_small,                      \
           Nul:tag_nul,                          \
           Object*:tag_obj,                      \
           Type*:tag_obj,                        \
           String*:tag_obj,                      \
-          Binary*:tag_obj,                      \
           Symbol*:tag_obj,                      \
           List*:tag_obj,                        \
-          Tuple*:tag_obj,                       \
+          Port*:tag_obj,                        \
           Chunk*:tag_obj,                       \
-          Values*:tag_obj,                      \
-          BinaryBuffer*:tag_obj,                \
-          Strings*:tag_obj,                     \
-          Scope*:tag_obj                        \
+          MutVec*:tag_obj,                      \
+          MutBin*:tag_obj,                      \
+          Strings*:tag_obj                      \
           )(x)
 
 #define as_obj(x)                               \
@@ -248,12 +256,17 @@ extern String EmptyString;
   generic((x),                                  \
           Value:type_of_val,                    \
           Object*:type_of_obj,                  \
-          default:type_of_ptr)(x)
+          Type*:type_of_obj,                    \
+          String*:type_of_obj,                  \
+          Symbol*:type_of_obj,                  \
+          List*:type_of_obj,                    \
+          Chunk*:type_of_obj,                   \
+          Closure*:type_of_obj                  \
+          )(x)
 
 Value   tag_num(Number n);
 Value   tag_bool(Boolean b);
 Value   tag_glyph(Glyph g);
-Value   tag_small(Small s);
 Value   tag_nul(Nul n);
 Value   tag_obj(void* p);
 
@@ -270,8 +283,7 @@ Boolean as_bool(Value v);
 Nul     as_nul(Value v);
 
 Type*   type_of_val(Value v);
-Type*   type_of_obj(Object* o);
-Type*   type_of_ptr(void* p);
+Type*   type_of_obj(void* p);
 
 // type implementations
 // object type (takes care of common initialization/allocation tasks)
@@ -284,17 +296,15 @@ String* new_str(const char* chars, size_t count, hash_t h);
 
 rl_status_t str_ref( Glyph* result, String* str, size_t n);
 
-// binary type
-Binary* new_bin(size_t count, byte_t* data);
-
-// tuple type
-Tuple* new_tuple(size_t count, Value* data);
+// symbol type
+Symbol* get_sym(const char* name, bool gensym);
+Symbol* new_sym(String* namespace, String* name, bool gensym);
 
 // chunk type
-Chunk* new_chunk(Values* vals, BinaryBuffer* instr);
+Chunk* new_chunk(MutVec* vals, MutBin* instr);
 
 // binding type
-Binding* new_bind(Symbol* name, int scope_type, int binding_type, int offset, int parent_offset);
+Binding* new_bind(Symbol* name, ScopeKind scope_kind, int offset);
 
 // describe macros
 #define DYNAMIC_ARRAY_IMPL(_Type, _X, _type)                      \
@@ -309,18 +319,20 @@ Binding* new_bind(Symbol* name, int scope_type, int binding_type, int offset, in
   rl_status_t _type##_popn(_X* result, _Type* _type, size_t n)
 
 DYNAMIC_ARRAY_IMPL(Objects, Object*, objects);
-DYNAMIC_ARRAY_IMPL(Values, Value, values);
-DYNAMIC_ARRAY_IMPL(TextBuffer, char, text_buf);
-DYNAMIC_ARRAY_IMPL(BinaryBuffer, byte_t, bin_buf);
+DYNAMIC_ARRAY_IMPL(MutVec, Value, mut_vec);
+DYNAMIC_ARRAY_IMPL(MutStr, char, mut_str);
+DYNAMIC_ARRAY_IMPL(MutBin, byte_t, mut_bin);
 
 #undef DYNAMIC_ARRAY_IMPL
 
 #define MUTABLE_HASH_TABLE_IMPL(_Type, _K, _V, _type)                   \
+  typedef _V (*_type##_intern_t)(_Type* _type, _Type##Entry* entry, _K key, hash_t hash, void* data); \
+                                                                        \
   _Type* new_##_type(void);                                             \
   void init_##_type(_Type* _type);                                      \
   void free_##_type(_Type* _type);                                      \
   void resize_##_type(_Type* _type, size_t new_count);                  \
-  _V _type##_intern(_Type* _type, _K key, void* data);                  \
+  _V _type##_intern(_Type* _type, _K key, _type##_intern_t intern, void* data); \
   rl_status_t _type##_get(_V* result, _Type* _type, _K key);            \
   rl_status_t _type##_set(_V* result, _Type* _type, _K key, _V val);    \
   rl_status_t _type##_put(_V* result, _Type* _type, _K key, _V val);    \
@@ -329,8 +341,10 @@ DYNAMIC_ARRAY_IMPL(BinaryBuffer, byte_t, bin_buf);
   rl_status_t _type##_pop(_V* result, _Type* _type, _K key);            \
   _Type* join_##_type##s(_Type* _type##_x, _Type* _type##_y)
 
-MUTABLE_HASH_TABLE_IMPL(Strings, const char*, String*, strings);
+MUTABLE_HASH_TABLE_IMPL(MutDict, Value, Value, mut_dict);
 MUTABLE_HASH_TABLE_IMPL(Scope, Symbol*, Binding*, scope);
+MUTABLE_HASH_TABLE_IMPL(ReadTable, Glyph, rl_reader_fn_t, read_table);
+MUTABLE_HASH_TABLE_IMPL(Strings, const char*, String*, strings);
 
 #undef MUTABLE_HASH_TABLE_IMPL
 

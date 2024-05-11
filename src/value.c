@@ -1,6 +1,7 @@
 #include <string.h>
 
 #include "value.h"
+#include "lang.h"
 #include "interpreter.h"
 #include "runtime.h"
 #include "util.h"
@@ -98,10 +99,10 @@ Type* type_of_val(Value v) {
   }
 }
 
-Type* type_of_obj(Object* o) {
-  assert(o != NULL);
+Type* type_of_obj(void* p) {
+  assert(p != NULL);
 
-  return o->type;
+  return ((Object*)p)->type;
 }
 
 Type* type_of_ptr(void* p) {
@@ -180,6 +181,20 @@ Strings StringCache = {
 };
 
 String* get_str(const char* chars) {
+  String* intern(Strings* strings, StringsEntry* entry,
+                 const char* chars, hash_t hash, void* data) {
+    (void)strings;
+
+    struct { size_t n; }* parms = data;
+
+    String* out = new_str(chars, parms->n, hash);
+
+    entry->key = out->data;
+    entry->val = out;
+
+    return out;
+  }
+
   String* out;
 
   if (*chars == '\0')
@@ -190,8 +205,7 @@ String* get_str(const char* chars) {
 
     if (n <= MAX_INTERNED_SIZE) {
       struct { size_t n; } data = { n };
-      
-      out = strings_intern(&StringCache, chars, &data);
+      out = strings_intern(&StringCache, chars, intern, &data);
     }
     
     else
@@ -226,11 +240,45 @@ rl_status_t str_ref(Glyph* result, String* str, size_t i) {
   return status;
 }
 
+
+// symbol type
+Symbol* get_sym(const char* namespace, const char* name, bool gensym) {
+  String* ns = get_str(namespace);
+  save(1, tag(ns));
+  String* n = get_str(name);
+  unsave(1);
+  return new_sym(ns, n, gensym);
+}
+
+Symbol* new_sym(String* namespace, String* name, bool gensym) {
+  static word_t gensym_counter = 1;
+
+  save(2, tag(namespace), tag(name));
+
+  Symbol* out = (Symbol*)new_obj(&SymbolType);
+
+  out->namespace = namespace;
+  out->name = name;
+  out->idno = gensym ? gensym_counter++ : 0;
+
+  /* compute hash */
+  hash_t ns_hash = namespace->h.hash,
+    n_hash = name->h.hash,
+    sym_hash = mix_hashes(ns_hash, n_hash);
+
+  if (out->idno)
+    sym_hash = mix_hashes(sym_hash, hash_word(out->idno));
+
+  unsave(2);
+
+  return out;
+}
+
 // chunk type
-Chunk* new_chunk(Values* vals, BinaryBuffer* instr) {
+Chunk* new_chunk(MutVec* vals, MutBin* instr) {
   size_t n_saved = save(2, tag(vals), tag(instr));
   Chunk* out = (Chunk*)new_obj(&ChunkType);
-  
+
   n_saved += save(1, tag(out));
 
   out->instr = new_bin(instr->count, instr->data);
@@ -240,7 +288,6 @@ Chunk* new_chunk(Values* vals, BinaryBuffer* instr) {
 
   return out;
 }
-
 
 #define DYNAMIC_ARRAY_IMPL(_Type, _X, _V, _type, _is_string)            \
   _Type* new_##_type(void) {                                            \
@@ -340,16 +387,16 @@ Chunk* new_chunk(Values* vals, BinaryBuffer* instr) {
   }
 
 DYNAMIC_ARRAY_IMPL(Objects, Object*, Object*, objects, false);
-DYNAMIC_ARRAY_IMPL(Values, Value, Value, values, false);
-DYNAMIC_ARRAY_IMPL(TextBuffer, char, int, text_buf, true);
-DYNAMIC_ARRAY_IMPL(BinaryBuffer, byte_t, int, bin_buf, false);
+DYNAMIC_ARRAY_IMPL(MutVec, Value, Value, mut_vec, false);
+DYNAMIC_ARRAY_IMPL(MutStr, char, int, mut_str, true);
+DYNAMIC_ARRAY_IMPL(MutBin, byte_t, int, mut_bin, false);
 
 #undef DYNAMIC_ARRAY_IMPL
 
 #define DEFAULT_LOAD_FACTOR 0.625
 
 #define MUTABLE_HASH_TABLE_IMPL(_Type, _K, _V, _type,                   \
-                                _hash, _rehash, _compare, _intern,      \
+                                _hash, _rehash, _compare,               \
                                 _loadf, _NoKey, _NoVal)                 \
   _Type* new_##_type(void) {                                            \
     _Type* out = (_Type*)new_obj(&_Type##Type);                         \
@@ -442,7 +489,8 @@ DYNAMIC_ARRAY_IMPL(BinaryBuffer, byte_t, int, bin_buf, false);
     }                                                                   \
   }                                                                     \
                                                                         \
-  _V type##_intern(_Type* _type, _K key, void* data) {                  \
+  _V _type##_intern(_Type* _type, _K key,                               \
+                   _type##_intern_t intern, void* data) {               \
     size_t count = _type->count;                                        \
     resize_##_type(_type, count+1);                                     \
     size_t max_count = _type->max_count;                                \
@@ -455,7 +503,7 @@ DYNAMIC_ARRAY_IMPL(BinaryBuffer, byte_t, int, bin_buf, false);
                                                                         \
     if (entry->val == _NoVal) {                                         \
       bool inc_count = entry->key == _NoKey;                            \
-      _intern(_type, entry, key, hash, data);                           \
+      intern(_type, entry, key, hash, data);                            \
                                                                         \
       if (inc_count)                                                    \
         _type->count++;                                                 \
@@ -465,6 +513,7 @@ DYNAMIC_ARRAY_IMPL(BinaryBuffer, byte_t, int, bin_buf, false);
   }                                                                     \
                                                                         \
   rl_status_t _type##_get(_V* result, _Type* _type, _K key) {           \
+                                                                        \
     rl_status_t status = NOTFOUND;                                      \
     if (_type->entries != NULL) {                                       \
       hash_t hash = _hash(key);                                         \
@@ -511,8 +560,33 @@ DYNAMIC_ARRAY_IMPL(BinaryBuffer, byte_t, int, bin_buf, false);
     return status;                                                      \
     }                                                                   \
                                                                         \
-  rl_status_t _type##_put()                                             \
-
+  rl_status_t _type##_put(_V* result, _Type* _type, _K key, _V val) {   \
+    rl_status_t status = NOTFOUND;                                      \
+                                                                        \
+    size_t count = _type->count;                                        \
+    resize_##_type(_type, count+1);                                     \
+                                                                        \
+    if (_type->entries != NULL) {                                       \
+      hash_t hash = _hash(key);                                         \
+      _Type##Entry* entries = _type->entries;                           \
+      size_t max_count = _type->max_count;                              \
+      _Type##Entry* entry = find_##_type##_entry(entries,               \
+                                                 max_count,             \
+                                                 key,                   \
+                                                 hash);                 \
+                                                                        \
+      if (entry->val != _NoVal) {                                       \
+        status = OKAY;                                                  \
+                                                                        \
+        if (result)                                                     \
+          *result = entry->val;                                         \
+                                                                        \
+        entry->val = val;                                               \
+      }                                                                 \
+    }                                                                   \
+                                                                        \
+    return status;                                                      \
+  }
 
 static inline hash_t hash_strings_key(const char* chars) {
   return hash_chars(chars) & DATA_BITS;
@@ -526,62 +600,24 @@ static inline bool compare_strings_keys(const char* chars_x, const char* chars_y
   return streq(chars_x, chars_y);
 }
 
-static inline void intern_strings_entry(Strings* table, StringsEntry* entry, const char* key, hash_t hash, void* data) {
-  save(1, tag(table));
-  
-  struct { size_t n; } *params = data;
-
-  size_t count = params->n;
-
-  entry->val = new_str(key, count, hash);
-  entry->key = entry->val->data;
-
-  unsave(1);
-}
-
 MUTABLE_HASH_TABLE_IMPL(Strings, const char*, String*, strings,
-                        hash_strings_key, rehash_strings_entry,
-                        compare_strings_keys, intern_strings_entry,
+                        hash_strings_key, rehash_strings_entry, compare_strings_keys,
                         DEFAULT_LOAD_FACTOR, NULL, NULL);
 
-static inline hash_t hash_scope_key(Symbol* key) {
-  return key->h.hash;
+static inline hash_t hash_mut_dict_key(Value val) {
+  return rl_hash(val);
 }
 
-static inline hash_t rehash_scope_entry(ScopeEntry* entry) {
-  return entry->key->h.hash;
+static inline hash_t rehash_mut_dict_entry(MutDictEntry* entry) {
+  return rl_hash(entry->key);
 }
 
-static inline bool compare_scope_keys(Symbol* sym_x, Symbol* sym_y) {
-  return sym_x->namespace == sym_y->namespace &&
-    sym_x->name == sym_y->name &&
-    sym_x->idno == sym_y->idno;
+static inline bool compare_mut_dict_keys(Value x, Value y) {
+  return rl_egal(x, y);
 }
 
-static inline void intern_scope_entry(Scope* table, ScopeEntry* entry, Symbol* key, hash_t hash, void* data) {
-  (void)hash;
-
-  struct {
-    int scope_type;
-    int binding_type;
-    int parent_offset;
-  } * parms = data;
-
-  save(1, tag(table));
-  
-  entry->key = key;
-  entry->val = new_bind(key,
-                        parms->scope_type,
-                        parms->binding_type,
-                        table->count,
-                        parms->parent_offset);
-
-  unsave(1);
-}
-
-MUTABLE_HASH_TABLE_IMPL(Scope, Symbol*, Binding*, scope,
-                        hash_scope_key, rehash_scope_entry,
-                        compare_scope_keys, intern_scope_entry,
-                        DEFAULT_LOAD_FACTOR, NULL, NULL);
+MUTABLE_HASH_TABLE_IMPL(MutDict, Value, Value, mut_dict,
+                        hash_mut_dict_key, rehash_mut_dict_entry, compare_mut_dict_keys,
+                        DEFAULT_LOAD_FACTOR, NOTHING, NOTHING);
 
 #undef MUTABLE_HASH_TABLE_IMPL

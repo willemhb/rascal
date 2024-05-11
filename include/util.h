@@ -8,6 +8,10 @@
 // miscellaneous numeric utilities
 word_t ceil2(word_t w);
 
+// file system utilities
+const char* home_dir(void);
+size_t abs_path(const char* path, char* buffer, size_t buffer_size);
+
 // string utilities
 size_t strsz(const char* s);
 size_t strcnt(const char* s);
