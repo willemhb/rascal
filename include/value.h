@@ -293,12 +293,11 @@ void    init_obj(Type* type, Object* obj, bool in_heap);
 // string type
 String* get_str(const char* chars);
 String* new_str(const char* chars, size_t count, hash_t h);
-
 rl_status_t str_ref( Glyph* result, String* str, size_t n);
 
 // symbol type
 Symbol* get_sym(const char* name, bool gensym);
-Symbol* new_sym(String* namespace, String* name, bool gensym);
+Symbol* new_sym(String* name, bool gensym);
 
 // chunk type
 Chunk* new_chunk(MutVec* vals, MutBin* instr);

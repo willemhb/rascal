@@ -24,10 +24,6 @@ Value tag_glyph(Glyph g) {
   return ((Value)g) | GLYPH;
 }
 
-Value tag_small(Small s) {
-  return ((Value)s) | SMALL;
-}
-
 Value tag_nul(Nul n) {
   (void)n;
 
@@ -94,6 +90,7 @@ Type* type_of_val(Value v) {
   switch (tag_of(v)) {
     case BOOL:   return &BooleanType;
     case NUL:    return &NulType;
+    case GLYPH:  return &GlyphType;
     case OBJECT: return type_of(as_obj(v));
     default:     return &NumberType;
   }
@@ -114,13 +111,11 @@ Type* type_of_ptr(void* p) {
 Object* new_obj(Type* type) {
   Object* out;
 
-  save(1, tag(type));
+  preserve(1, tag(type));
 
   allocate((void**)&out, type->object_size, true);
 
   init_obj(type, out, true);
-
-  unsave(1);
 
   return out;
 }
@@ -240,51 +235,42 @@ rl_status_t str_ref(Glyph* result, String* str, size_t i) {
   return status;
 }
 
-
 // symbol type
-Symbol* get_sym(const char* namespace, const char* name, bool gensym) {
-  String* ns = get_str(namespace);
-  save(1, tag(ns));
+Symbol* get_sym(const char* name, bool gensym) {
   String* n = get_str(name);
-  unsave(1);
-  return new_sym(ns, n, gensym);
+  return new_sym(n, gensym);
 }
 
-Symbol* new_sym(String* namespace, String* name, bool gensym) {
+Symbol* new_sym(String* name, bool gensym) {
   static word_t gensym_counter = 1;
 
-  save(2, tag(namespace), tag(name));
+  preserve(1, tag(name));
 
   Symbol* out = (Symbol*)new_obj(&SymbolType);
 
-  out->namespace = namespace;
   out->name = name;
   out->idno = gensym ? gensym_counter++ : 0;
 
   /* compute hash */
-  hash_t ns_hash = namespace->h.hash,
-    n_hash = name->h.hash,
-    sym_hash = mix_hashes(ns_hash, n_hash);
+  hash_t n_hash = name->h.hash,
+    sym_hash = n_hash;
 
   if (out->idno)
     sym_hash = mix_hashes(sym_hash, hash_word(out->idno));
 
-  unsave(2);
+  out->h.hash = sym_hash;
 
   return out;
 }
 
 // chunk type
 Chunk* new_chunk(MutVec* vals, MutBin* instr) {
-  size_t n_saved = save(2, tag(vals), tag(instr));
+  preserve(2, tag(vals), tag(instr));
+  
   Chunk* out = (Chunk*)new_obj(&ChunkType);
 
-  n_saved += save(1, tag(out));
-
-  out->instr = new_bin(instr->count, instr->data);
-  out->vals = new_tuple(vals->count, vals->data);
-
-  unsave(n_saved);
+  out->code = instr;
+  out->vals = vals;
 
   return out;
 }

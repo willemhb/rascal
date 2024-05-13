@@ -61,14 +61,14 @@ struct ReaderState {
 
 struct CompilerState {
   CompilerFrame* fp;
-  Scope* locals;
-  Scope* upvalues;
+  Scope* locals, * upvalues;
   MutVec* values;
   MutBin* code;
 };
 
 struct InterpreterState {
   InterpreterFrame* fp; // call stack (next free CallFrame)
+  Scope* globals; // global variables
   UpValue* upvals; // List of open upvalues
   Closure* code; // currently executing code object
   uint16_t* pc; // program counter for currently executing code object
@@ -108,7 +108,6 @@ rl_status_t mark_heap_state(HeapState* heap_state);
 rl_status_t free_heap_state(HeapState* heap_state);
 
 /* ReaderState API */
-
 // lifetime
 rl_status_t init_reader_state(ReaderState* reader_state);
 rl_status_t mark_reader_state(ReaderState* reader_state);
@@ -116,12 +115,16 @@ rl_status_t free_reader_state(ReaderState* reader_state);
 
 /* CompilerState API */
 
-/* InterpreterState API */
-void  push(Value x);
-void  pushn(size_t n, ...);
-Value pop(void);
-void  popn(size_t n);
+// lifetime
+rl_status_t init_compiler_state(CompilerState* compiler_state);
+rl_status_t mark_compiler_state(CompilerState* compiler_state);
+rl_status_t free_compiler_state(CompilerState* compiler_state);
 
-// initialization
+/* InterpreterState API */
+
+// lifetime
+rl_status_t init_interpreter_state(InterpreterState* interpreter_state);
+rl_status_t mark_interpreter_state(InterpreterState* interpreter_state);
+rl_status_t free_interpreter_state(InterpreterState* interpreter_state);
 
 #endif
