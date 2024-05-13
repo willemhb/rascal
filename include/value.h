@@ -225,6 +225,9 @@ extern Type NumberType, BooleanType, GlyphType, NulType,
 // empty singeltons
 extern String EmptyString;
 
+// standard ports
+extern Port StdIn,StdOut, StdErr;
+
 /* APIs */
 // tagging/untagging macros & functions
 #define tag_of(x) ((x) & TAG_BITS)
@@ -289,6 +292,9 @@ Type*   type_of_obj(void* p);
 // object type (takes care of common initialization/allocation tasks)
 Object* new_obj(Type* type);
 void    init_obj(Type* type, Object* obj, bool in_heap);
+void    mark_obj(void* p);
+void    free_obj(void* p);
+void    sweep_obj(void* p);
 
 // string type
 String* get_str(const char* chars);

@@ -43,4 +43,3 @@
       "The `hypot` function."
       ((Number x) (Number y))
       (c-call :hypot :float64 (:float64 :float64) (x y)))))
-
