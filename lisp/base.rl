@@ -1,8 +1,17 @@
 (module base
   "The rascal base library (builtin functions)."
   (import (core))
-  (export (eval repl))
+  (export (literal? eval repl))
   (begin
+    ;; helpers.
+    (fun literal?
+      "Return true if `x` is self-evaluating."
+      (x)
+      (if
+        (symbol? x)
+        (keyword? x)
+        (not (list? x))))
+
     ;; eval and friends.
     (fun eval
       "With one argument, passes current environment to two argument form."
@@ -25,8 +34,8 @@
         ((op _)
          (prn "(abort " op " ...) reached toplevel.\n")
          (repl))
-        (prn "rascal> ")
-        (let ((x (read))
-              (v (eval x)))
-          (prn "\nresult> " v)
-          (repl))))))
+        (do (_ (prn "rascal> "))
+            (x (read))
+            (v (eval x))
+            (_ (prn "\nresult> " v))
+            (_ (repl)))))))

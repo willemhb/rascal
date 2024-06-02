@@ -5,6 +5,52 @@
 
 /* miscellaneous utilities go here. */
 
+/* C types */
+
+/* Encodes a value's machine type */
+
+typedef enum {
+  VOID     =0x00,
+
+  UNSIGNED =0x00,
+  SIGNED   =0x80,
+  FLOAT    =0x40,
+  ENCODED  =0xc0,
+  POINTER  =0x20,
+  MULTIBYYE=0x10,
+  
+  SIZE0    =0x00,
+  SIZE8    =0x01,
+  SIZE16   =0x02,
+  SIZE32   =0x03,
+  SIZE64   =0x04,
+  SIZE128 =0x05,
+  SIZE256 =0x06,
+  SIZE512 =0x07,
+
+  UINT8   =UNSIGNED|SIZE8,
+  SINT8   =SIGNED|SIZE8,
+  ASCII  =0x03,
+  LATIN1 =0x04,
+  UTF8   =0x05,
+
+  SINT16 =0x06,
+  UINT16 =0x07,
+  FLOAT16=0x08,
+  UTF16  =0x09,
+
+  SINT32 =0x0a,
+  UINT32 =0x0b,
+  FLOAT32=0x0c,
+  UTF32  =0x0d,
+  
+  SINT64 =0x0e,
+  UINT64 =0x0f,
+  FLOAT64=0x10,
+
+  
+} BinaryType;
+
 // miscellaneous numeric utilities
 word_t ceil2(word_t w);
 
