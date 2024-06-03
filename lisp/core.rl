@@ -1,31 +1,16 @@
 (module core
   "The rascal core module (mostly bootstrapping and macro definitions)."
-  (export (fun mac struct val var
-           let label loop for while
-           cond case and or
-           catch throw))
+  (export (val var))
   (begin
     ;; binding syntax.
-    
-    ;; exception syntax.
-    (mac throw
-      "Raise part of exception syntax."
-      (& args)
-      `(abort ~(qualify 'exception :exception) ~args))
+    (def {:final true
+          :macro true
+          :multi true
+          :doc   "Create a new immutable binding."}
+         val
+         ())
+          
 
-    (mac throw
-      "Exceptiosn can be namespaced."
-      ((Symbol exc-type) & args)
-      `(abort ~(qualify 'exception exc-type) ~args))
-
-    (mac catch
-      "Handle part of exception syntax."
-      ((List handler) & body)
-      (let (((h-args & h-body)  handler)
-            ((h-op h-parms)     h-args))
-        `(handle
-           (~h-args
-             (if (not|has-ns? 'exception ~h-op)
-                 (abort ~h-op ~h-parms)
-                 (do ~@h-body)))
-           ~@body))))
+    (mac let
+      "Create a new scope with given bindings."
+      ((List binds) & body)))

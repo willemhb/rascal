@@ -4,8 +4,8 @@
   (export (literal? eval repl))
   (begin
     ;; helpers.
-    (fun literal?
-      "Return true if `x` is self-evaluating."
+      (fun literal?
+        "Return true if `x` is self-evaluating."
       (x)
       (if
         (symbol? x)

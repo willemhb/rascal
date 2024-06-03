@@ -6,23 +6,26 @@
 
 /* Definitions & declarations for rascal values. */
 // value types
-typedef word_t        Value;
-typedef double        Number;
-typedef bool          Boolean;
-typedef char          Glyph;
-typedef nullptr_t     Nul;
+typedef word_t    Value;
+typedef nullptr_t Nul;
+typedef bool      Boolean;
+typedef char      Glyph;
+typedef int       Small; 
+typedef double    Number;
+typedef void*     Pointer;
+typedef funcptr_t FuncPtr;
 
-// common object header types
+// common object header type
 typedef struct Object Object;
 
 // user metaobject types
-typedef struct Type   Type;
+typedef struct Type Type;
 
 // user identifier types
 typedef struct Symbol Symbol;
 
 // user IO types
-typedef struct Port   Port;
+typedef struct Port Port;
 
 // user compound types
 typedef struct Pair   Pair;
@@ -101,7 +104,7 @@ typedef enum Scope {
 } Scope;
 
 // common object header types
-#define HEADER                                  \
+#define HEADER                                   \
   Object* next;                                  \
   Type*   type;                                  \
   Map*    meta;                                  \
@@ -165,6 +168,10 @@ struct Symbol {
   word_t  idno;      // non-zero for gensyms
 };
 
+static inline bool is_gs(Symbol* s) {
+  return s->idno > 0;
+}
+
 // user IO types
 struct Port {
   HEADER;
@@ -173,6 +180,7 @@ struct Port {
   word_t encoding : 4;
   word_t input    : 1;
   word_t output   : 1;
+  word_t lispfile : 1;
 
   // file pointer
   FILE* ios;
@@ -190,8 +198,8 @@ struct List {
   HEADER;
 
   Value  head;
-  size_t count;
   List*  tail;
+  size_t count;
 };
 
 struct String {
@@ -202,7 +210,7 @@ struct String {
   word_t hasmb    : 1;
 
   // data fields
-  char* chars;
+  char*  chars;
   size_t count;
 };
 
@@ -289,8 +297,8 @@ struct Module {
 
   // data fieldsread from module spec
   Symbol* name;    // (module <name> ...)
-  List*   imports; // (import <imports*>)
-  List*   exports; // (export <exports*>)
+  List*   imports; // (import (<imports*>))
+  List*   exports; // (export (<exports*>))
   List*   body;    // (begin <body*>)
 
   // result of module body execution
@@ -456,15 +464,75 @@ struct StringCache {
 typedef struct {
   String* key;
   Module* val;
-} MCEntry;
+} ModCEntry;
 
 struct ModuleCache {
   HEADER;
 
   // data fields
-  SCEntry* entries;
+  ModCEntry* entries;
   size_t count, max_count;
 };
+
+typedef struct {
+  Vector*          key;
+  MethodTableLeaf* val;
+} MethCEntry;
+
+struct MethodCache {
+  HEADER;
+
+  // data fields
+  MethCEntry* entries;
+  size_t count, max_count;
+};
+
+typedef struct {
+  Glyph   key;
+  FuncPtr val;
+} RTEntry;
+
+struct ReadTable {
+  HEADER;
+
+  RTEntry* entries;
+  size_t   count, max_count;
+};
+
+typedef struct {
+  Symbol*  key;
+  Binding* val;
+} NSEntry;
+
+struct NameSpace {
+  HEADER;
+
+  NSEntry* entries;
+  size_t   count, max_count;
+};
+
+// internal environment types
+struct UpValue {
+  HEADER;
+
+  // bit fields
+  word_t closed : 1;
+
+  // data fields
+  UpValue* next_upv;
+
+  union {
+    Value* location;
+    Value  value;
+  };
+};
+
+static inline Value* deref_upval(UpValue* upv) {
+  if ( upv->closed )
+    return &upv->value;
+
+  return upv->location;
+}
 
 // internal object node types
 struct VecNode {
@@ -494,35 +562,9 @@ struct MapNode {
 struct MapLeaf {
   HEADER;
 
-  MapLeaf* next;
+  MapLeaf* next_ml;
   Value    key;
   Value    val;
-};
-
-// mutable object types
-
-// internal object types
-
-// function types
-
-struct NameSpace {
-  HEADER;
-
-  NameSpace*   parent; // parent namespace
-  Scope*       locals; // local names
-  Scope*       upvals; // locally referenced upvalues (unused at module level)
-  Environment* module; // shortcut to module environment
-};
-
-struct UpValue {
-  HEADER;
-
-  UpValue* next;
-
-  union {
-    Value* location;
-    Value  value;
-  };
 };
 
 /* tags and masks */
@@ -549,18 +591,49 @@ struct UpValue {
 
 /* Globals */
 // type objects
-extern Type NumberType, BooleanType, GlyphType, NulType,
+extern Type NulType, BooleanType, GlyphType,
 
-  TypeType, StringType, SymbolType, ListType, PortType,
+  SmallType, NumberType,
 
-  ChunkType, ClosureType, NativeType, UpValueType, BindingType,
+  PointerType, FuncPtrType,
 
-  ObjectsType, MutVecType, MutStrType, MutBinType, MutDictType,
+  TypeType,
 
-  ReadTableType, ScopeType, StringsType;
+  SymbolType,
+
+  PortType,
+
+  PairType, ListType,
+
+  StringType, BinaryType,
+
+  VectorType, MapType,
+
+  EnvironType, ModuleType, BindingType,
+
+  ClosureType, NativeType, GenericType,
+
+  ControlType,
+
+  MutPairType, MutListType,
+
+  MutStrType, MutBinType,
+  
+  MutVecType, MutMapType,
+
+  ObjectsType,
+
+  StringCacheType, ModuleCacheType, MethodCacheType, ReadTableType, NameSpaceType,
+
+  UpValueType,
+
+  BottomType, TopType;
 
 // empty singeltons
 extern String EmptyString;
+extern List   EmptyList;
+extern Vector EmptyVector;
+extern Map    EmptyMap;
 
 // standard ports
 extern Port StdIn, StdOut, StdErr;
@@ -569,22 +642,28 @@ extern Port StdIn, StdOut, StdErr;
 // tagging/untagging macros & functions
 #define tag_of(x) ((x) & TAG_BITS)
 
+#define untag(x)  ((x) & DATA_BITS)
+
 #define tag(x)                                  \
   generic((x),                                  \
-          Number:tag_num,                       \
+          Nul:tag_nul,                          \
           Boolean:tag_bool,                     \
           Glyph:tag_glyph,                      \
-          Nul:tag_nul,                          \
+          Small:tag_small,                      \
+          Number:tag_num,                       \
+          Pointer:tag_ptr,                      \
+          FuncPtr:tag_fptr,                     \
           Object*:tag_obj,                      \
           Type*:tag_obj,                        \
-          String*:tag_obj,                      \
           Symbol*:tag_obj,                      \
-          List*:tag_obj,                        \
           Port*:tag_obj,                        \
-          Chunk*:tag_obj,                       \
-          MutVec*:tag_obj,                      \
-          MutBin*:tag_obj,                      \
-          Strings*:tag_obj                      \
+          Pair*:tag_obj,                        \
+          List*:tag_obj,                        \
+          String*:tag_obj,                      \
+          Binary*:tag_obj,                      \
+          Vector*:tag_obj,                      \
+          Map*:tag_obj,                         \
+          Record*:tag_obj                       \
           )(x)
 
 #define as_obj(x)                               \
@@ -595,57 +674,65 @@ extern Port StdIn, StdOut, StdErr;
 #define type_of(x)                              \
   generic((x),                                  \
           Value:type_of_val,                    \
-          Object*:type_of_obj,                  \
-          Type*:type_of_obj,                    \
-          String*:type_of_obj,                  \
-          Symbol*:type_of_obj,                  \
-          List*:type_of_obj,                    \
-          Chunk*:type_of_obj,                   \
-          Closure*:type_of_obj                  \
-          )(x)
+          default:type_of_obj)(x)
 
-Value   tag_num(Number n);
-Value   tag_bool(Boolean b);
-Value   tag_glyph(Glyph g);
-Value   tag_nul(Nul n);
-Value   tag_obj(void* p);
+#define has_type(x, t)                          \
+  generic((x),                                  \
+          Value:val_has_type,                   \
+          default:obj_has_type)(x, t)
 
-bool    is_num(Value x);
-bool    is_bool(Value x);
-bool    is_nul(Value x);
-bool    is_obj(Value x);
+// tagging methods
+Value tag_nul(Nul n);
+Value tag_bool(Boolean b);
+Value tag_glyph(Glyph g);
+Value tag_small(Small s);
+Value tag_num(Number n);
+Value tag_ptr(Pointer p);
+Value tag_fptr(FuncPtr f);
+Value tag_obj(void* p);
 
+// object cast methods
 Object* val_as_obj(Value v);
 Object* ptr_as_obj(void* p);
 
-Number  as_num(Value v);
-Boolean as_bool(Value v);
-Nul     as_nul(Value v);
+// type_of methods
+Type* type_of_val(Value v);
+Type* type_of_obj(void* p);
 
-Type*   type_of_val(Value v);
-Type*   type_of_obj(void* p);
+// has_type methods
+bool  val_has_type(Value v, Type* t);
+bool  obj_has_type(void* p, Type* t);
 
-// type implementations
-// object type (takes care of common initialization/allocation tasks)
-Object* new_obj(Type* type);
-void    init_obj(Type* type, Object* obj, bool in_heap);
-void    mark_obj(void* p);
-void    free_obj(void* p);
-void    sweep_obj(void* p);
+/* Value APIs */
+// symbols
+#define qualify(s, ns)                          \
+  generic((ns),                                 \
+          char*:cstr_qualify,                   \
+          String*:str_qualify,                  \
+          Symbol*:sym_qualify)(s, ns)
 
-// string type
-String* get_str(const char* chars);
-String* new_str(const char* chars, size_t count, hash_t h);
-rl_status_t str_ref( Glyph* result, String* str, size_t n);
+Symbol* mk_sym(String* ns, String* n, bool gs);
 
-// symbol type
-Symbol* get_sym(const char* name, bool gensym);
-Symbol* new_sym(String* name, bool gensym);
+// qualify methods
+Symbol* cstr_qualify(Symbol* s, char* cstr);
+Symbol* str_qualify(Symbol* s, String* str);
+Symbol* sym_qualify(Symbol* s, Symbol* ns);
 
-// chunk type
-Chunk* new_chunk(MutVec* vals, MutBin* instr);
+// strings
+String* get_str(char* chars);
 
-// binding type
-Binding* new_bind(Symbol* name, ScopeKind scope_kind, int offset);
+// binaries
+
+// environ
+#define define(n, v, e)                         \
+  generic((n),                                  \
+          char*:cstr_define,                    \
+          Symbol*:sym_define)(n, v, e)
+
+// define methods
+size_t cstr_define(char* n, Value i, Environ* e);
+size_t sym_define(Symbol* n, Value i, Environ* e);
+
+// mutable strings
 
 #endif

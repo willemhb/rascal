@@ -11,7 +11,7 @@
   '(";" ("#|" . "|#"))
   '(
     ;; binding syntax.
-    "def" "put" "lmb" "fun" "mac" "struct" "val" "var"
+    "def" "put" "fun" "mac" "type" "val" "var"
 
     ;; block and looping syntax.
     "let" "label" "loop" "for" "while"

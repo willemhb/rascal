@@ -62,6 +62,7 @@ static inline bool is_error_status(rl_status_t s) {
 
 /* redefining important macros with annoying names */
 #define generic _Generic
+#define unreachable __builtin_unreachable
 #define cleanup(f) __attribute__((cleanup(f)))
 
 #endif
