@@ -25,9 +25,10 @@ struct HeapFrame {
 };
 
 struct InterpreterFrame {
-  Closure* code;
-  Value* bp;
+  Closure*  code;
+  Value*    bp;
   uint16_t* pc;
+  size_t    fsize;
 };
 
 struct CompilerFrame {

@@ -10,48 +10,36 @@
 /* Encodes a value's machine type */
 
 typedef enum {
-  /* void type */
-  VOID     =0x00,
-
   /* numeric types */
-  SINT8    =0x01,
-  UINT8    =0x02,
-  ASCII    =0x03,
-  LATIN1   =0x04,
-  UTF8     =0x05,
+  SINT8    =0x00,
+  UINT8    =0x01,
+  ASCII    =0x02,
+  LATIN1   =0x03,
+  UTF8     =0x04,
 
-  SINT16   =0x06,
-  UINT16   =0x07,
-  UTF16    =0x08,
+  SINT16   =0x05,
+  UINT16   =0x06,
+  UTF16    =0x07,
 
-  SINT32   =0x09,
-  UINT32   =0x0a,
-  FLOAT32  =0x0b,
-  UTF32    =0x0c,
+  SINT32   =0x08,
+  UINT32   =0x09,
+  FLOAT32  =0x0a,
+  UTF32    =0x0b,
 
-  SINT64   =0x0d,
-  UINT64   =0x0e,
-  FLOAT64  =0x0f,
-
-  /* pointer types */
-  VPTR     =0x10,
-  OPTR     =0x11,
-  FPTR     =0x12,
-  APTR     =0x13,
-  L1PTR    =0x14,
-  U8PTR    =0x15,
-  U16PTR   =0x16,
-  U32PTR   =0x17,
+  SINT64   =0x0c,
+  UINT64   =0x0d,
+  FLOAT64  =0x0e,
+  POINTER  =0x0f,
 } BinaryType;
 
 // BinaryType utilities
-size_t bin_type_size(BinaryType bt);
-bool   bin_type_is_encoded(BinaryType bt);
-bool   bin_type_is_multibyte(BinaryType bt);
-bool   bin_type_is_unsigned(BinaryType bt);
-bool   bin_type_is_signed(BinaryType bt);
-bool   bin_type_is_float(BinaryType bt);
-bool   bin_type_is_pointer(BinaryType bt);
+size_t bt_size(BinaryType bt);
+bool   bt_is_encoded(BinaryType bt);
+bool   bt_is_multibyte(BinaryType bt);
+bool   bt_is_unsigned(BinaryType bt);
+bool   bt_is_signed(BinaryType bt);
+bool   bt_is_float(BinaryType bt);
+bool   bt_is_pointer(BinaryType bt);
 
 // miscellaneous numeric utilities
 word_t ceil2(word_t w);

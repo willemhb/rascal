@@ -2,43 +2,81 @@
 #define rl_value_h
 
 #include "common.h"
+#include "util.h"
 
 /* Definitions & declarations for rascal values. */
-// immediate values
-typedef word_t Value;
-typedef double Number;
-typedef bool Boolean;
-typedef char Glyph;
-typedef nullptr_t Nul;
+// value types
+typedef word_t        Value;
+typedef double        Number;
+typedef bool          Boolean;
+typedef char          Glyph;
+typedef nullptr_t     Nul;
 
-// user object types
+// common object header types
 typedef struct Object Object;
-typedef struct Type Type;
-typedef struct String String;
+
+// user metaobject types
+typedef struct Type   Type;
+
+// user identifier types
 typedef struct Symbol Symbol;
-typedef struct List List;
-typedef struct Port Port;
 
-// mutable user object types (many of these are also used internally)
-typedef struct MutStr MutStr;
-typedef struct MutBin MutBin;
-typedef struct MutVec MutVec;
-typedef struct MutDict MutDict;
+// user IO types
+typedef struct Port   Port;
 
-// internal object types
-typedef struct Chunk Chunk;
-typedef struct Closure Closure;
-typedef struct Native Native;
-typedef struct UpValue UpValue;
+// user compound types
+typedef struct Pair   Pair;
+typedef struct List   List;
+typedef struct String String;
+typedef struct Binary Binary;
+typedef struct Vector Vector;
+typedef struct Map    Map;
+typedef struct Record Record;
+
+// user environment types
+typedef struct Environ Environ;
+typedef struct Module  Module;
 typedef struct Binding Binding;
 
-// internal mutable dynamic array types
+// user function types
+typedef struct Closure Closure;
+typedef struct Native  Native;
+typedef struct Generic Generic;
+
+// user control types
+typedef struct Control Control;
+
+// user mutable compound types
+typedef struct MutPair MutPair;
+typedef struct MutList MutList;
+typedef struct MutStr  MutStr;
+typedef struct MutBin  MutBin;
+typedef struct MutVec  MutVec;
+typedef struct MutMap  MutMap;
+
+// internal array types
 typedef struct Objects Objects;
 
-// internal mutable hash table types
-typedef struct Scope Scope;
-typedef struct ReadTable ReadTable;
-typedef struct Strings Strings;
+// internal table types
+typedef struct StringCache StringCache;
+typedef struct ModuleCache ModuleCache;
+typedef struct MethodCache MethodCache;
+typedef struct ReadTable   ReadTable;
+typedef struct NameSpace   NameSpace;
+
+// internal environment types
+typedef struct UpValue UpValue;
+
+// internal node types
+typedef struct VecNode VecNode;
+typedef struct VecLeaf VecLeaf;
+typedef struct MapNode MapNode;
+typedef struct MapLeaf MapLeaf;
+
+// internal function types
+typedef struct MethodTableRoot MethodTableRoot;
+typedef struct MethodTableNode MethodTableNode;
+typedef struct MethodTableLeaf MethodTableLeaf;
 
 // internal function pointer types
 typedef rl_status_t (*rl_trace_fn_t)(Object* obj);
@@ -49,52 +87,103 @@ typedef bool (*rl_egal_fn_t)(Value x, Value y);
 typedef int (*rl_order_fn_t)(Value x, Value y);
 typedef rl_status_t (*rl_native_fn_t)(size_t argc, Value* args, Value* buffer);
 
-// user object types
+// enum types
+typedef enum Kind {
+  BOTTOM_TYPE, // Nothing - no values
+  DATA_TYPE,   // common data type - designates a set of Rascal values
+  TOP_TYPE     // Any - union of all types
+} Kind;
+
+typedef enum Scope {
+  LOCAL,   // value is on stack
+  UPVALUE, // value is indirected through an upvalue
+  MODULE,  // value is stored at module level
+} Scope;
+
+// common object header types
+#define HEADER                                  \
+  Object* next;                                  \
+  Type*   type;                                  \
+  Map*    meta;                                  \
+  word_t  hash  : 48;                            \
+  word_t  trace :  1;                            \
+  word_t  free  :  1;                            \
+  word_t  sweep :  1;                            \
+  word_t  gray  :  1;                            \
+  word_t  black :  1
+
 struct Object {
-  Object* next;
-  Type* type;
-  word_t hash  : 48;
+  HEADER;
+
+  // bit fields
   word_t flags : 11;
-  word_t trace :  1; // If true, this object's owned pointers need to be traced (prevents objects like Heap.gray_objects from accidentally being traced)
-  word_t free  :  1; // If true, free this object's owned pointers
-  word_t sweep :  1; // If true, free this object
-  word_t gray  :  1; // gc traced flag
-  word_t black :  1; // gc marked flag
+
+  // data fields
+  byte_t data[];
 };
 
-#define HEADER                                  \
-  Object h
-
+// user metaobject types
 struct Type {
   HEADER;
 
+  // bit fields
+  word_t kind    : 3;
+  word_t builtin : 1;
+
+  // unique identifier (basis of hash value)
   word_t idno;
-  Value value_type; // tag for values of this type
-  size_t value_size;
-  size_t object_size;
+
+  // layout information
+  Value      value_type; // tag for values of this type
+  size_t     value_size;
+  size_t     object_size;
+  NameSpace* slots;
+
+  // constructor
+  Object* ctor;
 
   // lifetime methods
-  rl_trace_fn_t trace;
-  rl_destruct_fn_t destruct;
+  rl_trace_fn_t    trace_fn;
+  rl_destruct_fn_t destruct_fn;
 
   // comparison methods
-  rl_hash_fn_t hash;
-  rl_egal_fn_t egal;
-  rl_order_fn_t order;
+  rl_hash_fn_t  hash_fn;
+  rl_egal_fn_t  egal_fn;
+  rl_order_fn_t order_fn;
 };
 
-struct String {
-  HEADER;
-
-  char* data;
-  size_t count;
-};
-
+// user identifier types
 struct Symbol {
   HEADER;
 
+  // bit fields
+  word_t literal : 1;
+
+  // identifier info
+  String* nmspc;
   String* name;
-  word_t idno;      // non-zero for gensyms
+  word_t  idno;      // non-zero for gensyms
+};
+
+// user IO types
+struct Port {
+  HEADER;
+
+  // bit fields
+  word_t encoding : 4;
+  word_t input    : 1;
+  word_t output   : 1;
+
+  // file pointer
+  FILE* ios;
+};
+
+// user compound types
+struct Pair {
+  HEADER;
+
+  Value car;
+  Value cdr;
 };
 
 struct List {
@@ -105,25 +194,137 @@ struct List {
   List*  tail;
 };
 
-struct Port {
+struct String {
   HEADER;
 
-  FILE* stream;
+  // bit fields
+  word_t encoding : 4;
+  word_t hasmb    : 1;
+
+  // data fields
+  char* chars;
+  size_t count;
 };
 
-// internal object types
-struct Chunk {
+struct Binary {
   HEADER;
 
-  MutVec* vals;
-  MutBin* code;
+  // bit fields
+  word_t eltype : 4;
+
+  // data fields
+  union {
+    void*     data;
+    uint8_t*  i8;
+    uint16_t* i16;
+  };
+
+  size_t count;
 };
 
+struct Vector {
+  HEADER;
+
+  // bit fields
+  word_t transient : 1;
+  word_t packed    : 1;
+
+  // data fields
+  VecNode* root;
+  size_t   count;
+  Value    tail[];
+};
+
+struct Map {
+  HEADER;
+
+  // bit fields
+  word_t transient : 1;
+  word_t fastcmp   : 1;
+
+  // data fields
+  MapNode* root;
+  size_t   count;
+};
+
+struct Record {
+  HEADER;
+
+  // data fields
+  Map* slots;
+};
+
+// user environment types
+struct Environ {
+  HEADER;
+
+  // bit fields
+  word_t scope    : 2;
+  word_t bound    : 1;
+  word_t captured : 1;
+
+  // data fields
+  Environ*   parent;
+  NameSpace* locals;
+  NameSpace* nonlocals;
+
+  union {
+    Objects* upvals; // bound function environments
+    MutVec*  values; // bound module environments
+  };
+};
+
+struct Module {
+  HEADER;
+
+  // bit fields
+  word_t compiled : 1;
+  word_t executed : 1;
+
+  // data fields
+  // initial layout identical to closure, allowing module to be safely cast to closure
+  Binary*  code;
+  Vector*  vals;
+  Environ* envt;
+
+  // data fieldsread from module spec
+  Symbol* name;    // (module <name> ...)
+  List*   imports; // (import <imports*>)
+  List*   exports; // (export <exports*>)
+  List*   body;    // (begin <body*>)
+
+  // result of module body execution
+  Value result;
+};
+
+struct Binding {
+  HEADER;
+
+  // bit fields
+  word_t scope       : 2;
+  word_t exported    : 1;
+  word_t final       : 1;
+  word_t inited      : 1;
+  word_t multimethod : 1; // rebinding behaves like multi-method
+  word_t macro       : 1; // macro name
+
+  // data fields
+  Binding* captures;   // the binding captured by this binding (if any)
+  Environ* environ;    // the environment in which the binding was *originally* created
+  Symbol*  name;       // name under which this binding was created in *original* environment
+  size_t   offset;     // location (may be on stack, in upvalues, or directly in environment)
+  Type*    constraint; // type constraint for this binding
+  Value    initval;    // default initval (only used for object scope)
+};
+
+// user function types
 struct Closure {
   HEADER;
 
-  Chunk* code;
-  Objects* upvals;
+  // data fields
+  Binary*  code;
+  Vector*  vals;
+  Environ* envt;
 };
 
 struct Native {
@@ -132,64 +333,197 @@ struct Native {
   rl_native_fn_t C_function;
 };
 
+struct Generic {
+  HEADER;
+
+  // data fields
+  MethodCache*     cache;
+  MethodTableRoot* methods;
+};
+
+// user control types
+typedef struct IFrame IFrame;
+
+struct Control {
+  HEADER;
+
+  // data fields
+  IFrame* frames;   // preserved stack frames
+  size_t  fcount;   // frame count
+  MutVec* sbuffer;  // buffer for stack values
+};
+
+// user mutable compound types
+struct MutPair {
+  HEADER;
+
+  Value car;
+  Value cdr;
+};
+
+struct MutList {
+  HEADER;
+
+  // data fields
+  Value    head;
+  MutList* tail; // no count is stored, since it's impossible to ensure its accuracy with a mutable tail
+};
+
+struct MutStr {
+  HEADER;
+
+  // bit fields
+  word_t encoding : 4;
+  word_t hasmb    : 1;
+  word_t algo     : 1;
+
+  // data fields
+  char* characters;
+  size_t count, max_count;
+};
+
+struct MutBin {
+  HEADER;
+
+  // bit fields
+  word_t eltype : 4;
+  word_t algo   : 1;
+
+  // data fields
+  union {
+    void*     data;
+    uint8_t*  i8;
+    uint16_t* i16;
+  };
+
+  size_t count, max_count;
+};
+
+struct MutVec {
+  HEADER;
+
+  // bit fields
+  word_t algo : 1;
+
+  // data fields
+  Value* data;
+  size_t count, max_count;
+};
+
+typedef struct {
+  Value key;
+  Value val;
+} MapEntry;
+
+struct MutMap {
+  HEADER;
+
+  // bit fields
+  word_t loadfactor : 5;
+  word_t fastcmp    : 1;
+
+  // data fields
+  MapEntry* entries;
+  size_t count, max_count;
+};
+
+// internal array types
+struct Objects {
+  HEADER;
+
+  // bit fields
+  word_t algo : 1;
+
+  // data fields
+  Object** objs;
+  size_t count, max_count;
+};
+
+// internal table types
+typedef struct {
+  char*   key;
+  String* val;
+} SCEntry;
+
+struct StringCache {
+  HEADER;
+
+  // data fields
+  SCEntry* entries;
+  size_t count, max_count;
+};
+
+typedef struct {
+  String* key;
+  Module* val;
+} MCEntry;
+
+struct ModuleCache {
+  HEADER;
+
+  // data fields
+  SCEntry* entries;
+  size_t count, max_count;
+};
+
+// internal object node types
+struct VecNode {
+  HEADER;
+
+  // bit fields
+  word_t offset    : 5;
+  word_t transient : 1;
+
+  Object** children;
+  uint32_t count, max_count;
+};
+
+struct VecLeaf {
+  HEADER;
+
+  Value slots[64];
+};
+
+struct MapNode {
+  HEADER;
+
+  Object** children;
+  size_t   bitmap;
+};
+
+struct MapLeaf {
+  HEADER;
+
+  MapLeaf* next;
+  Value    key;
+  Value    val;
+};
+
+// mutable object types
+
+// internal object types
+
+// function types
+
+struct NameSpace {
+  HEADER;
+
+  NameSpace*   parent; // parent namespace
+  Scope*       locals; // local names
+  Scope*       upvals; // locally referenced upvalues (unused at module level)
+  Environment* module; // shortcut to module environment
+};
+
 struct UpValue {
   HEADER;
 
   UpValue* next;
-  Value* location;
-  Value value;
+
+  union {
+    Value* location;
+    Value  value;
+  };
 };
-
-typedef enum {
-  LOCAL_SCOPE,
-  LOCAL_UPVALUE_SCOPE,
-  NONLOCAL_UPVALUE_SCOPE,
-  GLOBAL_SCOPE
-} ScopeKind;
-
-struct Binding {
-  HEADER;
-
-  Symbol* name;
-  Value value;
-  ScopeKind scope_type;
-  int offset;
-};
-
-#define DYNAMIC_ARRAY_TYPE(_Type, _X)           \
-  struct _Type {                                \
-    HEADER;                                     \
-    _X* data;                                   \
-    size_t count, max_count;                    \
-  }
-
-DYNAMIC_ARRAY_TYPE(Objects, Object*);
-DYNAMIC_ARRAY_TYPE(MutVec, Value);
-DYNAMIC_ARRAY_TYPE(MutStr, char);
-DYNAMIC_ARRAY_TYPE(MutBin, byte_t);
-
-#undef DYNAMIC_ARRAY_TYPE
-
-#define MUTABLE_HASH_TABLE_TYPE(_Type, _K, _V)  \
-  typedef struct {                              \
-    _K key;                                     \
-    _V val;                                     \
-  } _Type##Entry;                               \
-                                                \
-  struct _Type {                                \
-    HEADER;                                     \
-                                                \
-    _Type##Entry* entries;                      \
-    size_t count;                               \
-    size_t max_count;                           \
-  }
-
-MUTABLE_HASH_TABLE_TYPE(MutDict, Value, Value);
-MUTABLE_HASH_TABLE_TYPE(Scope, Symbol*, Binding*);
-MUTABLE_HASH_TABLE_TYPE(ReadTable, Glyph, rl_reader_fn_t);
-MUTABLE_HASH_TABLE_TYPE(Strings, const char*, String*);
-
-#undef MUTABLE_HASH_TABLE_TYPE
 
 /* tags and masks */
 #define QNAN      0x7ff8000000000000UL
@@ -202,13 +536,16 @@ MUTABLE_HASH_TABLE_TYPE(Strings, const char*, String*);
 #define BOOL      0x7ffd000000000000UL
 #define GLYPH     0x7ffe000000000000UL
 #define SMALL     0x7fff000000000000UL
-#define OBJECT    0xffff000000000000UL
+#define CPTR      0xfffc000000000000UL
+#define FPTR      0xfffd000000000000UL
+#define OBJECT    0xfffe000000000000UL
+#define SENTINEL  0xffff000000000000UL // not a proper value, used as an internal marker
 
 #define TRUE      0x7ffd000000000001UL // BOOL | 1
 #define FALSE     0x7ffd000000000000UL // BOOL | 0
 
 // sentinel values, shouldn't be visible in user code
-#define NOTHING   0x7ffc000000000001UL // NUL | 1
+#define NOTHING   0xffff000000000000UL // SENTINEL | 0
 
 /* Globals */
 // type objects
@@ -226,7 +563,7 @@ extern Type NumberType, BooleanType, GlyphType, NulType,
 extern String EmptyString;
 
 // standard ports
-extern Port StdIn,StdOut, StdErr;
+extern Port StdIn, StdOut, StdErr;
 
 /* APIs */
 // tagging/untagging macros & functions
@@ -310,47 +647,5 @@ Chunk* new_chunk(MutVec* vals, MutBin* instr);
 
 // binding type
 Binding* new_bind(Symbol* name, ScopeKind scope_kind, int offset);
-
-// describe macros
-#define DYNAMIC_ARRAY_IMPL(_Type, _X, _type)                      \
-  _Type* new_##_type(void);                                       \
-  void init_##_type(_Type* _type);                                \
-  void free_##_type(_Type* _type);                                \
-  void resize_##_type(_Type* _type, size_t new_count);            \
-  void _type##_push(_Type* _type, _X x);                          \
-  void _type##_pushn(_Type* _type, size_t n, ...);                \
-  void _type##_write(_Type* _type, size_t n, _X* source);         \
-  rl_status_t _type##_pop(_X* result, _Type* _type);              \
-  rl_status_t _type##_popn(_X* result, _Type* _type, size_t n)
-
-DYNAMIC_ARRAY_IMPL(Objects, Object*, objects);
-DYNAMIC_ARRAY_IMPL(MutVec, Value, mut_vec);
-DYNAMIC_ARRAY_IMPL(MutStr, char, mut_str);
-DYNAMIC_ARRAY_IMPL(MutBin, byte_t, mut_bin);
-
-#undef DYNAMIC_ARRAY_IMPL
-
-#define MUTABLE_HASH_TABLE_IMPL(_Type, _K, _V, _type)                   \
-  typedef _V (*_type##_intern_t)(_Type* _type, _Type##Entry* entry, _K key, hash_t hash, void* data); \
-                                                                        \
-  _Type* new_##_type(void);                                             \
-  void init_##_type(_Type* _type);                                      \
-  void free_##_type(_Type* _type);                                      \
-  void resize_##_type(_Type* _type, size_t new_count);                  \
-  _V _type##_intern(_Type* _type, _K key, _type##_intern_t intern, void* data); \
-  rl_status_t _type##_get(_V* result, _Type* _type, _K key);            \
-  rl_status_t _type##_set(_V* result, _Type* _type, _K key, _V val);    \
-  rl_status_t _type##_put(_V* result, _Type* _type, _K key, _V val);    \
-  rl_status_t _type##_add(_V* result, _Type* _type, _K key, _V val);    \
-  rl_status_t _type##_has(_Type* _type, _K key);                        \
-  rl_status_t _type##_pop(_V* result, _Type* _type, _K key);            \
-  _Type* join_##_type##s(_Type* _type##_x, _Type* _type##_y)
-
-MUTABLE_HASH_TABLE_IMPL(MutDict, Value, Value, mut_dict);
-MUTABLE_HASH_TABLE_IMPL(Scope, Symbol*, Binding*, scope);
-MUTABLE_HASH_TABLE_IMPL(ReadTable, Glyph, rl_reader_fn_t, read_table);
-MUTABLE_HASH_TABLE_IMPL(Strings, const char*, String*, strings);
-
-#undef MUTABLE_HASH_TABLE_IMPL
 
 #endif
