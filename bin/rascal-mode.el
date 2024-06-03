@@ -11,7 +11,10 @@
   '(";" ("#|" . "|#"))
   '(
     ;; binding syntax.
-    "def" "put" "fun" "mac" "type" "val" "var"
+    ;; base (mostly used only in bootstrapping).
+    "def*" "put*" "spec*" "lmb*"
+
+    "fun" "mac" "type" "val" "var"
 
     ;; block and looping syntax.
     "let" "label" "loop" "for" "while"

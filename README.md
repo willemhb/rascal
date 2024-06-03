@@ -16,7 +16,8 @@ Rascal's features focus on language extension. More broadly, Rascal seeks to bui
 * A small standard library with modules for `core`, `base`, `io`, `os`, and `math`
 * An extensive set of builtin atomic types:
     * `Symbol`, eg `quote`, `toplevel/x`, `toplevel/x#1`, `:keyword`
-    * `Number`, eg `12`, `3.14159`
+    * `Real`, eg `3.14159`
+    * `Small`, eg `0`, `-1`
     * `Glyph`, eg `\c`, `\linefeed`, `#\u39B`
     * `Boolean`, eg `true`, `false`
     * `Unit`, eg `nul`

@@ -11,7 +11,7 @@ typedef nullptr_t Nul;
 typedef bool      Boolean;
 typedef char      Glyph;
 typedef int       Small; 
-typedef double    Number;
+typedef double    Real;
 typedef void*     Pointer;
 typedef funcptr_t FuncPtr;
 
@@ -34,6 +34,7 @@ typedef struct String String;
 typedef struct Binary Binary;
 typedef struct Vector Vector;
 typedef struct Map    Map;
+typedef struct Set    Set;
 typedef struct Record Record;
 
 // user environment types
@@ -56,6 +57,7 @@ typedef struct MutStr  MutStr;
 typedef struct MutBin  MutBin;
 typedef struct MutVec  MutVec;
 typedef struct MutMap  MutMap;
+typedef struct MutSet  MutSet;
 
 // internal array types
 typedef struct Objects Objects;
@@ -64,6 +66,8 @@ typedef struct Objects Objects;
 typedef struct StringCache StringCache;
 typedef struct ModuleCache ModuleCache;
 typedef struct MethodCache MethodCache;
+typedef struct UnionCache  UnionCache;
+typedef struct Gensyms     Gensyms;
 typedef struct ReadTable   ReadTable;
 typedef struct NameSpace   NameSpace;
 
@@ -72,9 +76,8 @@ typedef struct UpValue UpValue;
 
 // internal node types
 typedef struct VecNode VecNode;
-typedef struct VecLeaf VecLeaf;
 typedef struct MapNode MapNode;
-typedef struct MapLeaf MapLeaf;
+typedef struct SetNode SetNode;
 
 // internal function types
 typedef struct MethodTableRoot MethodTableRoot;
@@ -94,6 +97,7 @@ typedef rl_status_t (*rl_native_fn_t)(size_t argc, Value* args, Value* buffer);
 typedef enum Kind {
   BOTTOM_TYPE, // Nothing - no values
   DATA_TYPE,   // common data type - designates a set of Rascal values
+  UNION_TYPE,  // concrete union
   TOP_TYPE     // Any - union of all types
 } Kind;
 
@@ -101,6 +105,7 @@ typedef enum Scope {
   LOCAL,   // value is on stack
   UPVALUE, // value is indirected through an upvalue
   MODULE,  // value is stored at module level
+  GLOBAL,  // value is stored at global level
 } Scope;
 
 // common object header types
@@ -137,10 +142,11 @@ struct Type {
   word_t idno;
 
   // layout information
-  Value      value_type; // tag for values of this type
+  Value      value_type;   // tag for values of this type
   size_t     value_size;
   size_t     object_size;
   NameSpace* slots;
+  Set*       members;      // union members
 
   // constructor
   Object* ctor;
@@ -182,7 +188,7 @@ struct Port {
   word_t output   : 1;
   word_t lispfile : 1;
 
-  // file pointer
+  // data fields
   FILE* ios;
 };
 
@@ -251,7 +257,11 @@ struct Map {
   word_t fastcmp   : 1;
 
   // data fields
-  MapNode* root;
+  union {
+    MapNode* root;
+    List*    entries;
+  };
+
   size_t   count;
 };
 
@@ -277,8 +287,8 @@ struct Environ {
   NameSpace* nonlocals;
 
   union {
-    Objects* upvals; // bound function environments
-    MutVec*  values; // bound module environments
+    Objects* upvals;
+    MutVec*  values;
   };
 };
 
@@ -487,16 +497,10 @@ struct MethodCache {
   size_t count, max_count;
 };
 
-typedef struct {
-  Glyph   key;
-  FuncPtr val;
-} RTEntry;
-
 struct ReadTable {
   HEADER;
 
-  RTEntry* entries;
-  size_t   count, max_count;
+  funcptr_t dispatch[256];
 };
 
 typedef struct {
@@ -539,32 +543,28 @@ struct VecNode {
   HEADER;
 
   // bit fields
-  word_t offset    : 5;
+  word_t offset    : 6;
   word_t transient : 1;
 
-  Object** children;
+  // data fields
+  union {
+    Value*   slots;
+    Object** children;
+  };
+
   uint32_t count, max_count;
-};
-
-struct VecLeaf {
-  HEADER;
-
-  Value slots[64];
 };
 
 struct MapNode {
   HEADER;
 
+  // bit fields
+  word_t offset    : 6;
+  word_t transient : 1;
+
+  // data fields
   Object** children;
   size_t   bitmap;
-};
-
-struct MapLeaf {
-  HEADER;
-
-  MapLeaf* next_ml;
-  Value    key;
-  Value    val;
 };
 
 /* tags and masks */
@@ -574,6 +574,7 @@ struct MapLeaf {
 #define TAG_BITS  0xffff000000000000UL
 #define DATA_BITS 0x0000ffffffffffffUL
 
+#define REAL      0x0000000000000000UL // dummy tag
 #define NUL       0x7ffc000000000000UL
 #define BOOL      0x7ffd000000000000UL
 #define GLYPH     0x7ffe000000000000UL
@@ -593,7 +594,7 @@ struct MapLeaf {
 // type objects
 extern Type NulType, BooleanType, GlyphType,
 
-  SmallType, NumberType,
+  SmallType, RealType,
 
   PointerType, FuncPtrType,
 
@@ -618,7 +619,7 @@ extern Type NulType, BooleanType, GlyphType,
   MutPairType, MutListType,
 
   MutStrType, MutBinType,
-  
+
   MutVecType, MutMapType,
 
   ObjectsType,
@@ -626,6 +627,10 @@ extern Type NulType, BooleanType, GlyphType,
   StringCacheType, ModuleCacheType, MethodCacheType, ReadTableType, NameSpaceType,
 
   UpValueType,
+
+  VecNodeType, VecLeafType, MapNodeType, MapLeafType,
+
+  MethodTableRootType, MethodTableNodeType, MethodTableLeafType,
 
   BottomType, TopType;
 
@@ -650,7 +655,7 @@ extern Port StdIn, StdOut, StdErr;
           Boolean:tag_bool,                     \
           Glyph:tag_glyph,                      \
           Small:tag_small,                      \
-          Number:tag_num,                       \
+          Real:tag_real,                        \
           Pointer:tag_ptr,                      \
           FuncPtr:tag_fptr,                     \
           Object*:tag_obj,                      \
@@ -686,10 +691,19 @@ Value tag_nul(Nul n);
 Value tag_bool(Boolean b);
 Value tag_glyph(Glyph g);
 Value tag_small(Small s);
-Value tag_num(Number n);
+Value tag_real(Real n);
 Value tag_ptr(Pointer p);
 Value tag_fptr(FuncPtr f);
 Value tag_obj(void* p);
+
+// casting methods
+Nul     as_nul(Value x);
+Boolean as_bool(Value x);
+Glyph   as_glyph(Value x);
+Small   as_small(Value x);
+Real    as_real(Value x);
+Pointer as_ptr(Value x);
+FuncPtr as_fptr(Value x);
 
 // object cast methods
 Object* val_as_obj(Value v);
@@ -734,5 +748,7 @@ size_t cstr_define(char* n, Value i, Environ* e);
 size_t sym_define(Symbol* n, Value i, Environ* e);
 
 // mutable strings
+
+// mutable binaries
 
 #endif

@@ -6,93 +6,136 @@
 /* Definitions and declarations for internal state objects & functions (memory management, vm, &c). */
 /* C types */
 /* frame types */
-typedef struct HeapFrame   HeapFrame;
-typedef struct ReaderFrame ReaderFrame;
-typedef struct CompilerFrame CompilerFrame;
-typedef struct InterpreterFrame InterpreterFrame;
+typedef struct HFrame HFrame;
+typedef struct RFrame RFrame;
+typedef struct CFrame CFrame;
+typedef struct IFrame IFrame;
 
-/* // state types */
-typedef struct HeapState HeapState;
-typedef struct ReaderState ReaderState;
-typedef struct CompilerState CompilerState;
-typedef struct InterpreterState InterpreterState;
+/* state types */
+typedef struct HState HState;
+typedef struct RState RState;
+typedef struct CState CState;
+typedef struct IState IState;
+
+#define BUFFER_TYPE(T, _T)                       \
+  typedef struct T##Buffer {                     \
+    _T* base;                                    \
+    _T* fast;                                    \
+    size_t next, max, fmax;                      \
+  } T##Buffer
+
+BUFFER_TYPE(Value, Value);
+BUFFER_TYPE(Text, char);
+BUFFER_TYPE(Object, Object*);
+BUFFER_TYPE(RFrame, RFrame);
+BUFFER_TYPE(CFrame, CFrame);
+BUFFER_TYPE(IFrame, IFrame);
+
+#undef BUFFER_TYPE
+
+#define BUFFER_API(T, _T, t)                                            \
+  rl_status_t init_##t##_buffer(T##Buffer* b, _T* f, size_t fm);        \
+  rl_status_t free_##t##_buffer(T##Buffer* b);                          \
+  rl_status_t resize_##t##_buffer(T##Buffer* b, size_t* n);             \
+  rl_status_t t##_buffer_push(T##Buffer* b, _T t, size_t* r);           \
+  rl_status_t t##_buffer_pop(T##Buffer* b, _T* r);                      \
+  rl_status_t t##_buffer_pushn(T##Buffer* b, bool t, size_t* n, ...);   \
+  rl_status_t t##_buffer_popn(T##Buffer* b, _T* r, bool t, size_t n);   \
+  rl_status_t t##_buffer_write(T##Buffer* b, _T* s, bool t, size_t* n)
+
+BUFFER_API(Value, Value, value);
+BUFFER_API(Text, char, text);
+BUFFER_API(Object, Object*, object);
+BUFFER_API(RFrame, RFrame, rframe);
+BUFFER_API(CFrame, CFrame, cframe);
+BUFFER_API(IFrame, IFrame, iframe);
+
+#undef BUFFER_API
 
 /* frame types */
-struct HeapFrame {
-  HeapFrame* next;
-  size_t count;
-  Value* values;
+struct HFrame {
+  HFrame* next;
+  size_t  count;
+  Value*  values;
 };
 
-struct InterpreterFrame {
+struct IFrame {
   Closure*  code;
-  Value*    bp;
   uint16_t* pc;
+  size_t    bp;
   size_t    fsize;
 };
 
-struct CompilerFrame {
-  Scope* locals;
-  Scope* upvalues;
-  MutVec* values;
-  MutBin* code;
+struct CFrame {
+  List*    form;
+  Environ* envt;
+  MutVec*  values;
+  MutBin*  code;
 };
 
-struct ReaderFrame {
-  Port* input;
-  MutStr* buffer;
-  MutVec* exprs;
+struct RFrame {
+  Port*      input;
+  ReadTable* rt;
 };
 
 /* state types */
-struct HeapState {
-  HeapFrame* fp; // Live objects in the C stack that may not be visible from the roots (eg, when an intermediate object is created inside a C function).
-  size_t size, max_size;
-  Object* live_objects;
-  Objects* gray_objects; // objects that have been marked but not traced
+struct HState {
+  HFrame*      frames; // Live objects in the C stack that may not be visible from the roots (eg, when an intermediate object is created inside a C function).
+  size_t       size, max_size;
+  Object*      live_objects;
+  ObjectBuffer grays;
 };
 
-struct ReaderState {
-  ReaderFrame* fp;
-  ReadTable* read_table;
-  Port* input;
-  MutStr* buffer;
-  MutVec* exprs;
+struct RState {
+  RFrameBuffer frames;
+  ValueBuffer  stack;
+  TextBuffer   buffer;
+  ReadTable*   read_table;
+  Gensyms*     gensyms;
+  Port*        input;
 };
 
-struct CompilerState {
-  CompilerFrame* fp;
-  Scope* locals, * upvalues;
-  MutVec* values;
-  MutBin* code;
+struct CState {
+  CFrameBuffer frames;
+  ValueBuffer  stack;
+  List*        form;
+  Environ*     envt;
+  MutVec*      constants;
+  MutBin*      code;
 };
 
-struct InterpreterState {
-  InterpreterFrame* fp; // call stack (next free CallFrame)
-  Scope* globals; // global variables
-  UpValue* upvals; // List of open upvalues
-  Closure* code; // currently executing code object
-  uint16_t* pc; // program counter for currently executing code object
-  Value* sp, * bp; // stack pointer and base pointer
+struct IState {
+  IFrameBuffer frames;
+  ValueBuffer  stack;
+  UpValue*     upvals; // List of open upvalues
+  Closure*     code; // currently executing code object
+  uint16_t*    pc; // program counter for currently executing code object
 };
 
-/* Globals */
-extern HeapState Heap;
-extern ReaderState Reader;
-extern CompilerState Compiler;
-extern InterpreterState Interpreter;
+/* Global State objects */
+extern HState Heap;
+extern RState Reader;
+extern CState Compiler;
+extern IState Interpreter;
+
+/* Global table objects */
+extern Environ     Globals; // global environment
+extern ModuleCache Modules; // global module cache
+extern StringCache Strings; // global string cache
+extern UnionCache  Unions;  // global union cache
+extern ReadTable   BaseRt;  // base read table
 
 /* External APIs */
 /* Error APIs */
 rl_status_t rl_error(rl_status_t code, const char* fname, const char* fmt, ...);
 
-/* HeapState API */
+/* HState API */
 // preserving values
-void unpreserve(HeapFrame* frame);
+void unpreserve(HFrame* frame);
 
 #define preserve(n, vals...)                                    \
   Value __heap_frame_vals__[(n)] = { vals };                    \
-  HeapFrame __heap_frame__ cleanup(unpreserve) =                \
+  HFrame __heap_frame__ cleanup(unpreserve) =                \
     { .next=Heap.fp, .count=(n), .values=__heap_frame_vals__ }; \
   Heap.fp=&__heap_frame__
 
@@ -103,29 +146,20 @@ rl_status_t duplicate(const void* ptr, void** buf, size_t n_bytes, bool use_heap
 rl_status_t deallocate(void* ptr, size_t n_bytes, bool use_heap);
 rl_status_t collect_garbage(void);
 
-// lifetime
-rl_status_t init_heap_state(HeapState* heap_state);
-rl_status_t mark_heap_state(HeapState* heap_state);
-rl_status_t free_heap_state(HeapState* heap_state);
+// stack manipulation
+#define push(S, v)                              \
+  generic((S),                                  \
+          RState*:rstate_push,                  \
+          CState*:cstate_push,                  \
+          IState*:istate_push)(S, v)
 
-/* ReaderState API */
-// lifetime
-rl_status_t init_reader_state(ReaderState* reader_state);
-rl_status_t mark_reader_state(ReaderState* reader_state);
-rl_status_t free_reader_state(ReaderState* reader_state);
+#define pop(S, v, r)                            \
+  generic((S),                                  \
+          Rstate*:rstate_pop,                   \
+          CState*:cstate_pop,                   \
+          IState*:istate_pop)(S, v, r)
 
-/* CompilerState API */
-
-// lifetime
-rl_status_t init_compiler_state(CompilerState* compiler_state);
-rl_status_t mark_compiler_state(CompilerState* compiler_state);
-rl_status_t free_compiler_state(CompilerState* compiler_state);
-
-/* InterpreterState API */
-
-// lifetime
-rl_status_t init_interpreter_state(InterpreterState* interpreter_state);
-rl_status_t mark_interpreter_state(InterpreterState* interpreter_state);
-rl_status_t free_interpreter_state(InterpreterState* interpreter_state);
+#define pushn(S, v, n, ...)                     \
+  generic((S),)
 
 #endif
