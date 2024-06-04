@@ -28,38 +28,6 @@ typedef void* nullptr_t;
 #define UINT8_COUNT  (UINT8_MAX+1)
 #define UINT16_COUNT (UINT16_MAX+1)
 
-/* status codes */
-typedef enum {
-  /* default return value */
-  OKAY,
-
-  /* table lookup status codes */
-  NOTFOUND,
-  ADDED,
-  UPDATED,
-  REMOVED,
-
-  /* reader status codes */
-  READY,
-  EXPRESSION,
-  END_OF_INPUT,
-
-  /* error codes */
-  /* error codes that may or may not imply a user mistake */
-  SYSTEM_ERROR,     // error originating from OS, eg file not found. Usually fatal
-  RUNTIME_ERROR,    // error originating from runtime, eg stack overflow
-
-  /* error codes that always imply a user mistake */
-  READ_ERROR,       // error originating from reader, eg unclosed '('
-  COMPILE_ERROR,    // error originating from compiler, eg a malformed (def ...)
-  EVAL_ERROR,       // error originating from interpreter, eg a failed type check
-  USER_ERROR,       // error raised by the user
-} rl_status_t;
-
-static inline bool is_error_status(rl_status_t s) {
-  return s >= SYSTEM_ERROR;
-}
-
 /* redefining important macros with annoying names */
 #define generic _Generic
 #define unreachable __builtin_unreachable

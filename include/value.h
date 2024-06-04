@@ -1,7 +1,7 @@
 #ifndef rl_value_h
 #define rl_value_h
 
-#include "common.h"
+#include "status.h"
 #include "util.h"
 
 /* Definitions & declarations for rascal values. */
@@ -686,6 +686,11 @@ extern Port StdIn, StdOut, StdErr;
           Value:val_has_type,                   \
           default:obj_has_type)(x, t)
 
+#define mark(x)                                 \
+  generic((x),                                  \
+          Value:mark_val,                       \
+          default:mark_obj)(x)
+
 // tagging methods
 Value tag_nul(Nul n);
 Value tag_bool(Boolean b);
@@ -716,6 +721,13 @@ Type* type_of_obj(void* p);
 // has_type methods
 bool  val_has_type(Value v, Type* t);
 bool  obj_has_type(void* p, Type* t);
+
+// mark methods
+rl_status_t mark_val(Value v);
+rl_status_t mark_obj(void* o);
+
+// trace methods
+rl_status_t trace(void* o);
 
 /* Value APIs */
 // symbols

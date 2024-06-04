@@ -1,47 +1,23 @@
 #include <string.h>
+#include <stdlib.h>
 
 #include "runtime.h"
+#include "memory.h"
 #include "util.h"
 
 /* Globals. */
 #define INITIAL_HEAP_SIZE (1 << 19) // 2^16 * sizeof(Value)
 #define MAXIMUM_HEAP_SIZE MAX_ARITY
 #define STACK_SIZE (1 << 16)
+#define HEAP_ALIGNMENT ((size_t)8)
+#define HEAP_ALIGNMENT_SHIFT 3
+#define OBJECT_CACHE_SIZE ((size_t)1024)
+#define MAX_REUSABLE_OBJECT_SIZE (HEAP_ALIGNMENT*OBJECT_CACHE_SIZE)
+
+// array of free lists sorted by size
+Object* ObjectCache[OBJECT_CACHE_SIZE] = {};
 
 /* External APIs. */
-/* Error APIS. */
-static const char* rl_status_name(rl_status_t status) {
-  static const char* names[] = {
-    [OKAY]          = "okay",
-    [NOTFOUND]      = "notfound",
-    [ADDED]         = "added",
-    [UPDATED]       = "updated",
-    [REMOVED]       = "removed",
-    [READY]         = "ready",
-    [EXPRESSION]    = "expression",
-    [END_OF_INPUT]  = "end-of-input",
-    [SYSTEM_ERROR]  = "system-error",
-    [RUNTIME_ERROR] = "runtime-error",
-    [READ_ERROR]    = "read-error",
-    [COMPILE_ERROR] = "compile-error",
-    [EVAL_ERROR]    = "eval-error",
-    [USER_ERROR]    = "user-error"
-  };
-
-  return names[status];
-}
-
-rl_status_t rl_error(rl_status_t code, const char* fname, const char* fmt, ...) {
-  va_list va;
-  va_start(va, fmt);
-  fprintf(stderr, "%s:%s: ", rl_status_name(code), fname);
-  vfprintf(stderr, fmt, va);
-  fprintf(stderr, ".\n");
-  va_end(va);
-
-  return code;
-}
-
 /* Buffer APIs. */
 static rl_status_t overflow(const char* fname) {
   return rl_error(RUNTIME_ERROR, fname, "buffer overflow");
@@ -66,16 +42,11 @@ rl_status_t init_value_buffer(ValueBuffer* b, Value*fb, uint32_t sm) {
 rl_status_t free_value_buffer(ValueBuffer* b) {
   rl_status_t out = OKAY;
 
-  if ( !b->small ) {
-    out = deallocate(b->base, 0, false);
-
-    if ( out != OKAY )
-      goto end;
-  }
+  if ( !b->small )
+    deallocate(b->base, 0, false);
 
   out = init_value_buffer(b, b->fbase, b->smax);
 
- end:
   return out;
 }
 
@@ -87,19 +58,13 @@ rl_status_t grow_value_buffer(ValueBuffer* b, size_t n) {
     goto end;
 
   if ( b->small ) {
-    out = allocate(&tmp, n*sizeof(Value), false);
-
-    if ( unlikely(out != OKAY) )
-      goto end;
+    allocate(&tmp, n*sizeof(Value), false);
 
     memcpy(tmp, b->base, b->next*sizeof(Value));
 
   } else {
     tmp = b->base;
-    out = reallocate(&tmp, b->max*sizeof(Value), n*sizeof(Value), false);
-
-    if ( unlikely(out != OKAY) )
-      goto end;
+    reallocate(&tmp, b->max*sizeof(Value), n*sizeof(Value), false);
   }
 
     b->base  = tmp;
@@ -1229,12 +1194,159 @@ static inline bool checkgc(size_t n) {
   return n + Heap.size >= Heap.max_size;
 }
 
-rl_status_t allocate(void** buf, size_t n_bytes, bool use_heap) {
-  
+
+
+#define try_gc(n, r, f)                                                 \
+  do {                                                                  \
+    if ( checkgc(n) ) {                                                 \
+      r = collect_garbage();                                            \
+                                                                        \
+      if ( unlikely(r != OKAY) )                                        \
+        rl_fatal_error(RUNTIME_ERROR, f, "gargage collection failed");  \
+    }                                                                   \
+  } while (false)
+
+#define try_obj_cache(n, s)                     \
+  do {                                          \
+    if ( n <= MAX_REUSABLE_OBJECT_SIZE ) {      \
+      size_t w = n >> HEAP_ALIGNMENT_SHIFT;     \
+      if ( ObjectCache[w] ) {                   \
+        s = ObjectCache[w];                     \
+        ObjectCache[w] = ObjectCache[w]->next;  \
+      }                                         \
+    }                                           \
+  } while (false)
+
+rl_status_t allocate(void** b, size_t n, bool h) {
+  rl_status_t r = OKAY;
+  void* s = NULL;
+
+  if ( h ) {
+    n = pad_alloc_size(n);
+
+    try_gc(n, r, "allocate");
+    try_obj_cache(n, s);
+  }
+
+  if ( s == NULL )
+    rl_malloc(&s, n, 0);
+
+  *b = s;
+  return r;
 }
 
-rl_status_t reallocate(void** buf, size_t old_n_bytes, size_t new_n_bytes, bool use_heap);
+rl_status_t reallocate(void** b, size_t p, size_t n, bool h);
 rl_status_t duplicate(const void* ptr, void** buf, size_t n_bytes, bool use_heap);
 rl_status_t deallocate(void* ptr, size_t n_bytes, bool use_heap);
 
-rl_status_t collect_garbage(void);
+rl_status_t collect_garbage(void) {
+  rl_status_t r = OKAY;
+
+  if ( (r=smark(&Heap)) != OKAY )
+    goto end;
+
+  if ( (r=smark(&Reader)) != OKAY )
+    goto end;
+
+  if ( (r=smark(&Compiler)) != OKAY )
+    goto end;
+
+  if ( (r=smark(&Interpreter)) != OKAY )
+    goto end;
+
+  if ( (r=mark(&Globals)) != OKAY )
+    goto end;
+
+  if ( (r=mark(&Modules)) != OKAY )
+    goto end;
+
+  if ( (r=mark(&Strings)) != OKAY )
+    goto end;
+
+  if ( (r=mark(&Unions)) != OKAY )
+    goto end;
+
+  if ( (r=mark(&BaseRt)) != OKAY )
+    goto end;
+
+  while ( r == OKAY && Heap.grays.next > 0 ) {
+    Object* ob;
+
+    spop(&Heap, &ob);
+    r = trace(ob);
+
+    ob->gray = false;
+  }
+
+  if ( r == OKAY ) { // cleanup
+    
+  }
+
+ end:
+  return r;
+}
+
+/* RState and reader APIs */
+rl_status_t rstate_push(RState* s, Value v) {
+  return value_buffer_push(&s->stack, v);
+}
+
+rl_status_t rstate_write(RState* s, Value* vs, size_t n) {
+  return value_buffer_write(&s->stack, vs, n);
+}
+
+rl_status_t rstate_pushn(RState* s, size_t n, ...) {
+  va_list va;
+  va_start(va, n);
+  rl_status_t r = value_buffer_pushv(&s->stack, n, va);
+  va_end(va);
+  return r;
+}
+
+rl_status_t rstate_pushf(RState* s, Port* i, ReadTable* rt, Gensyms* gs) {
+  RFrame frame = {
+    .input=s->input,
+    .rt   =s->rt,
+    .gs   =s->gs
+  };
+
+  s->input=i;
+  s->rt   =rt;
+  s->gs   =gs;
+
+  return rframe_buffer_push(&s->frames, frame);
+}
+
+rl_status_t rstate_writef(RState* s, RFrame* f, size_t n) {
+  return rframe_buffer_write(&s->frames, f, n);
+}
+
+rl_status_t rstate_popf(RState* s) {
+  RFrame buf;
+
+  rl_status_t r = rframe_buffer_pop(&s->frames, &buf);
+
+  if ( r == OKAY ) {
+    s->input = buf.input;
+    s->rt    = buf.rt;
+    s->gs    = buf.gs;
+  }
+
+  return r;
+}
+
+rl_status_t rstate_writec(RState* s, char c) {
+  return text_buffer_push(&s->buffer, c);
+}
+
+rl_status_t rstate_writecs(RState* s, char* cs, size_t n) {
+  return text_buffer_write(&s->buffer, cs, n);
+}
+
+rl_status_t rstate_pop(RState* s, Value* b) {
+  return value_buffer_pop(&s->stack, b);
+}
+
+rl_status_t rstate_popn(RState* s, Value* b, bool t, size_t n) {
+  return value_buffer_popn(&s->stack, b, t, n);
+}

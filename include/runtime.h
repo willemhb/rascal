@@ -1,6 +1,7 @@
 #ifndef rl_runtime_h
 #define rl_runtime_h
 
+#include "status.h"
 #include "value.h"
 
 /* Definitions and declarations for internal state objects & functions (memory management, vm, &c). */
@@ -87,6 +88,7 @@ struct CFrame {
 struct RFrame {
   Port*      input;
   ReadTable* rt;
+  Gensyms*   gs;
 };
 
 /* state types */
@@ -101,8 +103,8 @@ struct RState {
   RFrameBuffer frames;
   ValueBuffer  stack;
   TextBuffer   buffer;
-  ReadTable*   read_table;
-  Gensyms*     gensyms;
+  ReadTable*   rt;
+  Gensyms*     gs;
   Port*        input;
 };
 
@@ -137,9 +139,6 @@ extern UnionCache  Unions;  // global union cache
 extern ReadTable   BaseRt;  // base read table
 
 /* External APIs */
-/* Error APIs */
-rl_status_t rl_error(rl_status_t code, const char* fname, const char* fmt, ...);
-
 /* Stack APIs */
 // value buffer
 rl_status_t init_value_buffer(ValueBuffer* b, Value* fb, uint32_t sm);
@@ -213,35 +212,70 @@ rl_status_t iframe_buffer_pushv(IFrameBuffer* b, size_t n, va_list va);
 rl_status_t iframe_buffer_pop(IFrameBuffer* b, IFrame* r);
 rl_status_t iframe_buffer_popn(IFrameBuffer* b, IFrame* r, bool top, size_t n);
 
-// stack manipulation generics
-#define push(S, v)                              \
+// state generics (a lot of stack manipulation)
+#define smark(S)                                \
+  generic((S),                                  \
+          HState*:hstate_mark,                  \
+          RState*:rstate_mark,                  \
+          CState*:cstate_mark,                  \
+          IState*:istate_mark)(S)
+
+#define spush(S, v)                             \
   generic((S),                                  \
           HState*:hstate_push,                  \
           RState*:rstate_push,                  \
           CState*:cstate_push,                  \
           IState*:istate_push)(S, v)
 
-#define pushn(S, n, ...)                                        \
+#define swrite(S, s, n)                         \
+  generic((S),                                  \
+          RState*:rstate_write,                 \
+          CState*:cstate_write,                 \
+          IState*:istate_write)(S, s, n)
+
+#define spushn(S, n, ...)                                       \
   generic((S),                                                  \
           HState*:hstate_pushn,                                 \
           RState*:rstate_pushn,                                 \
           CState*:cstate_pushn,                                 \
           IState*:istate_pushn)(S, n __VA_OPT__(,) __VA_ARGS__)
 
-#define pushf(S, ...)                                           \
+#define spushf(S, ...)                                          \
   generic((S),                                                  \
           RState*:rstate_pushf,                                 \
           CState*:cstate_pushf,                                 \
-          IState*:istate_pushf,)(S __VA_OPT__(,) __VA_ARGS__)
+          IState*:istate_pushf)(S __VA_OPT__(,) __VA_ARGS__)
 
-#define pop(S, r)                               \
+#define spopf(S, ...)                                       \
+  generic((S),                                              \
+          RState*:rstate_popf,                              \
+          CState*:cstate_popf,                              \
+          IState*:istate_popf)(S __VA_OPT__(,) __VA_ARGS__)
+
+#define swritef(S, ...)                                         \
+  generic((S),                                                  \
+          RState*:rstate_writef,                                \
+          CState*:cstate_writef,                                \
+          IState*:istate_writef)(S __VA_OPT__(,) __VA_ARGS__)
+
+#define swriteb(S, s, ...)                                              \
+  generic((S),                                                          \
+          RState*:generic((s),                                          \
+                          char:rstate_writec,                           \
+                          char*:rstate_writecs),                        \
+          CState*:generic((s),                                          \
+                          uint16_t:cstate_writeo,                       \
+                          uint16_t*:cstate_writeos),                    \
+          )(S, s __VA_OPT__(,) __VA_ARGS__)
+
+#define spop(S, r)                              \
   generic((S),                                  \
           HState*:hstate_pop,                   \
-          Rstate*:rstate_pop,                   \
+          RState*:rstate_pop,                   \
           CState*:cstate_pop,                   \
           IState*:istate_pop)(S, r)
 
-#define popn(S, r, t, n)                        \
+#define spopn(S, r, t, n)                       \
   generic((S),                                  \
           HState*:hstate_popn,                  \
           RState*:rstate_popn,                  \
@@ -249,6 +283,7 @@ rl_status_t iframe_buffer_popn(IFrameBuffer* b, IFrame* r, bool top, size_t n);
           IState*:istate_popn)(S, r, t, n)
 
 /* HState & Heap APIs */
+rl_status_t hstate_mark(HState* h);
 rl_status_t hstate_push(HState* h, Object* o);
 rl_status_t hstate_pushn(HState* h, size_t n, ...);
 rl_status_t hstate_pop(HState* h, Object** o);
@@ -259,15 +294,37 @@ void unpreserve(HFrame* frame);
 
 #define preserve(n, vals...)                                    \
   Value __heap_frame_vals__[(n)] = { vals };                    \
-  HFrame __heap_frame__ cleanup(unpreserve) =                \
+  HFrame __heap_frame__ cleanup(unpreserve) =                   \
     { .next=Heap.fp, .count=(n), .values=__heap_frame_vals__ }; \
   Heap.fp=&__heap_frame__
 
 // memory management
-rl_status_t allocate(void** buf, size_t n_bytes, bool use_heap);
-rl_status_t reallocate(void** buf, size_t old_n_bytes, size_t new_n_bytes, bool use_heap);
-rl_status_t duplicate(const void* ptr, void** buf, size_t n_bytes, bool use_heap);
-rl_status_t deallocate(void* ptr, size_t n_bytes, bool use_heap);
+rl_status_t allocate(void** b, size_t n, bool h);
+rl_status_t reallocate(void** b, size_t p, size_t n, bool h);
+rl_status_t duplicate(const void* p, void** b, size_t n, bool h);
+rl_status_t deallocate(void* p, size_t n, bool h);
 rl_status_t collect_garbage(void);
+
+/* RState and reader APIs */
+rl_status_t rstate_mark(RState* s);
+rl_status_t rstate_push(RState* s, Value v);
+rl_status_t rstate_write(RState* s, Value* vs, size_t n);
+rl_status_t rstate_pushn(RState* s, size_t n, ...);
+rl_status_t rstate_pushf(RState* s, Port* i, ReadTable* rt, Gensyms* gs);
+rl_status_t rstate_writef(RState* s, RFrame* f, size_t n);
+rl_status_t rstate_popf(RState* s);
+rl_status_t rstate_writec(RState* s, char c);
+rl_status_t rstate_writecs(RState* s, char* cs, size_t n);
+rl_status_t rstate_pop(RState* s, Value* b);
+rl_status_t rstate_popn(RState* s, Value* b, bool t, size_t n);
+
+/* CState and compiler APIs */
+rl_status_t cstate_mark(CState* s);
+rl_status_t cstate_pop(CState* s, Value* b);
+
+/* IState and interpreter APIs */
+rl_status_t istate_mark(IState* s);
+rl_status_t istate_pop(IState* s, Value* b);
+
 
 #endif

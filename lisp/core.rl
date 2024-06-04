@@ -103,4 +103,13 @@
             :macro true
             :multi true
             :doc   "Create a new mutable binding." }
-         var)))
+         var
+
+    ;; local binding forms.
+    (mac let
+      "Classic local binding form."
+      ((List formals) & body)
+      (val names (map hd formals))
+      (val binds (map hd|tl formals))
+      (if (has-duplicates? names)
+          ))))
