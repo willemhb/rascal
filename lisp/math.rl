@@ -2,12 +2,18 @@
   "This is the rascal builtin math library.
 
    Mostly just wrappers for functions in <math.h>."
-  (import (core base))
-  (export (pi e
+  (import (core))
+  (export (Number
+           pi e
            sin cos tan asin acos atan
            pow sqrt hypot))
 
   (begin
+    ;; Mathematical union types.
+    (type Number
+      "All valid numeric types used by Rascal."
+      (Real Small))
+
     ;; Common mathematical constants.
     (val pi 3.1415926535)
     (val e  2.7182818285)
@@ -31,7 +37,7 @@
     ;; other common functions on real numbers.
     (fun pow
       "The `pow` function."
-      ((Number base) (Number exp))
+      ((Real base) (Number exp))
       (c-call :pow :float64 (:float64 :float64) (base exp)))
 
     (fun sqrt

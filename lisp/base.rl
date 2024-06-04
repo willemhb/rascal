@@ -1,11 +1,11 @@
 (module base
   "The rascal base library (builtin functions)."
-  (import (core))
+  (import (core io))
   (export (literal? eval repl))
   (begin
-    ;; helpers.
-      (fun literal?
-        "Return true if `x` is self-evaluating."
+    ;; utility.
+    (fun literal?
+      "Return true if `x` is self-evaluating."
       (x)
       (if
         (symbol? x)
@@ -19,7 +19,7 @@
       (eval x &env))
 
     (fun eval
-      "With two arguments, ."
+      "With two arguments, evaluates `x` in the given environment `e`."
       (x e)
       (cond
         ((literal? x)  x)
@@ -28,14 +28,14 @@
                          (exec compiled)))))
 
     (fun repl
-      "Read eval print loop (wrapped in a toplevel abort handler that resumes the repl."
+      "Read eval print loop (wrapped in a toplevel abort handler that resumes the repl)."
       ()
       (handle
         ((op _)
-         (prn "(abort " op " ...) reached toplevel.\n")
+         (prn $"abort> (abort {op} ...) reached toplevel.\n")
          (repl))
-        (do (_ (prn "rascal> "))
-            (x (read))
-            (v (eval x))
-            (_ (prn "\nresult> " v))
-            (_ (repl)))))))
+        (let ((_ (prn "rascal> "))
+              (x (read))
+              (v (eval x)))
+          (prn $"\nresult> {v}\n")
+          (repl))))))
