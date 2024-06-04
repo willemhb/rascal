@@ -14,7 +14,7 @@
     ;; base (mostly used only in bootstrapping).
     "def*" "put*" "spec*" "lmb*"
 
-    "fun" "mac" "type" "val" "var"
+    "fun"  "mac" "type" "val" "var"
 
     ;; block and looping syntax.
     "let" "label" "loop" "for" "while"
@@ -44,7 +44,7 @@
     ("\\_<otherwise\\_>" . font-lock-function-name-face)
     ("\\_<&\\_>" . font-lock-function-name-face)
     ("\\_<&&\\_>" . font-lock-function-name-face))
-  '("\\.rl$" "\\.rl.d$" "\\.rl.o$") ;; source file, serialization format, object file
+  '("\\.rl$" "\\.rls$" "\\.rlm$" "\\.rld$" "\\.rlo$") ;; generic file, source file, module file, data file, object file
   (list 'rainbow-delimiters-mode)
   "A major mode for rascal files.")
 
