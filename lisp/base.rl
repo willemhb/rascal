@@ -17,7 +17,7 @@
 
     (fun any?
       "If first argument is not a function, treat as an equality predicate."
-      (x xs:List) (any? #(= %1 x) xs))
+      (x xs: List) (any? #(= % x) xs))
 
     (fun any?
       "Return true if `p` is true for at least one element of `xs`."
@@ -31,7 +31,7 @@
 
     (fun all?
       "If first argument is not a function, treat as equality test."
-      (x xs:List) (all? #(= %1 x) xs))
+      (x xs:List) (all? #(= % x) xs))
 
     (fun all?
       "Return true if `p` is true for every element of `xs`."
@@ -41,30 +41,22 @@
 
     (fun map
       "Using `for` macro."
-      (f: Function xs: List)
-      (for (:from x xs
-            :into a ()
+      (f: Function, xs: List)
+      (for (:from x xs,
+            :into a (),
             :done (rev a))
-        (f x)))
-
-    (fun map
-      "For Vectors."
-      (f: Function xs: Vector)
-      (for (:from x xs
-            :into a [])
-        (f x)))
+        :do (f x)))
 
     (fun filter
       "Using `for` macro."
-      (p: Function xs: List)
-      (for (:from x xs
-            :into a ()
-            :when (p x)
-            :done (rev a))
-        x))
+      (p: Function, xs: List)
+      (for (:from x xs,
+            :into a (),
+            :when (p x),
+            :done (rev a))))
 
     (fun drop
-      "Remove the first `i` items from xs."
+      "Remove the first `i` items from `xs`."
       (n: Small xs: List)
       (for (:from i (range n 0 -1)
             :from _ xs
