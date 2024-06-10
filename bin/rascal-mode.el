@@ -10,26 +10,48 @@
   'rascal-mode
   '(";" ("#|" . "|#"))
   '(
-    ;; binding syntax.
-    ;; base (mostly used only in bootstrapping).
-    "def*" "put*" "spec*" "lmb*"
+    ;; special forms (well-defined but rigid syntax, intended as building blocks)
+    ;; general binding forms (defvar, putvar)
+    "defvar*" "putvar*"
 
-    "fun"  "mac" "type" "val" "var"
+    ;; function binding forms (defgeneric, defmethod).
+    "defgeneric*" "defun*" "defmacro*" "defmethod*"
+
+    ;; type binding forms (deftype, defabstract, defunion, defstruct, defrecord, deftrait).
+    "deftype*" "defabstract*" "defunion*" "defstruct*" "defrecord*" "deftrait*"
+
+    ;; miscellaneous binding forms (lambda)
+    "fn*"
+
+    ;; namespace special forms (namespace)
+    "ns*" "use*"
+
+    ;; non-local control forms (delimited continuations)
+    "prompt*" "cntl*"
+
+    ;; miscellaneous special forms.
+     "ffi*"
+
+     ;; base special forms (not discouraged in user code).
+     "if" "quote" "do"
+
+    ;; binding syntax.
+     "val" "var" "put" "fun" "mac" "type" "impl"
 
     ;; block and looping syntax.
     "let" "label" "loop" "for" "while"
 
     ;; branching syntax.
-    "if" "cond" "case" "and" "or"
+    "cond" "case" "and" "or"
 
     ;; advanced control syntax.
-    "handle" "raise" "abort" "catch" "throw"
+    "handle" "raise" "resume" "catch" "throw" "yield"
 
-    ;; package syntax.
+    ;; package syntax
     "module" "import" "export" "begin"
 
     ;; miscellaneous syntax.
-    "quote" "do" "c-call"
+    "c-call" "bq*" "uq*" "splc*"
     )
   '(("\\(?:[^:]:[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ("\\(?:[^~]@[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^@[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
