@@ -87,6 +87,7 @@ struct CFrame {
 
 struct RFrame {
   Port*      input;
+  Symbol*    ns;     // current namespace
   ReadTable* rt;
   Gensyms*   gs;
 };
@@ -133,7 +134,7 @@ extern IState Interpreter;
 
 /* Global table objects */
 extern Environ     Globals; // global environment
-extern ModuleCache Modules; // global module cache
+
 extern StringCache Strings; // global string cache
 extern UnionCache  Unions;  // global union cache
 extern ReadTable   BaseRt;  // base read table

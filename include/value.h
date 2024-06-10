@@ -10,7 +10,7 @@ typedef word_t    Value;
 typedef nullptr_t Nul;
 typedef bool      Boolean;
 typedef char      Glyph;
-typedef int       Small; 
+typedef int       Small;
 typedef double    Real;
 typedef void*     Pointer;
 typedef funcptr_t FuncPtr;
@@ -35,11 +35,11 @@ typedef struct Binary Binary;
 typedef struct Vector Vector;
 typedef struct Map    Map;
 typedef struct Set    Set;
-typedef struct Record Record;
+typedef struct Map    Record;
+typedef struct Vector Struct;
 
 // user environment types
 typedef struct Environ Environ;
-typedef struct Module  Module;
 typedef struct Binding Binding;
 
 // user function types
@@ -64,12 +64,11 @@ typedef struct Objects Objects;
 
 // internal table types
 typedef struct StringCache StringCache;
-typedef struct ModuleCache ModuleCache;
 typedef struct MethodCache MethodCache;
 typedef struct UnionCache  UnionCache;
 typedef struct Gensyms     Gensyms;
 typedef struct ReadTable   ReadTable;
-typedef struct NameSpace   NameSpace;
+typedef struct EnvMap   EnvMap;
 
 // internal environment types
 typedef struct UpValue UpValue;
@@ -95,17 +94,19 @@ typedef rl_status_t (*rl_native_fn_t)(size_t argc, Value* args, Value* buffer);
 
 // enum types
 typedef enum Kind {
-  BOTTOM_TYPE, // Nothing - no values
-  DATA_TYPE,   // common data type - designates a set of Rascal values
-  UNION_TYPE,  // concrete union
-  TOP_TYPE     // Any - union of all types
+  // kinds ordered by heuristic specificity
+  BOTTOM_TYPE,         // nothing - no values
+  DATA_TYPE,           // a set of instantiable Rascal values
+  UNION_TYPE,          // a union type with at least one abstract member
+  TOP_TYPE             // union of all types
 } Kind;
 
 typedef enum Scope {
-  LOCAL,   // value is on stack
-  UPVALUE, // value is indirected through an upvalue
-  MODULE,  // value is stored at module level
-  GLOBAL,  // value is stored at global level
+  LOCAL_SCOPE,     // value is on stack
+  UPVALUE_SCOPE,   // value is indirected through an upvalue
+  NAMESPACE_SCOPE, // value is stored in the current namespace environ
+  STRUCT_SCOPE,    // value is stored in struct object
+  RECORD_SCOPE,    // value is stored in record object
 } Scope;
 
 // common object header types
@@ -145,8 +146,11 @@ struct Type {
   Value      value_type;   // tag for values of this type
   size_t     value_size;
   size_t     object_size;
-  NameSpace* slots;
-  Set*       members;      // union members
+
+  // type spec fields
+  Type*      parent;       // parent type (an abstract type, trait, or Any)
+  Environ*   slots;        // 
+  Set*       members;      // union or trait members
 
   // constructor
   Object* ctor;
@@ -244,9 +248,20 @@ struct Vector {
   word_t packed    : 1;
 
   // data fields
-  VecNode* root;
-  size_t   count;
-  Value    tail[];
+  size_t count;
+
+  union {
+    // common Vector
+    struct {
+      VecNode* root;
+      Value    tail[0];
+    };
+
+    // packed Vector
+    struct {
+      Value    slots[0];
+    };
+  };
 };
 
 struct Map {
@@ -256,20 +271,29 @@ struct Map {
   word_t transient : 1;
   word_t fastcmp   : 1;
 
-  // data fields
-  union {
-    MapNode* root;
-    List*    entries;
-  };
-
+  // data fields  
   size_t   count;
+
+  union {
+    List*    entries; // for small maps (< 16 keys), stored as a sorted map
+    MapNode* root;    // larger maps are stored in a HAMT-based structure
+  };
 };
 
-struct Record {
+struct Set {
   HEADER;
 
+  // bit fields
+  word_t transient : 1;
+  word_t fastcmp   : 1;
+
   // data fields
-  Map* slots;
+  size_t count;
+
+  union {
+    SetNode* root;    // for small sets (< 16 keys), stored as a sorted set
+    List*    members; // larger sets are stored in a HAMT-based structure
+  };
 };
 
 // user environment types
@@ -277,14 +301,14 @@ struct Environ {
   HEADER;
 
   // bit fields
-  word_t scope    : 2;
+  word_t scope    : 3;
   word_t bound    : 1;
   word_t captured : 1;
 
   // data fields
   Environ*   parent;
-  NameSpace* locals;
-  NameSpace* nonlocals;
+  EnvMap* locals;
+  EnvMap* nonlocals;
 
   union {
     Objects* upvals;
@@ -292,39 +316,17 @@ struct Environ {
   };
 };
 
-struct Module {
-  HEADER;
-
-  // bit fields
-  word_t compiled : 1;
-  word_t executed : 1;
-
-  // data fields
-  // initial layout identical to closure, allowing module to be safely cast to closure
-  Binary*  code;
-  Vector*  vals;
-  Environ* envt;
-
-  // data fieldsread from module spec
-  Symbol* name;    // (module <name> ...)
-  List*   imports; // (import (<imports*>))
-  List*   exports; // (export (<exports*>))
-  List*   body;    // (begin <body*>)
-
-  // result of module body execution
-  Value result;
-};
-
 struct Binding {
   HEADER;
 
   // bit fields
-  word_t scope       : 2;
-  word_t exported    : 1;
-  word_t final       : 1;
-  word_t inited      : 1;
-  word_t multimethod : 1; // rebinding behaves like multi-method
-  word_t macro       : 1; // macro name
+  word_t scope         : 3;
+  word_t private       : 1;
+  word_t protected     : 1;
+  word_t final         : 1;
+  word_t inited        : 1;
+  word_t specializable : 1; // rebinding behaves like multi-method
+  word_t macro         : 1; // macro name
 
   // data fields
   Binding* captures;   // the binding captured by this binding (if any)
@@ -332,7 +334,7 @@ struct Binding {
   Symbol*  name;       // name under which this binding was created in *original* environment
   size_t   offset;     // location (may be on stack, in upvalues, or directly in environment)
   Type*    constraint; // type constraint for this binding
-  Value    initval;    // default initval (only used for object scope)
+  Value    initval;    // default initval (only used for object scopes)
 };
 
 // user function types
@@ -472,46 +474,34 @@ struct StringCache {
 };
 
 typedef struct {
-  String* key;
-  Module* val;
-} ModCEntry;
-
-struct ModuleCache {
-  HEADER;
-
-  // data fields
-  ModCEntry* entries;
-  size_t count, max_count;
-};
-
-typedef struct {
   Vector*          key;
   MethodTableLeaf* val;
-} MethCEntry;
+} MCEntry;
 
 struct MethodCache {
   HEADER;
 
   // data fields
-  MethCEntry* entries;
+  MCEntry* entries;
   size_t count, max_count;
 };
 
 struct ReadTable {
   HEADER;
 
-  funcptr_t dispatch[256];
+  funcptr_t dispatch[256]; // common readers
+  funcptr_t intrasym[256]; // intra-symbol readers
 };
 
 typedef struct {
   Symbol*  key;
   Binding* val;
-} NSEntry;
+} EMEntry;
 
-struct NameSpace {
+struct EnvMap {
   HEADER;
 
-  NSEntry* entries;
+  EMEntry* entries;
   size_t   count, max_count;
 };
 
@@ -546,13 +536,13 @@ struct VecNode {
   word_t offset    : 6;
   word_t transient : 1;
 
+  uint32_t count, max_count;
+
   // data fields
   union {
-    Value*   slots;
     Object** children;
+    Value    slots[0];
   };
-
-  uint32_t count, max_count;
 };
 
 struct MapNode {
@@ -563,8 +553,20 @@ struct MapNode {
   word_t transient : 1;
 
   // data fields
-  Object** children;
   size_t   bitmap;
+  Object** children;
+};
+
+struct SetNode {
+  HEADER;
+
+  // bit fields
+  word_t offset    : 6;
+  word_t transient : 1;
+
+  // data fields
+  size_t   bitmap, childmap;
+  Object** children;
 };
 
 /* tags and masks */
@@ -624,7 +626,7 @@ extern Type NulType, BooleanType, GlyphType,
 
   ObjectsType,
 
-  StringCacheType, ModuleCacheType, MethodCacheType, ReadTableType, NameSpaceType,
+  StringCacheType, ModuleCacheType, MethodCacheType, ReadTableType, EnvMapType,
 
   UpValueType,
 
