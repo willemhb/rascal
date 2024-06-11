@@ -67,7 +67,7 @@
     "Generic addition."
     ([x])
     ([x y])
-    ([x y & a] (apply + [x, y, & a])))
+    ([x y & a] (+ (+ x y) & a)))
 
   (method +
     [x: Number] x)
@@ -76,6 +76,6 @@
     [x: Number, y: Number]
     (+ & (promote x y)))
 
-  (method +: Small
+  (method +
     [x: Small,  y: Small]
-    (*+-small* x y)))
+    (*add-small* x y)))

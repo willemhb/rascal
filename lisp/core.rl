@@ -10,6 +10,10 @@
     [b: Symbol])
 
   ;; binding syntax.
+  (mac val
+    "Standard syntax for creating new immutable bindings."
+    ([name bind])
+    ([name metadata bind]))
 
   ;; block and loop syntax.
   (mac let
@@ -38,4 +42,4 @@
 
   (mac case
     "Like `cond`, but each `t` is compared to the first expression."
-    ([m & body]))
+    ([m & body])))

@@ -39,10 +39,10 @@
   '(("\\(?:[^:]:[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ("\\(?:[^~]@[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^@[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ;; special constants
-    ("\\_<nothing[[:space:][:cntrl:],\\s)]" . font-lock-constant-face)
-    ("\\_<nul[[:space:][:cntrl:],\\s)]" . font-lock-constant-face)
-    ("\\_<true[[:space:][:cntrl:],\\s)]" . font-lock-constant-face)
-    ("\\_<false[[:space:][:cntrl:],\\s)]" . font-lock-constant-face)
+    ("\\_<nothing\\_>" . font-lock-constant-face)
+    ("\\_<nul\\_>" . font-lock-constant-face)
+    ("\\_<true\\_>" . font-lock-constant-face)
+    ("\\_<false\\_>" . font-lock-constant-face)
     ;; types
     ("\\_<[A-Z][a-zA-Z0-9]*\\_>" . font-lock-type-face)
     ;; syntax
