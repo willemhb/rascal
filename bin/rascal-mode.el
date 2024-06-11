@@ -13,27 +13,27 @@
     ;; syntax affixed with `*` is superseded or otherwise not intended to be used
     ;; directly in user code
     ;; variable binding & rebinding
-    "val" "var" "put"
-    
+    "def*" "val" "var" "put"
+
     ;; function/macro binding
-    "fun" "mac" "generic" "method"
-        
+    "fun" "mac" "method"
+
     ;; type binding
-    "type" "union" "record" "struct"
-    
+    "type" "union" "record"
+
     ;; namespace binding
-    "ns" "use"
-    
-    ;; block and looping syntax
-    "let" "label" "loop" "for" "while"
-    
+    "ns" "use" "import"
+
+    ;; closures and blocks
+    "fn*" "let" "label" "loop"
+
     ;; branching syntax
-    "cond" "case" "and" "or"
-    
+    "if" "cond" "case" "and" "or"
+
     ;; non-local control syntax
-    "catch" "throw"
-    
-    ;; miscellaneous syntax.
+    "handle" "raise" "catch" "throw"
+
+    ;; miscellaneous syntax
     "c-call" "quote" "do" "bq*" "uq*" "splc*"
     )
   '(("\\(?:[^:]:[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)

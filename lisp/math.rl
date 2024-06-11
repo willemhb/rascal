@@ -1,51 +1,81 @@
-(module math
-  "This is the rascal builtin math library.
+(ns math
+  "Math standard library (mostly ffi calls to functions defined in <math.h>)."
 
-   Mostly just wrappers for functions in <math.h>."
-  (import (core))
-  (export (Number
-           pi e
-           sin cos tan asin acos atan
-           pow sqrt hypot))
+  ;; union types.
+  (union Signed
+    "All signed integer types."
+    (Small Big))
 
-  (begin
-    ;; Mathematical union types.
-    (type Number
-      "All valid numeric types used by Rascal."
-      (Real Small))
+  (union Integer
+    "All integer types (signed or unsigned)."
+    (Small Big Arity))
 
-    ;; Common mathematical constants.
-    (val pi 3.1415926535)
-    (val e  2.7182818285)
+  (union Number
+    "All valid numeric types."
+    (Small Big Arity Real Ratio))
 
-    ;; Trig functions
-    (fun sin
-      "The `sin` function."
-      ((Number x))
-      (c-call :sin :float64 (:float64) (x)))
+  ;; constants.
+  (val pi
+    "Mathematical constant pi."
+    3.14159)
 
-    (fun cos
-      "The `cos` function."
-      ((Number x))
-      (c-call :cos :float64 (:float64) (x)))
+  (val e
+    "Mathematical constant e."
+    2.71828)
 
-    (fun tan
-      "The `tan` function."
-      ((Number x))
-      (c-call :tan :float64 (:float64) (x)))
+  ;; promote.
+  (fun promote
+    "Coerce two numbers to nearest common type."
+    ([x, y])
+    ([x, y, & a] (fold promote [x, y, & a]))
 
-    ;; other common functions on real numbers.
-    (fun pow
-      "The `pow` function."
-      ((Real base) (Number exp))
-      (c-call :pow :float64 (:float64 :float64) (base exp)))
+  (method promote
+    [x: Small, y: Small] [x, y])
 
-    (fun sqrt
-      "The `sqrt` function."
-      ((Number x))
-      (c-call :sqrt :float64 (:float64) (x)))
+  (method promote
+    [x: Real, y: Real] [x, y])
 
-    (fun hypot
-      "The `hypot` function."
-      ((Number x) (Number y))
-      (c-call :hypot :float64 (:float64 :float64) (x y)))))
+  (method promote
+    [x: Arity, y: Arity] [x, y])
+
+  (method promote
+    [x: Small, y: Real] [(Real x), y])
+
+  (method promote
+    [x: Real, y: Small] [x, (Real y)])
+
+  (method promote
+    [x: Small, y: Arity] [(Real x), (Real y)])
+
+  (method promote
+    [x: Arity, y: Small] [(Real x), (Real y)])
+
+  ;; Constructor overloads.
+  (method Real
+    [x: Small]
+    (*cast-small-to-real* x))
+
+  (method Real
+    [x: Arity]
+    (*cast-arity-to-real* x))
+
+  (method Real
+    [x: String]
+    (*read-string-as-real* x))
+
+  (fun +
+    "Generic addition."
+    ([x])
+    ([x y])
+    ([x y & a] (apply + [x, y, & a])))
+
+  (method +
+    [x: Number] x)
+
+  (method +
+    [x: Number, y: Number]
+    (+ & (promote x y)))
+
+  (method +: Small
+    [x: Small,  y: Small]
+    (*+-small* x y)))

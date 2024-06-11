@@ -30,16 +30,16 @@ typedef enum {
   UINT64   =0x0d,
   FLOAT64  =0x0e,
   POINTER  =0x0f,
-} MachineType;
+} CType;
 
-// MachineType utilities
-size_t mt_size(MachineType bt);
-bool   mt_is_encoded(MachineType bt);
-bool   mt_is_multibyte(MachineType bt);
-bool   mt_is_unsigned(MachineType bt);
-bool   mt_is_signed(MachineType bt);
-bool   mt_is_float(MachineType bt);
-bool   mt_is_pointer(MachineType bt);
+// CType utilities
+size_t ct_size(CType bt);
+bool   ct_is_encoded(CType bt);
+bool   ct_is_multibyte(CType bt);
+bool   ct_is_unsigned(CType bt);
+bool   ct_is_signed(CType bt);
+bool   ct_is_float(CType bt);
+bool   ct_is_pointer(CType bt);
 
 // miscellaneous numeric utilities
 word_t ceil2(word_t w);

@@ -18,52 +18,6 @@ typedef struct RState RState;
 typedef struct CState CState;
 typedef struct IState IState;
 
-/* buffer types - optimistically use statically allocated buffer, but can use
-   heap space in a pinch. Keep track of the static buffer and switch back when
-   stack shrinks below a certain size. */
-
-typedef struct ValueBuffer {
-  Value*   base;
-  Value*   fbase;
-  bool     small;
-  uint32_t next, max, smax;
-} ValueBuffer;
-
-typedef struct ObjectBuffer {
-  Object** base;
-  Object** fbase;
-  bool     small;
-  uint32_t next, max, smax;
-} ObjectBuffer;
-
-typedef struct TextBuffer {
-  char*    base;
-  char*    fbase;
-  bool     small;
-  uint32_t next, max, smax;
-} TextBuffer;
-
-typedef struct RFrameBuffer {
-  RFrame*  base;
-  RFrame*  fbase;
-  bool     small;
-  uint32_t next, max, smax;
-} RFrameBuffer;
-
-typedef struct CFrameBuffer {
-  CFrame*  base;
-  CFrame*  fbase;
-  bool     small;
-  uint32_t next, max, smax;
-} CFrameBuffer;
-
-typedef struct IFrameBuffer {
-  IFrame*  base;
-  IFrame*  fbase;
-  bool     small;
-  uint32_t next, max, smax;
-} IFrameBuffer;
-
 /* frame types */
 struct HFrame {
   HFrame* next;
@@ -71,47 +25,26 @@ struct HFrame {
   Value*  values;
 };
 
-struct IFrame {
-  Closure*  code;
-  uint16_t* pc;
-  size_t    bp;
-  size_t    fsize;
-};
-
-struct CFrame {
-  List*    form;
-  Environ* envt;
-  MutVec*  values;
-  MutBin*  code;
-};
-
-struct RFrame {
-  Port*      input;
-  Symbol*    ns;     // current namespace
-  ReadTable* rt;
-  Gensyms*   gs;
-};
-
 /* state types */
 struct HState {
   HFrame*      frames; // Live objects in the C stack that may not be visible from the roots (eg, when an intermediate object is created inside a C function).
   size_t       size, max_size;
   Object*      live_objects;
-  ObjectBuffer grays;
+  Alist*       grays;
 };
 
 struct RState {
-  RFrameBuffer frames;
-  ValueBuffer  stack;
-  TextBuffer   buffer;
+  Alist        frames;
+  MutVec       stack;
+  MutBin       buffer;
   ReadTable*   rt;
-  Gensyms*     gs;
+  MutMap*      gs;
   Port*        input;
 };
 
 struct CState {
-  CFrameBuffer frames;
-  ValueBuffer  stack;
+  Alist        frames;
+  MutVec       stack;
   List*        form;
   Environ*     envt;
   MutVec*      constants;
@@ -119,11 +52,15 @@ struct CState {
 };
 
 struct IState {
-  IFrameBuffer frames;
-  ValueBuffer  stack;
+  Alist        frames;
+  MutVec       stack;
   UpValue*     upvals; // List of open upvalues
-  Closure*     code; // currently executing code object
-  uint16_t*    pc; // program counter for currently executing code object
+  Closure*     code;   // currently executing code object
+  uint16_t*    pc;     // program counter for currently executing code object
+  size_t       cp;     // catch pointer
+  size_t       hp;     // handle pointer
+  size_t       bp;     // base pointer
+  size_t       fp;     // frame pointer
 };
 
 /* Global State objects */
@@ -133,86 +70,15 @@ extern CState Compiler;
 extern IState Interpreter;
 
 /* Global table objects */
-extern Environ     Globals; // global environment
-
-extern StringCache Strings; // global string cache
-extern UnionCache  Unions;  // global union cache
-extern ReadTable   BaseRt;  // base read table
+extern Environ     Globals;    // global environment
+extern StringCache Strings;    // global string cache
+extern MutMap      NameSpaces; // cache of namespaces mapped to their names
+extern MutMap      Modules;    // cache of files
+extern MutMap      Unions;     // cache of union signatures
+extern ReadTable   BaseRt;     // base read table
 
 /* External APIs */
 /* Stack APIs */
-// value buffer
-rl_status_t init_value_buffer(ValueBuffer* b, Value* fb, uint32_t sm);
-rl_status_t free_value_buffer(ValueBuffer* b);
-rl_status_t grow_value_buffer(ValueBuffer* b, size_t n);
-rl_status_t shrink_value_buffer(ValueBuffer* b, size_t n);
-rl_status_t value_buffer_write(ValueBuffer* b, Value* src, size_t n);
-rl_status_t value_buffer_push(ValueBuffer* b, Value v);
-rl_status_t value_buffer_pushn(ValueBuffer* b, size_t n, ...);
-rl_status_t value_buffer_pushv(ValueBuffer* b, size_t n, va_list va);
-rl_status_t value_buffer_pop(ValueBuffer* b, Value* r);
-rl_status_t value_buffer_popn(ValueBuffer* b, Value* r, bool top, size_t n);
-
-// object buffer
-rl_status_t init_object_buffer(ObjectBuffer* b, Object** fb, uint32_t sm);
-rl_status_t free_object_buffer(ObjectBuffer* b);
-rl_status_t grow_object_buffer(ObjectBuffer* b, size_t n);
-rl_status_t shrink_object_buffer(ObjectBuffer* b, size_t n);
-rl_status_t object_buffer_write(ObjectBuffer* b, Object** src, size_t n);
-rl_status_t object_buffer_push(ObjectBuffer* b, Object* v);
-rl_status_t object_buffer_pushn(ObjectBuffer* b, size_t n, ...);
-rl_status_t object_buffer_pushv(ObjectBuffer* b, size_t n, va_list va);
-rl_status_t object_buffer_pop(ObjectBuffer* b, Object** r);
-rl_status_t object_buffer_popn(ObjectBuffer* b, Object** r, bool top, size_t n);
-
-// text buffer
-rl_status_t init_text_buffer(TextBuffer* b, char* fb, uint32_t sm);
-rl_status_t free_text_buffer(TextBuffer* b);
-rl_status_t grow_text_buffer(TextBuffer* b, size_t n);
-rl_status_t shrink_text_buffer(TextBuffer* b, size_t n);
-rl_status_t text_buffer_write(TextBuffer* b, char* src, size_t n);
-rl_status_t text_buffer_push(TextBuffer* b, char v);
-rl_status_t text_buffer_pushn(TextBuffer* b, size_t n, ...);
-rl_status_t text_buffer_pushv(TextBuffer* b, size_t n, va_list va);
-rl_status_t text_buffer_pop(TextBuffer* b, char* r);
-rl_status_t text_buffer_popn(TextBuffer* b, char* r, bool top, size_t n);
-
-// reader frame buffer
-rl_status_t init_rframe_buffer(RFrameBuffer* b, RFrame* fb, uint32_t sm);
-rl_status_t free_rframe_buffer(RFrameBuffer* b);
-rl_status_t grow_rframe_buffer(RFrameBuffer* b, size_t n);
-rl_status_t shrink_rframe_buffer(RFrameBuffer* b, size_t n);
-rl_status_t rframe_buffer_write(RFrameBuffer* b, RFrame* src, size_t n);
-rl_status_t rframe_buffer_push(RFrameBuffer* b, RFrame v);
-rl_status_t rframe_buffer_pushn(RFrameBuffer* b, size_t n, ...);
-rl_status_t rframe_buffer_pushv(RFrameBuffer* b, size_t n, va_list va);
-rl_status_t rframe_buffer_pop(RFrameBuffer* b, RFrame* r);
-rl_status_t rframe_buffer_popn(RFrameBuffer* b, RFrame* r, bool top, size_t n);
-
-// compiler frame buffer
-rl_status_t init_cframe_buffer(CFrameBuffer* b, CFrame* fb, uint32_t sm);
-rl_status_t free_cframe_buffer(CFrameBuffer* b);
-rl_status_t grow_cframe_buffer(CFrameBuffer* b, size_t n);
-rl_status_t shrink_cframe_buffer(CFrameBuffer* b, size_t n);
-rl_status_t cframe_buffer_write(CFrameBuffer* b, CFrame* src, size_t n);
-rl_status_t cframe_buffer_push(CFrameBuffer* b, CFrame v);
-rl_status_t cframe_buffer_pushn(CFrameBuffer* b, size_t n, ...);
-rl_status_t cframe_buffer_pushv(CFrameBuffer* b, size_t n, va_list va);
-rl_status_t cframe_buffer_pop(CFrameBuffer* b, CFrame* r);
-rl_status_t cframe_buffer_popn(CFrameBuffer* b, CFrame* r, bool top, size_t n);
-
-// interpreter frame buffer
-rl_status_t init_iframe_buffer(IFrameBuffer* b, IFrame* fb, uint32_t sm);
-rl_status_t free_iframe_buffer(IFrameBuffer* b);
-rl_status_t grow_iframe_buffer(IFrameBuffer* b, size_t n);
-rl_status_t shrink_iframe_buffer(IFrameBuffer* b, size_t n);
-rl_status_t iframe_buffer_write(IFrameBuffer* b, IFrame* src, size_t n);
-rl_status_t iframe_buffer_push(IFrameBuffer* b, IFrame v);
-rl_status_t iframe_buffer_pushn(IFrameBuffer* b, size_t n, ...);
-rl_status_t iframe_buffer_pushv(IFrameBuffer* b, size_t n, va_list va);
-rl_status_t iframe_buffer_pop(IFrameBuffer* b, IFrame* r);
-rl_status_t iframe_buffer_popn(IFrameBuffer* b, IFrame* r, bool top, size_t n);
-
 // state generics (a lot of stack manipulation)
 #define smark(S)                                \
   generic((S),                                  \
@@ -311,7 +177,7 @@ rl_status_t rstate_mark(RState* s);
 rl_status_t rstate_push(RState* s, Value v);
 rl_status_t rstate_write(RState* s, Value* vs, size_t n);
 rl_status_t rstate_pushn(RState* s, size_t n, ...);
-rl_status_t rstate_pushf(RState* s, Port* i, ReadTable* rt, Gensyms* gs);
+rl_status_t rstate_pushf(RState* s, Port* i, ReadTable* rt, MutMap* gs);
 rl_status_t rstate_writef(RState* s, RFrame* f, size_t n);
 rl_status_t rstate_popf(RState* s);
 rl_status_t rstate_writec(RState* s, char c);
@@ -326,6 +192,5 @@ rl_status_t cstate_pop(CState* s, Value* b);
 /* IState and interpreter APIs */
 rl_status_t istate_mark(IState* s);
 rl_status_t istate_pop(IState* s, Value* b);
-
 
 #endif

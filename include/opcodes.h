@@ -19,12 +19,14 @@ typedef enum {
   OP_LD_UPV, OP_STO_UPV, // load or store from upvalues
   OP_LD_MOD, OP_STO_MOD, // load or store from module
 
+  // handle, raise, catch, throw
+  OP_HANDLE, OP_RAISE,   // resumable effects
+  OP_CATCH,  OP_THROW,   // non-resumable effects
+
   // branch instructions
   OP_JMP,                // unconditional jump
   OP_JMP_TRUE,           // conditional jump (pops TOS)
   OP_JMP_FALSE,          // conditional jump (pops TOS)
-
-  // 
 } OpCode;
 
 #endif

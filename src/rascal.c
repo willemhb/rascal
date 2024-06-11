@@ -4,25 +4,32 @@
 #include "value.h"
 #include "util.h"
 
-/* Initialization. */
-static void init_rascal_vm(void) {
-  init_heap_state(&Heap);
-  init_interpreter_state(&Interpreter);
-  init_reader_state(&Reader);
-  init_compiler_state(&Compiler);
-}
+/* Globals */
+#define RASCAL_LISP_DIR "/home/willem/Programming/C/rascal/lisp/"
 
-static void free_rascal_vm(void) {
-  free_heap_state(&Heap);
-  free_interpreter_state(&Interpreter);
-  free_reader_state(&Reader);
-  free_compiler_state(&Compiler);
+/* Initialization */
+static void init_rascal_vm(void) {}
+
+static void free_rascal_vm(void) {}
+
+static void read_rascal_args(int argc, const char* argv[argc], List** args, Set** flags, Map** opts) {
+  (void)argc;
+  (void)argv;
+  (void)args;
+  (void)flags;
+  (void)opts;
 }
 
 int main(const int argc, const char* argv[argc]) {
-  (void)argv;
-
   init_rascal_vm();
+
+  read_rascal_args(argc,argv, &ClArgs, &ClFlags, &ClOpts);
+
+  rl_load(RASCAL_LISP_DIR "boot.rl");
+
+  // interpret command line arguments
+  rl_repl();
+
   free_rascal_vm();
 
   return 0;

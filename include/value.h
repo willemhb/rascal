@@ -10,6 +10,8 @@ typedef word_t    Value;
 typedef nullptr_t Nul;
 typedef bool      Boolean;
 typedef char      Glyph;
+typedef uint16_t  Primitive; // A primitive function builtin into the bytecode interpreter
+typedef word_t    Arity;     // 48-bit unsigned integer (can hold any valid hash or size)
 typedef int       Small;
 typedef double    Real;
 typedef void*     Pointer;
@@ -27,6 +29,10 @@ typedef struct Symbol Symbol;
 // user IO types
 typedef struct Port Port;
 
+// user big number types
+typedef struct Big    Big;
+typedef struct Ratio  Ratio;
+
 // user compound types
 typedef struct Pair   Pair;
 typedef struct List   List;
@@ -34,9 +40,10 @@ typedef struct String String;
 typedef struct Binary Binary;
 typedef struct Vector Vector;
 typedef struct Map    Map;
-typedef struct Set    Set;
+
+// user compound type aliases
 typedef struct Map    Record;
-typedef struct Vector Struct;
+typedef struct Map    Set;
 
 // user environment types
 typedef struct Environ Environ;
@@ -57,18 +64,17 @@ typedef struct MutStr  MutStr;
 typedef struct MutBin  MutBin;
 typedef struct MutVec  MutVec;
 typedef struct MutMap  MutMap;
-typedef struct MutSet  MutSet;
+
+// user mutable compound type aliases
+typedef struct MutMap  MutSet;
 
 // internal array types
-typedef struct Objects Objects;
+typedef struct Alist Alist;
 
 // internal table types
 typedef struct StringCache StringCache;
-typedef struct MethodCache MethodCache;
-typedef struct UnionCache  UnionCache;
-typedef struct Gensyms     Gensyms;
+typedef struct EnvMap      EnvMap;
 typedef struct ReadTable   ReadTable;
-typedef struct EnvMap   EnvMap;
 
 // internal environment types
 typedef struct UpValue UpValue;
@@ -76,12 +82,11 @@ typedef struct UpValue UpValue;
 // internal node types
 typedef struct VecNode VecNode;
 typedef struct MapNode MapNode;
-typedef struct SetNode SetNode;
 
 // internal function types
-typedef struct MethodTableRoot MethodTableRoot;
-typedef struct MethodTableNode MethodTableNode;
-typedef struct MethodTableLeaf MethodTableLeaf;
+typedef struct MTRoot MTRoot;
+typedef struct MTNode MTNode;
+typedef struct MTLeaf MTLeaf;
 
 // internal function pointer types
 typedef rl_status_t (*rl_trace_fn_t)(Object* obj);
@@ -196,6 +201,22 @@ struct Port {
   FILE* ios;
 };
 
+// user numeric types
+struct Big {
+  HEADER;
+
+  int      sign;
+  uint32_t size;
+  byte_t  *digits;
+};
+
+struct Ratio {
+  HEADER;
+
+  Big* numer;
+  Big* denom;
+};
+
 // user compound types
 struct Pair {
   HEADER;
@@ -231,13 +252,8 @@ struct Binary {
   word_t eltype : 4;
 
   // data fields
-  union {
-    void*     data;
-    uint8_t*  i8;
-    uint16_t* i16;
-  };
-
-  size_t count;
+  byte_t* data;
+  size_t  count;
 };
 
 struct Vector {
@@ -280,22 +296,6 @@ struct Map {
   };
 };
 
-struct Set {
-  HEADER;
-
-  // bit fields
-  word_t transient : 1;
-  word_t fastcmp   : 1;
-
-  // data fields
-  size_t count;
-
-  union {
-    SetNode* root;    // for small sets (< 16 keys), stored as a sorted set
-    List*    members; // larger sets are stored in a HAMT-based structure
-  };
-};
-
 // user environment types
 struct Environ {
   HEADER;
@@ -306,12 +306,14 @@ struct Environ {
   word_t captured : 1;
 
   // data fields
-  Environ*   parent;
-  EnvMap* locals;
-  EnvMap* nonlocals;
+  Symbol*    name;      // Name for this Environ object (may be a namespace, function, or type)
+  Environ*   parent;    // the environment within which this environment was defined
+  Environ*   template;  // the unbound environment a bound environment was cloned from
+  EnvMap*    locals;
+  EnvMap*    nonlocals;
 
   union {
-    Objects* upvals;
+    Alist* upvals;
     MutVec*  values;
   };
 };
@@ -321,11 +323,9 @@ struct Binding {
 
   // bit fields
   word_t scope         : 3;
-  word_t private       : 1;
-  word_t protected     : 1;
   word_t final         : 1;
   word_t inited        : 1;
-  word_t specializable : 1; // rebinding behaves like multi-method
+  word_t specializable : 1; // can have methods added
   word_t macro         : 1; // macro name
 
   // data fields
@@ -357,8 +357,8 @@ struct Generic {
   HEADER;
 
   // data fields
-  MethodCache*     cache;
-  MethodTableRoot* methods;
+  MutMap* cache;
+  MTRoot* root;
 };
 
 // user control types
@@ -389,17 +389,22 @@ struct MutList {
   MutList* tail; // no count is stored, since it's impossible to ensure its accuracy with a mutable tail
 };
 
+// mutable array types
+#define DYNAMIC_ARRAY(X)                        \
+  word_t algo : 1;                              \
+  X* data;                                      \
+  X* _static;                                   \
+  size_t count, max_count, max_static
+
 struct MutStr {
   HEADER;
 
   // bit fields
   word_t encoding : 4;
   word_t hasmb    : 1;
-  word_t algo     : 1;
 
   // data fields
-  char* characters;
-  size_t count, max_count;
+  DYNAMIC_ARRAY(char);
 };
 
 struct MutBin {
@@ -407,56 +412,48 @@ struct MutBin {
 
   // bit fields
   word_t eltype : 4;
-  word_t algo   : 1;
 
   // data fields
-  union {
-    void*     data;
-    uint8_t*  i8;
-    uint16_t* i16;
-  };
-
-  size_t count, max_count;
+  DYNAMIC_ARRAY(uint8_t);
 };
 
 struct MutVec {
   HEADER;
 
-  // bit fields
-  word_t algo : 1;
-
   // data fields
-  Value* data;
-  size_t count, max_count;
+  DYNAMIC_ARRAY(Value);
 };
 
+// internal array types
+struct Alist {
+  HEADER;
+
+  // data fields
+  DYNAMIC_ARRAY(Object*);
+};
+
+#undef DYNAMIC_ARRAY
+
+// mutable table types
+#define MUTABLE_ENTRY(K, V)                     \
+  K key;                                        \
+  V val
+
+#define MUTABLE_TABLE(E)                        \
+  word_t loadfactor : 5;                        \
+  word_t fastcmp    : 1;                        \
+                                                \
+  E* entries;                                   \
+  size_t count, max_count
+
 typedef struct {
-  Value key;
-  Value val;
-} MapEntry;
+  MUTABLE_ENTRY(Value, Value);
+} MMEntry;
 
 struct MutMap {
   HEADER;
 
-  // bit fields
-  word_t loadfactor : 5;
-  word_t fastcmp    : 1;
-
-  // data fields
-  MapEntry* entries;
-  size_t count, max_count;
-};
-
-// internal array types
-struct Objects {
-  HEADER;
-
-  // bit fields
-  word_t algo : 1;
-
-  // data fields
-  Object** objs;
-  size_t count, max_count;
+  MUTABLE_TABLE(MMEntry);
 };
 
 // internal table types
@@ -468,41 +465,28 @@ typedef struct {
 struct StringCache {
   HEADER;
 
-  // data fields
-  SCEntry* entries;
-  size_t count, max_count;
+  MUTABLE_TABLE(SCEntry);
 };
 
 typedef struct {
-  Vector*          key;
-  MethodTableLeaf* val;
-} MCEntry;
-
-struct MethodCache {
-  HEADER;
-
-  // data fields
-  MCEntry* entries;
-  size_t count, max_count;
-};
-
-struct ReadTable {
-  HEADER;
-
-  funcptr_t dispatch[256]; // common readers
-  funcptr_t intrasym[256]; // intra-symbol readers
-};
-
-typedef struct {
-  Symbol*  key;
-  Binding* val;
+  MUTABLE_ENTRY(Symbol*, Binding*);
 } EMEntry;
 
 struct EnvMap {
   HEADER;
 
-  EMEntry* entries;
-  size_t   count, max_count;
+  MUTABLE_TABLE(EMEntry);
+};
+
+#undef MUTABLE_TABLE
+#undef MUTABLE_ENTRY
+
+struct ReadTable {
+  HEADER;
+
+  ReadTable* parent;
+  funcptr_t  dispatch[256]; // common readers
+  funcptr_t  intrasym[256]; // intra-symbol readers
 };
 
 // internal environment types
@@ -534,6 +518,7 @@ struct VecNode {
 
   // bit fields
   word_t offset    : 6;
+  word_t depth     : 4;
   word_t transient : 1;
 
   uint32_t count, max_count;
@@ -550,53 +535,50 @@ struct MapNode {
 
   // bit fields
   word_t offset    : 6;
+  word_t depth     : 4;
   word_t transient : 1;
 
   // data fields
   size_t   bitmap;
-  Object** children;
-};
 
-struct SetNode {
-  HEADER;
-
-  // bit fields
-  word_t offset    : 6;
-  word_t transient : 1;
-
-  // data fields
-  size_t   bitmap, childmap;
   Object** children;
 };
 
 /* tags and masks */
-#define QNAN      0x7ff8000000000000UL
-#define SIGN      0x8000000000000000UL
+#define QNAN       0x7ff8000000000000UL
+#define SIGN       0x8000000000000000UL
 
-#define TAG_BITS  0xffff000000000000UL
-#define DATA_BITS 0x0000ffffffffffffUL
+#define TAG_BITS   0xffff000000000000UL
+#define WTAG_BITS  0xffffffff00000000UL
+#define WDATA_BITS 0x00000000ffffffffUL
+#define DATA_BITS  0x0000ffffffffffffUL
 
+// wide tags
 #define REAL      0x0000000000000000UL // dummy tag
-#define NUL       0x7ffc000000000000UL
-#define BOOL      0x7ffd000000000000UL
-#define GLYPH     0x7ffe000000000000UL
-#define SMALL     0x7fff000000000000UL
-#define CPTR      0xfffc000000000000UL
-#define FPTR      0xfffd000000000000UL
-#define OBJECT    0xfffe000000000000UL
-#define SENTINEL  0xffff000000000000UL // not a proper value, used as an internal marker
+#define ARITY     0x7ffc000000000000UL // arity value
+#define CPTR      0x7ffd000000000000UL
+#define FPTR      0x7ffe000000000000UL
+#define OBJECT    0x7fff000000000000UL
+#define LITTLE    0xffff000000000000UL // 32-bit value with wide tag
+
+#define NUL       0xffff000000000000UL
+#define BOOL      0xffff000100000000UL
+#define GLYPH     0xffff000200000000UL
+#define PRIMITIVE 0xffff000300000000UL
+#define SMALL     0xffff000400000000UL
+#define SENTINEL  0xffffffff00000000UL
 
 #define TRUE      0x7ffd000000000001UL // BOOL | 1
 #define FALSE     0x7ffd000000000000UL // BOOL | 0
 
 // sentinel values, shouldn't be visible in user code
-#define NOTHING   0xffff000000000000UL // SENTINEL | 0
+#define NOTHING   0xffffffff00000000UL // SENTINEL | 0
 
 /* Globals */
 // type objects
 extern Type NulType, BooleanType, GlyphType,
 
-  SmallType, RealType,
+  ArityType, SmallType, RealType,
 
   PointerType, FuncPtrType,
 
@@ -612,7 +594,7 @@ extern Type NulType, BooleanType, GlyphType,
 
   VectorType, MapType,
 
-  EnvironType, ModuleType, BindingType,
+  EnvironType, BindingType,
 
   ClosureType, NativeType, GenericType,
 
@@ -624,7 +606,7 @@ extern Type NulType, BooleanType, GlyphType,
 
   MutVecType, MutMapType,
 
-  ObjectsType,
+  AlistType,
 
   StringCacheType, ModuleCacheType, MethodCacheType, ReadTableType, EnvMapType,
 
@@ -632,7 +614,7 @@ extern Type NulType, BooleanType, GlyphType,
 
   VecNodeType, VecLeafType, MapNodeType, MapLeafType,
 
-  MethodTableRootType, MethodTableNodeType, MethodTableLeafType,
+  MTRootType, MTNodeType, MTLeafType,
 
   BottomType, TopType;
 
@@ -645,11 +627,20 @@ extern Map    EmptyMap;
 // standard ports
 extern Port StdIn, StdOut, StdErr;
 
+// parsed command line arguments
+extern List* ClArgs;
+extern Set*  ClFlags;
+extern Map*  ClOpts;
+
 /* APIs */
 // tagging/untagging macros & functions
-#define tag_of(x) ((x) & TAG_BITS)
+static inline Value tag_of(Value x) {
+  return (x & LITTLE) == LITTLE ? x & WTAG_BITS : x & TAG_BITS;
+}
 
-#define untag(x)  ((x) & DATA_BITS)
+static inline Value untag(Value x) {
+  return (x & LITTLE) == LITTLE ? x & WDATA_BITS : x & DATA_BITS;
+}
 
 #define tag(x)                                  \
   generic((x),                                  \
@@ -761,8 +752,26 @@ String* get_str(char* chars);
 size_t cstr_define(char* n, Value i, Environ* e);
 size_t sym_define(Symbol* n, Value i, Environ* e);
 
-// mutable strings
+// mutable arrays
+#define MUTABLE_ARRAY(T, t, X, ...)                                     \
+  rl_status_t init_##t(T* a, X* s, size_t ss __VA_OPT__(,) __VA_ARGS__); \
+  rl_status_t free_##t(T* a);                                           \
+  rl_status_t grow_##t(T* a, size_t n);                                 \
+  rl_status_t shrink_##t(T* a, size_t n);                               \
+  rl_status_t write_##t(T* a, X* s, size_t n);                          \
+  rl_status_t t##_push(T* a, X x);                                      \
+  rl_status_t t##_pushn(T* a, size_t n, ...);                           \
+  rl_status_t t##_pushv(T* a, size_t n, va_list va);                    \
+  rl_status_t t##_pop(T* a, X* r);                                      \
+  rl_status_t t##_popn(T* a, X* r, bool e, size_t n)
 
-// mutable binaries
+MUTABLE_ARRAY(MutVec, mvec, Value);
+MUTABLE_ARRAY(Alist, alist, void*);
+MUTABLE_ARRAY(MutBin, mbin, uint8_t, CType eltype);
+MUTABLE_ARRAY(MutStr, mstr, char, CType encoding);
+
+#undef MUTABLE_ARRAY
+
+// mutable tables
 
 #endif
