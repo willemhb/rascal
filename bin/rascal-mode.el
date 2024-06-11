@@ -19,7 +19,7 @@
     "fun" "mac" "method"
 
     ;; type binding
-    "type" "union" "record"
+    "type" "union" "record" "struct"
 
     ;; namespace binding
     "ns" "use" "import"
@@ -48,7 +48,8 @@
     ;; syntax
     ("\\_<otherwise\\_>" . font-lock-function-name-face)
     ("\\_<&\\_>" . font-lock-function-name-face)
-    ("\\_<&&\\_>" . font-lock-function-name-face))
+    ("\\_<&&\\_>" . font-lock-function-name-face)
+    ("\\_<&&&\\_>" . font-lock-function-name-face))
   '("\\.rl$" "\\.rls$" "\\.rlm$" "\\.rld$" "\\.rlo$") ;; generic file, source file, module file, data file, object file
   (list 'rainbow-delimiters-mode)
   "A major mode for rascal files.")

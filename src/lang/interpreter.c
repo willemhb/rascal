@@ -1,0 +1,10 @@
+#include "interpreter.h"
+
+
+/* APIs */
+rl_status_t rl_read(Port* ios, Value* buffer);
+rl_status_t rl_compile(List* form, Chunk** buffer);
+rl_status_t rl_execute(Closure* code, Value* buffer);
+rl_status_t rl_eval(Value val, Value* buffer);
+rl_status_t rl_print(Port* ios, Value val);
+rl_status_t rl_repl(void);

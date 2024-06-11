@@ -48,7 +48,7 @@ typedef double        Real;
 typedef struct Big    Big;
 typedef struct Ratio  Ratio;
 
-// list and pair types
+// list, pair, and sequence types
 typedef struct Pair    Pair;
 typedef struct List    List;
 typedef struct MutPair MutPair;
@@ -77,7 +77,7 @@ typedef rl_status_t (*rl_reader_fn_t)(Port* stream, Value* buffer);
 typedef hash_t      (*rl_hash_fn_t)(Value x);
 typedef bool        (*rl_egal_fn_t)(Value x, Value y);
 typedef int         (*rl_order_fn_t)(Value x, Value y);
-typedef size_t      (*rl_sizeof_fn_t)(Value x);
+typedef size_t      (*rl_sizeof_fn_t)(void* x);
 typedef rl_status_t (*rl_native_fn_t)(size_t argc, Value* args, Value* buffer);
 
 /* tags and masks */
@@ -111,7 +111,7 @@ typedef rl_status_t (*rl_native_fn_t)(size_t argc, Value* args, Value* buffer);
 
 /* Globals */
 // type objects
-extern Type NulType, BooleanType, GlyphType, PointerType, FuncPtrType;
+extern Type NulType, BooleanType, PointerType, FuncPtrType;
 
 /* APIs */
 // tagging/untagging macros & functions
@@ -167,7 +167,8 @@ static inline Value untag(Value x) {
           MapNode*:tag_obj,                     \
           MutMap*:tag_obj,                      \
           StrCache*:tag_obj,                    \
-          EnvMap*:tag_obj                       \
+          EnvMap*:tag_obj,                      \
+          Sequence*:tag_obj                     \
           )(x)
 
 #define as_obj(x)                               \

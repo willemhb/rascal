@@ -1,10 +1,94 @@
 #include "val/value.h"
 #include "val/type.h"
 
+#include "util/hash.h"
+
+/* Forward declarations */
+hash_t hash_nul(Value x);
+hash_t hash_bool(Value x);
+
 /* Globals */
 // types
+Type NulType = {
+  .type      =&TypeType,
+  .trace     =true,
+  .gray      =true,
+  .kind      =DATA_TYPE,
+  .builtin   =true,
+  .idno      =NUL_TYPE,
+  .value_type=NUL,
+  .value_size=sizeof(Nul),
+  .hash_fn   =hash_nul
+};
+
+Type BooleanType = {
+  .type      =&TypeType,
+  .trace     =true,
+  .gray      =true,
+  .kind      =DATA_TYPE,
+  .builtin   =true,
+  .idno      =BOOL_TYPE,
+  .value_type=BOOL,
+  .value_size=sizeof(Boolean),
+  .hash_fn   =hash_bool
+};
+
+Type PointerType = {
+  .type      =&TypeType,
+  .trace     =true,
+  .gray      =true,
+  .kind      =DATA_TYPE,
+  .builtin   =true,
+  .idno      =CPTR_TYPE,
+  .value_type=CPTR,
+  .value_size=sizeof(Pointer)
+};
+
+Type FuncPtrType = {
+  .type      =&TypeType,
+  .trace     =true,
+  .gray      =true,
+  .kind      =DATA_TYPE,
+  .builtin   =true,
+  .idno      =FPTR_TYPE,
+  .value_type=FPTR,
+  .value_size=sizeof(FuncPtr)
+};
 
 /* APIs */
+// comparison methods
+hash_t hash_nul(Value x) {
+  (void)x;
+
+  static hash_t nul_hash = 0;
+
+  if ( nul_hash == 0 )
+    nul_hash = hash_word(NUL);
+
+  return nul_hash;
+}
+
+hash_t hash_bool(Value x) {
+  static hash_t true_hash  = 0;
+  static hash_t false_hash = 0;
+
+  hash_t output;
+
+  if ( x == TRUE ) {
+    if ( true_hash == 0 )
+      true_hash = hash_word(TRUE);
+
+    output = true_hash;
+  } else {
+    if ( false_hash == 0 )
+      false_hash = hash_word(FALSE);
+
+    output = false_hash;
+  }
+
+  return output;
+}
+
 // tagging methods
 Value tag_nul(Nul n) {
   (void)n;
@@ -135,11 +219,28 @@ bool  obj_has_type(void* x, Type* t) {
 
 // size_of methods
 size_t size_of_val(Value x, bool o) {
-  
+  if ( o ) {
+    assert(is_obj(x));
+
+    return size_of_obj(as_obj(x), o);
+  } else {
+    return type_of(x)->value_size;
+  }
 }
 
 size_t size_of_obj(void* x, bool o) {
+  assert(x != NULL);
   
+  if ( o ) {
+    Type* xt = type_of(x);
+
+    if ( xt->sizeof_fn )
+      return xt->sizeof_fn(x);
+
+    return xt->object_size;
+  } else {
+    return sizeof(Object*);
+  }
 }
 
 // value predicates

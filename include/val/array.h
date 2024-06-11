@@ -10,24 +10,15 @@ struct Vector {
   HEADER;
 
   // bit fields
+  word_t offset    : 6;
+  word_t height    : 4;
   word_t transient : 1;
-  word_t packed    : 1;
+  // word_t packed    : 1;
 
   // data fields
-  size_t count;
-
-  union {
-    // common Vector
-    struct {
-      VecNode* root;
-      Value    tail[0];
-    };
-
-    // packed Vector
-    struct {
-      Value    slots[0];
-    };
-  };
+  size_t   count;
+  VecNode* root;
+  Value*   tail;
 };
 
 struct VecNode {
@@ -42,14 +33,15 @@ struct VecNode {
 
   // data fields
   union {
-    Object** children;
-    Value    slots[0];
+    VecNode** children;
+    Value     slots[0];
   };
 };
 
 // dynamic array types
 #define DYNAMIC_ARRAY(X)                        \
-  word_t algo : 1;                              \
+  word_t algo   : 1;                            \
+  word_t shrink : 1;                            \
   X* data;                                      \
   X* _static;                                   \
   size_t count, max_count, max_static
@@ -71,13 +63,19 @@ struct Alist {
 #undef DYNAMIC_ARRAY
 
 /* Globals */
+// types
 extern Type VectorType, VecNodeType, MutVecType, AlistType;
 
 /* APIs */
 /* Vector API */
+Vector* mk_vec(size_t n, Value* d);
+Value   vec_ref(Vector* v, size_t n);
+Vector* vec_add(Vector* v, Value x);
+Vector* vec_set(Vector* v, size_t n, Value x);
 
 /* Dynamic array APIs */
 #define MUTABLE_ARRAY(T, t, X)                                          \
+  T*          new_##t(X* d, size_t n, bool p, bool s);                  \
   rl_status_t init_##t(T* a, X* s, size_t ss);                          \
   rl_status_t free_##t(T* a);                                           \
   rl_status_t grow_##t(T* a, size_t n);                                 \

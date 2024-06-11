@@ -29,7 +29,6 @@ struct Object {
 };
 
 /* APIs */
-
 // lifetime APIs
 #define mark(x)                                 \
   generic((x),                                  \

@@ -1,16 +1,38 @@
-#ifndef rl_interpreter_h
-#define rl_interpreter_h
+typedef struct RFrame RFrame;
+typedef struct CFrame CFrame;
+typedef struct IFrame IFrame;
 
-#include "value.h"
+typedef struct RState RState;
+typedef struct CState CState;
+typedef struct IState IState;
 
-/* Definitions and declarations for core interpreter functions (read, eval, print, compile, exec, and repl). */
-/* External APIs */
-rl_status_t rl_read(Port* ios, Value* buffer);
-rl_status_t rl_compile(List* form, Environ* env, Closure** buffer);
-rl_status_t rl_load(const char* fname);
-rl_status_t rl_execute(Closure* code, Value* buffer);
-rl_status_t rl_eval(Value val, Environ* env, Value* buffer);
-rl_status_t rl_print(Port* ios, Value val);
-rl_status_t rl_repl(void);
 
-#endif
+struct RState {
+  Alist        frames;
+  MutVec       stack;
+  MutBin       buffer;
+  ReadTable*   rt;
+  MutMap*      gs;
+  Port*        input;
+};
+
+struct CState {
+  Alist        frames;
+  MutVec       stack;
+  List*        form;
+  Environ*     envt;
+  MutVec*      constants;
+  MutBin*      code;
+};
+
+struct IState {
+  Alist        frames;
+  MutVec       stack;
+  UpValue*     upvals; // List of open upvalues
+  Closure*     code;   // currently executing code object
+  uint16_t*    pc;     // program counter for currently executing code object
+  size_t       cp;     // catch pointer
+  size_t       hp;     // handle pointer
+  size_t       bp;     // base pointer
+  size_t       fp;     // frame pointer
+};

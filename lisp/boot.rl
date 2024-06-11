@@ -3,6 +3,7 @@
 (load "base.rl")
 
 ;; load standard library.
+(load "seq.rl")
 (load "sys.rl")
 (load "os.rl")
 (load "math.rl")
