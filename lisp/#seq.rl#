@@ -87,7 +87,6 @@
          (get-seq (nth x 0) p))))
 
   ;; Functions and macros for operating on sequences.
-  (fun )
   (fun map
     "A lisp classic! Rascal supports several single argument forms in addition to the classic forms."
     [fn]
@@ -102,7 +101,8 @@
   ;; list implementation of sequence operations.
   (method map
     [fn: Func xs: List]
-    (label [xs xs, ac ()]
+    (label [xs xs
+            ac ()]
       (if (done? xs)
         (rev ac)
         (let [[x & xs] xs

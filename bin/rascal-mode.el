@@ -27,6 +27,9 @@
     ;; closures and blocks
     "fn*" "let" "label" "loop"
 
+    ;; threading syntax
+    "->"
+
     ;; branching syntax
     "if" "cond" "case" "and" "or"
 
