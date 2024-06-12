@@ -1,5 +1,5 @@
-#ifndef rl_value_h
-#define rl_value_h
+#ifndef rl_val_value_h
+#define rl_val_value_h
 
 #include "status.h"
 
@@ -71,14 +71,14 @@ typedef struct StrCache StrCache;
 typedef struct EnvMap   EnvMap;
 
 // internal function pointer types
-typedef rl_status_t (*rl_trace_fn_t)(Object* obj);
-typedef rl_status_t (*rl_destruct_fn_t)(Object* obj);
-typedef rl_status_t (*rl_reader_fn_t)(Port* stream, Value* buffer);
-typedef hash_t      (*rl_hash_fn_t)(Value x);
-typedef bool        (*rl_egal_fn_t)(Value x, Value y);
-typedef int         (*rl_order_fn_t)(Value x, Value y);
-typedef size_t      (*rl_sizeof_fn_t)(void* x);
-typedef rl_status_t (*rl_native_fn_t)(size_t argc, Value* args, Value* buffer);
+typedef void     (*rl_trace_fn_t)(Object* obj);
+typedef void     (*rl_destruct_fn_t)(Object* obj);
+typedef void     (*rl_reader_fn_t)(Port* stream, Value* buffer);
+typedef hash_t   (*rl_hash_fn_t)(Value x);
+typedef bool     (*rl_egal_fn_t)(Value x, Value y);
+typedef int      (*rl_order_fn_t)(Value x, Value y);
+typedef size_t   (*rl_sizeof_fn_t)(void* x);
+typedef rl_sig_t (*rl_native_fn_t)(size_t argc, Value* args, Value* buffer);
 
 /* tags and masks */
 #define QNAN       0x7ff8000000000000UL

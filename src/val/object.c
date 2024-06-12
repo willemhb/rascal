@@ -6,18 +6,12 @@
 /* Common Object type and API functions */
 
 // mark methods
-rl_status_t mark_val(Value x) {
-  rl_status_t out = OKAY;
-  
+void mark_val(Value x) {
   if ( is_obj(x) )
-    out = mark_obj(as_obj(x));
-
-  return out;
+    mark_obj(as_obj(x));
 }
 
-rl_status_t mark_obj(void* x) {
-  rl_status_t out = OKAY;
-  
+void mark_obj(void* x) {
   if ( x ) {
     Object* o = x;
 
@@ -31,35 +25,25 @@ rl_status_t mark_obj(void* x) {
         o->gray = false;
     }
   }
-
-  return out;
 }
 
 // trace method
-rl_status_t trace(void* x) {
-  rl_status_t out = OKAY;
-  Object* o       = x;
-
+void trace(void* x) {
+  Object* o = x;
   o->type->trace_fn(o);
-
   o->gray = false;
-
-  return out;
 }
 
 // other lifetime methods
-rl_status_t new_obj(Type* t, void** r) {
+void* new_obj(Type* t) {
   preserve(1, tag(t));
+  Object* o = allocate(t->object_size, true);
+  init_obj(t, o);
 
-  rl_status_t out = allocate(r, t->object_size, true);
-
-  if ( out == OKAY )
-    out = init_obj(t, *r);
-
-  return out;
+  return o;
 }
 
-rl_status_t init_obj(Type* t, Object* o) {
+void init_obj(Type* t, Object* o) {
   o->type  = t;
   o->meta  = NULL;
   o->hash  = 0;
@@ -70,26 +54,18 @@ rl_status_t init_obj(Type* t, Object* o) {
   // Register in heap
   o->next           = Heap.live_objects;
   Heap.live_objects = o;
-
-  return OKAY;
 }
 
-rl_status_t free_obj(void* x) {
-  rl_status_t out = OKAY;
-  Object*     o   = x;
+void free_obj(void* x) {
+  Object* o = x;
 
   if ( o->free && o->type->destruct_fn )
-    out = o->type->destruct_fn(o);
-
-  return out;
+    o->type->destruct_fn(o);
 }
 
-rl_status_t sweep_obj(void* x) {
-  rl_status_t out = OKAY;
-  Object*     o   = x;
+void sweep_obj(void* x) {
+  Object* o = x;
 
   if ( o->sweep ) // allocated in heap
-    out = deallocate(o, size_of(o, true), true);
-
-  return out;
+    deallocate(o, size_of(o, true), true);
 }

@@ -31,12 +31,12 @@ typedef enum {
   METHOD_ERROR,     // error originating from missing method signature
   EVAL_ERROR,       // error originating from interpreter, eg a failed type check
   USER_ERROR,       // error raised by the user
-} rl_status_t;
+} rl_sig_t;
 
 /* Error APIs */
-bool        is_error_status(rl_status_t s);
-const char* rl_status_name(rl_status_t s);
-rl_status_t rl_error(rl_status_t code, const char* fname, const char* fmt, ...);
-void        rl_fatal_error(rl_status_t code, const char* fname, const char* fmt, ...);
+bool     is_error_status(rl_sig_t s);
+char*    rl_status_name(rl_sig_t s);
+rl_sig_t rl_error(rl_sig_t code, const char* fname, const char* fmt, ...);
+void     rl_fatal_error(rl_sig_t code, const char* fname, const char* fmt, ...);
 
 #endif

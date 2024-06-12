@@ -32,12 +32,6 @@ struct HState {
 extern HState Heap;
 
 /* HState & Heap APIs */
-rl_status_t hstate_mark(HState* h);
-rl_status_t hstate_push(HState* h, Object* o);
-rl_status_t hstate_pushn(HState* h, size_t n, ...);
-rl_status_t hstate_pop(HState* h, Object** o);
-rl_status_t hstate_popn(HState* h, Object** o, bool t, size_t n);
-
 // preserving values
 void unpreserve(HFrame* frame);
 
@@ -48,11 +42,11 @@ void unpreserve(HFrame* frame);
   Heap.fp=&__heap_frame__
 
 // memory management
-rl_status_t allocate(void** b, size_t n, bool h);
-rl_status_t reallocate(void** b, size_t p, size_t n, bool h);
-rl_status_t duplicate(const void* p, void** b, size_t n, bool h);
-rl_status_t deallocate(void* p, size_t n, bool h);
-rl_status_t collect_garbage(void);
-rl_status_t push_gray(void* o);
+void*    allocate(size_t n, bool h);
+void*    reallocate(size_t p, size_t n, bool h);
+void*    duplicate(const void* p, size_t n, bool h);
+void*    deallocate(void* p, size_t n, bool h);
+rl_sig_t collect_garbage(void);
+void     push_gray(void* o);
 
 #endif

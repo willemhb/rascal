@@ -1,5 +1,5 @@
-#ifndef rl_object_h
-#define rl_object_h
+#ifndef rl_val_object_h
+#define rl_val_object_h
 
 #include "val/value.h"
 
@@ -36,16 +36,16 @@ struct Object {
           default:mark_obj)(x)
 
 // mark methods
-rl_status_t mark_val(Value v);
-rl_status_t mark_obj(void* x);
+void mark_val(Value v);
+void mark_obj(void* x);
 
 // trace method
-rl_status_t trace(void* x);
+void trace(void* x);
 
 // other lifetime methods
-rl_status_t new_obj(Type* t, void** r);
-rl_status_t init_obj(Type* t, Object* o);
-rl_status_t free_obj(void* x);
-rl_status_t sweep_obj(void* x);
+void* new_obj(Type* t);
+void  init_obj(Type* t, Object* o);
+void  free_obj(void* x);
+void  sweep_obj(void* x);
 
 #endif

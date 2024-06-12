@@ -1,5 +1,5 @@
-#ifndef rl_array_h
-#define rl_array_h
+#ifndef rl_val_array_h
+#define rl_val_array_h
 
 #include "val/object.h"
 
@@ -66,30 +66,33 @@ extern Type VectorType, VecNodeType, MutVecType, AlistType;
 
 /* APIs */
 /* Vector API */
+#define as_vec(x) ((Vector*)as_obj(x))
+#define is_vec(x) has_type(x, &VectorType)
+
 Vector* mk_vec(size_t n, Value* d);
-Vector* packed_vec(size_t n, Value* d);
+Vector* packed_vec(Vector** r, size_t n, Value* d);
 Value   vec_ref(Vector* v, size_t n);
+Vector* vec_cat(Vector* x, Vector* y);
 Vector* vec_add(Vector* v, Value x);
 Vector* vec_set(Vector* v, size_t n, Value x);
 
 /* Dynamic array APIs */
 #define MUTABLE_ARRAY(T, t, X)                                          \
-  T*          new_##t(X* d, size_t n, bool p, bool s);                  \
-  rl_status_t init_##t(T* a, X* s, size_t ss);                          \
-  rl_status_t free_##t(T* a);                                           \
-  rl_status_t grow_##t(T* a, size_t n);                                 \
-  rl_status_t shrink_##t(T* a, size_t n);                               \
-  rl_status_t write_##t(T* a, X* s, size_t n);                          \
-  rl_status_t t##_push(T* a, X x);                                      \
-  rl_status_t t##_pushn(T* a, size_t n, ...);                           \
-  rl_status_t t##_pushv(T* a, size_t n, va_list va);                    \
-  rl_status_t t##_pop(T* a, X* r);                                      \
-  rl_status_t t##_popn(T* a, X* r, bool e, size_t n)
+  T*     new_##t(X* d, size_t n, bool p, bool s);                       \
+  void   init_##t(T* a, X* s, size_t ss);                               \
+  void   free_##t(T* a);                                                \
+  void   grow_##t(T* a, size_t n);                                      \
+  void   shrink_##t(T* a, size_t n);                                    \
+  size_t write_##t(T* a, X* s, size_t n);                               \
+  size_t t##_push(T* a, X x);                                           \
+  size_t t##_pushn(T* a, size_t n, ...);                                \
+  size_t t##_pushv(T* a, size_t n, va_list va);                         \
+  X      t##_pop(T* a);                                                 \
+  X      t##_popn(T* a, size_t n, bool e)
 
 MUTABLE_ARRAY(MutVec, mvec, Value);
 MUTABLE_ARRAY(Alist, alist, void*);
 
 #undef MUTABLE_ARRAY
-
 
 #endif

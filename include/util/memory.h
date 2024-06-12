@@ -7,10 +7,10 @@
 
 /* external API */
 
-rl_status_t rl_malloc(void** b, size_t n, byte_t i);
-rl_status_t rl_calloc(void** b, size_t n, size_t o, byte_t i);
-rl_status_t rl_realloc(void** b, size_t p, size_t n, byte_t i);
-rl_status_t rl_crealloc(void** b, size_t p, size_t n, size_t o, byte_t i);
-rl_status_t rl_free(void* b);
+void* rl_malloc(size_t n, byte_t i);
+void* rl_calloc(size_t n, size_t o, byte_t i);
+void* rl_realloc(size_t p, size_t n, byte_t i);
+void* rl_crealloc(size_t p, size_t n, size_t o, byte_t i);
+void  rl_free(void* b);
 
 #endif

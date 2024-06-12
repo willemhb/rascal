@@ -67,7 +67,3 @@ size_t adjust_alist_size(size_t old_count, size_t new_count, size_t max_count);
 size_t adjust_table_size(double load_factor, size_t new_count, size_t max_count);
 
 // hashing utilities
-hash_t hash_word(word_t w);
-hash_t hash_chars(const char* data);
-hash_t hash_bytes(const byte_t* data, size_t count);
-hash_t mix_hashes(hash_t hx, hash_t hy);
