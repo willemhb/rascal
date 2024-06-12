@@ -1,5 +1,7 @@
 #include "val/array.h"
 
+#include "vm/heap.h"
+
 /* Globals */
 #define TAIL_SIZE   64
 #define LEVEL_SHIFT  6
@@ -42,6 +44,24 @@ Value*   array_for(Vector* v, size_t n);
 
 /* Internal APIs */
 // vector internals
+Vector* new_vec(size_t n, Value* d, bool t) {
+  
+}
+
+Vector* clone_vec(Vector* v) {
+  preserve(1, tag(v));
+
+  Vector* o;
+
+  duplicate(v, (void**)&o, size_of(v, true), true);
+
+  return o;
+}
+
+Vector* persistent_vector(Vector* v);
+void     unpack_vector(Vector* v, MutVec* m);
+
+
 Vector* transient_vector(Vector* v) {
   if ( !v->transient ) {
     v            = clone_vec(v);

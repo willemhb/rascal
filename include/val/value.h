@@ -167,8 +167,7 @@ static inline Value untag(Value x) {
           MapNode*:tag_obj,                     \
           MutMap*:tag_obj,                      \
           StrCache*:tag_obj,                    \
-          EnvMap*:tag_obj,                      \
-          Sequence*:tag_obj                     \
+          EnvMap*:tag_obj                       \
           )(x)
 
 #define as_obj(x)                               \
