@@ -6,11 +6,12 @@
 #define TAIL_SIZE   64
 #define LEVEL_SHIFT  6
 #define MAX_SHIFT   48
+#define LEVEL_MASK  63
 
 /* Forward declarations for lifetime and comparison methods */
 
 /* Forward declarations for internal APIs */
-Vector*  new_vec(size_t n, Value* d, bool t);
+Vector*  new_vec(size_t n, Value* d, bool t, bool p);
 Vector*  clone_vec(Vector* v);
 Vector*  transient_vector(Vector* v);
 Vector*  persistent_vector(Vector* v);
@@ -44,7 +45,7 @@ Value*   array_for(Vector* v, size_t n);
 
 /* Internal APIs */
 // vector internals
-Vector* new_vec(size_t n, Value* d, bool t) {
+Vector* new_vec(size_t n, Value* d, bool t, bool p) {
   
 }
 
@@ -58,21 +59,33 @@ Vector* clone_vec(Vector* v) {
   return o;
 }
 
-Vector* persistent_vector(Vector* v);
-void     unpack_vector(Vector* v, MutVec* m);
+Vector* persistent_vector(Vector* v) {
+  if ( v->trans ) {
+    v->trans = false;
+    
+  }
+}
 
+void unpack_vector(Vector* v, MutVec* m) {
+  if ( v->root )
+    unpack(v->root, m);
+
+  write_mvec(m, v->tail, tail_size(v));
+}
 
 Vector* transient_vector(Vector* v) {
-  if ( !v->transient ) {
-    v            = clone_vec(v);
-    v->transient = true;
+  if ( !v->trans ) {
+    v        = clone_vec(v);
+    v->trans = true;
   }
 
   return v;
 }
 
 size_t tail_size(Vector* v) {
-  
+  /* 50  = 0x0032; 0x0032 & 0x003f = 0x32
+     120 = 0x0078; 0x0078 & 0x003f = 0x38 */
+  return v->count & LEVEL_MASK;
 }
 
 size_t tail_offset(Vector* v) {
@@ -82,17 +95,20 @@ size_t tail_offset(Vector* v) {
   return ((v->count - 1) >> LEVEL_SHIFT) << LEVEL_SHIFT;
 }
 
+Value* array_for(Vector* v, size_t i) {
+  if ( i >= tail_offset(v) )
+    return v->tail;
 
-void unpack_vector(Vector* v, MutVec* m) {
-  if ( v->root )
-    unpack(v->root, m);
+  VecNode* n = v->root;
 
-  write_mvec(m, v->tail, tail_size(v));
+  for (size_t l = v->shift; l > 0; l -= LEVEL_SHIFT )
+    n = n->children[(i >> l) & LEVEL_MASK];
+
+  return n->slots;
 }
 
-
 void unpack_vec_node(VecNode* vn, MutVec* m) {
-  if ( vn->offset == 0 )
+  if ( vn->shift == 0 )
     write_mvec(m, vn->slots, vn->count);
 
   else
@@ -100,5 +116,16 @@ void unpack_vec_node(VecNode* vn, MutVec* m) {
       unpack(vn->children[i], m);
 }
 
+/* External APIs */
+Value vec_ref(Vector* vec, size_t n) {
+  if ( vec->packed )     // flat array (used internally)
+    return vec->tail[n];
 
-/* */
+  Value* slots = array_for(vec, n);
+
+  return slots[n & LEVEL_MASK];
+}
+
+Vector* mk_vec(size_t n, Value* d) {
+  Vector* out = ;
+}

@@ -94,11 +94,6 @@ struct Type {
   rl_hash_fn_t  hash_fn;
   rl_egal_fn_t  egal_fn;
   rl_order_fn_t order_fn;
-
-  // sequence methods
-  rl_seq_fn_t   seq_fn;
-  rl_first_fn_t first;
-  rl_rest_fn_t  rest;
 };
 
 /* Globals */

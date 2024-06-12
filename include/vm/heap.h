@@ -53,5 +53,6 @@ rl_status_t reallocate(void** b, size_t p, size_t n, bool h);
 rl_status_t duplicate(const void* p, void** b, size_t n, bool h);
 rl_status_t deallocate(void* p, size_t n, bool h);
 rl_status_t collect_garbage(void);
+rl_status_t push_gray(void* o);
 
 #endif

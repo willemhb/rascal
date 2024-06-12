@@ -37,8 +37,15 @@ struct Object {
 
 // mark methods
 rl_status_t mark_val(Value v);
-rl_status_t mark_obj(void* o);
+rl_status_t mark_obj(void* x);
 
-rl_status_t trace(void* o);
+// trace method
+rl_status_t trace(void* x);
+
+// other lifetime methods
+rl_status_t new_obj(Type* t, void** r);
+rl_status_t init_obj(Type* t, Object* o);
+rl_status_t free_obj(void* x);
+rl_status_t sweep_obj(void* x);
 
 #endif

@@ -10,10 +10,9 @@ struct Vector {
   HEADER;
 
   // bit fields
-  word_t offset    : 6;
-  word_t height    : 4;
-  word_t transient : 1;
-  // word_t packed    : 1;
+  word_t shift  : 6;
+  word_t trans  : 1;
+  word_t packed : 1;
 
   // data fields
   size_t   count;
@@ -25,9 +24,8 @@ struct VecNode {
   HEADER;
 
   // bit fields
-  word_t offset    : 6;
-  word_t depth     : 4;
-  word_t transient : 1;
+  word_t shift : 6;
+  word_t trans : 1;
 
   uint32_t count, max_count;
 
@@ -69,6 +67,7 @@ extern Type VectorType, VecNodeType, MutVecType, AlistType;
 /* APIs */
 /* Vector API */
 Vector* mk_vec(size_t n, Value* d);
+Vector* packed_vec(size_t n, Value* d);
 Value   vec_ref(Vector* v, size_t n);
 Vector* vec_add(Vector* v, Value x);
 Vector* vec_set(Vector* v, size_t n, Value x);
