@@ -5,6 +5,8 @@
 
 /* Types, APIs, and globals for mutable and immutable Rascal arrays. */
 /* C types */
+// resize algorithm type
+
 // vector root and node types
 struct Vector {
   HEADER;
@@ -38,7 +40,7 @@ struct VecNode {
 
 // dynamic array types
 #define DYNAMIC_ARRAY(X)                        \
-  word_t algo   : 1;                            \
+  word_t algo   : 2;                            \
   word_t shrink : 1;                            \
   X* data;                                      \
   X* _static;                                   \
@@ -70,16 +72,17 @@ extern Type VectorType, VecNodeType, MutVecType, AlistType;
 #define is_vec(x) has_type(x, &VectorType)
 
 Vector* mk_vec(size_t n, Value* d);
-Vector* packed_vec(Vector** r, size_t n, Value* d);
+Vector* packed_vec(size_t n, Value* d);
 Value   vec_ref(Vector* v, size_t n);
-Vector* vec_cat(Vector* x, Vector* y);
 Vector* vec_add(Vector* v, Value x);
 Vector* vec_set(Vector* v, size_t n, Value x);
+Vector* vec_pop(Vector* v, Value* r);
+Vector* vec_cat(Vector* x, Vector* y);
 
 /* Dynamic array APIs */
 #define MUTABLE_ARRAY(T, t, X)                                          \
   T*     new_##t(X* d, size_t n, bool p, bool s);                       \
-  void   init_##t(T* a, X* s, size_t ss);                               \
+  void   init_##t(T* a, X* _s, size_t _ss, bool i, bool p, bool s);     \
   void   free_##t(T* a);                                                \
   void   grow_##t(T* a, size_t n);                                      \
   void   shrink_##t(T* a, size_t n);                                    \

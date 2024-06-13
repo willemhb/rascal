@@ -7,6 +7,7 @@
 #include "vm/heap.h"
 
 #include "util/hash.h"
+#include "util/number.h"
 
 /* Globals */
 #define TAIL_SIZE   64
@@ -26,6 +27,8 @@ Vector*  transient_vector(Vector* r);
 Vector*  persistent_vector(Vector* r);
 void     unpack_vector(Vector* v, MutVec* m);
 void     resize_vec_tail(Vector* v, size_t n);
+bool     space_in_tail(Vector* v);
+void     add_to_tail(Vector* v, Value x);
 
 VecNode* new_vec_node(size_t s, size_t n, void* d, bool t);
 VecNode* clone_vec_node(VecNode* r, VecNode* n);
@@ -33,7 +36,7 @@ VecNode* transient_vec_node(VecNode* n);
 VecNode* persistent_vec_node(VecNode* n);
 void     unpack_vec_node(VecNode* n, MutVec* m);
 void     grow_vec_node(VecNode* n, uint32_t c);
-void     push_tail(VecNode** n, Value* t);
+void     push_tail(void* parent, VecNode** n, Value* t);
 
 size_t tail_count(Vector* v);
 size_t tail_size(Vector* v);
@@ -48,7 +51,7 @@ Value* array_for(Vector* v, size_t n);
 
 #define persistent(x)                           \
   generic((x),                                  \
-          Vector*:persistent_vector,           \
+          Vector*:persistent_vector,            \
           VecNode*:persistent_vec_node)(x)
 
 #define unpack(x, a)                            \
@@ -82,7 +85,6 @@ hash_t hash_vec(Value x) {
       .algo     =true
     };
 
-    grow_mvec(&buffer, v->count);
     unpack(v, &buffer);
 
     for ( size_t i=0; i<buffer.count; i++ )
@@ -102,7 +104,7 @@ bool egal_vecs(Value x, Value y) {
   bool out = vx->count == vy->count;
 
   if ( out ) {
-    MutVec bx = { .type=&MutVecType, .algo=true }, by = { .type=&MutVecType, .algo=true };
+    MutVec bx = {}, by = {};
 
     Value* ax, * ay;
 
@@ -110,7 +112,6 @@ bool egal_vecs(Value x, Value y) {
       ax = vx->tail;
 
     else {
-      grow_mvec(&bx, vx->count);
       unpack(vx, &bx);
       ax = bx.data;
     }
@@ -119,7 +120,6 @@ bool egal_vecs(Value x, Value y) {
       ay = vy->tail;
 
     else {
-      grow_mvec(&by, vy->count);
       unpack(vy, &by);
       ay = by.data;
     }
@@ -138,7 +138,53 @@ bool egal_vecs(Value x, Value y) {
 }
 
 int order_vecs(Value x, Value y) {
+  Vector* vx = as_vec(x), * vy = as_vec(y);
+
+  int out;
+
+  if ( vx->count == 0 )
+    out = 0 - (vy->count > 0);
+
+  else if ( vy->count == 0 )
+    out = 1;
+
+  else {
+    size_t maxc = min(vx->count, vy->count);
+
+    MutVec bx = {}, by = {};
+
+    Value* ax, * ay;
+    
+    if ( vx->packed || vx->count < TAIL_SIZE )
+      ax = vx->tail;
+    
+    else {
+      unpack(vx, &bx);
+      ax = bx.data;
+    }
+    
+    if ( vy->packed || vy->count < TAIL_SIZE )
+      ay = vy->tail;
+    
+    else {
+      unpack(vy, &by);
+      ay = by.data;
+    }
+
+    for ( size_t i=0; out && i<maxc; i++ )
+      out = rl_order(ax[i], ay[i]);
+
+    if ( out == 0 )
+      out = 0 - (vx->count < vy->count) + (vx->count > vy->count);
+
+    if ( bx.data )
+      free_mvec(&bx);
+    
+    if ( by.data )
+      free_mvec(&by);
+  }
   
+  return out;
 }
 
 // vector internals
@@ -160,7 +206,7 @@ Vector* new_vec(size_t n, Value* d, bool t, bool p) {
     size_t e = tail_offset(v), s = tail_size(v), i;
 
     for ( i=0; i < e; i+= TAIL_SIZE )
-      push_tail(&v->root, d+i);
+      push_tail(v, &v->root, d+i);
 
     v->tail = allocate(s, false);
     memcpy(v->tail, d+i, s);
@@ -193,21 +239,53 @@ Vector* persistent_vector(Vector* v) {
 }
 
 void unpack_vector(Vector* v, MutVec* m) {
+  init_mvec(m, NULL, 0, true, true, false);
+  grow_mvec(m, v->count);
+
   if ( v->root )
     unpack(v->root, m);
-
-  write_mvec(m, v->tail, tail_size(v));
+  
+  write_mvec(m, v->tail, tail_count(v));
 }
 
 Vector* transient_vector(Vector* v) {
   if ( !v->trans ) {
     v = clone_vec(v);
     v->trans = true;
+    v->hash = 0;    // invalidate cached hashes
   }
 
   return v;
 }
 
+/* Internal VecNode APIs. */
+VecNode* new_vec_node(size_t s, size_t n, void* d, bool t);
+VecNode* clone_vec_node(VecNode* r, VecNode* n);
+VecNode* transient_vec_node(VecNode* n);
+VecNode* persistent_vec_node(VecNode* n);
+
+void unpack_vec_node(VecNode* n, MutVec* m) {
+  if ( n->shift == 0 )
+    write_mvec(m, n->slots, n->count);
+
+  else
+    for ( size_t i=0; i<n->count; i++ )
+      unpack(n->children[i], m);
+}
+
+void push_tail(VecNode** n, Value* t) {
+  if ( *n == NULL ) {
+    *n = new_vec_node();
+  } else {
+    
+  }
+}
+
+void grow_vec_node(VecNode* n, uint32_t c) {
+  
+}
+
+/* Misc Vector utilities. */
 size_t tail_count(Vector* v) {
   size_t out = v->count;
 
@@ -240,18 +318,13 @@ Value* array_for(Vector* v, size_t i) {
   return n->slots;
 }
 
-void unpack_vec_node(VecNode* vn, MutVec* m) {
-  if ( vn->shift == 0 )
-    write_mvec(m, vn->slots, vn->count);
-
-  else
-    for ( size_t i=0; i<vn->count; i++ )
-      unpack(vn->children[i], m);
-}
-
 /* External APIs */
 Vector* mk_vec(size_t n, Value* d) {
   return new_vec(n, d, false, false);
+}
+
+Vector* packed_vec(size_t n, Value* d) {
+  return new_vec(n, d, false, true);
 }
 
 Value vec_ref(Vector* v, size_t n) {
@@ -268,5 +341,44 @@ Value vec_ref(Vector* v, size_t n) {
 }
 
 Vector* vec_add(Vector* v, Value x) {
-  
+  if ( !v->trans ) {
+    v = transient(v);
+    v = vec_add(v, x);
+    v = persistent(v);
+
+  } else {
+    add_to_tail(v, x);
+    v->count++;
+
+    if ( !v->packed && tail_count(v) == TAIL_SIZE ) {
+      push_tail(&v->root, v->tail);
+      resize_vec_tail(v, 0);
+    }
+  }
+
+  return v;
+}
+
+Vector* vec_set(Vector* v, size_t n, Value x) {
+  if ( !v->trans ) {
+    v = transient(v);
+    v = vec_set(v, n, x);
+    v = persistent(v);
+  } else {
+    
+  }
+
+  return v;
+}
+
+Vector* vec_cat(Vector* x, Vector* y) {
+  if ( !x->trans ) {
+    x = transient(x);
+    x = vec_cat(x, y);
+    x = persistent(x);
+  } else {
+    
+  }
+
+  return x;
 }

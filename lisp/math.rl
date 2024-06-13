@@ -6,11 +6,11 @@
     "All signed integer types."
     (Small Big))
 
-  (union Integer
+  (union Int
     "All integer types (signed or unsigned)."
     (Small Big Arity))
 
-  (union Number
+  (union Num
     "All valid numeric types."
     (Small Big Arity Real Ratio))
 
@@ -23,59 +23,56 @@
     "Mathematical constant e."
     2.71828)
 
-  ;; promote.
-  (fun promote
-    "Coerce two numbers to nearest common type."
-    ([x, y])
-    ([x, y, & a] (fold promote [x, y, & a]))
+  ;; Examples using famous integer operations.
+  (fun fac
+    "Compute the `n`th factorial."
+    [n])
 
-  (method promote
-    [x: Small, y: Small] [x, y])
+  (fun pow
+    "Computes `x` to the `nth` power."
+    [i n])
 
-  (method promote
-    [x: Real, y: Real] [x, y])
+  (fun fib
+    "Computes the `n`th Fibonacci number."
+    [n])
 
-  (method promote
-    [x: Arity, y: Arity] [x, y])
+  (method fac
+    "Various implementations."
+    [n: Int] @when (< n 0)
+      (throw :bad-argument $"Can't compute factorial of negative number ${n}.")
+    [n: Int]
+      (label
+        [_: 0, ac: Int]
+          ac
+        [_: 1, ac: Int]
+          ac
+        [n: Int, ac: Int]
+          (loop (dec n) (* ac n))
+        ;; Entry.
+        (loop n 1)))
 
-  (method promote
-    [x: Small, y: Real] [(Real x), y])
+  (method pow
+    "Defined for `Int`s."
+    [i: Int, n: Int]
+      (label [i, n, ac]
+        (cond
+          (= n 0)   ac
+          (even? n) (loop (* i i) (/ n 2) ac)
+          otherwise (loop i (- n 1) (* i ac)))
+        ;; Entry.
+        (if (< 0 n)
+          (Ratio 1 (loop i (- n) 1))
+          (loop i n 1))))
 
-  (method promote
-    [x: Real, y: Small] [x, (Real y)])
-
-  (method promote
-    [x: Small, y: Arity] [(Real x), (Real y)])
-
-  (method promote
-    [x: Arity, y: Small] [(Real x), (Real y)])
-
-  ;; Constructor overloads.
-  (method Real
-    [x: Small]
-    (*cast-small-to-real* x))
-
-  (method Real
-    [x: Arity]
-    (*cast-arity-to-real* x))
-
-  (method Real
-    [x: String]
-    (*read-string-as-real* x))
-
-  (fun +
-    "Generic addition."
-    ([x])
-    ([x y])
-    ([x y & a] (+ (+ x y) & a)))
-
-  (method +
-    [x: Number] x)
-
-  (method +
-    [x: Number, y: Number]
-    (+ & (promote x y)))
-
-  (method +
-    [x: Small,  y: Small]
-    (*add-small* x y)))
+  (method fib
+    "Defined for `Int`s."
+    [n: Int] @when (< n 0)
+      (throw :bad-argument $"Can't compute negative Fibonacci number ${n}.")
+    [n: Int]
+      (label
+        [_: 0, a: Int, _: Int]
+          a
+        [n: Int, a: Int, b: Int]
+          (loop (dec n) b (+ a b))
+        ;; Entry.
+        (loop n 0 1))))
