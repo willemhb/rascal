@@ -21,23 +21,32 @@ bool     egal_vecs(Value x, Value y);
 int      order_vecs(Value x, Value y);
 
 /* Forward declarations for internal APIs */
+// internal vector APIs
 Vector*  new_vec(size_t n, Value* d, bool t, bool p);
 Vector*  clone_vec(Vector* v);
 Vector*  transient_vector(Vector* r);
 Vector*  persistent_vector(Vector* r);
 void     unpack_vector(Vector* v, MutVec* m);
-void     resize_vec_tail(Vector* v, size_t n);
+void     grow_vec_tail(Vector* v, size_t n);
+void     shrink_vec_tail(Vector* v, size_t n);
 bool     space_in_tail(Vector* v);
 void     add_to_tail(Vector* v, Value x);
 
+// internal vector node APIs
 VecNode* new_vec_node(size_t s, size_t n, void* d, bool t);
+VecNode* new_vec_leaf(Value* d, bool t);
 VecNode* clone_vec_node(VecNode* r, VecNode* n);
 VecNode* transient_vec_node(VecNode* n);
 VecNode* persistent_vec_node(VecNode* n);
 void     unpack_vec_node(VecNode* n, MutVec* m);
 void     grow_vec_node(VecNode* n, uint32_t c);
-void     push_tail(void* parent, VecNode** n, Value* t);
+void     shrink_vec_node(VecNode* n, uint32_t c);
 
+// push/pop helpers
+void push_tail(Vector* v, Value* t);
+void pop_tail(Vector* v, VecNode** t);
+
+// miscellaneous utilities
 size_t tail_count(Vector* v);
 size_t tail_size(Vector* v);
 size_t tail_offset(Vector* v);
@@ -206,7 +215,7 @@ Vector* new_vec(size_t n, Value* d, bool t, bool p) {
     size_t e = tail_offset(v), s = tail_size(v), i;
 
     for ( i=0; i < e; i+= TAIL_SIZE )
-      push_tail(v, &v->root, d+i);
+      push_tail(v, d+i);
 
     v->tail = allocate(s, false);
     memcpy(v->tail, d+i, s);
@@ -260,6 +269,11 @@ Vector* transient_vector(Vector* v) {
 
 /* Internal VecNode APIs. */
 VecNode* new_vec_node(size_t s, size_t n, void* d, bool t);
+
+VecNode* new_vec_leaf(Value* d, bool t) {
+  return new_vec_node(0, TAIL_SIZE, d, t);
+}
+
 VecNode* clone_vec_node(VecNode* r, VecNode* n);
 VecNode* transient_vec_node(VecNode* n);
 VecNode* persistent_vec_node(VecNode* n);
@@ -273,17 +287,54 @@ void unpack_vec_node(VecNode* n, MutVec* m) {
       unpack(n->children[i], m);
 }
 
-void push_tail(VecNode** n, Value* t) {
-  if ( *n == NULL ) {
-    *n = new_vec_node();
-  } else {
+void grow_vec_node(VecNode* n, uint32_t c) {
+  assert( c <= TAIL_SIZE );
+  assert( n->shift > 0 );
+
+  uint32_t m = ceil2(c);
+
+  if ( m > n->max_count ) {
+    size_t old = n->max_count*sizeof(Object*);
+    size_t new = m*sizeof(Object*);
+    n->children = reallocate(n->children, old, new, false);
+    n->max_count = m;
+  }
+
+  n->count = c;
+}
+
+void shrink_vec_node(VecNode* n, uint32_t c);
+
+// Vector push/pop utilities
+bool space_in_tail(Vector* v) {
+  return tail_size(v) < TAIL_SIZE;
+}
+
+void add_to_vec(Vector* v, Value x) {
+  if ( space_in_tail(v) ) {
     
   }
 }
 
-void grow_vec_node(VecNode* n, uint32_t c) {
+VecNode* add_leaf(size_t shift, Value* t) {
+  VecNode* out = new_vec_node(shift, 1, NULL, true), * parent = out, * child;
+  preserve(1, tag(out));
+
+  for ( shift=shift-LEVEL_SHIFT; shift > 0; shift -= LEVEL_SHIFT ) {
+    child = new_vec_node(shift, 1, NULL, true);
+    parent->children[0] = child;
+    parent = child;
+  }
+
+  parent->children[0] = new_vec_leaf(t, true);
+
+  return out;
+}
+
+void push_tail(Vector* v, Value* t) {
   
 }
+
 
 /* Misc Vector utilities. */
 size_t tail_count(Vector* v) {
@@ -351,7 +402,7 @@ Vector* vec_add(Vector* v, Value x) {
     v->count++;
 
     if ( !v->packed && tail_count(v) == TAIL_SIZE ) {
-      push_tail(&v->root, v->tail);
+      push_tail(v, v->tail);
       resize_vec_tail(v, 0);
     }
   }

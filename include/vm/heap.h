@@ -43,7 +43,7 @@ void unpreserve(HFrame* frame);
 
 // memory management
 void*    allocate(size_t n, bool h);
-void*    reallocate(size_t p, size_t n, bool h);
+void*    reallocate(void* p, size_t o, size_t n, bool h);
 void*    duplicate(const void* p, size_t n, bool h);
 void*    deallocate(void* p, size_t n, bool h);
 rl_sig_t collect_garbage(void);
