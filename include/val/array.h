@@ -5,8 +5,6 @@
 
 /* Types, APIs, and globals for mutable and immutable Rascal arrays. */
 /* C types */
-// resize algorithm type
-
 // vector root and node types
 struct Vector {
   HEADER;

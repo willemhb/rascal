@@ -27,10 +27,8 @@ Vector*  clone_vec(Vector* v);
 Vector*  transient_vector(Vector* r);
 Vector*  persistent_vector(Vector* r);
 void     unpack_vector(Vector* v, MutVec* m);
-void     grow_vec_tail(Vector* v, size_t n);
-void     shrink_vec_tail(Vector* v, size_t n);
-bool     space_in_tail(Vector* v);
 void     add_to_tail(Vector* v, Value x);
+Value    pop_from_tail(Vector* v);
 
 // internal vector node APIs
 VecNode* new_vec_node(size_t s, size_t n, void* d, bool t);
@@ -47,6 +45,9 @@ void push_tail(Vector* v, Value* t);
 void pop_tail(Vector* v, VecNode** t);
 
 // miscellaneous utilities
+bool   space_in_tail(Vector* v);
+bool   space_in_root(Vector* v);
+size_t root_count(Vector* v);
 size_t tail_count(Vector* v);
 size_t tail_size(Vector* v);
 size_t tail_offset(Vector* v);
@@ -307,16 +308,14 @@ void shrink_vec_node(VecNode* n, uint32_t c);
 
 // Vector push/pop utilities
 bool space_in_tail(Vector* v) {
-  return tail_size(v) < TAIL_SIZE;
+  return tail_count(v) < TAIL_SIZE;
 }
 
-void add_to_vec(Vector* v, Value x) {
-  if ( space_in_tail(v) ) {
-    
-  }
+bool space_in_root(Vector* v) {
+  return root_count(v) < (1ul << (v->shift + LEVEL_SHIFT));
 }
 
-VecNode* add_leaf(size_t shift, Value* t) {
+VecNode* add_leaf(size_t shift, VecNode* tn) {
   VecNode* out = new_vec_node(shift, 1, NULL, true), * parent = out, * child;
   preserve(1, tag(out));
 
@@ -326,9 +325,34 @@ VecNode* add_leaf(size_t shift, Value* t) {
     parent = child;
   }
 
-  parent->children[0] = new_vec_leaf(t, true);
+  parent->children[0] = tn;
 
   return out;
+}
+
+void add_to_vec(Vector* v, Value x) {
+  assert(v->trans);
+
+  if ( space_in_tail(v) )
+    add_to_tail(v, x);
+
+  VecNode* tn = new_vec_leaf(v->tail, false);
+
+  preserve(1, tag(tn));
+
+  if ( v->root == NULL ) { // empty root
+    v->root = new_vec_node(LEVEL_SHIFT, 1, &tn, true);
+    v->shift = LEVEL_SHIFT;
+
+  } else if ( (v->count >> LEVEL_SHIFT) > (1ul << v->shift) ) { // root overflow
+    VecNode* r = new_vec_node(v->shift+LEVEL_SHIFT, 2, NULL, true);
+    r->children[0] = v->root;
+    r->children[1] = add_leaf(v->shift, tn);
+    v->root = r;
+    v->shift += LEVEL_SHIFT;
+  } else {
+    
+  }
 }
 
 void push_tail(Vector* v, Value* t) {
@@ -344,6 +368,13 @@ size_t tail_count(Vector* v) {
     out &= LEVEL_MASK;
   
   return out;
+}
+
+size_t root_count(Vector* v) {
+  if ( v->packed )
+    return 0;
+
+  
 }
 
 size_t tail_size(Vector* v) {
