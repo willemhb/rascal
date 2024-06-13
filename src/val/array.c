@@ -9,73 +9,89 @@
 #include "util/hash.h"
 #include "util/number.h"
 
+/* C types */
+typedef VNode VLeaf;
+
 /* Globals */
 #define TAIL_SIZE   64
 #define LEVEL_SHIFT  6
 #define MAX_SHIFT   48
-#define LEVEL_MASK  63
+#define TAIL_MASK  63ul
+#define ROOT_MASK   (~TAIL_MASK)
 
 /* lifetime and comparison methods */
-hash_t   hash_vec(Value x);
-bool     egal_vecs(Value x, Value y);
-int      order_vecs(Value x, Value y);
+hash_t hash_vec(Val x);
+bool   egal_vecs(Val x, Val y);
+int    order_vecs(Val x, Val y);
 
 /* Forward declarations for internal APIs */
 // internal vector APIs
-Vector*  new_vec(size_t n, Value* d, bool t, bool p);
-Vector*  clone_vec(Vector* v);
-Vector*  transient_vector(Vector* r);
-Vector*  persistent_vector(Vector* r);
-void     unpack_vector(Vector* v, MutVec* m);
-void     add_to_tail(Vector* v, Value x);
-Value    pop_from_tail(Vector* v);
+Vec*  new_vec(size_t n, Val* d, bool t, bool p);
+void  init_vec(Vec* v, bool t, bool p);
+Vec*  clone_vec(Vec* v);
+Vec*  transient_vec(Vec* r);
+Vec*  persistent_vec(Vec* r);
+void  unpack_vec(Vec* v, MVec* m);
+void  resize_vec_tail(Vec* v, size_t c);
+void  grow_vec_tail(Vec* v);
+void  shrink_vec_tail(Vec* v);
+void  add_to_vec(Vec* v, Val x);
+void  add_to_tail(Vec* v, Val x);
+void  add_to_root(Vec* v, Val* t);
+void  set_vec_ref(Vec* v, size_t n, Val x);
+void  pop_from_vec(Vec* v, Val* r);
 
 // internal vector node APIs
-VecNode* new_vec_node(size_t s, size_t n, void* d, bool t);
-VecNode* new_vec_leaf(Value* d, bool t);
-VecNode* clone_vec_node(VecNode* r, VecNode* n);
-VecNode* transient_vec_node(VecNode* n);
-VecNode* persistent_vec_node(VecNode* n);
-void     unpack_vec_node(VecNode* n, MutVec* m);
-void     grow_vec_node(VecNode* n, uint32_t c);
-void     shrink_vec_node(VecNode* n, uint32_t c);
+VNode* new_vnode(size_t s, size_t n, void* d, bool t);
+VLeaf* new_vleaf(Val* d, bool t);
+VNode* clone_vnode(VNode* n);
+VNode* transient_vnode(VNode* n);
+VNode* persistent_vnode(VNode* n);
+void   unpack_vnode(VNode* n, MVec* m);
+void   resize_vnode(VNode* n, size_t c);
+void   grow_vnode(VNode* n);
+void   shrink_vnode(VNode* n);
+VNode* push_tail(VNode* n, Val* t);
+VNode* push_to_node(VNode* n, Val* t);
+void   add_vleaf(VNode** p, size_t s, Val* t);
+void   set_vnode_ref(VNode** b, VNode* n, size_t i, Val x);
+VNode* pop_from_vnode(VNode* n, VLeaf** l);
 
 // push/pop helpers
-void push_tail(Vector* v, Value* t);
-void pop_tail(Vector* v, VecNode** t);
 
 // miscellaneous utilities
-bool   space_in_tail(Vector* v);
-bool   space_in_root(Vector* v);
-size_t root_count(Vector* v);
-size_t tail_count(Vector* v);
-size_t tail_size(Vector* v);
-size_t tail_offset(Vector* v);
-Value* array_for(Vector* v, size_t n);
+bool   space_in_tail(Vec* v);
+bool   space_in_root(Vec* v);
+size_t sub_index(size_t s, size_t n);
+size_t root_count(Vec* v);
+size_t tail_count(Vec* v);
+size_t tail_size(Vec* v);
+size_t tail_offset(Vec* v);
+Val*   array_for(Vec* v, size_t n);
 
 /* Internal utilities */
 #define transient(x)                            \
   generic((x),                                  \
-          Vector*:transient_vector,             \
-          VecNode*:transient_vec_node)(x)
+          Vec*:transient_vec,                \
+          VNode*:transient_vnode)(x)
 
 #define persistent(x)                           \
   generic((x),                                  \
-          Vector*:persistent_vector,            \
-          VecNode*:persistent_vec_node)(x)
+          Vec*:persistent_vec,               \
+          VNode*:persistent_vnode)(x)
 
 #define unpack(x, a)                            \
   generic((x),                                  \
-          Vector*:unpack_vector,                \
-          VecNode*:unpack_vec_node)(x, a)
+          Vec*:unpack_vec,                   \
+          VNode*:unpack_vnode)(x, a)
 
 /* Internal APIs */
 // lifetime and comparison methods
-extern hash_t hash_nul(Value x);
+extern hash_t hash_nul(Val x);
 extern hash_t get_type_hash(Type* xt);
 
-hash_t hash_vec(Value x) {
-  Vector* v = as_vec(x);
+hash_t hash_vec(Val x) {
+  Vec* v = as_vec(x);
   hash_t out = 0;
 
   if ( v->count == 0 )
@@ -90,8 +106,8 @@ hash_t hash_vec(Value x) {
   } else {
     out = hash_word(v->count);
 
-    MutVec buffer = {
-      .type     =&MutVecType,
+    MVec buffer = {
+      .type     =&MVecType,
       .algo     =true
     };
 
@@ -103,20 +119,20 @@ hash_t hash_vec(Value x) {
     free_mvec(&buffer);
   }
 
-  out = mix_hashes(out, get_type_hash(&VectorType));
+  out = mix_hashes(out, get_type_hash(&VecType));
 
   return out;
 }
 
-bool egal_vecs(Value x, Value y) {
-  Vector* vx = as_vec(x), * vy = as_vec(y);
+bool egal_vecs(Val x, Val y) {
+  Vec* vx = as_vec(x), * vy = as_vec(y);
 
   bool out = vx->count == vy->count;
 
   if ( out ) {
-    MutVec bx = {}, by = {};
+    MVec bx = {}, by = {};
 
-    Value* ax, * ay;
+    Val* ax, * ay;
 
     if ( vx->packed || vx->count < TAIL_SIZE )
       ax = vx->tail;
@@ -147,8 +163,8 @@ bool egal_vecs(Value x, Value y) {
   return out;
 }
 
-int order_vecs(Value x, Value y) {
-  Vector* vx = as_vec(x), * vy = as_vec(y);
+int order_vecs(Val x, Val y) {
+  Vec* vx = as_vec(x), * vy = as_vec(y);
 
   int out;
 
@@ -161,10 +177,10 @@ int order_vecs(Value x, Value y) {
   else {
     size_t maxc = min(vx->count, vy->count);
 
-    MutVec bx = {}, by = {};
+    MVec bx = {}, by = {};
 
-    Value* ax, * ay;
-    
+    Val* ax, * ay;
+
     if ( vx->packed || vx->count < TAIL_SIZE )
       ax = vx->tail;
     
@@ -198,46 +214,50 @@ int order_vecs(Value x, Value y) {
 }
 
 // vector internals
-Vector* new_vec(size_t n, Value* d, bool t, bool p) {
-  Vector* v = new_obj(&VectorType);
-  v->root = NULL;
-  v->packed = p;
-  v->trans = true;
-  v->count = n;
+Vec* new_vec(size_t n, Val* d, bool t, bool p) {
+  Vec* o = new_obj(&VecType);
+  init_vec(o, t, p);
 
-  if ( p ) {
-      v->tail = allocate(n*sizeof(Value), false);
+  if ( p || n <= TAIL_SIZE ) {
+    o->tail  = allocate(n * sizeof(Val), false);
+    o->count = n;
 
-      if ( d != NULL )
-        memcpy(v->tail, d, tail_size(v));
+    if ( d )
+      memcpy(o->tail, d, n*sizeof(Val));
 
   } else {
-    preserve(1, tag(v));
-    size_t e = tail_offset(v), s = tail_size(v), i;
+    assert(d != NULL);
+    preserve(1, tag(o));
 
-    for ( i=0; i < e; i+= TAIL_SIZE )
-      push_tail(v, d+i);
+    o->trans = true;
 
-    v->tail = allocate(s, false);
-    memcpy(v->tail, d+i, s);
+    for ( size_t i=0; i<n; i++ )
+      add_to_vec(o, d[i]);
+
+    if ( !t )
+      o = persistent(o);
   }
 
-  if ( !t )
-    persistent(v);
-
-  return v;
+  return o;
 }
 
-Vector* clone_vec(Vector* v) {
-  preserve(1, tag(v));
+void init_vec(Vec* v, bool t, bool p) {
+  v->root   = NULL;
+  v->trans  = t;
+  v->packed = p;
+  v->count  = 0;
+  v->shift  = 0;
+  v->tail   = NULL;
+}
 
-  Vector* o = duplicate(v, size_of(v, true), true);
+Vec* clone_vec(Vec* v) {
+  Vec* o = duplicate(v, size_of(v, true), true);
   o->tail = duplicate(o->tail, tail_size(o), false);
 
   return o;
 }
 
-Vector* persistent_vector(Vector* v) {
+Vec* persistent_vec(Vec* v) {
   if ( v->trans ) {
     v->trans = false;
 
@@ -248,17 +268,7 @@ Vector* persistent_vector(Vector* v) {
   return v;
 }
 
-void unpack_vector(Vector* v, MutVec* m) {
-  init_mvec(m, NULL, 0, true, true, false);
-  grow_mvec(m, v->count);
-
-  if ( v->root )
-    unpack(v->root, m);
-  
-  write_mvec(m, v->tail, tail_count(v));
-}
-
-Vector* transient_vector(Vector* v) {
+Vec* transient_vec(Vec* v) {
   if ( !v->trans ) {
     v = clone_vec(v);
     v->trans = true;
@@ -268,18 +278,167 @@ Vector* transient_vector(Vector* v) {
   return v;
 }
 
-/* Internal VecNode APIs. */
-VecNode* new_vec_node(size_t s, size_t n, void* d, bool t);
+void unpack_vec(Vec* v, MVec* m) {
+  init_mvec(m, NULL, 0, false, RESIZE_EXACT);
+  grow_mvec(m, v->count);
 
-VecNode* new_vec_leaf(Value* d, bool t) {
-  return new_vec_node(0, TAIL_SIZE, d, t);
+  if ( v->root )
+    unpack(v->root, m);
+
+  write_mvec(m, v->tail, tail_count(v));
 }
 
-VecNode* clone_vec_node(VecNode* r, VecNode* n);
-VecNode* transient_vec_node(VecNode* n);
-VecNode* persistent_vec_node(VecNode* n);
+void resize_vec_tail(Vec* v, size_t c) {
+  assert(c <= TAIL_SIZE || v->packed);
+  assert(v->trans);
 
-void unpack_vec_node(VecNode* n, MutVec* m) {
+  size_t o = tail_size(v);
+  size_t n = c * sizeof(Val);
+  v->tail  = reallocate(v->tail, o, n, false);
+}
+
+void grow_vec_tail(Vec* v) {
+  resize_vec_tail(v, tail_count(v) + 1);
+}
+
+void shrink_vec_tail(Vec* v) {
+  resize_vec_tail(v, tail_count(v) - 1);
+}
+
+void add_to_vec(Vec* v, Val x) {
+  assert(v->trans);
+
+  if ( !space_in_tail(v) ) {
+    add_to_root(v, v->tail);
+    resize_vec_tail(v, 0);
+  }
+
+  add_to_tail(v, x);
+  v->count++;
+}
+
+void add_to_tail(Vec* v, Val x) {
+  grow_vec_tail(v);
+
+  v->tail[tail_count(v)] = x;
+}
+
+void add_to_root(Vec* v, Val* t) {
+  if ( v->root == NULL ) {
+    VNode* r       = new_vnode(LEVEL_SHIFT, 1, NULL, true);
+    v->root        = r;
+    r->children[0] = new_vleaf(t, false);
+    v->shift       = LEVEL_SHIFT;
+  } else if ( !space_in_root(v) ) {
+    VNode* r       = new_vnode(v->shift+LEVEL_SHIFT, 2, NULL, true);
+    r->children[0] = v->root;
+    v->root        = r;
+
+    add_vleaf(&r->children[1], v->shift, t);
+
+    v->shift      += LEVEL_SHIFT;
+  } else {
+    v->root        = push_tail(v->root, t);
+  }
+}
+
+void set_vec_ref(Vec* v, size_t n, Val x) {
+  
+  if ( v->packed )
+    v->tail[n] = x;
+
+  else if ( n >= tail_offset(v) )
+    v->tail[n & TAIL_MASK] = x;
+
+  else {
+    preserve(1, tag(v));
+    set_vnode_ref(&v->root, v->root, n, x);
+  }
+}
+
+void pop_from_vec(Vec* v, Val* r) {
+  Val x = v->tail[tail_count(v)-1];
+
+  if ( r )
+    *r = x;
+
+  if ( tail_count(v) == 1 && v->root ) { // popped last item, get new tail from root
+    VLeaf* l;
+
+    v->root = pop_from_vnode(v->root, &l);
+
+    resize_vec_tail(v, TAIL_SIZE);
+    memcpy(v->tail, l->slots, TAIL_SIZE*sizeof(Val));
+
+    if ( v->root ) // may have been removed
+      v->shift = v->root->shift;
+
+    else
+      v->shift = 0;
+  } else {
+    shrink_vec_tail(v);
+  }
+
+  v->count--;
+}
+
+/* Internal VNode APIs. */
+VNode* new_vnode(size_t s, size_t n, void* d, bool t) {
+  VNode* o = new_obj(&VNodeType);
+
+  o->trans = t;
+  o->shift = s;
+  o->count = n;
+  
+  if ( s == 0 ) {
+    assert(n == TAIL_SIZE);
+    assert(d);
+
+    o->slots = allocate(n*sizeof(Val), false);
+    memcpy(o->slots, d, n*sizeof(Val));
+  } else {
+    assert(n > 0 && n <= TAIL_SIZE);
+    o->children = allocate(n*sizeof(VNode*), false);
+    
+    if ( d )
+      memcpy(o->children, d, n*sizeof(VNode*));
+  }
+
+  return o;
+}
+
+VNode* new_vleaf(Val* d, bool t) {
+  return new_vnode(0, TAIL_SIZE, d, t);
+}
+
+VNode* clone_vnode(VNode* n) {
+  VNode* out = duplicate(n, size_of(n, true), true);
+  out->children = duplicate(n->children, n->count*sizeof(VNode*), false);
+  return out;
+}
+
+VNode* transient_vnode(VNode* n) {
+  if ( !n->trans ) {
+    n = clone_vnode(n);
+    n->trans = true;
+  }
+
+  return n;
+}
+
+VNode* persistent_vnode(VNode* n) {
+  if ( n->trans ) {
+    n->trans = false;
+
+    if ( n->shift > 0 )
+      for ( size_t i=0; i<n->count; i++ )
+        persistent(n->children[i]);
+  }
+
+  return n;
+}
+
+void unpack_vnode(VNode* n, MVec* m) {
   if ( n->shift == 0 )
     write_mvec(m, n->slots, n->count);
 
@@ -288,179 +447,295 @@ void unpack_vec_node(VecNode* n, MutVec* m) {
       unpack(n->children[i], m);
 }
 
-void grow_vec_node(VecNode* n, uint32_t c) {
-  assert( c <= TAIL_SIZE );
-  assert( n->shift > 0 );
+void resize_vnode(VNode* n, size_t c) {
+  assert(c > 0 && c <= TAIL_SIZE);
+  assert(n->shift > 0);
+  assert(n->trans);
 
-  uint32_t m = ceil2(c);
-
-  if ( m > n->max_count ) {
-    size_t old = n->max_count*sizeof(Object*);
-    size_t new = m*sizeof(Object*);
-    n->children = reallocate(n->children, old, new, false);
-    n->max_count = m;
-  }
-
+  n->children = reallocate(n->children, n->count*sizeof(VNode*), c*sizeof(VNode*), false);
   n->count = c;
 }
 
-void shrink_vec_node(VecNode* n, uint32_t c);
+VNode* push_tail(VNode* n, Val* t) {
+  VNode* o, *c;
+  size_t lc = n->count;
+  size_t s = n->shift;
 
-// Vector push/pop utilities
-bool space_in_tail(Vector* v) {
-  return tail_count(v) < TAIL_SIZE;
-}
+  if ( s == LEVEL_SHIFT ) {
+    if ( lc == TAIL_SIZE )     // No more space, return NULL to signal new level needs to be created
+      o = NULL;
 
-bool space_in_root(Vector* v) {
-  return root_count(v) < (1ul << (v->shift + LEVEL_SHIFT));
-}
+    else {
+      o = n->trans ? n : transient(n);
+      preserve(1, tag(o));
+      lc = o->count;
+      grow_vnode(o);
+      o->children[lc] = new_vleaf(t, false);
+    }
+  } else {
+    lc = n->count;
+    c = n->children[lc-1]; // try to push to last child
+    c = push_tail(c, t);
 
-VecNode* add_leaf(size_t shift, VecNode* tn) {
-  VecNode* out = new_vec_node(shift, 1, NULL, true), * parent = out, * child;
-  preserve(1, tag(out));
+    if ( c == NULL ) {
+      if ( lc == TAIL_SIZE ) // No more spacde, return NULL to signal new level needs to be created
+        o = NULL;
 
-  for ( shift=shift-LEVEL_SHIFT; shift > 0; shift -= LEVEL_SHIFT ) {
-    child = new_vec_node(shift, 1, NULL, true);
-    parent->children[0] = child;
-    parent = child;
+      else {
+        o = n->trans ? n : transient(n);
+        preserve(1, tag(o));
+        grow_vnode(o);
+        add_vleaf(&o->children[lc], s-LEVEL_SHIFT, t);
+      }
+    }
   }
 
-  parent->children[0] = tn;
-
-  return out;
+  return o;
 }
 
-void add_to_vec(Vector* v, Value x) {
-  assert(v->trans);
+void add_vleaf(VNode** p, size_t s, Val* t) {
+  if ( s == 0 )
+    *p = new_vleaf(t, false);
 
-  if ( space_in_tail(v) )
-    add_to_tail(v, x);
+  else {
+    VNode* n = *p = new_vnode(s, 1, NULL, true);
+    add_vleaf(&n->children[0], s-LEVEL_SHIFT, t);
+  }
+}
 
-  VecNode* tn = new_vec_leaf(v->tail, false);
+void set_vnode_ref(VNode** b, VNode* n, size_t i, Val x) {
+  if ( !n->trans )
+    n = *b = transient(n);
 
-  preserve(1, tag(tn));
+  if ( n->shift == 0 )
+    n->slots[i & TAIL_MASK] = x;
 
-  if ( v->root == NULL ) { // empty root
-    v->root = new_vec_node(LEVEL_SHIFT, 1, &tn, true);
-    v->shift = LEVEL_SHIFT;
+  else {
+    size_t subi = sub_index(n->shift, i);
+    set_vnode_ref(&n->children[subi], n->children[subi], i, x);
+  }
+}
 
-  } else if ( (v->count >> LEVEL_SHIFT) > (1ul << v->shift) ) { // root overflow
-    VecNode* r = new_vec_node(v->shift+LEVEL_SHIFT, 2, NULL, true);
-    r->children[0] = v->root;
-    r->children[1] = add_leaf(v->shift, tn);
-    v->root = r;
-    v->shift += LEVEL_SHIFT;
+VNode* pop_from_vnode(VNode* n, VLeaf** l) {
+  VNode* o, * c;
+
+  if ( n->shift == 0 ) {
+     o = NULL;
+    *l = n;
   } else {
     
   }
+
+  return o;
 }
 
-void push_tail(Vector* v, Value* t) {
-  
+
+/* Misc Vec utilities. */
+bool space_in_tail(Vec* v) {
+  return tail_count(v) < TAIL_SIZE;
 }
 
+bool space_in_root(Vec* v) {
+  return root_count(v) < (1ul << (v->shift + LEVEL_SHIFT));
+}
 
-/* Misc Vector utilities. */
-size_t tail_count(Vector* v) {
-  size_t out = v->count;
+size_t tail_count(Vec* v) {
+  size_t out;
 
-  if ( !v->packed )
-    out &= LEVEL_MASK;
-  
+  if ( v->packed )
+    out = v->count;
+
+  else if ( v->count & TAIL_MASK )
+    out = v->count & TAIL_MASK;
+
+  else
+    out = TAIL_SIZE;
+
   return out;
 }
 
-size_t root_count(Vector* v) {
-  if ( v->packed )
-    return 0;
-
-  
+size_t sub_index(size_t s, size_t n) {
+  return n >> s & TAIL_MASK;
 }
 
-size_t tail_size(Vector* v) {
-  return tail_count(v) * sizeof(Value);
+size_t root_count(Vec* v) {
+  size_t out;
+
+  if ( v->packed ) // no root
+    out = 0;
+
+  else if ( v->count & TAIL_MASK ) // tail is not full
+    out = v->count & ROOT_MASK;
+
+  else // tail is full
+    out = v->count - TAIL_SIZE;
+
+  return out;
 }
 
-size_t tail_offset(Vector* v) {
+size_t tail_size(Vec* v) {
+  return tail_count(v) * sizeof(Val);
+}
+
+size_t tail_offset(Vec* v) {
   if ( v->count < TAIL_SIZE )
     return 0;
 
   return ((v->count - 1) >> LEVEL_SHIFT) << LEVEL_SHIFT;
 }
 
-Value* array_for(Vector* v, size_t i) {
+Val* array_for(Vec* v, size_t i) {
   if ( i >= tail_offset(v) )
     return v->tail;
 
-  VecNode* n = v->root;
+  VNode* n = v->root;
 
   for (size_t l = v->shift; l > 0; l -= LEVEL_SHIFT )
-    n = n->children[(i >> l) & LEVEL_MASK];
+    n = n->children[(i >> l) & TAIL_MASK];
 
   return n->slots;
 }
 
 /* External APIs */
-Vector* mk_vec(size_t n, Value* d) {
+/* Vec API */
+Vec* mk_vec(size_t n, Val* d) {
   return new_vec(n, d, false, false);
 }
 
-Vector* packed_vec(size_t n, Value* d) {
+Vec* packed_vec(size_t n, Val* d) {
   return new_vec(n, d, false, true);
 }
 
-Value vec_ref(Vector* v, size_t n) {
-  Value x;
+Val vec_ref(Vec* v, size_t n) {
+  assert(n < v->count); // should already be checked
+
+  Val out;
+
+  if ( v->packed )
+    out = v->tail[n];
+
+  else {
+    Val* a = array_for(v, n);
+    out = a[n & LEVEL_SHIFT];
+  }
+
+  return out;
+}
+
+Vec* vec_add(Vec* v, Val x) {
+  if ( !v->trans ) {
+    v = transient(v);
+    add_to_vec(v, x);
+    v = persistent(v);
+  } else {
+    add_to_vec(v, x);
+  }
+
+  return v;
+}
+
+Vec* vec_set(Vec* v, size_t n, Val x) {
+  assert(n < v->count); // should already be checked
   
-  if ( v->packed ) { // flat array (used internally)
-    x = v->tail[n];
-    } else {
-    Value* arr = array_for(v, n);
-    x = arr[n & LEVEL_MASK];
-  }
-
-  return x;
-}
-
-Vector* vec_add(Vector* v, Value x) {
   if ( !v->trans ) {
     v = transient(v);
-    v = vec_add(v, x);
+    set_vec_ref(v, n, x);
     v = persistent(v);
-
   } else {
-    add_to_tail(v, x);
-    v->count++;
-
-    if ( !v->packed && tail_count(v) == TAIL_SIZE ) {
-      push_tail(v, v->tail);
-      resize_vec_tail(v, 0);
-    }
+    set_vec_ref(v, n, x);
   }
 
   return v;
 }
 
-Vector* vec_set(Vector* v, size_t n, Value x) {
+Vec* vec_pop(Vec* v, Val* r) {
+  assert(v->count > 0); // should already be checked
+  
   if ( !v->trans ) {
     v = transient(v);
-    v = vec_set(v, n, x);
+    preserve(1, tag(v));
+    pop_from_vec(v, r);
     v = persistent(v);
   } else {
-    
+    pop_from_vec(v, r);
   }
 
   return v;
 }
 
-Vector* vec_cat(Vector* x, Vector* y) {
-  if ( !x->trans ) {
-    x = transient(x);
-    x = vec_cat(x, y);
-    x = persistent(x);
-  } else {
-    
+Vec* vec_cat(Vec* x, Vec* y) {
+  Vec* o = x;
+
+  if ( y->count > 0 ) {
+    bool t = o->trans;
+
+    if ( !t )
+      o = transient(o);
+
+    preserve(1, tag(o));
+
+    MVec b;
+
+    unpack(y, &b);
+
+    for ( size_t i=0; i<b.count; i++ )
+      add_to_vec(o, b.data[i]);
+
+    if ( !t )
+      o = persistent(o);
+
+    free_mvec(&b);
+  }
+  
+  return o;
+}
+
+/* Mutable ARRAY APIs */
+#define MUTABLE_ARRAY(T, t, X)                                          \
+  T* new_##t(X* d, size_t n, bool s, ResizeAlgorithm ag) {              \
+    T* o = new_obj(&T##Type);                                           \
+    init_##t(o, NULL, 0, s, ag);                                        \
+                                                                        \
+    if ( d )                                                            \
+      write_##t(o, d, n);                                               \
+                                                                        \
+    return o;                                                           \
+  }                                                                     \
+                                                                        \
+  void init_##t(T* a, X* _s, size_t ms, bool s, ResizeAlgorithm ag) {   \
+    if ( a->type == NULL ) { /* temporary buffer on C stack */          \
+      a->type  = &T##Type;                                              \
+      a->free  = true;                                                  \
+      a->trace = false;                                                 \
+      a->sweep = false;                                                 \
+    }                                                                   \
+                                                                        \
+    a->algo = ag;                                                       \
+    a->shrink = s;                                                      \
+    a->data = _s;                                                       \
+    a->_static = _s;                                                    \
+    a->max_static = ms;                                                 \
+    a->count = 0;                                                       \
+    a->max_count = 0;                                                   \
+  }                                                                     \
+                                                                        \
+  void free_##t(T* a) {                                                 \
+    if ( a->data && a->data != a->_static )                             \
+      deallocate(a->data, 0, false);                                    \
+    init_##t(a, a->_static, a->max_static, a->shrink, a->algo);         \
+  }                                                                     \
+                                                                        \
+  void grow_##t(T* a, size_t n) {                                       \
+    (void)a;                                                            \
+    (void)n;                                                            \
+  }                                                                     \
+                                                                        \
+  void shrink_##t(T* a, size_t n) {                                     \
+    (void)a;                                                            \
+    (void)n;                                                            \
   }
 
-  return x;
-}
+MUTABLE_ARRAY(MVec, mvec, Val);
+MUTABLE_ARRAY(Alist, alist, void*);
+
+#undef MUTABLE_ARRAY

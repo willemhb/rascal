@@ -4,8 +4,8 @@
 #include "util/hash.h"
 
 /* Forward declarations */
-hash_t hash_nul(Value x);
-hash_t hash_bool(Value x);
+hash_t hash_nul(Val x);
+hash_t hash_bool(Val x);
 
 /* Globals */
 // types
@@ -21,7 +21,7 @@ Type NulType = {
   .hash_fn   =hash_nul
 };
 
-Type BooleanType = {
+Type BoolType = {
   .type      =&TypeType,
   .trace     =true,
   .gray      =true,
@@ -29,11 +29,11 @@ Type BooleanType = {
   .builtin   =true,
   .idno      =BOOL_TYPE,
   .value_type=BOOL,
-  .value_size=sizeof(Boolean),
+  .value_size=sizeof(Bool),
   .hash_fn   =hash_bool
 };
 
-Type PointerType = {
+Type PtrType = {
   .type      =&TypeType,
   .trace     =true,
   .gray      =true,
@@ -41,10 +41,10 @@ Type PointerType = {
   .builtin   =true,
   .idno      =CPTR_TYPE,
   .value_type=CPTR,
-  .value_size=sizeof(Pointer)
+  .value_size=sizeof(Ptr)
 };
 
-Type FuncPtrType = {
+Type FunPtrType = {
   .type      =&TypeType,
   .trace     =true,
   .gray      =true,
@@ -52,12 +52,12 @@ Type FuncPtrType = {
   .builtin   =true,
   .idno      =FPTR_TYPE,
   .value_type=FPTR,
-  .value_size=sizeof(FuncPtr)
+  .value_size=sizeof(FunPtr)
 };
 
 /* APIs */
 // comparison methods
-hash_t hash_nul(Value x) {
+hash_t hash_nul(Val x) {
   (void)x;
 
   static hash_t nul_hash = 0;
@@ -68,7 +68,7 @@ hash_t hash_nul(Value x) {
   return nul_hash;
 }
 
-hash_t hash_bool(Value x) {
+hash_t hash_bool(Val x) {
   static hash_t true_hash  = 0;
   static hash_t false_hash = 0;
 
@@ -90,112 +90,112 @@ hash_t hash_bool(Value x) {
 }
 
 // tagging methods
-Value tag_nul(Nul n) {
+Val tag_nul(Nul n) {
   (void)n;
 
   return NUL;
 }
 
-Value tag_bool(Boolean b) {
+Val tag_bool(Bool b) {
   return b ? TRUE : FALSE;
 }
 
-Value tag_glyph(Glyph g) {
+Val tag_glyph(Glyph g) {
   return g | GLYPH;
 }
 
-Value tag_small(Small s) {
+Val tag_small(Small s) {
   return s | SMALL;
 }
 
-Value tag_arity(Arity a) {
+Val tag_arity(Arity a) {
   return a | ARITY;
 }
 
-Value tag_real(Real r) {
+Val tag_real(Real r) {
   union {
     Real r;
-    Value v;
+    Val v;
   } u = { .r=r };
 
   return u.v;
 }
 
-Value tag_ptr(Pointer p) {
-  return (Value)p | CPTR;
+Val tag_ptr(Ptr p) {
+  return (Val)p | CPTR;
 }
 
-Value tag_fptr(FuncPtr f) {
-  return (Value)f | FPTR;
+Val tag_fptr(FunPtr f) {
+  return (Val)f | FPTR;
 }
 
-Value tag_obj(void* p) {
-  return (Value)p | OBJECT;
+Val tag_obj(void* p) {
+  return (Val)p | OBJECT;
 }
 
 // casting methods
-Nul     as_nul(Value x) {
+Nul     as_nul(Val x) {
   (void)x;
 
   return NULL;
 }
 
-Boolean as_bool(Value x) {
+Bool as_bool(Val x) {
   return x == TRUE;
 }
 
-Glyph   as_glyph(Value x) {
+Glyph   as_glyph(Val x) {
   return x & WDATA_BITS;
 }
 
-Small   as_small(Value x) {
+Small   as_small(Val x) {
   return x & WDATA_BITS;
 }
 
-Arity   as_arity(Value x) {
+Arity   as_arity(Val x) {
   return x & DATA_BITS;
 }
 
-Real    as_real(Value x) {
+Real    as_real(Val x) {
   union {
     Real r;
-    Value v;
+    Val v;
   } u = { .v=x };
 
   return u.v;
 }
 
-Pointer as_ptr(Value x) {
-  return (Pointer)(x & DATA_BITS);
+Ptr as_ptr(Val x) {
+  return (Ptr)(x & DATA_BITS);
 }
 
-FuncPtr as_fptr(Value x) {
-  return (FuncPtr)(x & DATA_BITS);
+FunPtr as_fptr(Val x) {
+  return (FunPtr)(x & DATA_BITS);
 }
 
-Object* val_as_obj(Value x) {
+Obj* val_as_obj(Val x) {
   assert(is_obj(x));
 
-  return (Object*)(x & DATA_BITS);
+  return (Obj*)(x & DATA_BITS);
 }
 
-Object* ptr_as_obj(void* p) {
+Obj* ptr_as_obj(void* p) {
   // assert(p != NULL);
 
   return p;
 }
 
 // type_of methods
-Type* type_of_val(Value x) {
+Type* type_of_val(Val x) {
   extern Type GlyphType, SmallType, ArityType, RealType;
   
   switch (tag_of(x)) {
     default:     return &RealType;
     case ARITY:  return &ArityType;
-    case CPTR:   return &PointerType;
-    case FPTR:   return &FuncPtrType;
+    case CPTR:   return &PtrType;
+    case FPTR:   return &FunPtrType;
     case NUL:    return &NulType;
-    case BOOL:   return &BooleanType;
+    case BOOL:   return &BoolType;
     case GLYPH:  return &GlyphType;
     case SMALL:  return &SmallType;
     case OBJECT: return as_obj(x)->type;
@@ -205,11 +205,11 @@ Type* type_of_val(Value x) {
 Type* type_of_obj(void* p) {
   assert(p != NULL);
 
-  return ((Object*)p)->type;
+  return ((Obj*)p)->type;
 }
 
 // has_type methods
-bool  val_has_type(Value x, Type* t) {
+bool  val_has_type(Val x, Type* t) {
   return has_instance(t, type_of(x));
 }
 
@@ -218,7 +218,7 @@ bool  obj_has_type(void* x, Type* t) {
 }
 
 // size_of methods
-size_t size_of_val(Value x, bool o) {
+size_t size_of_val(Val x, bool o) {
   if ( o ) {
     assert(is_obj(x));
 
@@ -239,31 +239,31 @@ size_t size_of_obj(void* x, bool o) {
 
     return xt->object_size;
   } else {
-    return sizeof(Object*);
+    return sizeof(Obj*);
   }
 }
 
 // value predicates
-bool  is_nul(Value x) {
+bool  is_nul(Val x) {
   return x == NUL;
 }
 
-bool  is_bool(Value x) {
+bool  is_bool(Val x) {
   return tag_of(x) == BOOL;
 }
 
-bool  is_glyph(Value x) {
+bool  is_glyph(Val x) {
   return tag_of(x) == GLYPH;
 }
 
-bool  is_cptr(Value x) {
+bool  is_cptr(Val x) {
   return tag_of(x) == CPTR;
 }
 
-bool  is_fptr(Value x) {
+bool  is_fptr(Val x) {
   return tag_of(x) == FPTR;
 }
 
-bool  is_obj(Value x) {
+bool  is_obj(Val x) {
   return tag_of(x) == OBJECT;
 }

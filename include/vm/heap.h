@@ -17,15 +17,15 @@ typedef struct HState HState;
 struct HFrame {
   HFrame* next;
   size_t  count;
-  Value*  values;
+  Val*    values;
 };
 
 /* state types */
 struct HState {
-  HFrame*      fp; // Live objects in the C stack that may not be visible from the roots (eg, when an intermediate object is created inside a C function).
-  size_t       size, max_size;
-  Object*      live_objects;
-  Alist*       grays;
+  HFrame* fp; // Live objects in the C stack that may not be visible from the roots (eg, when an intermediate object is created inside a C function).
+  size_t  size, max_size;
+  Obj*    live_objects;
+  Alist*  grays;
 };
 
 /* Global State objects */
@@ -36,7 +36,7 @@ extern HState Heap;
 void unpreserve(HFrame* frame);
 
 #define preserve(n, vals...)                                    \
-  Value __heap_frame_vals__[(n)] = { vals };                    \
+  Val __heap_frame_vals__[(n)] = { vals };                      \
   HFrame __heap_frame__ cleanup(unpreserve) =                   \
     { .next=Heap.fp, .count=(n), .values=__heap_frame_vals__ }; \
   Heap.fp=&__heap_frame__

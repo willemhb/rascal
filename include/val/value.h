@@ -5,14 +5,14 @@
 
 /* Initial declarations for Rascal value types and basic APIs */
 // general types
-typedef word_t        Value;  // tagged word. May be immediate or an object
-typedef struct Object Object; // Compound or large values are stored in a boxed object
+typedef word_t     Val;  // tagged word. May be immediate or an object
+typedef struct Obj Obj; // Compound or large values are stored in a boxed object
 
 // miscellaneous immediate types
 typedef nullptr_t Nul;
-typedef bool      Boolean;
-typedef void*     Pointer;
-typedef funcptr_t FuncPtr;
+typedef bool      Bool;
+typedef void*     Ptr;
+typedef funcptr_t FunPtr;
 
 // metaobject types
 typedef struct Type Type;
@@ -24,61 +24,61 @@ typedef struct Generic Generic;
 typedef struct MTRoot  MTRoot;
 typedef struct MTNode  MTNode;
 typedef struct MTLeaf  MTLeaf;
-typedef struct Control Control;
+typedef struct Cntl    Cntl;
 
 // identifier and environment types
-typedef struct Symbol  Symbol;
-typedef struct Environ Environ;
-typedef struct Binding Binding;
-typedef struct UpValue UpValue;
+typedef struct Sym   Sym;
+typedef struct Env   Env;
+typedef struct Ref   Ref;
+typedef struct UpVal UpVal;
 
 // text, binary, and IO types
-typedef char             Glyph;
-typedef struct Port      Port;
-typedef struct String    String;
-typedef struct Binary    Binary;
-typedef struct MutStr    MutStr;
-typedef struct MutBin    MutBin;
-typedef struct ReadTable ReadTable;
+typedef char        Glyph;
+typedef struct Port Port;
+typedef struct Str  Str;
+typedef struct Bin  Bin;
+typedef struct MStr MStr;
+typedef struct MBin MBin;
+typedef struct RT   RT;
 
 // numeric types
-typedef word_t        Arity; // 48-bit unsigned integer (can hold any valid hash or size)
-typedef int           Small;
-typedef double        Real;
-typedef struct Big    Big;
-typedef struct Ratio  Ratio;
+typedef word_t       Arity; // 48-bit unsigned integer (can hold any valid hash or size)
+typedef int          Small;
+typedef double       Real;
+typedef struct Big   Big;
+typedef struct Ratio Ratio;
 
 // list, pair, and sequence types
-typedef struct Pair    Pair;
-typedef struct List    List;
-typedef struct MutPair MutPair;
-typedef struct MutList MutList;
+typedef struct Pair  Pair;
+typedef struct List  List;
+typedef struct MPair MPair;
+typedef struct MList MList;
 
 // array types
-typedef struct Vector  Vector;
-typedef struct VecNode VecNode;
-typedef struct MutVec  MutVec;
-typedef struct Alist   Alist;
+typedef struct Vec   Vec;
+typedef struct VNode VNode;
+typedef struct MVec  MVec;
+typedef struct Alist Alist;
 
 // table types
-typedef struct Map      Map;
-typedef struct MapNode  MapNode;
-typedef struct Map      Record;
-typedef struct Map      Set;
-typedef struct MutMap   MutMap;
-typedef struct MutMap   MutSet;
-typedef struct StrCache StrCache;
-typedef struct EnvMap   EnvMap;
+typedef struct Map    Map;
+typedef struct MNode  MNode;
+typedef struct Map    Record;
+typedef struct Map    Set;
+typedef struct MMap   MMap;
+typedef struct MMap   MutSet;
+typedef struct SCache SCache;
+typedef struct EnvMap EnvMap;
 
 // internal function pointer types
-typedef void     (*rl_trace_fn_t)(Object* obj);
-typedef void     (*rl_destruct_fn_t)(Object* obj);
-typedef void     (*rl_reader_fn_t)(Port* stream, Value* buffer);
-typedef hash_t   (*rl_hash_fn_t)(Value x);
-typedef bool     (*rl_egal_fn_t)(Value x, Value y);
-typedef int      (*rl_order_fn_t)(Value x, Value y);
+typedef void     (*rl_trace_fn_t)(Obj* obj);
+typedef void     (*rl_destruct_fn_t)(Obj* obj);
+typedef void     (*rl_reader_fn_t)(Port* stream, Val* buffer);
+typedef hash_t   (*rl_hash_fn_t)(Val x);
+typedef bool     (*rl_egal_fn_t)(Val x, Val y);
+typedef int      (*rl_order_fn_t)(Val x, Val y);
 typedef size_t   (*rl_sizeof_fn_t)(void* x);
-typedef rl_sig_t (*rl_native_fn_t)(size_t argc, Value* args, Value* buffer);
+typedef rl_sig_t (*rl_native_fn_t)(size_t argc, Val* args, Val* buffer);
 
 /* tags and masks */
 #define QNAN       0x7ff8000000000000UL
@@ -111,26 +111,26 @@ typedef rl_sig_t (*rl_native_fn_t)(size_t argc, Value* args, Value* buffer);
 
 /* Globals */
 // type objects
-extern Type NulType, BooleanType, PointerType, FuncPtrType;
+extern Type NulType, BoolType, PtrType, FunPtrType;
 
 /* APIs */
 // tagging/untagging macros & functions
-static inline Value tag_of(Value x) {
+static inline Val tag_of(Val x) {
   return (x & LITTLE) == LITTLE ? x & WTAG_BITS : x & TAG_BITS;
 }
 
-static inline Value untag(Value x) {
+static inline Val untag(Val x) {
   return (x & LITTLE) == LITTLE ? x & WDATA_BITS : x & DATA_BITS;
 }
 
 // big ass tag macro
 #define tag(x)                                  \
   generic((x),                                  \
-          Object*:tag_obj,                      \
+          Obj*:tag_obj,                         \
           Nul:tag_nul,                          \
-          Boolean:tag_bool,                     \
-          Pointer:tag_ptr,                      \
-          FuncPtr:tag_fptr,                     \
+          Bool:tag_bool,                        \
+          Ptr:tag_ptr,                          \
+          FunPtr:tag_fptr,                      \
           Type*:tag_obj,                        \
           Closure*:tag_obj,                     \
           Native*:tag_obj,                      \
@@ -138,18 +138,18 @@ static inline Value untag(Value x) {
           MTRoot*:tag_obj,                      \
           MTNode*:tag_obj,                      \
           MTLeaf*:tag_obj,                      \
-          Control*:tag_obj,                     \
-          Symbol*:tag_obj,                      \
-          Environ*:tag_obj,                     \
-          Binding*:tag_obj,                     \
-          UpValue*:tag_obj,                     \
+          Cntl*:tag_obj,                        \
+          Sym*:tag_obj,                         \
+          Env*:tag_obj,                         \
+          Ref*:tag_obj,                         \
+          UpVal*:tag_obj,                       \
           Glyph:tag_glyph,                      \
           Port*:tag_obj,                        \
-          String*:tag_obj,                      \
-          Binary*:tag_obj,                      \
-          MutStr*:tag_obj,                      \
-          MutBin*:tag_obj,                      \
-          ReadTable*:tag_obj,                   \
+          Str*:tag_obj,                         \
+          Bin*:tag_obj,                         \
+          MStr*:tag_obj,                        \
+          MBin*:tag_obj,                        \
+          RT*:tag_obj,                          \
           Arity:tag_arity,                      \
           Small:tag_small,                      \
           Real:tag_real,                        \
@@ -157,80 +157,80 @@ static inline Value untag(Value x) {
           Ratio*:tag_obj,                       \
           Pair*:tag_obj,                        \
           List*:tag_obj,                        \
-          MutPair*:tag_obj,                     \
-          MutList*:tag_obj,                     \
-          Vector*:tag_obj,                      \
-          VecNode*:tag_obj,                     \
-          MutVec*:tag_obj,                      \
+          MPair*:tag_obj,                       \
+          MList*:tag_obj,                       \
+          Vec*:tag_obj,                         \
+          VNode*:tag_obj,                       \
+          MVec*:tag_obj,                        \
           Alist*:tag_obj,                       \
           Map*:tag_obj,                         \
-          MapNode*:tag_obj,                     \
-          MutMap*:tag_obj,                      \
-          StrCache*:tag_obj,                    \
+          MNode*:tag_obj,                       \
+          MMap*:tag_obj,                        \
+          SCache*:tag_obj,                      \
           EnvMap*:tag_obj                       \
           )(x)
 
 #define as_obj(x)                               \
   generic((x),                                  \
-          Value:val_as_obj,                     \
+          Val:val_as_obj,                     \
           default:ptr_as_obj)(x)
 
 #define type_of(x)                              \
   generic((x),                                  \
-          Value:type_of_val,                    \
+          Val:type_of_val,                    \
           default:type_of_obj)(x)
 
 #define size_of(x, o)                           \
   generic((x),                                  \
-          Value:size_of_val,                    \
+          Val:size_of_val,                    \
           default:size_of_obj)(x, o)
 
 #define has_type(x, t)                          \
   generic((x),                                  \
-          Value:val_has_type,                   \
+          Val:val_has_type,                   \
           default:obj_has_type)(x, t)
 
 // tagging methods
-Value tag_nul(Nul n);
-Value tag_bool(Boolean b);
-Value tag_glyph(Glyph g);
-Value tag_small(Small s);
-Value tag_arity(Arity a);
-Value tag_real(Real n);
-Value tag_ptr(Pointer p);
-Value tag_fptr(FuncPtr f);
-Value tag_obj(void* p);
+Val tag_nul(Nul n);
+Val tag_bool(Bool b);
+Val tag_glyph(Glyph g);
+Val tag_small(Small s);
+Val tag_arity(Arity a);
+Val tag_real(Real n);
+Val tag_ptr(Ptr p);
+Val tag_fptr(FunPtr f);
+Val tag_obj(void* p);
 
 // casting methods
-Nul     as_nul(Value x);
-Boolean as_bool(Value x);
-Glyph   as_glyph(Value x);
-Small   as_small(Value x);
-Arity   as_arity(Value x);
-Real    as_real(Value x);
-Pointer as_ptr(Value x);
-FuncPtr as_fptr(Value x);
-Object* val_as_obj(Value v);
-Object* ptr_as_obj(void* p);
+Nul    as_nul(Val x);
+Bool   as_bool(Val x);
+Glyph  as_glyph(Val x);
+Small  as_small(Val x);
+Arity  as_arity(Val x);
+Real   as_real(Val x);
+Ptr    as_ptr(Val x);
+FunPtr as_fptr(Val x);
+Obj*   val_as_obj(Val v);
+Obj*   ptr_as_obj(void* p);
 
 // type_of methods
-Type* type_of_val(Value v);
+Type* type_of_val(Val v);
 Type* type_of_obj(void* p);
 
 // has_type methods
-bool  val_has_type(Value v, Type* t);
-bool  obj_has_type(void* p, Type* t);
+bool val_has_type(Val v, Type* t);
+bool obj_has_type(void* p, Type* t);
 
 // size_of methods
-size_t size_of_val(Value x, bool o);
+size_t size_of_val(Val x, bool o);
 size_t size_of_obj(void* x, bool o);
 
 // value predicates
-bool  is_nul(Value x);
-bool  is_bool(Value x);
-bool  is_glyph(Value x);
-bool  is_cptr(Value x);
-bool  is_fptr(Value x);
-bool  is_obj(Value x);
+bool  is_nul(Val x);
+bool  is_bool(Val x);
+bool  is_glyph(Val x);
+bool  is_cptr(Val x);
+bool  is_fptr(Val x);
+bool  is_obj(Val x);
 
 #endif

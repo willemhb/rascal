@@ -3,10 +3,12 @@
 
 #include "val/object.h"
 
+#include "util/table.h"
+
 /* Types, APIs, and globals for mutable and immutable Rascal arrays. */
 /* C types */
 // vector root and node types
-struct Vector {
+struct Vec {
   HEADER;
 
   // bit fields
@@ -15,24 +17,24 @@ struct Vector {
   word_t packed : 1;
 
   // data fields
-  size_t   count;
-  VecNode* root;
-  Value*   tail;
+  size_t count;
+  VNode* root;
+  Val*   tail;
 };
 
-struct VecNode {
+struct VNode {
   HEADER;
 
   // bit fields
   word_t shift : 6;
   word_t trans : 1;
 
-  uint32_t count, max_count;
+  size_t count;
 
   // data fields
   union {
-    VecNode** children;
-    Value     slots[0];
+    VNode** children;
+    Val*    slots;
   };
 };
 
@@ -44,11 +46,11 @@ struct VecNode {
   X* _static;                                   \
   size_t count, max_count, max_static
 
-struct MutVec {
+struct MVec {
   HEADER;
 
   // data fields
-  DYNAMIC_ARRAY(Value);
+  DYNAMIC_ARRAY(Val);
 };
 
 struct Alist {
@@ -62,25 +64,25 @@ struct Alist {
 
 /* Globals */
 // types
-extern Type VectorType, VecNodeType, MutVecType, AlistType;
+extern Type VecType, VNodeType, MVecType, AlistType;
 
 /* APIs */
-/* Vector API */
-#define as_vec(x) ((Vector*)as_obj(x))
-#define is_vec(x) has_type(x, &VectorType)
+/* Vec API */
+#define as_vec(x) ((Vec*)as_obj(x))
+#define is_vec(x) has_type(x, &VecType)
 
-Vector* mk_vec(size_t n, Value* d);
-Vector* packed_vec(size_t n, Value* d);
-Value   vec_ref(Vector* v, size_t n);
-Vector* vec_add(Vector* v, Value x);
-Vector* vec_set(Vector* v, size_t n, Value x);
-Vector* vec_pop(Vector* v, Value* r);
-Vector* vec_cat(Vector* x, Vector* y);
+Vec* mk_vec(size_t n, Val* d);
+Vec* packed_vec(size_t n, Val* d);
+Val  vec_ref(Vec* v, size_t n);
+Vec* vec_add(Vec* v, Val x);
+Vec* vec_set(Vec* v, size_t n, Val x);
+Vec* vec_pop(Vec* v, Val* r);
+Vec* vec_cat(Vec* x, Vec* y);
 
 /* Dynamic array APIs */
 #define MUTABLE_ARRAY(T, t, X)                                          \
-  T*     new_##t(X* d, size_t n, bool p, bool s);                       \
-  void   init_##t(T* a, X* _s, size_t _ss, bool i, bool p, bool s);     \
+  T*     new_##t(X* d, size_t n, bool s, ResizeAlgorithm ag);           \
+  void   init_##t(T* a, X* _s, size_t ms, bool s, ResizeAlgorithm ag);  \
   void   free_##t(T* a);                                                \
   void   grow_##t(T* a, size_t n);                                      \
   void   shrink_##t(T* a, size_t n);                                    \
@@ -91,7 +93,7 @@ Vector* vec_cat(Vector* x, Vector* y);
   X      t##_pop(T* a);                                                 \
   X      t##_popn(T* a, size_t n, bool e)
 
-MUTABLE_ARRAY(MutVec, mvec, Value);
+MUTABLE_ARRAY(MVec, mvec, Val);
 MUTABLE_ARRAY(Alist, alist, void*);
 
 #undef MUTABLE_ARRAY

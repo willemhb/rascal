@@ -3,12 +3,12 @@
 
 #include "val/value.h"
 
-/* Common Object type and API functions defined here */
+/* Common Obj type and API functions defined here */
 
 /* C types*/
 // common object header macro
 #define HEADER                                   \
-  Object* next;                                  \
+  Obj* next;                                     \
   Type*   type;                                  \
   Map*    meta;                                  \
   word_t  hash  : 48;                            \
@@ -18,7 +18,7 @@
   word_t  gray  :  1;                            \
   word_t  black :  1
 
-struct Object {
+struct Obj {
   HEADER;
 
   // bit fields
@@ -32,11 +32,11 @@ struct Object {
 // lifetime APIs
 #define mark(x)                                 \
   generic((x),                                  \
-          Value:mark_val,                       \
+          Val:mark_val,                         \
           default:mark_obj)(x)
 
 // mark methods
-void mark_val(Value v);
+void mark_val(Val v);
 void mark_obj(void* x);
 
 // trace method
@@ -44,7 +44,7 @@ void trace(void* x);
 
 // other lifetime methods
 void* new_obj(Type* t);
-void  init_obj(Type* t, Object* o);
+void  init_obj(Type* t, Obj* o);
 void  free_obj(void* x);
 void  sweep_obj(void* x);
 
