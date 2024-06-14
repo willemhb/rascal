@@ -73,9 +73,9 @@ struct Type {
   word_t idno;         // unique identifier (basis of hash)
 
   // layout information
-  Val  value_type;   // tag for values of this type
-  size_t value_size;   // machine size of the data part of the tagged word
-  size_t object_size;  // base size of objects of this type
+  Val    val_type;   // tag for values of this type
+  size_t val_size;   // machine size of the data part of the tagged word
+  size_t obj_size;  // base size of objects of this type
 
   // type spec fields
   Sym* name;     // readable name under which the type was defined (if any)
@@ -86,14 +86,14 @@ struct Type {
   Obj* ctor;
 
   // lifetime & object methods
-  rl_trace_fn_t    trace_fn;
-  rl_destruct_fn_t destruct_fn;
-  rl_sizeof_fn_t   sizeof_fn;
+  rl_trace_fn_t  trace_fn;
+  rl_free_fn_t   free_fn;
+  rl_sizeof_fn_t sizeof_fn;
 
   // comparison methods
   rl_hash_fn_t  hash_fn;
   rl_egal_fn_t  egal_fn;
-  rl_order_fn_t order_fn;
+  rl_order_fn_t ord_fn;
 };
 
 /* Globals */
@@ -102,5 +102,6 @@ extern Type TypeType, NoneType, AnyType;
 /* APIs */
 bool  has_instance(Type* p, Type* t);
 Type* get_union_type(size_t n, Type* ts);
+void  init_builtin_type(Type* t, char* name, rl_native_fn_t ctor);
 
 #endif

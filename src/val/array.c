@@ -1,6 +1,7 @@
 #include <string.h>
 
 #include "val/array.h"
+#include "val/type.h"
 
 #include "lang/compare.h"
 
@@ -12,17 +13,22 @@
 /* C types */
 typedef VNode VLeaf;
 
-/* Globals */
-#define TAIL_SIZE   64
-#define LEVEL_SHIFT  6
-#define MAX_SHIFT   48
-#define TAIL_MASK  63ul
-#define ROOT_MASK   (~TAIL_MASK)
-
+/* forward declarations */
 /* lifetime and comparison methods */
+void   trace_vec(void* x);
+void   free_vec(void* x);
 hash_t hash_vec(Val x);
 bool   egal_vecs(Val x, Val y);
 int    order_vecs(Val x, Val y);
+
+void   trace_vnode(void* x);
+void   free_vnode(void* x);
+
+void   trace_mvec(void* x);
+void   free_mvec(void* x);
+
+void   trace_alist(void* x);
+void   free_alist(void* x);
 
 /* Forward declarations for internal APIs */
 // internal vector APIs
@@ -57,8 +63,6 @@ void   add_vleaf(VNode** p, size_t s, Val* t);
 void   set_vnode_ref(VNode** b, VNode* n, size_t i, Val x);
 VNode* pop_from_vnode(VNode* n, VLeaf** l);
 
-// push/pop helpers
-
 // miscellaneous utilities
 bool   space_in_tail(Vec* v);
 bool   space_in_root(Vec* v);
@@ -85,8 +89,110 @@ Val*   array_for(Vec* v, size_t n);
           Vec*:unpack_vec,                   \
           VNode*:unpack_vnode)(x, a)
 
+/* Globals */
+/* HAMT parameters */
+#define TAIL_SIZE   64
+#define LEVEL_SHIFT  6
+#define MAX_SHIFT   48
+#define TAIL_MASK  63ul
+#define ROOT_MASK   (~TAIL_MASK)
+
+/* Type objects */
+Type VecType = {
+  .type    =&TypeType,
+  .trace   =true,
+  .gray    =true,
+
+  .kind    =DATA_TYPE,
+  .builtin =true,
+
+  .idno    =VEC_TYPE,
+
+  .val_type=OBJECT,
+  .val_size=sizeof(Obj*),
+  .obj_size=sizeof(Vec),
+
+  .trace_fn=trace_vec,
+  .free_fn =free_vec,
+
+  .hash_fn =hash_vec,
+  .egal_fn =egal_vecs,
+  .ord_fn  =order_vecs
+};
+
+Type VNodeType = {
+  .type    =&TypeType,
+  .trace   =true,
+  .gray    =true,
+
+  .kind    =DATA_TYPE,
+  .builtin =true,
+
+  .idno    =VNODE_TYPE,
+
+  .val_type=OBJECT,
+  .val_size=sizeof(Obj*),
+  .obj_size=sizeof(VNode),
+
+  .trace_fn=trace_vnode,
+  .free_fn =free_vnode
+};
+
+Type MVecType = {
+  .type    =&TypeType,
+  .trace   =true,
+  .gray    =true,
+
+  .kind    =DATA_TYPE,
+  .builtin =true,
+
+  .idno    =MVEC_TYPE,
+
+  .val_type=OBJECT,
+  .val_size=sizeof(Obj*),
+  .obj_size=sizeof(MVec),
+
+  .trace_fn=trace_mvec,
+  .free_fn =free_mvec
+};
+
+Type AlistType = {
+  .type    =&TypeType,
+  .trace   =true,
+  .gray    =true,
+
+  .kind    =DATA_TYPE,
+  .builtin =true,
+
+  .idno    =ALIST_TYPE,
+
+  .val_type=OBJECT,
+  .val_size=sizeof(Obj*),
+  .obj_size=sizeof(Alist),
+
+  .trace_fn=trace_alist,
+  .free_fn =free_alist
+};
+
 /* Internal APIs */
 // lifetime and comparison methods
+void trace_vec(void* x) {
+  Vec* v = x;
+
+  mark(v->root);
+
+  size_t tc = tail_count(v);
+
+  for ( size_t i=0; i<tc; i++ )
+    mark(v->tail[i]);
+}
+
+void free_vec(void* x) {
+  Vec* v = x;
+
+  deallocate(v->tail, 0, false);
+}
+
 extern hash_t hash_nul(Val x);
 extern hash_t get_type_hash(Type* xt);
 
@@ -211,6 +317,38 @@ int order_vecs(Val x, Val y) {
   }
   
   return out;
+}
+
+void trace_vnode(void* x) {
+  VNode* n = x;
+
+  if ( n->shift > 0 )
+    for ( size_t i=0; i<n->count; i++ )
+      mark(n->children[i]);
+
+  else
+    for ( size_t i=0; i<n->count; i++ )
+      mark(n->slots[i]);
+}
+
+void free_vnode(void* x) {
+  VNode* n = x;
+
+  deallocate(n->slots, 0, false);
+}
+
+void trace_mvec(void* x) {
+  MVec* v = x;
+
+  for ( size_t i=0; i<v->count; i++ )
+    mark(v->data[i]);
+}
+
+void trace_alist(void* x) {
+  Alist* a = x;
+
+  for ( size_t i=0; i<a->count; i++ )
+    mark(a->data[i]);
 }
 
 // vector internals
@@ -361,6 +499,8 @@ void pop_from_vec(Vec* v, Val* r) {
 
   if ( r )
     *r = x;
+
+  if ( v->cnt )
 
   if ( tail_count(v) == 1 && v->root ) { // popped last item, get new tail from root
     VLeaf* l;
@@ -714,25 +854,107 @@ Vec* vec_cat(Vec* x, Vec* y) {
     a->shrink = s;                                                      \
     a->data = _s;                                                       \
     a->_static = _s;                                                    \
-    a->max_static = ms;                                                 \
+    a->maxs = ms;                                                       \
     a->count = 0;                                                       \
-    a->max_count = 0;                                                   \
+    a->maxc = 0;                                                        \
   }                                                                     \
                                                                         \
-  void free_##t(T* a) {                                                 \
+  void free_##t(void* x) {                                              \
+    T* a = x;                                                           \
     if ( a->data && a->data != a->_static )                             \
       deallocate(a->data, 0, false);                                    \
-    init_##t(a, a->_static, a->max_static, a->shrink, a->algo);         \
+    init_##t(a, a->_static, a->maxs, a->shrink, a->algo);               \
   }                                                                     \
                                                                         \
   void grow_##t(T* a, size_t n) {                                       \
-    (void)a;                                                            \
-    (void)n;                                                            \
+    ResizeAlgorithm algo = a->algo;                                     \
+    size_t oc = a->count;                                               \
+    size_t om = a->maxc;                                                \
+    size_t nm = adjust_stack_size(oc, n, om, algo);                     \
+    if ( a->_static && a->data == a->_static && nm > a->maxs ) {        \
+      a->data = allocate(nm*sizeof(X), false);                          \
+      memcpy(a->data, a->_static, a->count*sizeof(X));                  \
+    } else {                                                            \
+      a->data = reallocate(a->data, om*sizeof(X), nm*sizeof(X), false); \
+    }                                                                   \
+    a->maxc = nm;                                                       \
   }                                                                     \
                                                                         \
   void shrink_##t(T* a, size_t n) {                                     \
-    (void)a;                                                            \
-    (void)n;                                                            \
+    ResizeAlgorithm algo = a->algo;                                     \
+    size_t oc = a->count;                                               \
+    size_t om = a->maxc;                                                \
+    size_t nm = adjust_stack_size(oc, n, om, algo);                     \
+    if ( a->_static && nm <= a->maxs ) {                                \
+      memcpy(a->_static, a->data, oc*sizeof(X));                        \
+      deallocate(a->data, 0, false);                                    \
+      a->data = a->_static;                                             \
+      nm = a->maxs;                                                     \
+    } else {                                                            \
+      a->data = reallocate(a->data, om*sizeof(X), nm*sizeof(X), false); \
+    }                                                                   \
+    a->maxc = nm;                                                       \
+  }                                                                     \
+                                                                        \
+  size_t write_##t(T* a, X* s, size_t n) {                              \
+    size_t o = a->count;                                                \
+                                                                        \
+    if ( o + n > a->maxc )                                              \
+      grow_##t(a, o+n);                                                 \
+                                                                        \
+    memcpy(a->data+o, s, n*sizeof(X));                                  \
+    a->count += n;                                                      \
+    return o;                                                           \
+  }                                                                     \
+                                                                        \
+  size_t t##_push(T* a, X x) {                                          \
+    size_t o = a->count;                                                \
+    if ( o == a->maxc )                                                 \
+      grow_##t(a, o+1);                                                 \
+    a->data[a->count++] = x;                                            \
+    return o;                                                           \
+  }                                                                     \
+                                                                        \
+  size_t t##_pushn(T* a, size_t n, ...) {                               \
+    va_list va;                                                         \
+    va_start(va, n);                                                    \
+    size_t o = t##_pushv(a, n, va);                                     \
+    va_end(va);                                                         \
+    return o;                                                           \
+  }                                                                     \
+                                                                        \
+  size_t t##_pushv(T* a, size_t n, va_list va) {                        \
+    X buf[n];                                                           \
+    for (size_t i=0; i<n; i++)                                          \
+      buf[i] = va_arg(va, X);                                           \
+    return write_##t(a, buf, n);                                        \
+  }                                                                     \
+                                                                        \
+  static inline bool check_##t##_shrink(T* a, size_t n) {               \
+    return a->shrink &&                                                 \
+      a->maxc > a->maxs &&                                              \
+      a->count - n < (a->maxc >> 1);                                    \
+  }                                                                     \
+                                                                        \
+  X t##_pop(T* a) {                                                     \
+    assert(a->count > 0);                                               \
+    X o = a->data[a->count-1];                                          \
+    if ( check_##t##_shrink(a, 1) )                                     \
+      shrink_##t(a, a->count - 1);                                      \
+    a->count--;                                                         \
+    return o;                                                           \
+  }                                                                     \
+                                                                        \
+  X t##_popn(T* a, size_t n, bool e) {                                  \
+    assert(n >= a->count);                                              \
+    X o;                                                                \
+    if ( e )                                                            \
+      o = a->data[a->count-1];                                          \
+    else                                                                \
+      o = a->data[a->count-n];                                          \
+    if ( check_##t##_shrink(a, n) )                                     \
+      shrink_##t(a, a->count-n);                                        \
+    return o;                                                           \
   }
 
 MUTABLE_ARRAY(MVec, mvec, Val);

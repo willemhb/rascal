@@ -32,23 +32,22 @@ struct Map {
   size_t   count;
 
   union {
-    List*    entries; // for small maps (< 16 keys), stored as a sorted map
-    MapNode* root;    // larger maps are stored in a HAMT-based structure
+    List*  entries; // for small maps (< 16 keys), stored as a sorted map
+    MNode* root;    // larger maps are stored in a HAMT-based structure
   };
 };
 
-struct MapNode {
+struct MNode {
   HEADER;
 
   // bit fields
   word_t offset    : 6;
-  word_t depth     : 4;
   word_t transient : 1;
 
   // data fields
-  size_t   bitmap;
+  size_t bitmap;
 
-  Object** children;
+  Obj**  children;
 };
 
 // mutable tables
@@ -63,10 +62,10 @@ struct MapNode {
   size_t count, max_count
 
 typedef struct {
-  MUTABLE_ENTRY(Value, Value);
+  MUTABLE_ENTRY(Val, Val);
 } MMEntry;
 
-struct MutMap {
+struct MMap {
   HEADER;
 
   MUTABLE_TABLE(MMEntry);
@@ -75,17 +74,17 @@ struct MutMap {
 // internal table types
 typedef struct {
   char*   key;
-  String* val;
+  Str* val;
 } SCEntry;
 
-struct StrCache {
+struct SCache {
   HEADER;
 
   MUTABLE_TABLE(SCEntry);
 };
 
 typedef struct {
-  MUTABLE_ENTRY(Symbol*, Binding*);
+  MUTABLE_ENTRY(Sym*, Ref*);
 } EMEntry;
 
 struct EnvMap {
@@ -99,33 +98,33 @@ struct EnvMap {
 
 /* Globals */
 // types
-extern Type MapType, MapNodeType, MutMapType, StrCacheType, EnvMapType;
+extern Type MapType, MNodeType, MMapType, SCacheType, EnvMapType;
 
 /* APIs */
 // map API
-Map*  new_map(size_t n, Value* kvs, bool t);
-Map*  mk_map(size_t n, Value* kvs);
-Pair* map_get(Map* m, Value k);
-Map*  map_assoc(Map* m, Value k, Value v);
-Map*  map_pop(Map* m, Value k, Pair** buf);
+Map*  new_map(size_t n, Val* kvs, bool t);
+Map*  mk_map(size_t n, Val* kvs);
+Pair* map_get(Map* m, Val k);
+Map*  map_assoc(Map* m, Val k, Val v);
+Map*  map_pop(Map* m, Val k, Pair** buf);
 
 // mutable maps
-#define MUTABLE_TABLE(T, E, K, V, t, ...)                          \
-  T*          new_##t(T* t, byte_t lf __VA_OPT__(,) __VA_ARGS__);  \
-  rl_status_t init_##t(T* t);                                      \
-  rl_status_t free_##t(T* t);                                      \
-  rl_status_t resize_##t(T* t, size_t n);                          \
-  rl_status_t t##_find(T* t, K k, E** r);                          \
-  rl_status_t t##_intern(T* t, K k, rl_intern_fn_t f, void* s);    \
-  rl_status_t t##_get(T* t, K k, V* v);                            \
-  rl_status_t t##_set(T* t, K k, V v);                             \
-  rl_status_t t##_put(T* t, K k, V v);                             \
-  rl_status_t t##_del(T* t, K k);                                  \
-  T*          merge_##t##s(T* x, T* y)
+#define MUTABLE_TABLE(T, E, K, V, t, ...)                       \
+  T*       new_##t(T* t, byte_t lf __VA_OPT__(,) __VA_ARGS__);  \
+  rl_sig_t init_##t(T* t);                                      \
+  rl_sig_t free_##t(T* t);                                      \
+  rl_sig_t resize_##t(T* t, size_t n);                          \
+  rl_sig_t t##_find(T* t, K k, E** r);                          \
+  rl_sig_t t##_intern(T* t, K k, rl_intern_fn_t f, void* s);    \
+  rl_sig_t t##_get(T* t, K k, V* v);                            \
+  rl_sig_t t##_set(T* t, K k, V v);                             \
+  rl_sig_t t##_put(T* t, K k, V v);                             \
+  rl_sig_t t##_del(T* t, K k);                                  \
+  T*       merge_##t##s(T* x, T* y)
 
-MUTABLE_TABLE(MutMap, MMEntry, Value, Value, mut_map);
-MUTABLE_TABLE(StrCache, SCEntry, char*, String*, str_cache);
-MUTABLE_TABLE(EnvMap, EMEntry, Symbol*, Binding*, env_map, int scope);
+MUTABLE_TABLE(MMap, MMEntry, Val, Val, mmap);
+MUTABLE_TABLE(SCache, SCEntry, char*, Str*, scache);
+MUTABLE_TABLE(EnvMap, EMEntry, Sym*, Ref*, emap, int scope);
 
 #undef MUTABLE_TABLE
 

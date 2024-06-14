@@ -44,7 +44,7 @@ struct VNode {
   word_t shrink : 1;                            \
   X* data;                                      \
   X* _static;                                   \
-  size_t count, max_count, max_static
+  size_t count, maxc, maxs
 
 struct MVec {
   HEADER;
@@ -83,7 +83,7 @@ Vec* vec_cat(Vec* x, Vec* y);
 #define MUTABLE_ARRAY(T, t, X)                                          \
   T*     new_##t(X* d, size_t n, bool s, ResizeAlgorithm ag);           \
   void   init_##t(T* a, X* _s, size_t ms, bool s, ResizeAlgorithm ag);  \
-  void   free_##t(T* a);                                                \
+  void   free_##t(void* x);                                             \
   void   grow_##t(T* a, size_t n);                                      \
   void   shrink_##t(T* a, size_t n);                                    \
   size_t write_##t(T* a, X* s, size_t n);                               \

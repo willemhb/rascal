@@ -71,9 +71,9 @@ typedef struct SCache SCache;
 typedef struct EnvMap EnvMap;
 
 // internal function pointer types
-typedef void     (*rl_trace_fn_t)(Obj* obj);
-typedef void     (*rl_destruct_fn_t)(Obj* obj);
-typedef void     (*rl_reader_fn_t)(Port* stream, Val* buffer);
+typedef void     (*rl_trace_fn_t)(void* x);
+typedef void     (*rl_free_fn_t)(void* x);
+typedef void     (*rl_read_fn_t)(Port* stream, Val* buffer);
 typedef hash_t   (*rl_hash_fn_t)(Val x);
 typedef bool     (*rl_egal_fn_t)(Val x, Val y);
 typedef int      (*rl_order_fn_t)(Val x, Val y);
