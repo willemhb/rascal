@@ -23,9 +23,9 @@ struct HFrame {
 /* state types */
 struct HState {
   HFrame* fp; // Live objects in the C stack that may not be visible from the roots (eg, when an intermediate object is created inside a C function).
-  size_t  size, max_size;
-  Obj*    live_objects;
-  Alist*  grays;
+  size_t  size, maxs;
+  Obj*    objs;
+  Alist   grays;
 };
 
 /* Global State objects */

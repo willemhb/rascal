@@ -3,17 +3,17 @@
 
 #include "vm/heap.h"
 
-/* Common Object type and API functions */
+/* Common Obj type and API functions */
 
 // mark methods
-void mark_val(Value x) {
+void mark_val(Val x) {
   if ( is_obj(x) )
     mark_obj(as_obj(x));
 }
 
 void mark_obj(void* x) {
   if ( x ) {
-    Object* o = x;
+    Obj* o = x;
 
     if ( !o->black ) {
       o->black = true;
@@ -29,7 +29,7 @@ void mark_obj(void* x) {
 
 // trace method
 void trace(void* x) {
-  Object* o = x;
+  Obj* o = x;
   o->type->trace_fn(o);
   o->gray = false;
 }
@@ -37,13 +37,13 @@ void trace(void* x) {
 // other lifetime methods
 void* new_obj(Type* t) {
   preserve(1, tag(t));
-  Object* o = allocate(t->object_size, true);
+  Obj* o = allocate(t->obj_size, true);
   init_obj(t, o);
 
   return o;
 }
 
-void init_obj(Type* t, Object* o) {
+void init_obj(Type* t, Obj* o) {
   o->type  = t;
   o->meta  = NULL;
   o->hash  = 0;
@@ -52,19 +52,19 @@ void init_obj(Type* t, Object* o) {
   o->sweep = true;
 
   // Register in heap
-  o->next           = Heap.live_objects;
-  Heap.live_objects = o;
+  o->next   = Heap.objs;
+  Heap.objs = o;
 }
 
 void free_obj(void* x) {
-  Object* o = x;
+  Obj* o = x;
 
-  if ( o->free && o->type->destruct_fn )
-    o->type->destruct_fn(o);
+  if ( o->free && o->type->free_fn )
+    o->type->free_fn(o);
 }
 
 void sweep_obj(void* x) {
-  Object* o = x;
+  Obj* o = x;
 
   if ( o->sweep ) // allocated in heap
     deallocate(o, size_of(o, true), true);

@@ -9,35 +9,52 @@
 struct Pair {
   HEADER;
 
-  Value car;
-  Value cdr;
+  Val car;
+  Val cdr;
 };
 
 struct List {
   HEADER;
 
-  Value  head;
+  Val    head;
   List*  tail;
   size_t count;
 };
 
-struct MutPair {
+struct MPair {
   HEADER;
 
-  Value car;
-  Value cdr;
+  Val car;
+  Val cdr;
 };
 
-struct MutList {
+struct MList {
   HEADER;
 
   // data fields
-  Value    head;
-  MutList* tail; // no count is stored, since it's impossible to ensure its accuracy with a mutable tail
+  Val    head;
+  MList* tail; // no count is stored, since it's impossible to ensure its accuracy with a mutable tail
 };
 
 /* Globals */
 // types
-extern Type PairType, ListType, MutPairType, MutListType;
+extern Type PairType, ListType, MPairType, MListType;
+
+/* External APIs */
+/* List API */
+#define is_list(x) has_type(x, &ListType)
+#define as_list(x) ((List*)as_obj(x))
+
+/* Pair API */
+#define is_pair(x) has_type(x, &PairType)
+#define as_pair(x) ((Pair*)as_obj(x))
+
+/* MList API */
+#define is_mlist(x) has_type(x, &MListType)
+#define as_mlist(x) ((MList*)as_obj(x))
+
+/* MPair API */
+#define is_mpair(x) has_type(x, &MPairType)
+#define as_mpair(x) ((MPair*)as_obj(x))
 
 #endif

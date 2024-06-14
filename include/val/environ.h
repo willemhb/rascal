@@ -15,19 +15,19 @@ typedef enum Scope {
 } Scope;
 
 // user identifier types
-struct Symbol {
+struct Sym {
   HEADER;
 
   // bit fields
   word_t literal : 1;
 
   // identifier info
-  String* nmspc;
-  String* name;
+  Str* nmspc;
+  Str* name;
   word_t  idno;      // non-zero for gensyms
 };
 
-struct Environ {
+struct Env {
   HEADER;
 
   // bit fields
@@ -36,19 +36,19 @@ struct Environ {
   word_t captured : 1;
 
   // data fields
-  Symbol*    name;      // Name for this Environ object (may be a namespace, function, or type)
-  Environ*   parent;    // the environment within which this environment was defined
-  Environ*   template;  // the unbound environment a bound environment was cloned from
-  EnvMap*    locals;
-  EnvMap*    nonlocals;
+  Sym*    name;      // Name for this Env object (may be a namespace, function, or type)
+  Env*    parent;    // the environment within which this environment was defined
+  Env*    template;  // the unbound environment a bound environment was cloned from
+  EnvMap* locals;
+  EnvMap* nonlocals;
 
   union {
     Alist* upvals;
-    MutVec*  values;
+    MVec*  values;
   };
 };
 
-struct Binding {
+struct Ref {
   HEADER;
 
   // bit fields
@@ -59,58 +59,57 @@ struct Binding {
   word_t macro         : 1; // macro name
 
   // data fields
-  Binding* captures;   // the binding captured by this binding (if any)
-  Environ* environ;    // the environment in which the binding was *originally* created
-  Symbol*  name;       // name under which this binding was created in *original* environment
+  Ref* captures;   // the binding captured by this binding (if any)
+  Env* environ;    // the environment in which the binding was *originally* created
+  Sym*  name;       // name under which this binding was created in *original* environment
   size_t   offset;     // location (may be on stack, in upvalues, or directly in environment)
   Type*    constraint; // type constraint for this binding
-  Value    initval;    // default initval (only used for object scopes)
+  Val    initval;    // default initval (only used for object scopes)
 };
 
-struct UpValue {
+struct UpVal {
   HEADER;
 
   // bit fields
   word_t closed : 1;
 
   // data fields
-  UpValue* next_upv;
+  UpVal* next_upv;
 
   union {
-    Value* location;
-    Value  value;
+    Val* location;
+    Val  value;
   };
 };
 
 /* Globals */
 // types
-extern Type SymbolType, EnvironType, BindingType, UpValueType;
+extern Type SymType, EnvType, RefType, UpValType;
 
 // global environment
-extern Environ Globals;
+extern Env Globals;
 
 /* APIs */
-/* Symbol API */
-static inline bool is_gs(Symbol* s) {
+/* Sym API */
+static inline bool is_gs(Sym* s) {
   return s->idno > 0;
 }
 
 #define qualify(s, ns)                          \
   generic((ns),                                 \
           char*:cstr_qualify,                   \
-          String*:str_qualify,                  \
-          Symbol*:sym_qualify)(s, ns)
+          Str*:str_qualify,                     \
+          Sym*:sym_qualify)(s, ns)
 
-Symbol* mk_sym(String* ns, String* n, bool gs);
+Sym* mk_sym(Str* ns, Str* n, bool gs);
 
 // qualify methods
-Symbol* cstr_qualify(Symbol* s, char* cstr);
-Symbol* str_qualify(Symbol* s, String* str);
-Symbol* sym_qualify(Symbol* s, Symbol* ns);
-
+Sym* cstr_qualify(Sym* s, char* cstr);
+Sym* str_qualify(Sym* s, Str* str);
+Sym* sym_qualify(Sym* s, Sym* ns);
 
 /* Upvalue API */
-static inline Value* deref_upval(UpValue* upv) {
+static inline Val* deref_upval(UpVal* upv) {
   if ( upv->closed )
     return &upv->value;
 
@@ -121,11 +120,11 @@ static inline Value* deref_upval(UpValue* upv) {
 #define define(n, v, e)                         \
   generic((n),                                  \
           char*:cstr_define,                    \
-          Symbol*:sym_define)(n, v, e)
+          Sym*:sym_define)(n, v, e)
 
 // define methods
-size_t cstr_define(char* n, Value i, Environ* e);
-size_t sym_define(Symbol* n, Value i, Environ* e);
+size_t cstr_define(char* n, Val i, Env* e);
+size_t sym_define(Sym* n, Val i, Env* e);
 
 
 #endif

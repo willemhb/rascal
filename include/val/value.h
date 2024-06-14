@@ -68,7 +68,7 @@ typedef struct Map    Set;
 typedef struct MMap   MMap;
 typedef struct MMap   MutSet;
 typedef struct SCache SCache;
-typedef struct EnvMap EnvMap;
+typedef struct EMap EMap;
 
 // internal function pointer types
 typedef void     (*rl_trace_fn_t)(void* x);
@@ -167,27 +167,27 @@ static inline Val untag(Val x) {
           MNode*:tag_obj,                       \
           MMap*:tag_obj,                        \
           SCache*:tag_obj,                      \
-          EnvMap*:tag_obj                       \
+          EMap*:tag_obj                         \
           )(x)
 
 #define as_obj(x)                               \
   generic((x),                                  \
-          Val:val_as_obj,                     \
+          Val:val_as_obj,                       \
           default:ptr_as_obj)(x)
 
 #define type_of(x)                              \
   generic((x),                                  \
-          Val:type_of_val,                    \
+          Val:type_of_val,                      \
           default:type_of_obj)(x)
 
 #define size_of(x, o)                           \
   generic((x),                                  \
-          Val:size_of_val,                    \
+          Val:size_of_val,                      \
           default:size_of_obj)(x, o)
 
 #define has_type(x, t)                          \
   generic((x),                                  \
-          Val:val_has_type,                   \
+          Val:val_has_type,                     \
           default:obj_has_type)(x, t)
 
 // tagging methods

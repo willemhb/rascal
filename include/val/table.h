@@ -87,7 +87,7 @@ typedef struct {
   MUTABLE_ENTRY(Sym*, Ref*);
 } EMEntry;
 
-struct EnvMap {
+struct EMap {
   HEADER;
 
   MUTABLE_TABLE(EMEntry);
@@ -98,21 +98,24 @@ struct EnvMap {
 
 /* Globals */
 // types
-extern Type MapType, MNodeType, MMapType, SCacheType, EnvMapType;
+extern Type MapType, MNodeType, MMapType, SCacheType, EMapType;
 
 /* APIs */
 // map API
 Map*  new_map(size_t n, Val* kvs, bool t);
 Map*  mk_map(size_t n, Val* kvs);
-Pair* map_get(Map* m, Val k);
-Map*  map_assoc(Map* m, Val k, Val v);
-Map*  map_pop(Map* m, Val k, Pair** buf);
+Pair* map_find(Map* m, Val k);
+Val   map_get(Map* m, Val k);
+Map*  map_set(Map* m, Val k, Val v);
+Map*  map_put(Map* m, Val k, Val v);
+Map*  map_pop(Map* m, Val k, Pair** kv);
+Map*  join_maps(Map* x, Map* y);
 
 // mutable maps
 #define MUTABLE_TABLE(T, E, K, V, t, ...)                       \
   T*       new_##t(T* t, byte_t lf __VA_OPT__(,) __VA_ARGS__);  \
-  rl_sig_t init_##t(T* t);                                      \
-  rl_sig_t free_##t(T* t);                                      \
+  void     init_##t(T* t);                                      \
+  void     free_##t(void* x);                                   \
   rl_sig_t resize_##t(T* t, size_t n);                          \
   rl_sig_t t##_find(T* t, K k, E** r);                          \
   rl_sig_t t##_intern(T* t, K k, rl_intern_fn_t f, void* s);    \
@@ -120,11 +123,11 @@ Map*  map_pop(Map* m, Val k, Pair** buf);
   rl_sig_t t##_set(T* t, K k, V v);                             \
   rl_sig_t t##_put(T* t, K k, V v);                             \
   rl_sig_t t##_del(T* t, K k);                                  \
-  T*       merge_##t##s(T* x, T* y)
+  T*       join_##t##s(T* x, T* y)
 
 MUTABLE_TABLE(MMap, MMEntry, Val, Val, mmap);
 MUTABLE_TABLE(SCache, SCEntry, char*, Str*, scache);
-MUTABLE_TABLE(EnvMap, EMEntry, Sym*, Ref*, emap, int scope);
+MUTABLE_TABLE(EMap, EMEntry, Sym*, Ref*, emap, int scope);
 
 #undef MUTABLE_TABLE
 
