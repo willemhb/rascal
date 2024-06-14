@@ -1,4 +1,6 @@
 #include "val/object.h"
+#include "val/environ.h"
+#include "val/table.h"
 #include "val/type.h"
 
 #include "vm/heap.h"
@@ -43,6 +45,19 @@ void* new_obj(Type* t) {
   return o;
 }
 
+void* clone_obj(void* x) {
+  assert(x);
+
+  Obj* o  = x;
+  Type* t = o->type;
+  void* r = duplicate(o, size_of(o, true), true);
+
+  if ( t->clone_fn )
+    t->clone_fn(r);
+
+  return r;
+}
+
 void init_obj(Type* t, Obj* o) {
   o->type  = t;
   o->meta  = NULL;
@@ -68,4 +83,99 @@ void sweep_obj(void* x) {
 
   if ( o->sweep ) // allocated in heap
     deallocate(o, size_of(o, true), true);
+}
+
+// metadata methods
+void intern_metadata(void* t, void* e, void* k, void* s, hash_t h) {
+  (void)t;
+  (void)s;
+  (void)h;
+
+  MMEntry* me = e;
+  Map* m = mk_map(0, NULL);
+
+  me->key = (Val)k;
+  me->val = tag(m);
+}
+
+Map* val_meta(Val x) {
+  Map* r;
+  
+  if ( is_obj(x) )
+    r = obj_meta(as_obj(x));
+
+  else {
+    MMEntry* me;
+
+    mmap_intern(&MetaData, x, &me, intern_metadata, NULL);
+
+    r = as_map(me->val);
+  }
+
+  return r;
+}
+
+Map* obj_meta(void* x) {
+  assert(x);
+
+  Obj* o = x;
+
+  if ( o->meta == NULL )
+    o->meta = mk_map(0, NULL);
+
+  return o->meta;
+}
+
+Val vs_get_meta(Val x, char* k) {
+  Sym* sk = mk_sym(k, NULL, false);
+
+  return get_meta(x, tag(sk));
+}
+
+Val vv_get_meta(Val x, Val k) {
+  Map* m = meta(x);
+
+  return map_get(m, k);
+}
+
+Val os_get_meta(void* x, char* k) {
+  Sym* sk = mk_sym(k, NULL, false);
+
+  return get_meta(x, tag(sk));
+}
+
+Val ov_get_meta(void* x, Val k) {
+  Map* m = meta(x);
+
+  return map_get(m, k);
+}
+
+void vs_set_meta(Val x, char* k, Val v) {
+  Sym* sk = mk_sym(k, NULL, false);
+
+  set_meta(x, tag(sk), v);
+}
+
+void vv_set_meta(Val x, Val k, Val v) {
+  MMEntry* me;
+
+  mmap_intern(&MetaData, x, &me, intern_metadata, NULL);
+
+  Map* m = as_map(me->val);
+  m = map_set(m, k, v);
+  me->val = tag(m);
+}
+
+void os_set_meta(void* x, char* k, Val v) {
+  Sym* sk = mk_sym(k, NULL, false);
+
+  set_meta(x, tag(sk), v);
+}
+
+void ov_set_meta(void* x, Val k, Val v) {
+  Obj* o = x;
+  Map* m = meta(o);
+
+  m = map_set(m, k, v);
+  o->meta = m;
 }

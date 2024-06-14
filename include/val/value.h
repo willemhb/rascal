@@ -1,7 +1,7 @@
 #ifndef rl_val_value_h
 #define rl_val_value_h
 
-#include "status.h"
+#include "error.h"
 
 /* Initial declarations for Rascal value types and basic APIs */
 // general types
@@ -68,17 +68,18 @@ typedef struct Map    Set;
 typedef struct MMap   MMap;
 typedef struct MMap   MutSet;
 typedef struct SCache SCache;
-typedef struct EMap EMap;
+typedef struct EMap   EMap;
 
 // internal function pointer types
 typedef void     (*rl_trace_fn_t)(void* x);
 typedef void     (*rl_free_fn_t)(void* x);
+typedef void     (*rl_clone_fn_t)(void* x);
 typedef void     (*rl_read_fn_t)(Port* stream, Val* buffer);
 typedef hash_t   (*rl_hash_fn_t)(Val x);
 typedef bool     (*rl_egal_fn_t)(Val x, Val y);
 typedef int      (*rl_order_fn_t)(Val x, Val y);
 typedef size_t   (*rl_sizeof_fn_t)(void* x);
-typedef rl_sig_t (*rl_native_fn_t)(size_t argc, Val* args, Val* buffer);
+typedef rl_err_t (*rl_native_fn_t)(size_t argc, Val* args, Val* buffer);
 
 /* tags and masks */
 #define QNAN       0x7ff8000000000000UL

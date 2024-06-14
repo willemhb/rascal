@@ -94,6 +94,7 @@ Vec* vec_cat(Vec* x, Vec* y);
   T*     new_##t(X* d, size_t n, bool s, ResizeAlgo ag);                \
   void   init_##t(T* a, X* _s, size_t ms, bool s, ResizeAlgo ag);       \
   void   free_##t(void* x);                                             \
+  void   clone_##t(void* x);                                            \
   void   grow_##t(T* a, size_t n);                                      \
   void   shrink_##t(T* a, size_t n);                                    \
   size_t write_##t(T* a, X* s, size_t n);                               \

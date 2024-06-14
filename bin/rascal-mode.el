@@ -16,16 +16,16 @@
     "def*" "val" "var" "put"
 
     ;; function/macro binding
-    "fun" "mac" "method"
+    "fun" "mac" "method" "impl"
 
     ;; type binding
-    "type" "union" "record" "struct"
+    "type" "union" "abstract" "trait" "record" "struct"
 
     ;; namespace binding
     "ns" "use" "import"
 
     ;; closures and blocks
-    "fn*" "let" "label" "loop"
+    "fn*" "let*" "let" "label" "loop"
 
     ;; threading syntax
     "->"

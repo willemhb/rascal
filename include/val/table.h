@@ -12,12 +12,13 @@ typedef enum {
   LF_375 = 0x03,
   LF_500 = 0x04,
   LF_625 = 0x05,
-  LF_750 = 0x05,
-  LF_875 = 0x06,
+  LF_750 = 0x06,
+  LF_875 = 0x07,
 } LF;
 
 // signature for functions used when a new entry needs to be created in a table
 typedef void (*rl_intern_fn_t)(void* t, void* e, void* k, void* s, hash_t h);
+typedef void (*rl_tinit_fn_t)(void* t, flags_t f);
 
 // immutable tables
 struct Map {
@@ -25,7 +26,6 @@ struct Map {
 
   // bit fields
   word_t offset    : 6;
-  word_t depth     : 4;
   word_t transient : 1;
 
   // data fields  
@@ -56,10 +56,10 @@ struct MNode {
   V val
 
 #define MUTABLE_TABLE(E)                        \
-  word_t loadfactor : 5;                        \
+  word_t lf : 5;                                \
                                                 \
   E* entries;                                   \
-  size_t count, max_count
+  size_t cnt, maxc, nts
 
 typedef struct {
   MUTABLE_ENTRY(Val, Val);
@@ -73,8 +73,8 @@ struct MMap {
 
 // internal table types
 typedef struct {
-  char*   key;
-  Str* val;
+  char* key;
+  Str*  val;
 } SCEntry;
 
 struct SCache {
@@ -90,6 +90,8 @@ typedef struct {
 struct EMap {
   HEADER;
 
+  word_t scope : 3;
+
   MUTABLE_TABLE(EMEntry);
 };
 
@@ -102,6 +104,9 @@ extern Type MapType, MNodeType, MMapType, SCacheType, EMapType;
 
 /* APIs */
 // map API
+#define is_map(x) has_type(x, &MapType)
+#define as_map(x) ((Map*)as_obj(x))
+
 Map*  new_map(size_t n, Val* kvs, bool t);
 Map*  mk_map(size_t n, Val* kvs);
 Pair* map_find(Map* m, Val k);
@@ -112,22 +117,22 @@ Map*  map_pop(Map* m, Val k, Pair** kv);
 Map*  join_maps(Map* x, Map* y);
 
 // mutable maps
-#define MUTABLE_TABLE(T, E, K, V, t, ...)                           \
-  T*       new_##t(T* t, byte_t lf __VA_OPT__(,) __VA_ARGS__);      \
-  void     init_##t(T* t);                                          \
+#define MUTABLE_TABLE(T, E, K, V, t)                                \
+  T*       new_##t(LF l, flags_t f);                                \
+  void     init_##t(T* t, LF l, flags_t f);                         \
   void     free_##t(void* x);                                       \
-  rl_sig_t resize_##t(T* t, size_t n);                              \
-  rl_sig_t t##_find(T* t, K k, E** r);                              \
-  rl_sig_t t##_intern(T* t, K k, E** r, rl_intern_fn_t f, void* s); \
-  rl_sig_t t##_get(T* t, K k, V* v);                                \
-  rl_sig_t t##_set(T* t, K k, V v);                                 \
-  rl_sig_t t##_put(T* t, K k, V v);                                 \
-  rl_sig_t t##_del(T* t, K k);                                      \
+  E*       t##_find(T* t, K k);                                     \
+  E*       t##_intern(T* t, K k, rl_intern_fn_t f, void* s);        \
+  bool     t##_get(T* t, K k, V* r);                                \
+  bool     t##_has(T* t, K k);                                      \
+  bool     t##_set(T* t, K k, V v, V* r);                           \
+  bool     t##_put(T* t, K k, V v);                                 \
+  bool     t##_del(T* t, K k, V* r);                                \
   T*       join_##t##s(T* x, T* y)
 
 MUTABLE_TABLE(MMap, MMEntry, Val, Val, mmap);
 MUTABLE_TABLE(SCache, SCEntry, char*, Str*, scache);
-MUTABLE_TABLE(EMap, EMEntry, Sym*, Ref*, emap, int scope);
+MUTABLE_TABLE(EMap, EMEntry, Sym*, Ref*, emap);
 
 #undef MUTABLE_TABLE
 

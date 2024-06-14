@@ -1,23 +1,12 @@
-#ifndef rl_status_h
-#define rl_status_h
+#ifndef rl_error_h
+#define rl_error_h
 
 #include "common.h"
 
 /* status codes and basic error handling. */
 typedef enum {
-  /* default return value */
+  /* No error */
   OKAY,
-
-  /* table lookup status codes */
-  NOTFOUND,
-  ADDED,
-  UPDATED,
-  REMOVED,
-
-  /* reader status codes */
-  READY,
-  EXPRESSION,
-  END_OF_INPUT,
 
   /* error codes */
   /* error codes that may or may not imply a user mistake */
@@ -31,12 +20,11 @@ typedef enum {
   METHOD_ERROR,     // error originating from missing method signature
   EVAL_ERROR,       // error originating from interpreter, eg a failed type check
   USER_ERROR,       // error raised by the user
-} rl_sig_t;
+} rl_err_t;
 
 /* Error APIs */
-bool     is_error_status(rl_sig_t s);
-char*    rl_status_name(rl_sig_t s);
-rl_sig_t rl_error(rl_sig_t code, const char* fname, const char* fmt, ...);
-void     rl_fatal_error(rl_sig_t code, const char* fname, const char* fmt, ...);
+char*    rl_err_name(rl_err_t e);
+rl_err_t rl_error(rl_err_t e, const char* fn, const char* fmt, ...);
+void     rl_fatal_err(rl_err_t e, const char* fn, const char* fmt, ...);
 
 #endif

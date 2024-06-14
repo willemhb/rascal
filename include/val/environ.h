@@ -22,9 +22,9 @@ struct Sym {
   word_t literal : 1;
 
   // identifier info
-  Str* nmspc;
-  Str* name;
-  word_t  idno;      // non-zero for gensyms
+  Str*   nmspc;
+  Str*   name;
+  word_t idno;      // non-zero for gensyms
 };
 
 struct Env {
@@ -36,11 +36,11 @@ struct Env {
   word_t captured : 1;
 
   // data fields
-  Sym*    name;      // Name for this Env object (may be a namespace, function, or type)
-  Env*    parent;    // the environment within which this environment was defined
-  Env*    template;  // the unbound environment a bound environment was cloned from
-  EnvMap* locals;
-  EnvMap* nonlocals;
+  Sym*  name;      // Name for this Env object (may be a namespace, function, or type)
+  Env*  parent;    // the environment within which this environment was defined
+  Env*  template;  // the unbound environment a bound environment was cloned from
+  EMap* locals;
+  EMap* nonlocals;
 
   union {
     Alist* upvals;
@@ -59,12 +59,12 @@ struct Ref {
   word_t macro         : 1; // macro name
 
   // data fields
-  Ref* captures;   // the binding captured by this binding (if any)
-  Env* environ;    // the environment in which the binding was *originally* created
-  Sym*  name;       // name under which this binding was created in *original* environment
-  size_t   offset;     // location (may be on stack, in upvalues, or directly in environment)
-  Type*    constraint; // type constraint for this binding
-  Val    initval;    // default initval (only used for object scopes)
+  Ref*   captures; // the binding captured by this binding (if any)
+  Env*   environ;  // the environment in which the binding was *originally* created
+  Sym*   name;     // name under which this binding was created in *original* environment
+  size_t offset;   // location (may be on stack, in upvalues, or directly in environment)
+  Type*  tag;      // type constraint for this binding
+  Val    init;     // default initval (only used for object scopes)
 };
 
 struct UpVal {
@@ -88,11 +88,19 @@ extern Type SymType, EnvType, RefType, UpValType;
 
 // global environment
 extern Env Globals;
+extern Str* GlobalNs;
 
 /* APIs */
 /* Sym API */
+#define is_sym(x) has_type(x, &SymType)
+#define as_sym(x) ((Sym*)as_obj(x))
+
 static inline bool is_gs(Sym* s) {
   return s->idno > 0;
+}
+
+static inline Str* get_ns(Sym* s) {
+  return s->nmspc ? : GlobalNs;
 }
 
 #define qualify(s, ns)                          \
@@ -101,11 +109,25 @@ static inline bool is_gs(Sym* s) {
           Str*:str_qualify,                     \
           Sym*:sym_qualify)(s, ns)
 
-Sym* mk_sym(Str* ns, Str* n, bool gs);
+#define mk_sym(n, ns, gs)                       \
+  generic((n),                                  \
+          char*:c_mk_sym,                       \
+          Str*:s_mk_sym)(n, ns, gs)
+
+#define sn_eq(x, c)                             \
+  generic((x),                                  \
+          Sym*:s_sn_eq,                         \
+          Val: v_sn_eq)(x, c)
+
+Sym* c_mk_sym(char* n, char* ns, bool gs);
+Sym* s_mk_sym(Str* n, Str* ns, bool gs);
+
+bool s_sn_eq(Sym* s, const char* n);
+bool v_sn_eq(Val x, const char* n);
 
 // qualify methods
-Sym* cstr_qualify(Sym* s, char* cstr);
-Sym* str_qualify(Sym* s, Str* str);
+Sym* cstr_qualify(Sym* s, char* ns);
+Sym* str_qualify(Sym* s, Str* ns);
 Sym* sym_qualify(Sym* s, Sym* ns);
 
 /* Upvalue API */
@@ -125,6 +147,5 @@ static inline Val* deref_upval(UpVal* upv) {
 // define methods
 size_t cstr_define(char* n, Val i, Env* e);
 size_t sym_define(Sym* n, Val i, Env* e);
-
 
 #endif

@@ -10,6 +10,7 @@
 
 /* Utility typedefs. */
 typedef uint8_t    byte_t;
+typedef uint32_t   flags_t;
 typedef uint64_t   word_t;
 typedef uint64_t   hash_t;
 typedef void     (*funcptr_t)(void);

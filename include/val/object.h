@@ -28,6 +28,9 @@ struct Obj {
   byte_t data[];
 };
 
+/* Globals */
+extern MMap MetaData; // MetaData objects for immediate values
+
 /* APIs */
 // lifetime APIs
 #define mark(x)                                 \
@@ -44,8 +47,47 @@ void trace(void* x);
 
 // other lifetime methods
 void* new_obj(Type* t);
+void* clone_obj(void* x);
 void  init_obj(Type* t, Obj* o);
 void  free_obj(void* x);
 void  sweep_obj(void* x);
+
+// metadata generics
+#define meta(x)                                 \
+  generic((x),                                  \
+          Val:val_meta,                         \
+          default:obj_meta)(x)
+
+#define get_meta(x, k)                              \
+  generic((x),                                      \
+          Val:generic((k),                          \
+                      char*:vs_get_meta,            \
+                      Val:vv_get_meta),             \
+          default:generic((k),                      \
+                          char*:os_get_meta,        \
+                          Val:ov_get_meta))(x, k)
+
+#define set_meta(x, k, v)                           \
+  generic((x),                                      \
+          Val:generic((k),                          \
+                      char*:vs_set_meta,            \
+                      Val:vv_set_meta),             \
+          default:generic((k),                      \
+                       char*:os_set_meta,           \
+                       Val:ov_set_meta))(x, k, v)
+
+// metadata methods
+Map* val_meta(Val x);
+Map* obj_meta(void* x);
+
+Val vs_get_meta(Val x, char* k);
+Val vv_get_meta(Val x, Val k);
+Val os_get_meta(void* x, char* k);
+Val ov_get_meta(void* x, Val k);
+
+void vs_set_meta(Val x, char* k, Val v);
+void vv_set_meta(Val x, Val k, Val v);
+void os_set_meta(void* x, char* k, Val v);
+void ov_set_meta(void* x, Val k, Val v);
 
 #endif

@@ -86,9 +86,10 @@ struct Type {
   Obj* ctor;
 
   // lifetime & object methods
-  rl_trace_fn_t  trace_fn;
-  rl_free_fn_t   free_fn;
-  rl_sizeof_fn_t sizeof_fn;
+  rl_trace_fn_t  trace_fn;     // called to trace an object's owned pointers
+  rl_clone_fn_t  clone_fn;     // called to duplicate an object's owned pointers
+  rl_free_fn_t   free_fn;      // called to free an object's owned pointers
+  rl_sizeof_fn_t sizeof_fn;    // called to determine an object's overallocated size
 
   // comparison methods
   rl_hash_fn_t  hash_fn;

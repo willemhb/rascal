@@ -1,7 +1,7 @@
 #ifndef rl_vm_heap_h
 #define rl_vm_heap_h
 
-#include "status.h"
+#include "error.h"
 
 #include "val/array.h"
 
@@ -46,7 +46,7 @@ void*    allocate(size_t n, bool h);
 void*    reallocate(void* p, size_t o, size_t n, bool h);
 void*    duplicate(const void* p, size_t n, bool h);
 void*    deallocate(void* p, size_t n, bool h);
-rl_sig_t collect_garbage(void);
+rl_err_t collect_garbage(void);
 void     push_gray(void* o);
 
 #endif

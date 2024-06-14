@@ -17,17 +17,21 @@ typedef VNode VLeaf;
 /* lifetime and comparison methods */
 void   trace_vec(void* x);
 void   free_vec(void* x);
+void   clone_vec(void* x);
 hash_t hash_vec(Val x);
 bool   egal_vecs(Val x, Val y);
 int    order_vecs(Val x, Val y);
 
 void   trace_vnode(void* x);
 void   free_vnode(void* x);
+void   clone_vnode(void* x);
 
 void   trace_mvec(void* x);
+void   clone_mvec(void* x);
 void   free_mvec(void* x);
 
 void   trace_alist(void* x);
+void   clone_alist(void* x);
 void   free_alist(void* x);
 
 /* Forward declarations for internal APIs */
@@ -36,7 +40,6 @@ Vec*  new_vec(size_t n, Val* d, bool t, bool p);
 void  init_vec(Vec* v, bool t, bool p);
 void  inc_vcnt(Vec* v);
 void  dec_vcnt(Vec* v);
-Vec*  clone_vec(Vec* v);
 Vec*  transient_vec(Vec* r);
 Vec*  persistent_vec(Vec* r);
 void  unpack_vec(Vec* v, MVec* m);
@@ -55,7 +58,6 @@ VNode* new_vnode(size_t s, size_t n, void* d, bool t);
 VLeaf* new_vleaf(Val* d, bool t);
 void   inc_vncnt(VNode* n);
 void   dec_vncnt(VNode* n);
-VNode* clone_vnode(VNode* n);
 VNode* transient_vnode(VNode* n);
 VNode* persistent_vnode(VNode* n);
 void   unpack_vnode(VNode* n, MVec* m);
@@ -119,6 +121,7 @@ Type VecType = {
 
   .trace_fn=trace_vec,
   .free_fn =free_vec,
+  .clone_fn=clone_vec,
 
   .hash_fn =hash_vec,
   .egal_fn =egal_vecs,
@@ -140,7 +143,8 @@ Type VNodeType = {
   .obj_size=sizeof(VNode),
 
   .trace_fn=trace_vnode,
-  .free_fn =free_vnode
+  .free_fn =free_vnode,
+  .clone_fn=clone_vnode
 };
 
 Type MVecType = {
@@ -158,7 +162,8 @@ Type MVecType = {
   .obj_size=sizeof(MVec),
 
   .trace_fn=trace_mvec,
-  .free_fn =free_mvec
+  .free_fn =free_mvec,
+  .clone_fn=clone_mvec
 };
 
 Type AlistType = {
@@ -176,7 +181,8 @@ Type AlistType = {
   .obj_size=sizeof(Alist),
 
   .trace_fn=trace_alist,
-  .free_fn =free_alist
+  .free_fn =free_alist,
+  .clone_fn=clone_alist
 };
 
 /* Internal APIs */
@@ -196,6 +202,11 @@ void free_vec(void* x) {
   Vec* v = x;
 
   deallocate(v->tail, 0, false);
+}
+
+void clone_vec(void* x) {
+  Vec* v = x;
+  v->tail = duplicate(v->tail, tail_cnt(v) * sizeof(Val), false);
 }
 
 extern hash_t hash_nul(Val x);
@@ -342,6 +353,12 @@ void free_vnode(void* x) {
   deallocate(n->slots, 0, false);
 }
 
+void clone_vnode(void* x) {
+  VNode* n = x;
+
+  n->children = duplicate(n->children, n->cnt*sizeof(VNode*), false);
+}
+
 void trace_mvec(void* x) {
   MVec* v = x;
 
@@ -401,13 +418,6 @@ void dec_vcnt(Vec* v) {
   v->cnt--;
 }
 
-Vec* clone_vec(Vec* v) {
-  Vec* o = duplicate(v, size_of(v, true), true);
-  o->tail = duplicate(o->tail, tail_size(o), false);
-
-  return o;
-}
-
 Vec* persistent_vec(Vec* v) {
   if ( v->trans ) {
     v->trans = false;
@@ -421,7 +431,7 @@ Vec* persistent_vec(Vec* v) {
 
 Vec* transient_vec(Vec* v) {
   if ( !v->trans ) {
-    v = clone_vec(v);
+    v = clone_obj(v);
     v->trans = true;
     v->hash = 0;    // invalidate cached hashes
   }
@@ -571,15 +581,9 @@ void dec_vncnt(VNode* n) {
   n->cnt--;
 }
 
-VNode* clone_vnode(VNode* n) {
-  VNode* out = duplicate(n, size_of(n, true), true);
-  out->children = duplicate(n->children, n->cnt*sizeof(VNode*), false);
-  return out;
-}
-
 VNode* transient_vnode(VNode* n) {
   if ( !n->trans ) {
-    n = clone_vnode(n);
+    n = clone_obj(n);
     n->trans = true;
   }
 
@@ -874,7 +878,7 @@ Vec* vec_cat(Vec* x, Vec* y) {
 
 /* Mutable ARRAY APIs */
 #define MUTABLE_ARRAY(T, t, X)                                          \
-  T* new_##t(X* d, size_t n, bool s, ResizeAlgo ag) {              \
+  T* new_##t(X* d, size_t n, bool s, ResizeAlgo ag) {                   \
     T* o = new_obj(&T##Type);                                           \
     init_##t(o, NULL, 0, s, ag);                                        \
                                                                         \
@@ -884,7 +888,7 @@ Vec* vec_cat(Vec* x, Vec* y) {
     return o;                                                           \
   }                                                                     \
                                                                         \
-  void init_##t(T* a, X* _s, size_t ms, bool s, ResizeAlgo ag) {   \
+  void init_##t(T* a, X* _s, size_t ms, bool s, ResizeAlgo ag) {        \
     if ( a->type == NULL ) { /* temporary buffer on C stack */          \
       a->type  = &T##Type;                                              \
       a->free  = true;                                                  \
@@ -908,8 +912,16 @@ Vec* vec_cat(Vec* x, Vec* y) {
     init_##t(a, a->_static, a->maxs, a->shrink, a->algo);               \
   }                                                                     \
                                                                         \
+  void clone_##t(void* x) {                                             \
+    T* a = x;                                                           \
+    a->data = duplicate(a->data, a->maxc*sizeof(X), false);             \
+    /* Don't share _static space */                                     \
+    a->_static = NULL;                                                  \
+    a->maxs = 0;                                                        \
+  }                                                                     \
+                                                                        \
   void grow_##t(T* a, size_t n) {                                       \
-    ResizeAlgo algo = a->algo;                                     \
+    ResizeAlgo algo = a->algo;                                          \
     size_t oc = a->cnt;                                                 \
     size_t om = a->maxc;                                                \
     size_t nm = adjust_stack_size(oc, n, om, algo);                     \

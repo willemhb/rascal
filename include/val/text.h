@@ -26,8 +26,8 @@ struct Str {
   HEADER;
 
   // bit fields
-  word_t encoding : 4;
-  word_t hasmb    : 1;
+  word_t enc   : 4;
+  word_t hasmb : 1;
 
   // data fields
   char*  chars;
@@ -78,9 +78,9 @@ struct MBin {
 struct RT {
   HEADER;
 
-  RT* parent;
-  funcptr_t  dispatch[256]; // common readers
-  funcptr_t  intrasym[256]; // intra-symbol readers
+  RT*       parent;
+  funcptr_t dispatch[256]; // common readers
+  funcptr_t intrasym[256]; // intra-symbol readers
 };
 
 /* Globals */
@@ -95,8 +95,13 @@ extern SCache StrCache;
 
 /* APIs */
 // string API
-Str* get_str(char* chars);
-Str* new_str(char* chars);
+#define is_str(x) has_type(x, &StrType)
+#define as_str(x) ((Str*)as_obj(x))
+
+Str*  get_str(char* cs, size_t n);
+Str*  new_str(char* cs, size_t n);
+Glyph str_ref(Str* s, size_t n);
+Str*  str_set(Str* s, size_t n, Glyph g);
 
 // binary API
 Bin* new_bin(size_t n, void* d, CType ct);

@@ -38,8 +38,9 @@ bool   ct_is_float(CType bt);
 bool   ct_is_pointer(CType bt);
 
 // string utilities
-size_t strsz(const char* s);
-size_t strcnt(const char* s);
-bool   streq(const char* sx, const char* sy);
+size_t ssz(const char* s);
+size_t scnt(const char* s);
+int    scmp(const char* x, const char* y);
+bool   seq(const char* sx, const char* sy);
 
 #endif

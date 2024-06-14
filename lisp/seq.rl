@@ -1,10 +1,29 @@
 (ns seq
   "Rascal sequence library."
 
+  ;; Exports: map, keep, take, drop, any?, all?, fold, sort, each
+
   @private
   (union Key
     "Convenience definition for types commonly used as `Map` or `Vec` keys."
     (Int Sym Str))
+
+  (trait Seq: S[X] @as T
+    "Trait type for elements that can be iterated over."
+    (fst: Opt[X]   [T])
+    (rst: Opt[T]   [T])
+    (seq: Opt[Seq] [T]))
+
+  (fun seq?
+    "Returns `true` if `s` implements `Seq`."
+    )
+
+  (impl Seq: List[X]
+    "Implementation for `List` type."
+    (method first: Opt[X]
+      [_: ()] nul)
+    (method first: Opt[X]
+      [s: List[X]]))
 
   (fun map
     "Lisp classic! Rascal version has additional semantics."
@@ -30,12 +49,14 @@
     "Implmentation for `List`s."
     [f: Func, s: List]
       (label
-        [f: Func, a: List, _: ()]
-          (reverse a)
+        [_: Func, a: List, _: ()]
+          (rev a)
         [f: Func, a: List, [h & t]: List]
           (loop f t (conj a (f h)))
         ;; Entry.
-        (loop f () s))
+        (loop f () s)))
+
+  (method map
     [f: Func, s: List, & r]
       (label
         [f: Func, a: List, r: List] @when (any? empty? r)
@@ -51,31 +72,32 @@
 
   (method any?
     "Implement for `List`s."
-    [p: Func, _: ()]
+    [_: Func, _: ()]
       false
-    [p: Func, [h & _]: List] @when (p h)
+    [p: Func, [h &]: List] @when (p h)
       true
-    [p: Func, [_ & t]: List]
+    [p: Func, [& t]: List]
       (any? p t))
 
   (method all?
-    "Implement for `List`s."
-    [p: Func, _: ()]
+    "Implement for `[Func, List]`"
+    [_: Func, _: ()]
       true
-    [p: Func, [h & _]: List] @when (!p h)
+    [p: Func, [h &]: List] @when (!p h)
       false
-    [p: Func, [_ & t]: List]
+    [p: Func, [& t]: List]
       (all? p t))
 
-  (method keep
-    "Implement for `List`s."
-    [p: Func, x: List]
-      (label
-        [p: Func, a: List, _: ()]
-          (reverse a)
-        [p: Func, a: List, [h & t]: List] @when (p h)
-          (loop p (conj a h) t)
-        [p: Func, a: List, [_ & t]: List]
-          (loop p a t)
-        ;; Entry.
-        (loop p () x))))
+  (method each
+    "Implement for `[Func, List]`."
+    [f: Func, _: ()]
+      nul
+    [f: Func, [h]: List]
+      (f h)
+    [f: Func, [h & t]: List]
+      (do (f h)
+        (each f t)))
+
+  (method each
+    "Implement for `[Func, Vec]`."
+    [f: Func, ]))
