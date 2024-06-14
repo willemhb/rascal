@@ -17,7 +17,7 @@ struct Vec {
   word_t packed : 1;
 
   // data fields
-  size_t count;
+  size_t cnt;
   VNode* root;
   Val*   tail;
 };
@@ -29,7 +29,7 @@ struct VNode {
   word_t shift : 6;
   word_t trans : 1;
 
-  size_t count;
+  size_t cnt;
 
   // data fields
   union {
@@ -44,7 +44,7 @@ struct VNode {
   word_t shrink : 1;                            \
   X* data;                                      \
   X* _static;                                   \
-  size_t count, maxc, maxs
+  size_t cnt, maxc, maxs
 
 struct MVec {
   HEADER;
@@ -76,7 +76,7 @@ Vec* packed_vec(size_t n, Val* d);
 Val  vec_ref(Vec* v, size_t n);
 Vec* vec_add(Vec* v, Val x);
 Vec* vec_set(Vec* v, size_t n, Val x);
-Vec* vec_pop(Vec* v, Val* r);
+Vec* vec_pop(Vec* x);
 Vec* vec_cat(Vec* x, Vec* y);
 
 /* Dynamic array APIs */

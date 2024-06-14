@@ -1,5 +1,5 @@
-#ifndef rl_table_h
-#define rl_table_h
+#ifndef rl_val_table_h
+#define rl_val_table_h
 
 #include "val/object.h"
 

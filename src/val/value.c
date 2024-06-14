@@ -16,21 +16,21 @@ Type NulType = {
   .kind      =DATA_TYPE,
   .builtin   =true,
   .idno      =NUL_TYPE,
-  .value_type=NUL,
-  .value_size=sizeof(Nul),
+  .val_type  =NUL,
+  .val_size  =sizeof(Nul),
   .hash_fn   =hash_nul
 };
 
 Type BoolType = {
-  .type      =&TypeType,
-  .trace     =true,
-  .gray      =true,
-  .kind      =DATA_TYPE,
-  .builtin   =true,
-  .idno      =BOOL_TYPE,
-  .value_type=BOOL,
-  .value_size=sizeof(Bool),
-  .hash_fn   =hash_bool
+  .type    =&TypeType,
+  .trace   =true,
+  .gray    =true,
+  .kind    =DATA_TYPE,
+  .builtin =true,
+  .idno    =BOOL_TYPE,
+  .val_type=BOOL,
+  .val_size=sizeof(Bool),
+  .hash_fn =hash_bool
 };
 
 Type PtrType = {
@@ -40,8 +40,8 @@ Type PtrType = {
   .kind      =DATA_TYPE,
   .builtin   =true,
   .idno      =CPTR_TYPE,
-  .value_type=CPTR,
-  .value_size=sizeof(Ptr)
+  .val_type=CPTR,
+  .val_size=sizeof(Ptr)
 };
 
 Type FunPtrType = {
@@ -51,8 +51,8 @@ Type FunPtrType = {
   .kind      =DATA_TYPE,
   .builtin   =true,
   .idno      =FPTR_TYPE,
-  .value_type=FPTR,
-  .value_size=sizeof(FunPtr)
+  .val_type=FPTR,
+  .val_size=sizeof(FunPtr)
 };
 
 /* APIs */
@@ -224,7 +224,7 @@ size_t size_of_val(Val x, bool o) {
 
     return size_of_obj(as_obj(x), o);
   } else {
-    return type_of(x)->value_size;
+    return type_of(x)->val_size;
   }
 }
 
@@ -237,7 +237,7 @@ size_t size_of_obj(void* x, bool o) {
     if ( xt->sizeof_fn )
       return xt->sizeof_fn(x);
 
-    return xt->object_size;
+    return xt->obj_size;
   } else {
     return sizeof(Obj*);
   }
