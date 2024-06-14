@@ -10,5 +10,4 @@ hash_t hash_chars(const char* data);
 hash_t hash_bytes(const byte_t* data, size_t count);
 hash_t mix_hashes(hash_t hx, hash_t hy);
 
-
 #endif

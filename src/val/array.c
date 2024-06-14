@@ -874,7 +874,7 @@ Vec* vec_cat(Vec* x, Vec* y) {
 
 /* Mutable ARRAY APIs */
 #define MUTABLE_ARRAY(T, t, X)                                          \
-  T* new_##t(X* d, size_t n, bool s, ResizeAlgorithm ag) {              \
+  T* new_##t(X* d, size_t n, bool s, ResizeAlgo ag) {              \
     T* o = new_obj(&T##Type);                                           \
     init_##t(o, NULL, 0, s, ag);                                        \
                                                                         \
@@ -884,7 +884,7 @@ Vec* vec_cat(Vec* x, Vec* y) {
     return o;                                                           \
   }                                                                     \
                                                                         \
-  void init_##t(T* a, X* _s, size_t ms, bool s, ResizeAlgorithm ag) {   \
+  void init_##t(T* a, X* _s, size_t ms, bool s, ResizeAlgo ag) {   \
     if ( a->type == NULL ) { /* temporary buffer on C stack */          \
       a->type  = &T##Type;                                              \
       a->free  = true;                                                  \
@@ -909,7 +909,7 @@ Vec* vec_cat(Vec* x, Vec* y) {
   }                                                                     \
                                                                         \
   void grow_##t(T* a, size_t n) {                                       \
-    ResizeAlgorithm algo = a->algo;                                     \
+    ResizeAlgo algo = a->algo;                                     \
     size_t oc = a->cnt;                                                 \
     size_t om = a->maxc;                                                \
     size_t nm = adjust_stack_size(oc, n, om, algo);                     \
@@ -923,7 +923,7 @@ Vec* vec_cat(Vec* x, Vec* y) {
   }                                                                     \
                                                                         \
   void shrink_##t(T* a, size_t n) {                                     \
-    ResizeAlgorithm algo = a->algo;                                     \
+    ResizeAlgo algo = a->algo;                                     \
     size_t oc = a->cnt;                                                 \
     size_t om = a->maxc;                                                \
     size_t nm = adjust_stack_size(oc, n, om, algo);                     \

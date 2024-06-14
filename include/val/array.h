@@ -68,8 +68,8 @@ extern Type VecType, VNodeType, MVecType, AlistType;
 
 /* APIs */
 /* Vec API */
-#define as_vec(x) ((Vec*)as_obj(x))
 #define is_vec(x) has_type(x, &VecType)
+#define as_vec(x) ((Vec*)as_obj(x))
 
 Vec* mk_vec(size_t n, Val* d);
 Vec* packed_vec(size_t n, Val* d);
@@ -79,10 +79,20 @@ Vec* vec_set(Vec* v, size_t n, Val x);
 Vec* vec_pop(Vec* x);
 Vec* vec_cat(Vec* x, Vec* y);
 
+/* VNode API (mostly internal) */
+#define is_vnode(x) has_type(x, &VNodeType)
+#define as_vnode(x) ((VNode*)as_obj(x))
+
 /* Dynamic array APIs */
+#define is_mvec(x) has_type(x, &MVecType)
+#define as_mvec(x) ((MVec*)as_obj(x))
+
+#define is_alist(x) has_type(x, &AlistType)
+#define as_alist(x) ((Alist*)as_obj(x))
+
 #define MUTABLE_ARRAY(T, t, X)                                          \
-  T*     new_##t(X* d, size_t n, bool s, ResizeAlgorithm ag);           \
-  void   init_##t(T* a, X* _s, size_t ms, bool s, ResizeAlgorithm ag);  \
+  T*     new_##t(X* d, size_t n, bool s, ResizeAlgo ag);                \
+  void   init_##t(T* a, X* _s, size_t ms, bool s, ResizeAlgo ag);       \
   void   free_##t(void* x);                                             \
   void   grow_##t(T* a, size_t n);                                      \
   void   shrink_##t(T* a, size_t n);                                    \

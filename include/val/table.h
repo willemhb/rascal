@@ -17,7 +17,7 @@ typedef enum {
 } LF;
 
 // signature for functions used when a new entry needs to be created in a table
-typedef void (*rl_intern_fn_t)(void* table, void* spc, void* key, void* state);
+typedef void (*rl_intern_fn_t)(void* t, void* e, void* k, void* s, hash_t h);
 
 // immutable tables
 struct Map {
@@ -112,17 +112,17 @@ Map*  map_pop(Map* m, Val k, Pair** kv);
 Map*  join_maps(Map* x, Map* y);
 
 // mutable maps
-#define MUTABLE_TABLE(T, E, K, V, t, ...)                       \
-  T*       new_##t(T* t, byte_t lf __VA_OPT__(,) __VA_ARGS__);  \
-  void     init_##t(T* t);                                      \
-  void     free_##t(void* x);                                   \
-  rl_sig_t resize_##t(T* t, size_t n);                          \
-  rl_sig_t t##_find(T* t, K k, E** r);                          \
-  rl_sig_t t##_intern(T* t, K k, rl_intern_fn_t f, void* s);    \
-  rl_sig_t t##_get(T* t, K k, V* v);                            \
-  rl_sig_t t##_set(T* t, K k, V v);                             \
-  rl_sig_t t##_put(T* t, K k, V v);                             \
-  rl_sig_t t##_del(T* t, K k);                                  \
+#define MUTABLE_TABLE(T, E, K, V, t, ...)                           \
+  T*       new_##t(T* t, byte_t lf __VA_OPT__(,) __VA_ARGS__);      \
+  void     init_##t(T* t);                                          \
+  void     free_##t(void* x);                                       \
+  rl_sig_t resize_##t(T* t, size_t n);                              \
+  rl_sig_t t##_find(T* t, K k, E** r);                              \
+  rl_sig_t t##_intern(T* t, K k, E** r, rl_intern_fn_t f, void* s); \
+  rl_sig_t t##_get(T* t, K k, V* v);                                \
+  rl_sig_t t##_set(T* t, K k, V v);                                 \
+  rl_sig_t t##_put(T* t, K k, V v);                                 \
+  rl_sig_t t##_del(T* t, K k);                                      \
   T*       join_##t##s(T* x, T* y)
 
 MUTABLE_TABLE(MMap, MMEntry, Val, Val, mmap);

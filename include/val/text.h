@@ -1,9 +1,10 @@
-#ifndef rl_text_h
-#define rl_text_h
+#ifndef rl_val_text_h
+#define rl_val_text_h
 
 #include "val/object.h"
 
 #include "util/text.h"
+#include "util/table.h"
 
 /* Types and APIs for Rascal values used in IO, binary data processing, and text representation, as well as supporting globals. */
 
@@ -21,7 +22,7 @@ struct Port {
   FILE* ios;
 };
 
-struct String {
+struct Str {
   HEADER;
 
   // bit fields
@@ -33,7 +34,7 @@ struct String {
   size_t count;
 };
 
-struct Binary {
+struct Bin {
   HEADER;
 
   // bit fields
@@ -50,7 +51,7 @@ struct Binary {
   X* _static;                                   \
   size_t count, max_count, max_static
 
-struct MutStr {
+struct MStr {
   HEADER;
 
   // bit fields
@@ -61,7 +62,7 @@ struct MutStr {
   DYNAMIC_BUFFER(char);
 };
 
-struct MutBin {
+struct MBin {
   HEADER;
 
   // bit fields
@@ -74,51 +75,48 @@ struct MutBin {
 #undef DYNAMIC_BUFFER
 
 // read table type (intention is for this to eventually be extensible)
-struct ReadTable {
+struct RT {
   HEADER;
 
-  ReadTable* parent;
+  RT* parent;
   funcptr_t  dispatch[256]; // common readers
   funcptr_t  intrasym[256]; // intra-symbol readers
 };
 
 /* Globals */
 // types
-extern Type PortType, StringType, BinaryType, MutStrType, MutBinType, ReadTableType;
+extern Type PortType, StrType, BinType, MStrType, MBinType, RTType;
 
 // standard ports
 extern Port StdIn, StdOut, StdErr;
 
-// empty string
-extern String EmptyString;
-
 // string cache
-extern StrCache StringCache;
+extern SCache StrCache;
 
 /* APIs */
 // string API
-String* get_str(char* chars);
-String* new_str();
+Str* get_str(char* chars);
+Str* new_str(char* chars);
 
 // binary API
-Binary* new_bin(size_t n, void* d, CType ct);
+Bin* new_bin(size_t n, void* d, CType ct);
 
 // buffer APIs
 #define MUTABLE_BUFFER(T, t, X)                                         \
-  T*          new_##t(size_t n, X* d, CType ct);                        \
-  rl_status_t init_##t(T* a, X* s, size_t ss, CType ct);                \
-  rl_status_t free_##t(T* a);                                           \
-  rl_status_t grow_##t(T* a, size_t n);                                 \
-  rl_status_t shrink_##t(T* a, size_t n);                               \
-  rl_status_t write_##t(T* a, X* s, size_t n);                          \
-  rl_status_t t##_push(T* a, X x);                                      \
-  rl_status_t t##_pushn(T* a, size_t n, ...);                           \
-  rl_status_t t##_pushv(T* a, size_t n, va_list va);                    \
-  rl_status_t t##_pop(T* a, X* r);                                      \
-  rl_status_t t##_popn(T* a, X* r, bool e, size_t n)
+  T*     new_##t(X* d, size_t n, bool s, CType ct, ResizeAlgo ag);      \
+  void   init_##t(T* a, X* _s, size_t ms, bool s, CType ct, ResizeAlgo ag); \
+  void   free_##t(void* x);                                             \
+  void   grow_##t(T* a, size_t n);                                      \
+  void   shrink_##t(T* a, size_t n);                                    \
+  size_t write_##t(T* a, X* s, size_t n);                               \
+  size_t t##_push(T* a, X x);                                           \
+  size_t t##_pushn(T* a, size_t n, ...);                                \
+  size_t t##_pushv(T* a, size_t n, va_list va);                         \
+  X      t##_pop(T* a);                                                 \
+  X      t##_popn(T* a, size_t n, bool e)
 
-MUTABLE_BUFFER(MutBin, mbin, uint8_t);
-MUTABLE_BUFFER(MutStr, mstr, char);
+MUTABLE_BUFFER(MBin, mbin, uint8_t);
+MUTABLE_BUFFER(MStr, mstr, char);
 
 #undef MUTABLE_BUFFER
 

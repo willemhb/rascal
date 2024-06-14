@@ -23,5 +23,9 @@ struct Ratio {
 /* Globals */
 extern Type ArityType, SmallType, RealType, BigType, RatioType;
 
+/* External APIs */
+/* Small API */
+#define is_small(x) has_type(x, &SmallType)
+
 
 #endif
