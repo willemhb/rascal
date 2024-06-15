@@ -3,7 +3,11 @@
 
 #include "common.h"
 
-/* Just some preliminary typedefs for runtime state objects. */
+/* Just some preliminary typedefs and globals for runtime state. */
 typedef struct RState RState;
+
+extern struct List* ClArgs;
+extern struct Map*  ClFlags;
+extern struct Map*  ClOpts;
 
 #endif
