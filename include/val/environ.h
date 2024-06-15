@@ -1,7 +1,7 @@
-#ifndef rl_environ_h
-#define rl_environ_h
+#ifndef rl_val_environ_h
+#define rl_val_environ_h
 
-#include "object.h"
+#include "val/object.h"
 
 /* Types and APIs, and globals for the rascal namespace and environment system. */
 
@@ -52,11 +52,11 @@ struct Ref {
   HEADER;
 
   // bit fields
-  word_t scope         : 3;
-  word_t final         : 1;
-  word_t inited        : 1;
-  word_t specializable : 1; // can have methods added
-  word_t macro         : 1; // macro name
+  word_t scope  : 3;
+  word_t final  : 1;
+  word_t inited : 1;
+  word_t mm     : 1; // can have methods added
+  word_t macro  : 1; // macro name
 
   // data fields
   Ref*   captures; // the binding captured by this binding (if any)
@@ -130,7 +130,16 @@ Sym* cstr_qualify(Sym* s, char* ns);
 Sym* str_qualify(Sym* s, Str* ns);
 Sym* sym_qualify(Sym* s, Sym* ns);
 
-/* Upvalue API */
+/* Ref APIs */
+#define is_ref(x)   has_type(x, &RefType)
+#define as_ref(x)   ((Ref*)as_obj(x))
+
+Ref* mk_ref(Scope* scope, Env* environ);
+
+/* UpVal APIs */
+#define is_upval(x) has_type(x, &UpValType)
+#define as_upval(x) ((UpVal*)as_obj(x))
+
 static inline Val* deref_upval(UpVal* upv) {
   if ( upv->closed )
     return &upv->value;

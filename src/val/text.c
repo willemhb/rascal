@@ -9,6 +9,14 @@
 Str* new_str(char* cs, size_t n);
 
 /* Globals */
+// types
+extern Type PortType, GlyphType, StrType, BinType, MStrType, MBinType, RTType;
+
+// standard ports
+extern Port StdIn, StdOut, StdErr;
+
+// string cache
+extern SCache StrCache;
 
 /* Internal APIs */
 void intern_in_scache(void* t, void* e, void* k,  void* s, hash_t h) {

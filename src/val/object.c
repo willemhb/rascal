@@ -134,8 +134,12 @@ Val vs_get_meta(Val x, char* k) {
 
 Val vv_get_meta(Val x, Val k) {
   Map* m = meta(x);
+  Val v;
 
-  return map_get(m, k);
+  if ( map_get(m, k, &v) )
+    return v;
+
+  return NOTHING;
 }
 
 Val os_get_meta(void* x, char* k) {
@@ -146,8 +150,12 @@ Val os_get_meta(void* x, char* k) {
 
 Val ov_get_meta(void* x, Val k) {
   Map* m = meta(x);
+  Val v;
 
-  return map_get(m, k);
+  if ( map_get(m, k, &v) )
+    return v;
+
+  return NOTHING;
 }
 
 void vs_set_meta(Val x, char* k, Val v) {
@@ -159,7 +167,7 @@ void vs_set_meta(Val x, char* k, Val v) {
 void vv_set_meta(Val x, Val k, Val v) {
   MMEntry* me;
 
-  mmap_intern(&MetaData, x, &me, intern_metadata, NULL);
+  me = mmap_intern(&MetaData, x, intern_metadata, NULL);
 
   Map* m = as_map(me->val);
   m = map_set(m, k, v);
@@ -178,4 +186,19 @@ void ov_set_meta(void* x, Val k, Val v) {
 
   m = map_set(m, k, v);
   o->meta = m;
+}
+
+bool vs_meta_eq(Val x, char* k, Val v) {
+  return get_meta(x, k) == v;
+}
+
+bool vv_meta_eq(Val x, Val k, Val v) {
+  return get_meta(x, k) == v;
+}
+
+bool os_meta_eq(void* x, char* k, Val v) {
+  return get_meta(x, k) == v;
+}
+bool ov_meta_eq(void* x, Val k, Val v) {
+  return get_meta(x, k) == v;
 }

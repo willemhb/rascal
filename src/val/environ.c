@@ -1,5 +1,6 @@
 #include "val/environ.h"
 #include "val/text.h"
+#include "val/type.h"
 
 #include "util/text.h"
 #include "util/hash.h"
@@ -10,6 +11,8 @@ bool egal_syms(Val x, Val y);
 int  order_syms(Val x, Val y);
 
 /* Internal APIs */
+
+/* Internal Sym APIs */
 Sym* new_sym(Str* n, Str* ns, word_t idno, bool lit) {
   Sym* o     = new_obj(&SymType);
   o->name    = n;
@@ -53,6 +56,42 @@ int order_syms(Val x, Val y) {
   return o;
 }
 
+/* Internal Ref APIs */
+void init_ref_flags(Ref* r) {
+  // initialize C flags from supplied metadata
+  r->macro = meta_eq(r, ":macro", TRUE);
+  r->mm    = meta_eq(r, ":multi", TRUE);
+  r->final = meta_eq(r, ":final", TRUE);
+
+  Val tag  = get_meta(r, ":tag");
+
+  if ( tag != NOTHING && is_type(tag) ) // TODO: should validate, not ignore
+    r->tag = as_type(tag);
+
+  else {
+    r->tag = &AnyType;
+    set_meta(r, ":tag", tag(&AnyType));
+  }
+}
+
+void init_ref_meta(Ref* r) {
+  // initialize metadata from C flags (for Refs created in C code)
+
+  if ( r->macro )
+    set_meta(r, ":macro", TRUE);
+
+  if ( r->mm )
+    set_meta(r, ":multi", TRUE);
+
+  if ( r->final )
+    set_meta(r, ":final", TRUE);
+
+  if ( r->tag == NULL )
+    r->tag = &AnyType;
+
+  set_meta(r, ":tag", tag(r->tag));
+}
+
 /* External APIs */
 /* Symbol APIs */
 
@@ -61,11 +100,11 @@ Sym* c_mk_sym(char* n, char* ns, bool gs) {
   size_t nc, nsc;
 
   nc = scnt(n);
-  sn = get_str(n, nc);
+  sn = mk_str(n, nc);
 
   if ( ns ) {
     nsc = scnt(ns);
-    sns = get_str(ns, nsc);
+    sns = mk_str(ns, nsc);
   } else {
     sns = NULL;
   }
@@ -101,3 +140,6 @@ bool v_sn_eq(Val x, const char* n) {
 Sym* cstr_qualify(Sym* s, char* ns);
 Sym* str_qualify(Sym* s, Str* ns);
 Sym* sym_qualify(Sym* s, Sym* ns);
+
+/* Ref APIs */
+Ref* mk_ref(Scope* scope, Env* environ);

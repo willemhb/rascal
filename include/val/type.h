@@ -101,6 +101,10 @@ struct Type {
 extern Type TypeType, NoneType, AnyType;
 
 /* APIs */
+/* Type APIs */
+#define is_type(x) has_type(x, &TypeType)
+#define as_type(x) ((Type*)as_obj(x))
+
 bool  has_instance(Type* p, Type* t);
 Type* get_union_type(size_t n, Type* ts);
 void  init_builtin_type(Type* t, char* name, rl_native_fn_t ctor);

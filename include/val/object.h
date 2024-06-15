@@ -77,6 +77,15 @@ void  sweep_obj(void* x);
                        char*:os_set_meta,           \
                        Val:ov_set_meta))(x, k, v)
 
+#define meta_eq(x, k, v)                            \
+  generic((x),                                      \
+          Val:generic((k),                          \
+                      char*:vs_meta_eq,             \
+                      Val:vv_meta_eq),              \
+          default:generic((k),                      \
+                          char*:os_meta_eq,         \
+                          Val:ov_meta_eq))(x, k, v)
+
 // metadata methods
 Map* val_meta(Val x);
 Map* obj_meta(void* x);
@@ -90,5 +99,10 @@ void vs_set_meta(Val x, char* k, Val v);
 void vv_set_meta(Val x, Val k, Val v);
 void os_set_meta(void* x, char* k, Val v);
 void ov_set_meta(void* x, Val k, Val v);
+
+bool vs_meta_eq(Val x, char* k, Val v);
+bool vv_meta_eq(Val x, Val k, Val v);
+bool os_meta_eq(void* x, char* k, Val v);
+bool ov_meta_eq(void* x, Val k, Val v);
 
 #endif
