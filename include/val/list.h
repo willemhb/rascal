@@ -18,7 +18,7 @@ struct List {
 
   Val    head;
   List*  tail;
-  size_t count;
+  size_t cnt;
 };
 
 struct MPair {
@@ -48,6 +48,8 @@ extern Type PairType, ListType, MPairType, MListType;
 /* Pair API */
 #define is_pair(x) has_type(x, &PairType)
 #define as_pair(x) ((Pair*)as_obj(x))
+
+Pair* mk_pair(Val a, Val d);
 
 /* MList API */
 #define is_mlist(x) has_type(x, &MListType)

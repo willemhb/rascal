@@ -25,15 +25,15 @@ struct Map {
   HEADER;
 
   // bit fields
-  word_t offset    : 6;
-  word_t transient : 1;
+  word_t amap  : 1;
+  word_t trans : 1;
 
-  // data fields  
-  size_t   count;
+  // data fields
+  size_t   cnt;
 
   union {
-    List*  entries; // for small maps (< 16 keys), stored as a sorted map
-    MNode* root;    // larger maps are stored in a HAMT-based structure
+    Pair** kvs;  // for small maps (< 16 keys), stored in simple array maps
+    MNode* root; // larger maps are stored in a HAMT-based structure
   };
 };
 
@@ -41,13 +41,13 @@ struct MNode {
   HEADER;
 
   // bit fields
-  word_t offset    : 6;
-  word_t transient : 1;
+  word_t shift     : 6;
+  word_t trans     : 1;
 
   // data fields
-  size_t bitmap;
+  size_t bmap;
 
-  Obj**  children;
+  Obj**  cn;
 };
 
 // mutable tables
@@ -107,10 +107,10 @@ extern Type MapType, MNodeType, MMapType, SCacheType, EMapType;
 #define is_map(x) has_type(x, &MapType)
 #define as_map(x) ((Map*)as_obj(x))
 
-Map*  new_map(size_t n, Val* kvs, bool t);
 Map*  mk_map(size_t n, Val* kvs);
-Pair* map_find(Map* m, Val k);
-Val   map_get(Map* m, Val k);
+Map*  mk_set(size_t n, Val* ks);
+bool  map_get(Map* m, Val k, Val* r);
+bool  map_has(Map* m, Val k);
 Map*  map_set(Map* m, Val k, Val v);
 Map*  map_put(Map* m, Val k, Val v);
 Map*  map_pop(Map* m, Val k, Pair** kv);

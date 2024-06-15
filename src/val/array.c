@@ -340,7 +340,7 @@ void trace_vnode(void* x) {
 
   if ( n->shift > 0 )
     for ( size_t i=0; i<n->cnt; i++ )
-      mark(n->children[i]);
+      mark(n->cn[i]);
 
   else
     for ( size_t i=0; i<n->cnt; i++ )
@@ -356,7 +356,7 @@ void free_vnode(void* x) {
 void clone_vnode(void* x) {
   VNode* n = x;
 
-  n->children = duplicate(n->children, n->cnt*sizeof(VNode*), false);
+  n->cn = duplicate(n->cn, n->cnt*sizeof(VNode*), false);
 }
 
 void trace_mvec(void* x) {
@@ -492,20 +492,20 @@ void write_to_tail(Vec* v, Val* t, size_t n) {
 
 void add_to_root(Vec* v, Val* t) {
   if ( v->root == NULL ) {
-    VNode* r       = new_vnode(LEVEL_SHIFT, 1, NULL, true);
-    v->root        = r;
-    r->children[0] = new_vleaf(t, false);
-    v->shift       = LEVEL_SHIFT;
+    VNode* r = new_vnode(LEVEL_SHIFT, 1, NULL, true);
+    v->root  = r;
+    r->cn[0] = new_vleaf(t, false);
+    v->shift = LEVEL_SHIFT;
   } else if ( !space_in_root(v) ) {
-    VNode* r       = new_vnode(v->shift+LEVEL_SHIFT, 2, NULL, true);
-    r->children[0] = v->root;
-    v->root        = r;
+    VNode* r = new_vnode(v->shift+LEVEL_SHIFT, 2, NULL, true);
+    r->cn[0] = v->root;
+    v->root  = r;
 
-    add_vleaf(&r->children[1], v->shift, t);
+    add_vleaf(&r->cn[1], v->shift, t);
 
-    v->shift      += LEVEL_SHIFT;
+    v->shift += LEVEL_SHIFT;
   } else {
-    v->root        = push_tail(v->root, t);
+    v->root = push_tail(v->root, t);
   }
 }
 
@@ -535,8 +535,8 @@ void pop_from_vec(Vec* v) {
     if ( nr == NULL ) {
       v->root = NULL;
       v->shift = 0;
-    } else if ( v->shift > LEVEL_SHIFT && nr->children[1] == NULL ) {
-      v->root  = nr->children[0];
+    } else if ( v->shift > LEVEL_SHIFT && nr->cn[1] == NULL ) {
+      v->root  = nr->cn[0];
       v->shift = v->root->shift;
     }
   }
@@ -560,10 +560,10 @@ VNode* new_vnode(size_t s, size_t n, void* d, bool t) {
     memcpy(o->slots, d, n*sizeof(Val));
   } else {
     assert(n > 0 && n <= TAIL_SIZE);
-    o->children = allocate(n*sizeof(VNode*), false);
+    o->cn = allocate(n*sizeof(VNode*), false);
     
     if ( d )
-      memcpy(o->children, d, n*sizeof(VNode*));
+      memcpy(o->cn, d, n*sizeof(VNode*));
   }
 
   return o;
@@ -596,7 +596,7 @@ VNode* persistent_vnode(VNode* n) {
 
     if ( n->shift > 0 )
       for ( size_t i=0; i<n->cnt; i++ )
-        persistent(n->children[i]);
+        persistent(n->cn[i]);
   }
 
   return n;
@@ -608,7 +608,7 @@ void unpack_vnode(VNode* n, MVec* m) {
 
   else
     for ( size_t i=0; i<n->cnt; i++ )
-      unpack(n->children[i], m);
+      unpack(n->cn[i], m);
 }
 
 void resize_vnode(VNode* n, size_t c) {
@@ -616,7 +616,7 @@ void resize_vnode(VNode* n, size_t c) {
   assert(n->shift > 0);
   assert(n->trans);
 
-  n->children = reallocate(n->children, n->cnt*sizeof(VNode*), c*sizeof(VNode*), false);
+  n->cn = reallocate(n->cn, n->cnt*sizeof(VNode*), c*sizeof(VNode*), false);
   n->cnt = c;
 }
 
@@ -634,11 +634,11 @@ VNode* push_tail(VNode* n, Val* t) {
       preserve(1, tag(o));
       lc = o->cnt;
       grow_vnode(o);
-      o->children[lc] = new_vleaf(t, false);
+      o->cn[lc] = new_vleaf(t, false);
     }
   } else {
     lc = n->cnt;
-    c = n->children[lc-1]; // try to push to last child
+    c = n->cn[lc-1]; // try to push to last child
     c = push_tail(c, t);
 
     if ( c == NULL ) {
@@ -649,7 +649,7 @@ VNode* push_tail(VNode* n, Val* t) {
         o = n->trans ? n : transient(n);
         preserve(1, tag(o));
         grow_vnode(o);
-        add_vleaf(&o->children[lc], s-LEVEL_SHIFT, t);
+        add_vleaf(&o->cn[lc], s-LEVEL_SHIFT, t);
       }
     }
   }
@@ -663,7 +663,7 @@ void add_vleaf(VNode** p, size_t s, Val* t) {
 
   else {
     VNode* n = *p = new_vnode(s, 1, NULL, true);
-    add_vleaf(&n->children[0], s-LEVEL_SHIFT, t);
+    add_vleaf(&n->cn[0], s-LEVEL_SHIFT, t);
   }
 }
 
@@ -676,7 +676,7 @@ void set_vnode_ref(VNode** b, VNode* n, size_t i, Val x) {
 
   else {
     size_t subi = sub_index(n->shift, i);
-    set_vnode_ref(&n->children[subi], n->children[subi], i, x);
+    set_vnode_ref(&n->cn[subi], n->cn[subi], i, x);
   }
 }
 
@@ -686,7 +686,7 @@ VNode* pop_tail(VNode* n, size_t s, size_t c) {
   size_t subi = sub_index(s, c);
 
   if ( s > 5 ) {
-    nc = pop_tail(n->children[subi], s-LEVEL_SHIFT, c);
+    nc = pop_tail(n->cn[subi], s-LEVEL_SHIFT, c);
 
     if ( nc == NULL && subi == 0 )
       o = NULL;
@@ -699,7 +699,7 @@ VNode* pop_tail(VNode* n, size_t s, size_t c) {
         o = transient(o);
       }
 
-      o->children[subi] = nc;
+      o->cn[subi] = nc;
     }
   } else if ( subi == 0 ) {
     o = NULL;
@@ -777,7 +777,7 @@ Val* array_for(Vec* v, size_t i) {
   VNode* n = v->root;
 
   for (size_t l = v->shift; l > 0; l -= LEVEL_SHIFT )
-    n = n->children[(i >> l) & TAIL_MASK];
+    n = n->cn[(i >> l) & TAIL_MASK];
 
   return n->slots;
 }

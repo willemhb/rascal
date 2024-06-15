@@ -12,6 +12,7 @@
   Type*   type;                                  \
   Map*    meta;                                  \
   word_t  hash  : 48;                            \
+  word_t  ownh  :  1;                            \
   word_t  trace :  1;                            \
   word_t  free  :  1;                            \
   word_t  sweep :  1;                            \
@@ -22,7 +23,7 @@ struct Obj {
   HEADER;
 
   // bit fields
-  word_t flags : 11;
+  word_t flags : 10;
 
   // data fields
   byte_t data[];

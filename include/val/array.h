@@ -33,7 +33,7 @@ struct VNode {
 
   // data fields
   union {
-    VNode** children;
+    VNode** cn;
     Val*    slots;
   };
 };
