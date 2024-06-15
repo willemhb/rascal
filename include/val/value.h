@@ -2,6 +2,7 @@
 #define rl_val_value_h
 
 #include "error.h"
+#include "runtime.h"
 
 /* Initial declarations for Rascal value types and basic APIs */
 // general types
@@ -74,7 +75,7 @@ typedef struct EMap   EMap;
 typedef void     (*rl_trace_fn_t)(void* x);
 typedef void     (*rl_free_fn_t)(void* x);
 typedef void     (*rl_clone_fn_t)(void* x);
-typedef void     (*rl_read_fn_t)(Port* stream, Val* buffer);
+typedef void     (*rl_read_fn_t)(RState* s, int d);
 typedef hash_t   (*rl_hash_fn_t)(Val x);
 typedef bool     (*rl_egal_fn_t)(Val x, Val y);
 typedef int      (*rl_order_fn_t)(Val x, Val y);

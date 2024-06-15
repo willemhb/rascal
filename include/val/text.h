@@ -75,17 +75,20 @@ struct MBin {
 #undef DYNAMIC_BUFFER
 
 // read table type (intention is for this to eventually be extensible)
+#define RT_SIZE 128
+
 struct RT {
   HEADER;
 
-  RT*       parent;
-  funcptr_t dispatch[256]; // common readers
-  funcptr_t intrasym[256]; // intra-symbol readers
+  RT*          parent;
+  rl_read_fn_t eof_fn;
+  rl_read_fn_t dispatch[RT_SIZE]; // common readers
+  rl_read_fn_t intrasym[RT_SIZE]; // intra-symbol readers
 };
 
 /* Globals */
 // types
-extern Type PortType, StrType, BinType, MStrType, MBinType, RTType;
+extern Type PortType, GlyphType, StrType, BinType, MStrType, MBinType, RTType;
 
 // standard ports
 extern Port StdIn, StdOut, StdErr;
@@ -94,22 +97,42 @@ extern Port StdIn, StdOut, StdErr;
 extern SCache StrCache;
 
 /* APIs */
-// string API
+/* Str API */
 #define is_str(x) has_type(x, &StrType)
 #define as_str(x) ((Str*)as_obj(x))
 
-Str*  get_str(char* cs, size_t n);
-Str*  new_str(char* cs, size_t n);
+Str*  mk_str(char* cs, size_t n);
 Glyph str_ref(Str* s, size_t n);
 Str*  str_set(Str* s, size_t n, Glyph g);
 
-// binary API
-Bin* new_bin(size_t n, void* d, CType ct);
+/* Bin API */
+#define is_bin(x) has_type(x, &BinType)
+#define as_bin(x) ((Bin*)as_bin(x))
 
-// buffer APIs
+Bin*   mk_bin(size_t n, void* d);
+byte_t bin_ref(Bin* b, size_t n);
+Bin*   bin_set(Bin* b, size_t n, byte_t u);
+
+/* RT API */
+#define is_rt(x) has_type(x, &RTType)
+#define as_rt(x) ((RT*)as_obj(x))
+
+#define rt_set(rt, x, r, is)                    \
+  generic((x),                                  \
+          Glyph:rt_set_g,                       \
+          int:rt_set_g,                         \
+          char*:rt_set_s)(rt, x, r, is)
+
+RT*          mk_rt(RT* p);
+void         init_rt(RT* rt, RT* p);
+void         rt_set_g(RT* rt, int d, rl_read_fn_t r, bool is);
+void         rt_set_s(RT* rt, char* ds, rl_read_fn_t r, bool is);
+rl_read_fn_t rt_get(RT* rt, int d, bool is);
+
+/* Mutable buffer APIs */
 #define MUTABLE_BUFFER(T, t, X)                                         \
-  T*     new_##t(X* d, size_t n, bool s, CType ct, ResizeAlgo ag);      \
-  void   init_##t(T* a, X* _s, size_t ms, bool s, CType ct, ResizeAlgo ag); \
+  T*     new_##t(X* d, size_t n, bool s, ResizeAlgo ag);                \
+  void   init_##t(T* a, X* _s, size_t ms, bool s, ResizeAlgo ag);       \
   void   free_##t(void* x);                                             \
   void   grow_##t(T* a, size_t n);                                      \
   void   shrink_##t(T* a, size_t n);                                    \
@@ -120,7 +143,7 @@ Bin* new_bin(size_t n, void* d, CType ct);
   X      t##_pop(T* a);                                                 \
   X      t##_popn(T* a, size_t n, bool e)
 
-MUTABLE_BUFFER(MBin, mbin, uint8_t);
+MUTABLE_BUFFER(MBin, mbin, byte_t);
 MUTABLE_BUFFER(MStr, mstr, char);
 
 #undef MUTABLE_BUFFER
