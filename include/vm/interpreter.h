@@ -9,15 +9,6 @@ typedef struct CState CState;
 typedef struct IState IState;
 
 
-struct RState {
-  Alist        frames;
-  MutVec       stack;
-  MutBin       buffer;
-  ReadTable*   rt;
-  MutMap*      gs;
-  Port*        input;
-};
-
 struct CState {
   Alist        frames;
   MutVec       stack;

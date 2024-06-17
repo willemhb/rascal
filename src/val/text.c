@@ -32,6 +32,11 @@ void intern_in_scache(void* t, void* e, void* k,  void* s, hash_t h) {
 /* External APIs */
 /* String API */
 Str* mk_str(char* cs, size_t n) {
+  assert(cs != NULL);
+
+  if ( n == 0 && *cs != '\0' )
+    n = strlen(cs);
+
   SCEntry* e = scache_intern(&StrCache, cs, intern_in_scache, &n);
 
   return e->val;

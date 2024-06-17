@@ -1,5 +1,5 @@
-#ifndef rl_list_h
-#define rl_list_h
+#ifndef rl_val_list_h
+#define rl_val_list_h
 
 #include "val/object.h"
 
@@ -44,6 +44,9 @@ extern Type PairType, ListType, MPairType, MListType;
 /* List API */
 #define is_list(x) has_type(x, &ListType)
 #define as_list(x) ((List*)as_obj(x))
+
+List*   mk_list(size_t n, Val* a);
+List*   cons(Val h, List* tl);
 
 /* Pair API */
 #define is_pair(x) has_type(x, &PairType)

@@ -46,7 +46,7 @@ struct Bin {
 };
 
 #define DYNAMIC_BUFFER(X)                       \
-  word_t algo : 1;                              \
+  word_t algo : 2;                              \
   X* data;                                      \
   X* _static;                                   \
   size_t count, max_count, max_static

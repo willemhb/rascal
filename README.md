@@ -48,3 +48,5 @@ Rascal's features focus on language extension. More broadly, Rascal seeks to bui
 * A single-knob garbage collector that's tunable on a per-actor basis
 * Support for some kind of JIT (may or may not translate to machine code)
 * Support for predicate dispatch
+
+
