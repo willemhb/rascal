@@ -30,16 +30,16 @@ enum {
   MTNODE_TYPE  =0x0b,
   MTLEAF_TYPE  =0x0c,
   CNTL_TYPE    =0x0d,
-  SYM_TYPE  =0x0e,
-  ENV_TYPE =0x0f,
-  REF_TYPE =0x10,
-  UPVAL_TYPE =0x11,
+  SYM_TYPE     =0x0e,
+  ENV_TYPE     =0x0f,
+  REF_TYPE     =0x10,
+  UPVAL_TYPE   =0x11,
   GLYPH_TYPE   =0x12,
   PORT_TYPE    =0x13,
-  STR_TYPE  =0x14,
-  BIN_TYPE  =0x15,
-  MSTR_TYPE  =0x16,
-  MBIN_TYPE  =0x17,
+  STR_TYPE     =0x14,
+  BIN_TYPE     =0x15,
+  MSTR_TYPE    =0x16,
+  MBIN_TYPE    =0x17,
   ARITY_TYPE   =0x18,
   SMALL_TYPE   =0x19,
   REAL_TYPE    =0x1a,
@@ -47,16 +47,16 @@ enum {
   RATIO_TYPE   =0x1c,
   PAIR_TYPE    =0x1d,
   LIST_TYPE    =0x1e,
-  MPAIR_TYPE =0x1f,
-  MLIST_TYPE =0x20,
-  VEC_TYPE  =0x21,
-  VNODE_TYPE =0x22,
-  MVEC_TYPE  =0x23,
+  MPAIR_TYPE   =0x1f,
+  MLIST_TYPE   =0x20,
+  VEC_TYPE     =0x21,
+  VNODE_TYPE   =0x22,
+  MVEC_TYPE    =0x23,
   ALIST_TYPE   =0x24,
   MAP_TYPE     =0x25,
-  MNODE_TYPE =0x26,
-  MMAP_TYPE  =0x27,
-  SCACHE_TYPE=0x28,
+  MNODE_TYPE   =0x26,
+  MMAP_TYPE    =0x27,
+  SCACHE_TYPE  =0x28,
   ENVMAP_TYPE  =0x29,
   ANY_TYPE     =0x2a
 };
@@ -70,17 +70,18 @@ struct Type {
   word_t builtin : 1;
 
   // data fields
-  word_t idno;         // unique identifier (basis of hash)
+  word_t idno;     // unique identifier (basis of hash)
 
   // layout information
-  Val    val_type;   // tag for values of this type
-  size_t val_size;   // machine size of the data part of the tagged word
-  size_t obj_size;  // base size of objects of this type
+  Val    val_type; // tag for values of this type
+  word_t val_mask; // mask for the data part of the value 
+  size_t val_size; // machine size of the data part of the tagged word
+  size_t obj_size; // base size of objects of this type
 
   // type spec fields
-  Sym* name;     // readable name under which the type was defined (if any)
-  Env* slots;    // record or struct slots
-  Set* members;  // union members
+  Sym* name;      // readable name under which the type was defined (if any)
+  Env* slots;     // record or struct slots
+  Set* members;   // union members
 
   // constructor
   Obj* ctor;
@@ -107,7 +108,7 @@ extern Type TypeType, NoneType, AnyType;
 
 bool  has_instance(Type* p, Type* t);
 char* t_name(Type* x);
-Type* get_union_type(size_t n, Type* ts);
-void  init_builtin_type(Type* t, char* name, rl_native_fn_t ctor);
+Type* get_union_type(size_t n, Type** ts);
+void  init_builtin_type(Type* t, char* n, Obj* c);
 
 #endif

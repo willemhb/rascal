@@ -6,8 +6,8 @@
 /* Basic hashing library. */
 // hashing utilities
 hash_t hash_word(word_t w);
-hash_t hash_chars(const char* data);
-hash_t hash_bytes(const byte_t* data, size_t count);
-hash_t mix_hashes(hash_t hx, hash_t hy);
+hash_t hash_chars(const char* d);
+hash_t hash_bytes(const byte_t* d, size_t n);
+hash_t mix_hashes(hash_t x, hash_t y);
 
 #endif
