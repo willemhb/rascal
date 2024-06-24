@@ -8,7 +8,7 @@
 /* C types*/
 // common object header macro
 #define HEADER                                   \
-  Obj* next;                                     \
+  Obj*    next;                                  \
   Type*   type;                                  \
   Map*    meta;                                  \
   word_t  hash  : 48;                            \

@@ -38,6 +38,8 @@ struct MList {
 
 /* Globals */
 // types
+extern List EmptyList;
+
 extern Type PairType, ListType, MPairType, MListType;
 
 /* External APIs */
@@ -46,7 +48,8 @@ extern Type PairType, ListType, MPairType, MListType;
 #define as_list(x) ((List*)as_obj(x))
 
 List*   mk_list(size_t n, Val* a);
-List*   cons(Val h, List* tl);
+List*   c_list(Val h, List* tl);
+Val     list_ref(List* x, size_t n);
 
 /* Pair API */
 #define is_pair(x) has_type(x, &PairType)
@@ -61,5 +64,7 @@ Pair* mk_pair(Val a, Val d);
 /* MPair API */
 #define is_mpair(x) has_type(x, &MPairType)
 #define as_mpair(x) ((MPair*)as_obj(x))
+
+MPair* mk_mpair(Val a, Val d);
 
 #endif

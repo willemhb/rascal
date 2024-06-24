@@ -148,13 +148,19 @@ static inline Val* deref_upval(UpVal* upv) {
 }
 
 // utilities for working with symbols and environments
-#define define(n, v, e)                         \
-  generic((n),                                  \
-          char*:cstr_define,                    \
-          Sym*:sym_define)(n, v, e)
+#define define(n, x, e)                                     \
+  generic((n),                                              \
+          char*:generic((x),                                \
+                        Val:cstr_define_val,                \
+                        default:cstr_define_obj),           \
+          Sym*:generic((x),                                 \
+                       Val:sym_define_val,                  \
+                       default:sym_define_obj))(n, x, e)
 
 // define methods
-size_t cstr_define(char* n, Val i, Env* e);
-size_t sym_define(Sym* n, Val i, Env* e);
+size_t cstr_define_val(char* n, Val x, Env* e);
+size_t cstr_define_obj(char* n, void* x, Env* e);
+size_t sym_define_val(Sym* n, Val i, Env* e);
+size_t sym_define_obj(Sym* n, void* x, Env* e);
 
 #endif
