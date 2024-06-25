@@ -4,8 +4,18 @@
 #include "values.h"
 
 /* Just some preliminary typedefs and globals for runtime state. */
-/* Types */
+/* Frame types */
+typedef struct HFrame HFrame;
+typedef struct RFrame RFrame;
+typedef struct CFrame CFrame;
+typedef struct IFrame IFrame;
+
+/* State types */
+typedef struct HState HState;
 typedef struct RState RState;
+typedef struct CState CState;
+typedef struct IState IState;
+typedef struct EState EState;
 
 // internal function pointer types
 typedef void     (*rl_trace_fn_t)(void* x);
@@ -19,9 +29,23 @@ typedef size_t   (*rl_sizeof_fn_t)(void* x);
 typedef rl_err_t (*rl_native_fn_t)(size_t n, Val* a, Val* b);
 
 /* Globals */
-extern struct List* ClArgs;
-extern struct Map*  ClFlags;
-extern struct Map*  ClOpts;
+/* Parsed command line arguments and options. */
+extern List* ClArgs;
+extern Set*  ClFlags;
+extern Map*  ClOpts;
 
+/* Global state objects */
+extern HState Heap;
+extern RState Reader;
+extern CState Compiler;
+extern IState Interpreter;
+extern EState Environ;
+
+/* Standard streams */
+extern Port StdIn;
+extern Port StdOut;
+extern Port StdErr;
+
+/* Empty singletons */
 
 #endif

@@ -7,6 +7,7 @@
 /* C types */
 struct Closure {
   HEADER;
+  // bit fields
 
   // data fields
   Bin* code;
@@ -56,8 +57,6 @@ struct MTLeaf {
 };
 
 // control type (reified continuation)
-typedef struct IFrame IFrame;
-
 struct Cntl {
   HEADER;
 
@@ -71,6 +70,13 @@ struct Cntl {
 extern Type ClosureType, NativeType, GenericType, ControlType, MTRootType, MTNodeType, MTLeafType;
 
 /* APIs */
+/* Closure APIs */
+#define is_cls(x) has_type(x, &ClosureType)
+#define as_cls(x) ((Closure*)as_obj(x))
+
+size_t    cls_esize(Closure* c);
+uint16_t* cls_ip(Closure* c);
+
 /* Generic APIs */
 Generic* mk_generic(void);
 

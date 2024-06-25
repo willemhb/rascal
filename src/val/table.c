@@ -43,6 +43,7 @@ MNode* persistent_mnode(MNode* n);
 Pair* map_find(Map* m, Val k);
 Pair* amap_find(Map* m, Val k);
 Pair* mnode_find(MNode* n, Val k, hash_t h);
+Pair* list_find(List* kvs, Val k);
 
 /* add_to methods */
 bool   add_to_map(Map* m, Val k, Val v);

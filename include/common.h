@@ -9,6 +9,10 @@
 #include <stdio.h>
 
 /* Utility typedefs. */
+typedef uint8_t    uchar;
+typedef uint16_t   ushort;
+typedef uint32_t   uint;
+typedef uint64_t   ulong;
 typedef uint8_t    byte_t;
 typedef uint32_t   flags_t;
 typedef uint64_t   word_t;
@@ -48,6 +52,8 @@ typedef enum {
 #define ARITY_WIDTH  48
 #define UINT8_COUNT  (UINT8_MAX+1)
 #define UINT16_COUNT (UINT16_MAX+1)
+#define MAX_STACK    UINT16_MAX
+#define MAX_FRAMES   (UINT8_COUNT<<6)
 
 /* redefining important macros with annoying names */
 #define generic _Generic

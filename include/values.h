@@ -58,6 +58,7 @@ typedef struct MList MList;
 
 // array types
 typedef struct Vec   Vec;
+typedef struct Vec   Struct;
 typedef struct VNode VNode;
 typedef struct MVec  MVec;
 typedef struct Alist Alist;
@@ -68,7 +69,7 @@ typedef struct MNode  MNode;
 typedef struct Map    Record;
 typedef struct Map    Set;
 typedef struct MMap   MMap;
-typedef struct MMap   MutSet;
+typedef struct MMap   MSet;
 typedef struct SCache SCache;
 typedef struct EMap   EMap;
 

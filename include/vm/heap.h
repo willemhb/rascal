@@ -1,35 +1,24 @@
 #ifndef rl_vm_heap_h
 #define rl_vm_heap_h
 
-#include "error.h"
-
 #include "val/array.h"
 
 /* Definitions and declarations for internal state objects & functions (memory management, vm, &c). */
 /* C types */
-/* frame types */
-typedef struct HFrame HFrame;
-
-/* state types */
-typedef struct HState HState;
-
-/* frame types */
+/* frame type */
 struct HFrame {
   HFrame* next;
   size_t  count;
   Val*    values;
 };
 
-/* state types */
+/* state type */
 struct HState {
   HFrame* fp; // Live objects in the C stack that may not be visible from the roots (eg, when an intermediate object is created inside a C function).
   size_t  size, maxs;
   Obj*    objs;
   Alist   grays;
 };
-
-/* Global State objects */
-extern HState Heap;
 
 /* HState & Heap APIs */
 // preserving values
