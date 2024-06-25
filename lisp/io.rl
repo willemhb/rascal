@@ -8,7 +8,7 @@
 
   (val &out
     "Standard output port."
-    (*standard-output-port*)
+    (*standard-output-port*))
 
   (val &err
     "Standard error port."
