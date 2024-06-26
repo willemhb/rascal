@@ -1,39 +1,23 @@
 (ns seq
   "Rascal sequence library."
+  (use [core math])
 
-  ;; Exports: map, keep, take, drop, any?, all?, fold, sort, each
+  ;; exports: map, keep, take, drop, any?, all?, fold, sort, each
 
   @private
   (union Key
     "Convenience definition for types commonly used as `Map` or `Vec` keys."
     (Int Sym Str))
 
-  (trait Seq: S[X] @as T
-    "Trait type for elements that can be iterated over."
-    (fst: Opt[X]   [T])
-    (rst: Opt[T]   [T])
-    (seq: Opt[Seq] [T]))
-
-  (fun seq?
-    "Returns `true` if `s` implements `Seq`."
-    )
-
-  (impl Seq: List[X]
-    "Implementation for `List` type."
-    (method first: Opt[X]
-      [_: ()] nul)
-    (method first: Opt[X]
-      [s: List[X]]))
-
   (fun map
     "Lisp classic! Rascal version has additional semantics."
     [f: Func]
       #(map f %)
-    [k: Key] @flatten
+    [k: Key]
       #(map #(k %) %)
-    [k: Key, s: Seq] @flatten
+    [k: Key, s: Seq]
       (map #(k %) s)
-    [k: Key, s: Seq, & r] @flatten
+    [k: Key, s: Seq, & r]
       (map #(k %) s & r))
 
   (fun any?
@@ -42,7 +26,7 @@
       (any? id s)
     [p: Func]
       #(any? p s)
-    [k: Key, s: Seq] @flatten
+    [k: Key, s: Seq]
       (any? #(k %) s))
 
   (method map
@@ -52,23 +36,23 @@
         [_: Func, a: List, _: ()]
           (rev a)
         [f: Func, a: List, [h & t]: List]
-          (loop f t (conj a (f h)))
+          (loop f (conj a (f h)) t)
         ;; Entry.
         (loop f () s)))
 
   (method map
     [f: Func, s: List, & r]
       (label
-        [f: Func, a: List, r: List] @when (any? empty? r)
-          (reverse a)
+        [_: Func, a: List, r: List] @when (any? empty? r)
+          (rev a)
         [f: Func, a: List, r: List]
-          (let fs (map first r)
-               rs (map rest r)
+          (let fs (map fst r)
+               rs (map rst r)
                mf (f & fs)
                ma (conj a mf)
             (loop f ma rs))
          ;; Entry.
-         (loop f () s & r)))
+         (loop f () (conj r s))))
 
   (method any?
     "Implement for `List`s."
