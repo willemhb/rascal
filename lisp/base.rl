@@ -38,7 +38,7 @@
     "read/eval/print loop."
     []
     (catch
-      ;; Toplevel 
+      ;; Toplevel error handler.
       [e]
       (do (pr $"error> ${e}.\n")
         (repl))
