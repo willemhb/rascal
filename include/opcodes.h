@@ -21,6 +21,9 @@ typedef enum {
   // register loads
   OP_LD_FUN, // load currently executing closure
   OP_LD_ENV, // load current environment
+
+  // inlined loads
+  OP_LD_S16, OP_LD_G16,
   
   // common loads/stores
   OP_LD_VAL, // load from value store
@@ -69,7 +72,10 @@ typedef enum {
   OP_TCALL2, // (f x y)  where `f` is in tail position
   OP_TCALLN, // (f ...)  where `f` is in tail position
 
-  OP_RETURN
+  OP_RETURN,
+
+  // primitive functions
+  FN_EXEC
 } OpCode;
 
 #endif

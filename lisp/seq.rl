@@ -12,22 +12,28 @@
   (fun map
     "Lisp classic! Rascal version has additional semantics."
     [f: Func]
-      #(map f %)
+      λ(map f %)
     [k: Key]
-      #(map #(k %) %)
+      λ(map λ(k %) %)
     [k: Key, s: Seq]
-      (map #(k %) s)
+      (map λ(k %) s)
     [k: Key, s: Seq, & r]
-      (map #(k %) s & r))
+      (map λ(k %) s & r))
 
   (fun any?
     "Returns `true` if `(p x)` is true for at least one `x` in `s`."
     [s: Seq]
       (any? id s)
     [p: Func]
-      #(any? p s)
+      f(any? p s)
     [k: Key, s: Seq]
-      (any? #(k %) s))
+      (any? λ(k %) s))
+
+  (-> '(1 2 3 4 5 6)
+    (map  λ(+ 2 %))
+    (keep even?)
+    (take 2)
+    (vec & %)) ;; => [4 6]
 
   (method map
     "Implmentation for `List`s."

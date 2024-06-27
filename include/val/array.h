@@ -25,6 +25,7 @@ struct Vec {
 struct VNode {
   HEADER;
 
+
   // bit fields
   word_t shift : 6;
   word_t trans : 1;

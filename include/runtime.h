@@ -38,7 +38,7 @@ extern Map*  ClOpts;
 extern HState Heap;
 extern RState Reader;
 extern CState Compiler;
-extern IState Interpreter;
+extern IState Vm;
 extern EState Environ;
 
 /* Standard streams */

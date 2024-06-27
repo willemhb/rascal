@@ -26,8 +26,10 @@
 #define SMALL     0xffff000300000000UL
 #define SENTINEL  0xffffffff00000000UL
 
-#define TRUE      0x7ffd000000000001UL // BOOL | 1
-#define FALSE     0x7ffd000000000000UL // BOOL | 0
+#define TRUE      0xffff000100000001UL // BOOL  | 1
+#define FALSE     0xffff000100000000UL // BOOL  | 0
+#define ZERO      0xffff000300000000UL // SMALL | 0
+#define ONE       0xffff000300000001UL // SMALL | 1
 
 // sentinel values, shouldn't be visible in user code
 #define NOTHING   0xffffffff00000000UL // SENTINEL | 0
@@ -53,6 +55,7 @@ static inline Val untag(Val x) {
           Nul:tag_nul,                          \
           Bool:tag_bool,                        \
           Ptr:tag_ptr,                          \
+          ushort*:tag_ptr,                      \
           FunPtr:tag_fptr,                      \
           Type*:tag_obj,                        \
           Closure*:tag_obj,                     \

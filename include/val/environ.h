@@ -36,11 +36,11 @@ struct Env {
   word_t captured : 1;
 
   // data fields
-  Sym*  name;      // Name for this Env object (may be a namespace, function, or type)
-  Env*  parent;    // the environment within which this environment was defined
-  Env*  template;  // the unbound environment a bound environment was cloned from
-  EMap* locals;
-  EMap* nonlocals;
+  Sym*   name;      // Name for this Env object (may be a namespace, function, or type)
+  Env*   parent;    // the environment within which this environment was defined
+  Env*   template;  // the unbound environment a bound environment was cloned from
+  EMap*  locals;
+  EMap*  nonlocals;
 
   union {
     Alist* upvals;
