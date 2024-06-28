@@ -87,10 +87,15 @@ struct UpVal {
 extern Type SymType, EnvType, RefType, UpValType;
 
 // global environment
-extern Env Globals;
 extern Str* GlobalNs;
 
 /* APIs */
+/* Env APIs */
+#define is_env(x) has_type(x, &EnvType)
+#define as_env(x) ((Env*)as_obj(x))
+
+
+
 /* Sym API */
 #define is_sym(x) has_type(x, &SymType)
 #define as_sym(x) ((Sym*)as_obj(x))
