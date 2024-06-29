@@ -17,7 +17,7 @@ struct IState {
 
   /* Saved registers */
   Closure*  ex; // executing code object
-  uint16_t* ip; // instruction pointer
+  short*    ip; // instruction pointer
   int       fs; // size of the current frame
   int       co; // offset to frame saved by `catch` form
   int       ho; // offset to frame saved by `hndl` form
@@ -47,13 +47,16 @@ UpVal* is_capture(IState* is, Val* l);
 void   is_close(IState* is, Val* l);
 
 // miscellaneous stack manipulation helpers
+Val  is_tos(IState* s, bool c);
+Val  is_peeps(IState* s, int i, bool c);
+Val  is_peepf(IState* s, int i, bool c);
 Val* is_peeks(IState* s, int i, bool c);
 Val* is_peekf(IState* s, int i, bool c);
 int  is_push(IState* s, Val x, bool c);
 int  is_dup(IState* s, bool c);
 int  is_pushn(IState* s, int n, Val x, bool c);
 Val  is_pop(IState* s, bool c);
-Val  is_popn(IState* s, int n, bool e, bool c);
+Val  is_popn(IState* s, int n, bool c);
 
 // frame manipulation helpers
 void is_pushf(IState* s, Closure* f, bool c);

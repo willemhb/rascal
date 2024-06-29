@@ -6,10 +6,11 @@
 /* Utilities for working with dynamically sizable collections (tables and dynamic arrays). */
 /* C types */
 typedef enum {
-  RESIZE_NONE   = 0, // don't allow resize
-  RESIZE_STACK  = 1, // power of 2
-  RESIZE_PYTHON = 2, // Python list algorithm (still amortized constant but preserves space)
-  RESIZE_EXACT  = 3, // don't pad
+  RESIZE_DEFAULT= 0, // use contextual fallback
+  RESIZE_NONE   = 1, // don't allow resize
+  RESIZE_STACK  = 2, // power of 2
+  RESIZE_PYTHON = 3, // Python list algorithm (still amortized constant but preserves space)
+  RESIZE_EXACT  = 4, // don't pad
 } ResizeAlgo;
 
 // collection utilities

@@ -95,6 +95,10 @@ struct EMap {
   MUTABLE_TABLE(EMEntry);
 };
 
+typedef struct {
+  MUTABLE_ENTRY(Str*, Env*);
+} NSMEntry;
+
 #undef MUTABLE_TABLE
 #undef MUTABLE_ENTRY
 
@@ -133,6 +137,7 @@ Map*  join_maps(Map* x, Map* y);
 MUTABLE_TABLE(MMap, MMEntry, Val, Val, mmap);
 MUTABLE_TABLE(SCache, SCEntry, char*, Str*, scache);
 MUTABLE_TABLE(EMap, EMEntry, Sym*, Ref*, emap);
+MUTABLE_TABLE(NSMap, NSMEntry, Str*, Env*, nsmap);
 
 #undef MUTABLE_TABLE
 

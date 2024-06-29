@@ -6,10 +6,8 @@
 
 /* Global state object for managing namespaces and environments. */
 struct EState {
-  Alist  stk;    // stack of pending maespaces
   Env*   gns;    // default global namespace
-  Env*   cns;    // current namespace
-  Env*   qns;    // qualified namespaces
+  NSMap* nss;    // cache of loaded namespaces (cached by both name and file path)
 };
 
 /* External APIs */
@@ -17,19 +15,21 @@ struct EState {
   generic((x),                                               \
           Sym*:nref_gns,                                     \
           char*:sref_gns,                                    \
-          size_t:iref_gns)(e, x)
+          int:iref_gns)(e, x)
 
 #define ref_cns(e, x)                           \
   generic((x),                                  \
           Sym*:nref_cns,                        \
           char*:sref_cns,                       \
-          size_t:iref_cns)(e, x)
+          int:iref_cns)(e, x)
 
 #define ref_qns(e, x, ...)                                  \
   generic((x),                                              \
           Sym*:nref_qns,                                    \
           char*:sref_qns,                                   \
-          size_t:iref_qns)(e, x, __VA_OPT__(,) __VA_ARGS__)
+          int:iref_qns)(e, x, __VA_OPT__(,) __VA_ARGS__)
+
+rl_err_t def_ns(Sym* n, Str* p, Env** r);
 
 Val nref_gns(EState* e, Sym* n);
 Val sref_gns(EState* e, char* s);

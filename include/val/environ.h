@@ -14,11 +14,25 @@ typedef enum Scope {
   RECORD_SCOPE,    // value is stored in record object
 } Scope;
 
+typedef enum SpecialForm {
+  QUOTE_FORM,
+  DEF_FORM,
+  PUT_FORM,
+  FN_FORM,
+  IF_FORM,
+  DO_FORM,
+  CATCH_FORM,
+  THROW_FORM,
+  HNDL_FORM,
+  RAISE_FORM,
+} SpecialForm;
+
 // user identifier types
 struct Sym {
   HEADER;
 
   // bit fields
+
   word_t literal : 1;
 
   // identifier info
@@ -33,38 +47,37 @@ struct Env {
   // bit fields
   word_t scope    : 3;
   word_t bound    : 1;
-  word_t captured : 1;
+  word_t toplevel : 1; // special flag indicating the global namespace
 
   // data fields
-  Sym*   name;      // Name for this Env object (may be a namespace, function, or type)
-  Env*   parent;    // the environment within which this environment was defined
-  Env*   template;  // the unbound environment a bound environment was cloned from
-  EMap*  locals;
-  EMap*  nonlocals;
-
-  union {
-    Alist* upvals;
-    MVec*  values;
-  };
+  int     index;     // location within global namespace (-1 if this is a local environment)
+  Sym*    name;      // Name for this Env object (may be a namespace, function, or type)
+  Env*    parent;    // the environment within which this environment was defined
+  Env*    ns;        // shortcut to namespace-level parent
+  EMap*   locals;    // local or namespace-scoped names
+  EMap*   captured;  // names captured by upvalues
+  Alist*  refs;      // sequential array of bindings
+  UpVal** upvals;    // bound upvalues (if this is a bound local namespace)
 };
 
 struct Ref {
   HEADER;
 
   // bit fields
-  word_t scope  : 3;
-  word_t final  : 1;
-  word_t inited : 1;
-  word_t mm     : 1; // can have methods added
-  word_t macro  : 1; // macro name
+  word_t scope    : 3; // scope for this ref (determines where binding is stored)
+  word_t final    : 1; // cannot be rebound once initialized
+  word_t mm       : 1; // can have methods added
+  word_t macro    : 1; // macro name
+  word_t private  : 1; // whether this binding can be exported
 
   // data fields
-  Ref*   captures; // the binding captured by this binding (if any)
-  Env*   environ;  // the environment in which the binding was *originally* created
-  Sym*   name;     // name under which this binding was created in *original* environment
-  size_t offset;   // location (may be on stack, in upvalues, or directly in environment)
-  Type*  tag;      // type constraint for this binding
-  Val    init;     // default initval (only used for object scopes)
+  Ref*  captures; // the binding captured by this binding (if any)
+  Env*  environ;  // the environment in which the binding was *originally* created
+  Sym*  name;     // name under which this binding was created in *original* environment
+  int   offx;     // primary offset (location of binding)
+  int   offy;     // secondary offset
+  Type* tag;      // type constraint for this binding
+  Val   val;      // just the value for this Ref (if namespace scoped), default initial value (if object scoped), or nothing (local/upvalue scoped)
 };
 
 struct UpVal {
@@ -74,11 +87,11 @@ struct UpVal {
   word_t closed : 1;
 
   // data fields
-  UpVal* next_upv;
+  UpVal* n_u;
 
   union {
-    Val* location;
-    Val  value;
+    Val* l;
+    Val  v;
   };
 };
 
@@ -90,12 +103,6 @@ extern Type SymType, EnvType, RefType, UpValType;
 extern Str* GlobalNs;
 
 /* APIs */
-/* Env APIs */
-#define is_env(x) has_type(x, &EnvType)
-#define as_env(x) ((Env*)as_obj(x))
-
-
-
 /* Sym API */
 #define is_sym(x) has_type(x, &SymType)
 #define as_sym(x) ((Sym*)as_obj(x))
@@ -131,26 +138,38 @@ bool s_sn_eq(Sym* s, const char* n);
 bool v_sn_eq(Val x, const char* n);
 
 // qualify methods
+Sym* unqualify(Sym* s);
 Sym* cstr_qualify(Sym* s, char* ns);
 Sym* str_qualify(Sym* s, Str* ns);
 Sym* sym_qualify(Sym* s, Sym* ns);
+
+/* Env APIs */
+#define is_env(x) has_type(x, &EnvType)
+#define as_env(x) ((Env*)as_obj(x))
+
+size_t lref_cnt(Env* p);
+size_t uref_cnt(Env* p);
+Env*   mk_env(Scope s, Env* p, Sym* n, int i, bool b);
+Env*   bind_env(Env* t);
+bool   env_get(Env* e, Sym* n, int c, Ref** r);
+bool   env_put(Env* e, Sym* n, Ref** r);
 
 /* Ref APIs */
 #define is_ref(x)   has_type(x, &RefType)
 #define as_ref(x)   ((Ref*)as_obj(x))
 
-Ref* mk_ref(Scope* scope, Env* environ);
+Ref* mk_ref(Scope s, Env* e, Ref* c, Sym* n);
+bool is_lupv(Ref* r);
 
 /* UpVal APIs */
 #define is_upval(x) has_type(x, &UpValType)
 #define as_upval(x) ((UpVal*)as_obj(x))
 
-static inline Val* deref_upval(UpVal* upv) {
-  if ( upv->closed )
-    return &upv->value;
-
-  return upv->location;
-}
+UpVal* mk_upv(UpVal* n_u, Val* l);
+Val*   dr_upv(UpVal* u);
+UpVal* open_upv(UpVal** o, Val* l);
+void   close_upv(UpVal** o, UpVal* u);
+void   close_upvs(UpVal** o, Val* l);
 
 // utilities for working with symbols and environments
 #define define(n, x, e)                                     \

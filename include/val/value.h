@@ -60,6 +60,7 @@ static inline Val untag(Val x) {
           Type*:tag_obj,                        \
           Closure*:tag_obj,                     \
           Native*:tag_obj,                      \
+          Primitive*:tag_obj,                   \
           Generic*:tag_obj,                     \
           MTRoot*:tag_obj,                      \
           MTNode*:tag_obj,                      \

@@ -14,7 +14,11 @@
   /* data fields */                             \
   uint nargs;                                   \
   Vec* sig;                                     \
-  char* name
+  /* _static_name field */                      \
+  union {                                       \
+    char* _static_name;                         \
+    Sym*  name;                                 \
+  }
 
 typedef struct Func {
   FUNC_HEADER;
@@ -90,7 +94,7 @@ struct Cntl {
 
   /* Saved registers */
   Closure*  ex;
-  uint16_t* ip;
+  short*    ip;
   int       fs;
   int       co;
   int       ho;

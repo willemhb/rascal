@@ -41,7 +41,7 @@ struct VNode {
 
 // dynamic array types
 #define DYNAMIC_ARRAY(X)                        \
-  word_t algo   : 2;                            \
+  word_t algo   : 3;                            \
   word_t shrink : 1;                            \
   X* data;                                      \
   X* _static;                                   \

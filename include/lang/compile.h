@@ -3,8 +3,9 @@
 
 #include "val/object.h"
 
-rl_err_t rl_compile_toplevel(List* f, Env* e, Closure** b);
-rl_err_t rl_compile_script(const char* f, Closure** b);
-rl_err_t rl_compile_ns(const char* ns, Closure** b );
+#include "vm/compiler.h"
+
+/* External API */
+Closure* rl_compile(List* f, );
 
 #endif

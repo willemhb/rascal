@@ -20,13 +20,14 @@ typedef funcptr_t FunPtr;
 typedef struct Type Type;
 
 // function types
-typedef struct Closure Closure;
-typedef struct Native  Native;
-typedef struct Generic Generic;
-typedef struct MTRoot  MTRoot;
-typedef struct MTNode  MTNode;
-typedef struct MTLeaf  MTLeaf;
-typedef struct Cntl    Cntl;
+typedef struct Closure   Closure;
+typedef struct Native    Native;
+typedef struct Primitive Primitive;
+typedef struct Generic   Generic;
+typedef struct MTRoot    MTRoot;
+typedef struct MTNode    MTNode;
+typedef struct MTLeaf    MTLeaf;
+typedef struct Cntl      Cntl;
 
 // identifier and environment types
 typedef struct Sym   Sym;
@@ -72,5 +73,6 @@ typedef struct MMap   MMap;
 typedef struct MMap   MSet;
 typedef struct SCache SCache;
 typedef struct EMap   EMap;
+typedef struct NSMap  NSMap;
 
 #endif
