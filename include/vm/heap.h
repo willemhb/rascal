@@ -1,41 +1,33 @@
 #ifndef rl_vm_heap_h
 #define rl_vm_heap_h
 
-#include "val/array.h"
+#include "vm/state.h"
 
 /* Definitions and declarations for internal state objects & functions (memory management, vm, &c). */
-/* C types */
-/* frame type */
-struct HFrame {
-  HFrame* next;
-  size_t  count;
-  Val*    values;
-};
 
-/* state type */
-struct HState {
-  HFrame* fp; // Live objects in the C stack that may not be visible from the roots (eg, when an intermediate object is created inside a C function).
-  size_t  size, maxs;
-  Obj*    objs;
-  Alist   grays;
-};
+/* Globals */
+extern Alist Grays;
 
 /* HState & Heap APIs */
 // preserving values
-void unpreserve(HFrame* frame);
+void unpreserve(HFrame* f);
 
-#define preserve(n, vals...)                                    \
-  Val __heap_frame_vals__[(n)] = { vals };                      \
-  HFrame __heap_frame__ cleanup(unpreserve) =                   \
-    { .next=Heap.fp, .count=(n), .values=__heap_frame_vals__ }; \
-  Heap.fp=&__heap_frame__
+#define preserve(p, n, vals...)                                         \
+  Val __heap_frame_vals__[(n)] = { vals };                              \
+  HFrame __heap_frame__ cleanup(unpreserve) =                           \
+    { .proc=(p),                                                        \
+      .next=(p)->hfs,                                                   \
+      .count=(n),                                                       \
+      .values=__heap_frame_vals__ };                                    \
+  (p)->hfs=&__heap_frame__
 
 // memory management
-void*    allocate(size_t n, bool h);
-void*    reallocate(void* p, size_t o, size_t n, bool h);
-void*    duplicate(const void* p, size_t n, bool h);
-void*    deallocate(void* p, size_t n, bool h);
-rl_err_t collect_garbage(void);
-void     push_gray(void* o);
+void*    allocate(RlProc* p, size_t n);
+void*    reallocate(RlProc* p, void* s, size_t o, size_t n);
+void*    duplicate(RlProc* p, void* s, size_t n);
+void     deallocate(RlProc* p, void* s, size_t n);
+void     collect_garbage(RlProc* p, size_t n);
+void     push_gray(RlProc* p, void* o);
+Obj*     pop_gray(RlProc* p);
 
 #endif

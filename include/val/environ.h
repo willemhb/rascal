@@ -15,16 +15,23 @@ typedef enum Scope {
 } Scope;
 
 typedef enum SpecialForm {
-  QUOTE_FORM,
-  DEF_FORM,
-  PUT_FORM,
-  FN_FORM,
-  IF_FORM,
-  DO_FORM,
-  CATCH_FORM,
-  THROW_FORM,
-  HNDL_FORM,
-  RAISE_FORM,
+  NO_FORM,                 // not a special form
+  CATCH_FORM,              // catch
+  DEF_FORM,                // def*
+  DO_FORM,                 // do
+  GENERIC_FORM,            // generic*
+  HNDL_FORM,               // hndl
+  IF_FORM,                 // if
+  LET_FORM,                // let*
+  LMB_FORM,                // lmb*
+  METHOD_FORM,             // method*
+  NS_FORM,                 // ns
+  PUT_FORM,                // put*
+  QUOTE_FORM,              // quote
+  RAISE_FORM,              // raise
+  THROW_FORM,              // throw
+  TYPE_FORM,               // type*
+  USE_FORM,                // use
 } SpecialForm;
 
 // user identifier types
@@ -32,10 +39,10 @@ struct Sym {
   HEADER;
 
   // bit fields
-
+  word_t form    : 5;
   word_t literal : 1;
 
-  // identifier info
+  // data fields
   Str*   nmspc;
   Str*   name;
   word_t idno;      // non-zero for gensyms
@@ -51,7 +58,11 @@ struct Env {
 
   // data fields
   int     index;     // location within global namespace (-1 if this is a local environment)
-  Sym*    name;      // Name for this Env object (may be a namespace, function, or type)
+
+  union {
+    Sym*  name;      // name for this namespace (may be a function name or namespace name)
+    char* _sname;    // aids static initialization
+  };
   Env*    parent;    // the environment within which this environment was defined
   Env*    ns;        // shortcut to namespace-level parent
   EMap*   locals;    // local or namespace-scoped names
@@ -103,6 +114,9 @@ extern Type SymType, EnvType, RefType, UpValType;
 extern Str* GlobalNs;
 
 /* APIs */
+/* General utilities */
+bool is_form_name(char* n);
+
 /* Sym API */
 #define is_sym(x) has_type(x, &SymType)
 #define as_sym(x) ((Sym*)as_obj(x))

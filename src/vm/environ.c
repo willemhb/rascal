@@ -1,17 +1,54 @@
 #include "vm/environ.h"
 
+#include "val/table.h"
 #include "val/environ.h"
 
-Val nref_gns(EState* e, Sym* n);
-Val sref_gns(EState* e, char* s);
+/* Globals */
+Env Globals = {
+  .type     = &EnvType,
+  .trace    = true,
+  .sweep    = false,
+  .free     = true,
+  .gray     = true,
+  
+  .scope    = NAMESPACE_SCOPE,
+  .bound    = true,
+  .toplevel = true,
+  
+  .index    = -1,
+  ._sname   = "global",
+  .parent   = NULL,
+  .ns       = NULL,
+  .locals   = NULL,
+  .captured = NULL,
+  .refs     = NULL,
+  .upvals   = NULL
+};
 
-Val iref_gns(EState* e, size_t o) {
-  return e->gns->values->data[o];
-}
+NSMap NameSpaces = {
+  .type    = &NSMapType,
+  .trace   = true,
+  .free    = true,
+  .sweep   = false,
+  .gray    = true,
+  
+  .lf      = LF_625,
+  .entries = NULL,
+  .cnt     = 0,
+  .maxc    = 0,
+  .nts     = 0
+};
 
-Val nref_cns(EState* e, Sym* n);
-Val sref_cns(EState* e, char* s);
-
-Val iref_cns(EState* e, size_t o) {
-  return e->cns->values->data[o];
-}
+SCache Strings = {
+  .type    = &SCacheType,
+  .trace   = false,
+  .free    = true,
+  .sweep   = false,
+  .gray    = true,
+  
+  .lf      = LF_625,
+  .entries = NULL,
+  .cnt     = 0,
+  .maxc    = 0,
+  .nts     = 0
+};

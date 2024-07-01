@@ -20,6 +20,7 @@ typedef funcptr_t FunPtr;
 typedef struct Type Type;
 
 // function types
+typedef struct Func      Func;      // common function header
 typedef struct Closure   Closure;
 typedef struct Native    Native;
 typedef struct Primitive Primitive;

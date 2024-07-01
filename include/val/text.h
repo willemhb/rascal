@@ -20,18 +20,38 @@ struct Port {
 
   // data fields
   FILE* ios;
+
+  union {
+    Str*  name;
+    char* _sname;
+  };
+
+  int line;
+  int col;
+
+  // reader fields
+  // read buffer
+  union {
+    MStr* t;
+    MBin* b;
+  } b;
+
+  // last expression read
+  Val x;
 };
 
 struct Str {
   HEADER;
 
   // bit fields
-  word_t enc   : 4;
-  word_t hasmb : 1;
+  word_t enc      : 4;
+  word_t hasmb    : 1;
+  word_t interned : 1;
+  word_t _static  : 1;
 
   // data fields
   char*  chars;
-  size_t count;
+  size_t cnt;
 };
 
 struct Bin {
@@ -41,15 +61,15 @@ struct Bin {
   word_t eltype : 4;
 
   // data fields
-  byte_t* data;
-  size_t  count;
+  byte*  data;
+  size_t cnt;
 };
 
 #define DYNAMIC_BUFFER(X)                       \
-  word_t algo : 2;                              \
+  word_t algo : 3;                              \
   X* data;                                      \
   X* _static;                                   \
-  size_t count, max_count, max_static
+  size_t cnt, maxc, maxs
 
 struct MStr {
   HEADER;
@@ -69,7 +89,7 @@ struct MBin {
   word_t eltype : 4;
 
   // data fields
-  DYNAMIC_BUFFER(uint8_t);
+  DYNAMIC_BUFFER(byte);
 };
 
 #undef DYNAMIC_BUFFER
@@ -80,28 +100,22 @@ struct MBin {
 struct RT {
   HEADER;
 
-  RT*          parent;
-  rl_read_fn_t eof_fn;
-  rl_read_fn_t dispatch[RT_SIZE]; // common readers
-  rl_read_fn_t intrasym[RT_SIZE]; // intra-symbol readers
+  RT*    parent;
+  Func*  eof_fn;
+  Func*  dispatch[RT_SIZE];
 };
 
 /* Globals */
 // types
 extern Type PortType, GlyphType, StrType, BinType, MStrType, MBinType, RTType;
 
-// standard ports
-extern Port StdIn, StdOut, StdErr;
-
-// string cache
-extern SCache StrCache;
-
 /* APIs */
 /* Str API */
 #define is_str(x) has_type(x, &StrType)
 #define as_str(x) ((Str*)as_obj(x))
 
-Str*  mk_str(char* cs, size_t n);
+Str*  mk_str(char* cs, size_t n, bool i);
+Str*  get_str(char* cs, size_t n);
 Glyph str_ref(Str* s, size_t n);
 Str*  str_set(Str* s, size_t n, Glyph g);
 
@@ -109,25 +123,27 @@ Str*  str_set(Str* s, size_t n, Glyph g);
 #define is_bin(x) has_type(x, &BinType)
 #define as_bin(x) ((Bin*)as_bin(x))
 
-Bin*   mk_bin(size_t n, void* d);
-byte_t bin_ref(Bin* b, size_t n);
-Bin*   bin_set(Bin* b, size_t n, byte_t u);
+Bin* mk_bin(size_t n, void* d);
+byte bin_ref(Bin* b, size_t n);
+Bin* bin_set(Bin* b, size_t n, byte u);
 
 /* RT API */
 #define is_rt(x) has_type(x, &RTType)
 #define as_rt(x) ((RT*)as_obj(x))
 
-#define rt_set(rt, x, r, is)                    \
+#define rt_set(rt, x, r)                        \
   generic((x),                                  \
           Glyph:rt_set_g,                       \
           int:rt_set_g,                         \
-          char*:rt_set_s)(rt, x, r, is)
+          char*:rt_set_s)(rt, x, r)
 
-RT*          mk_rt(RT* p);
-void         init_rt(RT* rt, RT* p);
-void         rt_set_g(RT* rt, int d, rl_read_fn_t r, bool is);
-void         rt_set_s(RT* rt, char* ds, rl_read_fn_t r, bool is);
-rl_read_fn_t rt_get(RT* rt, int d, bool is);
+RT*    mk_rt(RT* p);
+void   init_rt(RT* rt, RT* p);
+void   rt_set_g(RT* rt, int d, Func* f);
+void   rt_set_s(RT* rt, char* ds, Func* f);
+Func*  rt_get(RT* rt, int d);
+
+/* Types and APIs for Rascal values used in IO, binary data processing, and text representation, as well as supporting globals. */
 
 /* Mutable buffer APIs */
 #define MUTABLE_BUFFER(T, t, X)                                         \
@@ -143,7 +159,7 @@ rl_read_fn_t rt_get(RT* rt, int d, bool is);
   X      t##_pop(T* a);                                                 \
   X      t##_popn(T* a, size_t n, bool e)
 
-MUTABLE_BUFFER(MBin, mbin, byte_t);
+MUTABLE_BUFFER(MBin, mbin, byte);
 MUTABLE_BUFFER(MStr, mstr, char);
 
 #undef MUTABLE_BUFFER

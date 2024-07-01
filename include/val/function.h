@@ -1,23 +1,27 @@
-#ifndef rl_function_h
-#define rl_function_h
+#ifndef rl_val_function_h
+#define rl_val_function_h
 
-#include "opcodes.h"
+#include "labels.h"
 
 #include "val/object.h"
 
 /* Types, APIs, and globals for Rascal functions. */
 /* C types */
-#define FUNC_HEADER                             \
-  HEADER;                                       \
-  /* bit fields */                              \
-  word_t va : 1;                                \
-  /* data fields */                             \
-  uint nargs;                                   \
-  Vec* sig;                                     \
-  /* _static_name field */                      \
-  union {                                       \
-    char* _static_name;                         \
-    Sym*  name;                                 \
+#define FUNC_HEADER                                            \
+  HEADER;                                                      \
+  /* bit fields */                                             \
+  word_t clt     : 4;                                          \
+  word_t va      : 1;                                          \
+  word_t comp    : 1;                                          \
+  word_t m_union : 1;                                          \
+  word_t favor   : 1;                                          \
+  /* data fields */                                            \
+  uint argc, lvarc;                                            \
+  Vec* sig;                                                    \
+  /* _sname field exists to aid static initialization */       \
+  union {                                                      \
+    char* _name;                                               \
+    Sym*  name;                                                \
   }
 
 typedef struct Func {
@@ -27,24 +31,30 @@ typedef struct Func {
 struct Closure {
   FUNC_HEADER;
 
-  uint  nvars, nregs;
-
   // execution information
-  Bin*   code;
-  Vec*   vals;
+  union {
+    MBin* c_code;
+    Bin*  code;
+  };
+  
+  union {
+    MVec* c_vals;
+    Bin*  vals;
+  };
+
   Env*   envt;
 };
 
 struct Native {
   FUNC_HEADER;
 
-  rl_native_fn_t C_fn;
+  NativeFn C_fn;
 };
 
 struct Primitive {
   FUNC_HEADER;
 
-  OpCode label;
+  Label label;
 };
 
 struct Generic {
@@ -90,7 +100,6 @@ struct Cntl {
 
   /* Saved execution state */
   MVec* scpy;
-  MVec* fcpy;
 
   /* Saved registers */
   Closure*  ex;
@@ -106,8 +115,12 @@ extern Type ClosureType, NativeType, GenericType, ControlType, MTRootType, MTNod
 
 /* APIs */
 /* General function APIs */
-char* fn_name(void* fn);
-uint  fn_argc(void* fn);
+#define as_func(x) ((Func*)as_obj(x))
+
+char*  fn_name(void* fn);
+uint   fn_argc(void* fn);
+size_t fn_nvars(void* fn);
+size_t fn_fsize(void* fn);
 
 /* Native APIs */
 #define is_native(x) has_type(x, &NativeType)
@@ -117,19 +130,17 @@ uint  fn_argc(void* fn);
 #define is_cls(x) has_type(x, &ClosureType)
 #define as_cls(x) ((Closure*)as_obj(x))
 
-uint16_t* cls_ip(Closure* c);
-size_t    cls_fs(Closure* c);
-void      set_upv(Closure* c, UpVal* u, size_t i);
+short*  cls_ip(Closure* c);
 
 /* Cntl APIs */
 #define is_cntl(x) has_type(x, &CntlType)
 #define as_cntl(x) ((Cntl*)as_obj(x))
 
-Cntl* mk_cntl(Cntl* p, IState* s);
+Cntl* mk_cntl(Cntl* p, RlState* s);
 
 /* Generic APIs */
 Generic* mk_generic(char* name);
-rl_err_t add_method(Generic* g, Vec* s, bool v, void* f);
-rl_err_t get_method(Generic* g, Vec* s, Func** r);
+Error add_method(Generic* g, Vec* s, bool v, void* f);
+Error get_method(Generic* g, Vec* s, Func** r);
 
 #endif

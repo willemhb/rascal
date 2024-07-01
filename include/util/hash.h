@@ -7,7 +7,7 @@
 // hashing utilities
 hash_t hash_word(word_t w);
 hash_t hash_chars(const char* d);
-hash_t hash_bytes(const byte_t* d, size_t n);
+hash_t hash_bytes(const byte* d, size_t n);
 hash_t mix_hashes(hash_t x, hash_t y);
 
 #endif

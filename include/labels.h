@@ -1,17 +1,19 @@
-#ifndef rl_opcodes_h
-#define rl_opcodes_h
+#ifndef rl_labels_h
+#define rl_labels_h
 
 #include "common.h"
 
+/* Virtual machine labels (mostly opcodes, but also includes primitive functions and reader/compiler labels) */
+
 typedef enum {
   // miscellaneous
+  OP_READY, // initial state
   OP_NOOP,  // do nothing
   OP_ENTER, // default entry point
 
   // stack manipulation
   OP_POP,  // pop TOS
   OP_DUP,  // duplicate TOS
-  OP_POPF, // pop entire stack frame (preserves TOS)
 
   // validation
   OP_CHK_TAG,  // check that TOS-1 has the given tag
@@ -84,11 +86,23 @@ typedef enum {
   OP_RETURN, // restore caller
 
   // primitive functions
+  FN_READ,   // call `read`
+  FN_TREAD,  // call `read` in tail position
+  FN_COMP,   // call `comp`
+  FN_TCOMP,  // call `comp` in tail position
   FN_EXEC,   // call `exec`
+  FN_TEXEC,  // call `exec` in tail position
   FN_SAME,   // call `same?`
+  FN_TSAME,  // call `same?` in tail position
   FN_EGAL,   // call `=`
+  FN_TEGAL,  // call `=` in tail position
   FN_HASH,   // call `hash`
+  FN_THASH,  // call `hash` in tail position
   FN_ORD,    // call `ord`
-} OpCode;
+  FN_TORD,   // call `ord` in tail position
+
+  // reader labels
+  RL_READ_NUMBER,
+} Label;
 
 #endif

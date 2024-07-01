@@ -39,6 +39,77 @@ Ref* capture_ref(Env* e, Sym* n, Ref* r) {
 }
 
 /* Internal Sym APIs */
+static SpecialForm check_form(char* n, char* fn, SpecialForm f) {
+  return seq(n, fn) ? f : NO_FORM;
+}
+
+static void set_sym_form(Sym* s) {
+  char* n = s->name->chars;
+
+  if ( s->nmspc != NULL )
+    s->form = NO_FORM;
+
+  else
+    switch ( n[0] ) {
+      case 'c':
+        s->form = check_form(n, "catch", CATCH_FORM); break;
+
+      case 'd':
+        switch ( n[1] ) {
+          case 'e': s->form = check_form(n, "def*", DEF_FORM); break;
+          case 'o': s->form = check_form(n, "do", DO_FORM); break;
+          default:  s->form = NO_FORM; break;
+        }
+        break;
+
+      case 'g':
+        s->form = check_form(n, "generic*", GENERIC_FORM); break;
+
+      case 'h':
+        s->form = check_form(n, "hndl", HNDL_FORM); break;
+
+      case 'i':
+        s->form = check_form(n, "if", IF_FORM); break;
+
+      case 'l':
+        switch ( n[1] ) {
+          case 'e': s->form = check_form(n, "let*", LET_FORM); break;
+          case 'm': s->form = check_form(n, "lmb*", LMB_FORM); break;
+          default:  s->form = NO_FORM; break;
+        }
+        break;
+
+      case 'm':
+        s->form = check_form(n, "method*", METHOD_FORM); break;
+
+      case 'n':
+        s->form = check_form(n, "ns", NS_FORM); break;
+
+      case 'p':
+        s->form = check_form(n, "put*", PUT_FORM); break;
+
+      case 'q':
+        s->form = check_form(n, "quote", QUOTE_FORM); break;
+
+      case 'r':
+        s->form = check_form(n, "raise", RAISE_FORM); break;
+
+      case 't':
+        switch ( n[1] ) {
+          case 'h': s->form = check_form(n, "throw", THROW_FORM); break; 
+          case 'y': s->form = check_form(n, "type*", TYPE_FORM); break;
+          default:  s->form = NO_FORM; break;
+        }
+        break;
+
+      case 'u':
+        s->form = check_form(n, "use", USE_FORM); break;
+
+      default:
+        s->form = NO_FORM; break;
+    }
+}
+
 Sym* new_sym(Str* n, Str* ns, word_t idno, bool lit) {
   Sym* o     = new_obj(&SymType);
   o->name    = n;
@@ -55,6 +126,8 @@ Sym* new_sym(Str* n, Str* ns, word_t idno, bool lit) {
     h = mix_hashes(h, hash_word(idno));
 
   o->hash = h;
+
+  set_sym_form(o);
 
   return o;
 }
@@ -122,6 +195,31 @@ void init_ref_meta(Ref* r) {
 }
 
 /* External APIs */
+/* General utilities */
+bool is_form_name(char* n) {
+  bool o = false;
+
+  if ( n != NULL )
+    switch ( n[0] ) {
+      case 'c': o = seq(n+1, "atch"); break;
+      case 'd': o = seq(n+1, "ef*") || seq(n+1, "o"); break;
+      case 'g': o = seq(n+1, "eneric*"); break;
+      case 'h': o = seq(n+1, "ndl"); break;
+      case 'i': o = seq(n+1, "f"); break;
+      case 'l': o = seq(n+1, "et*") || seq(n+1, "mb*"); break;
+      case 'm': o = seq(n+1, "ethod*"); break;
+      case 'n': o = seq(n+1, "s"); break;
+      case 'p': o = seq(n+1, "ut*"); break;
+      case 'q': o = seq(n+1, "uote"); break;
+      case 'r': o = seq(n+1, "aise"); break;
+      case 't': o = seq(n+1, "hrow") || seq(n+1, "ype*"); break;
+      case 'u': o = seq(n+1, "se"); break;
+      default:  o = false; break;
+    }
+
+  return o;
+}
+
 /* Symbol APIs */
 Sym* c_mk_sym(char* n, char* ns, bool gs) {
   Str* sn, * sns;

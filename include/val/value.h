@@ -2,6 +2,7 @@
 #define rl_val_value_h
 
 #include "error.h"
+#include "labels.h"
 
 /* tags and masks */
 #define QNAN       0x7ff8000000000000UL
@@ -12,7 +13,7 @@
 #define WDATA_BITS 0x00000000ffffffffUL
 #define DATA_BITS  0x0000ffffffffffffUL
 
-// wide tags
+// narrow tags
 #define REAL      0x0000000000000000UL // dummy tag
 #define ARITY     0x7ffc000000000000UL // arity value
 #define CPTR      0x7ffd000000000000UL
@@ -20,6 +21,7 @@
 #define OBJECT    0x7fff000000000000UL
 #define LITTLE    0xffff000000000000UL // 32-bit value with wide tag
 
+// wide tags
 #define NUL       0xffff000000000000UL
 #define BOOL      0xffff000100000000UL
 #define GLYPH     0xffff000200000000UL
@@ -55,9 +57,11 @@ static inline Val untag(Val x) {
           Nul:tag_nul,                          \
           Bool:tag_bool,                        \
           Ptr:tag_ptr,                          \
+          short*:tag_ptr,                       \
           ushort*:tag_ptr,                      \
           FunPtr:tag_fptr,                      \
           Type*:tag_obj,                        \
+          Func*:tag_obj,                        \
           Closure*:tag_obj,                     \
           Native*:tag_obj,                      \
           Primitive*:tag_obj,                   \
@@ -78,6 +82,8 @@ static inline Val untag(Val x) {
           MBin*:tag_obj,                        \
           RT*:tag_obj,                          \
           Arity:tag_arity,                      \
+          Label:tag_small,                      \
+          Error:tag_small,                      \
           Small:tag_small,                      \
           Real:tag_real,                        \
           Big*:tag_obj,                         \

@@ -26,7 +26,7 @@ struct Obj {
   word_t flags : 10;
 
   // data fields
-  byte_t data[];
+  byte data[];
 };
 
 /* Globals */
@@ -47,11 +47,11 @@ void mark_obj(void* x);
 void trace(void* x);
 
 // other lifetime methods
-void* new_obj(Type* t);
-void* clone_obj(void* x);
-void  init_obj(Type* t, Obj* o);
-void  free_obj(void* x);
-void  sweep_obj(void* x);
+void*  new_obj(Type* t);
+void*  clone_obj(void* x);
+void   init_obj(Type* t, Obj* o);
+void   free_obj(void* x);
+size_t sweep_obj(void* x);
 
 // metadata generics
 #define meta(x)                                 \

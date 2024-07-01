@@ -50,6 +50,7 @@ extern Type PairType, ListType, MPairType, MListType;
 List*   mk_list(size_t n, Val* a);
 List*   c_list(Val h, List* tl);
 Val     list_ref(List* x, size_t n);
+size_t  push_list(List* x, MVec* v);
 
 /* Pair API */
 #define is_pair(x) has_type(x, &PairType)

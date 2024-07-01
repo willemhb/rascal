@@ -1,4 +1,5 @@
 #include "val/list.h"
+#include "val/array.h"
 
 #include "vm/heap.h"
 
@@ -50,6 +51,19 @@ Val list_ref(List* x, size_t n) {
     x = x->tail;
 
   return x->head;
+}
+
+size_t push_list(List* x, MVec* v) {
+  size_t r = x->cnt;
+  
+  if ( r > 0 ) {
+    size_t o = write_mvec(v, NULL, x->cnt);
+
+    for ( size_t i=0; i<r; i++, x=x->tail )
+      v->data[o+i] = x->head;
+  }
+
+  return r;
 }
 
 /* Pair API */

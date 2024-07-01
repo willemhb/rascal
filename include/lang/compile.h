@@ -6,6 +6,6 @@
 #include "vm/compiler.h"
 
 /* External API */
-Closure* rl_compile(List* f, );
+Closure* rl_compile();
 
 #endif

@@ -1,97 +1,101 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "memory.h"
+#include "util/memory.h"
 
 
 /* external API */
-rl_status_t rl_malloc(void** b, size_t n, byte_t i) {
-  rl_status_t r = OKAY;
+void* rl_malloc(size_t n, byte i) {
+  void* b = NULL;
   
-  if ( n == 0 ) {
-    *b = NULL;
+  if ( n > 0 ) {
+    b = malloc(n);
 
-  } else {
-    void* spc = malloc(n);
-
-    if ( unlikely(spc == NULL) )
-      rl_fatal_error(SYSTEM_ERROR, "malloc", "couldn't allocate %zu bytes", n);
-
-    memset(spc, i, n);
-
-    *b = spc;
-  }
-
-  return r;
-}
-
-rl_status_t rl_calloc(void** b, size_t n, size_t o, byte_t i) {
-  rl_status_t r = OKAY;
-
-  if ( n == 0 || o == 0 ) {
-    *b = NULL;
+    if ( unlikely(b == NULL) )
+      rl_fatal_err(SYSTEM_ERROR, "malloc", "couldn't allocate %zu bytes", n);
     
-  } else {
-    void* spc = calloc(n, o);
-
-    if ( unlikely(spc == NULL) )
-      rl_fatal_error(SYSTEM_ERROR, "calloc", "couldn't allocate %zu bytes", n*o);
-
-    memset(spc, i, n*o);
+    memset(b, i, n);
   }
-
-  return r;
+  
+  return b;
 }
 
-rl_status_t rl_realloc(void** b, size_t p, size_t n, byte_t i) {
-  rl_status_t r = OKAY;
-  void* spc = *b;
+void* rl_calloc(size_t n, size_t o, byte i) {
+  void* b = NULL;
+
+  if ( n > 0 && o > 0 ) {
+    b = calloc(n, o);
+
+    if ( unlikely(b == NULL) )
+      rl_fatal_err(SYSTEM_ERROR, "calloc", "couldn't allocate %zu bytes", n*o);
+
+    memset(b, i, n*o);
+  }
+
+  return b;
+}
+
+void* rl_mdup(void* s, size_t n) {
+  void* b = NULL;
+
+  if ( s != NULL ) {
+    b = rl_malloc(n, 0);
+
+    memcpy(b, s, n);
+  }
+
+  return b;
+}
+
+char* rl_sdup(char* s, size_t n) {
+  char* b = NULL;
+
+  if ( s != NULL ) {
+    b = rl_malloc(n+1, 0);
+
+    memcpy(b, s, n);
+  }
+
+  return b;
+}
+
+void* rl_realloc(void* s, size_t p, size_t n, byte i) {
+  void* o = NULL;
 
   if ( n == 0 ) {
-    free(spc);
-    *b = NULL;
+    free(s);
 
   } else {
-    spc = realloc(spc, n);
+    o = realloc(s, n);
 
-    if ( unlikely(spc == NULL) )
-      rl_fatal_error(SYSTEM_ERROR, "realloc", "couldn't allocate %zu bytes", n);
+    if ( unlikely(o == NULL) )
+      rl_fatal_err(SYSTEM_ERROR, "realloc", "couldn't allocate %zu bytes", n);
 
     if ( n > p )
-      memset(spc+p, i, n-p);
-
-    *b = spc;
+      memset(o+p, i, n-p);
   }
 
-  return r;
+  return o;
 }
 
-rl_status_t rl_crealloc(void** b, size_t p, size_t n, size_t o, byte_t i) {
-  rl_status_t r = OKAY;
-  void* spc = b;
+void* rl_crealloc(void* s, size_t p, size_t n, size_t o, byte i) {
+  void* b = NULL;
 
   if ( n == 0 || o == 0 ) {
-    free(spc);
-    *b = NULL;
+    free(s);
   } else {
-    spc = realloc(spc, n*o);
+    b = realloc(s, n*o);
 
-    if ( unlikely(spc == NULL) )
-      rl_fatal_error(SYSTEM_ERROR, "realloc", "couldn't allocate %zu bytes", n*o);
+    if ( unlikely(b == NULL) )
+      rl_fatal_err(SYSTEM_ERROR, "realloc", "couldn't allocate %zu bytes", n*o);
 
     if ( n > p )
-      memset(spc+p*o, i, (n-p)*o);
-
-    *b = spc;
+      memset(b+p*o, i, (n-p)*o);
   }
 
-  return r;
+  return b;
 }
 
-rl_status_t rl_free(void* b) {
-  rl_status_t r = OKAY;
-
+void rl_free(void* b) {
   free(b);
-
-  return r;
 }

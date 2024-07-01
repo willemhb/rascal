@@ -99,12 +99,18 @@ typedef struct {
   MUTABLE_ENTRY(Str*, Env*);
 } NSMEntry;
 
+struct NSMap {
+  HEADER;
+
+  MUTABLE_TABLE(NSMEntry);
+};
+
 #undef MUTABLE_TABLE
 #undef MUTABLE_ENTRY
 
 /* Globals */
 // types
-extern Type MapType, MNodeType, MMapType, SCacheType, EMapType;
+extern Type MapType, MNodeType, MMapType, SCacheType, EMapType, NSMapType;
 
 /* APIs */
 // map API

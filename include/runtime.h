@@ -6,27 +6,20 @@
 /* Just some preliminary typedefs and globals for runtime state. */
 /* Frame types */
 typedef struct HFrame HFrame;
-typedef struct RFrame RFrame;
-typedef struct CFrame CFrame;
-typedef struct IFrame IFrame;
 
 /* State types */
-typedef struct HState HState;
-typedef struct RState RState;
-typedef struct CState CState;
-typedef struct IState IState;
-typedef struct EState EState;
+typedef struct RlState RlState;
+typedef struct RlProc  RlProc;
 
 // internal function pointer types
-typedef void     (*rl_trace_fn_t)(void* x);
-typedef void     (*rl_free_fn_t)(void* x);
-typedef void     (*rl_clone_fn_t)(void* x);
-typedef void     (*rl_read_fn_t)(RState* s, int d);
-typedef hash_t   (*rl_hash_fn_t)(Val x);
-typedef bool     (*rl_egal_fn_t)(Val x, Val y);
-typedef int      (*rl_order_fn_t)(Val x, Val y);
-typedef size_t   (*rl_sizeof_fn_t)(void* x);
-typedef rl_err_t (*rl_native_fn_t)(size_t n, Val* a, Val* b);
+typedef void   (*TraceFn)(void* x);
+typedef void   (*FreeFn)(void* x);
+typedef void   (*CloneFn)(void* x);
+typedef hash_t (*HashFn)(Val x);
+typedef bool   (*EgalFn)(Val x, Val y);
+typedef int    (*OrderFn)(Val x, Val y);
+typedef size_t (*SizeofFn)(void* x);
+typedef void   (*NativeFn)(RlState* s, bool c);
 
 /* Globals */
 /* Parsed command line arguments and options. */
@@ -35,11 +28,8 @@ extern Set*  ClFlags;
 extern Map*  ClOpts;
 
 /* Global state objects */
-extern HState Heap;
-extern RState Reader;
-extern CState Compiler;
-extern IState Vm;
-extern EState Environ;
+extern RlState Vm;         // main Vm state object
+extern RlProc  Main;       // main process (for the time being this is the only process)
 
 /* Standard streams */
 extern Port StdIn;

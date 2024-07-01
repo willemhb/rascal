@@ -87,15 +87,15 @@ struct Type {
   Obj* ctor;
 
   // lifetime & object methods
-  rl_trace_fn_t  trace_fn;     // called to trace an object's owned pointers
-  rl_clone_fn_t  clone_fn;     // called to duplicate an object's owned pointers
-  rl_free_fn_t   free_fn;      // called to free an object's owned pointers
-  rl_sizeof_fn_t sizeof_fn;    // called to determine an object's overallocated size
+  TraceFn  trace_fn;     // called to trace an object's owned pointers
+  CloneFn  clone_fn;     // called to duplicate an object's owned pointers
+  FreeFn   free_fn;      // called to free an object's owned pointers
+  SizeofFn sizeof_fn;    // called to determine an object's overallocated size
 
   // comparison methods
-  rl_hash_fn_t  hash_fn;
-  rl_egal_fn_t  egal_fn;
-  rl_order_fn_t ord_fn;
+  HashFn  hash_fn;
+  EgalFn  egal_fn;
+  OrderFn ord_fn;
 };
 
 /* Globals */
