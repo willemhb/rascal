@@ -7,21 +7,22 @@
 
 /* Types, APIs, and globals for Rascal functions. */
 /* C types */
-#define FUNC_HEADER                                            \
-  HEADER;                                                      \
-  /* bit fields */                                             \
-  word_t clt     : 4;                                          \
-  word_t va      : 1;                                          \
-  word_t comp    : 1;                                          \
-  word_t m_union : 1;                                          \
-  word_t favor   : 1;                                          \
-  /* data fields */                                            \
-  uint argc, lvarc;                                            \
-  Vec* sig;                                                    \
-  /* _sname field exists to aid static initialization */       \
-  union {                                                      \
-    char* _name;                                               \
-    Sym*  name;                                                \
+#define FUNC_HEADER                                                   \
+  HEADER;                                                             \
+  /* bit fields */                                                    \
+  word_t ft      : 3;                                                 \
+  word_t framec  : 3;                                                 \
+  word_t va      : 1;                                                 \
+  word_t comp    : 1;                                                 \
+  word_t m_union : 1;                                                 \
+  word_t m_favor : 1;                                                 \
+  /* data fields */                                                   \
+  uint argc, lvarc;                                                   \
+  Vec* sig;                                                           \
+  /* _sname field exists to aid static initialization */              \
+  union {                                                             \
+    char* _name;                                                      \
+    Sym*  name;                                                       \
   }
 
 typedef struct Func {
@@ -78,36 +79,23 @@ struct MTNode {
   
 };
 
-struct MTLeaf {
-  HEADER;
-
-  // bit fields
-  word_t m_favor : 1;
-  word_t m_union : 1;
-  word_t m_var   : 1;
-
-  // data fields
-  Obj*  method;
-};
-
 // control type (reified continuation)
 struct Cntl {
   HEADER;
 
   // data fields
-  /* In case */
+  /* If `raise` is called from within a `hndl` body, this is the Cntl object that was in scope at that time */
   Cntl* parent;
 
-  /* Saved execution state */
+  /* copy of stack values */
   MVec* scpy;
 
   /* Saved registers */
   Closure*  ex;
   short*    ip;
-  int       fs;
-  int       co;
-  int       ho;
-  int       sp;
+  size_t    fs;
+  size_t    cp;
+  size_t    hp;
 };
 
 /* Globals */
@@ -118,8 +106,9 @@ extern Type ClosureType, NativeType, GenericType, ControlType, MTRootType, MTNod
 #define as_func(x) ((Func*)as_obj(x))
 
 char*  fn_name(void* fn);
-uint   fn_argc(void* fn);
-size_t fn_nvars(void* fn);
+size_t fn_argc(void* fn);
+size_t fn_lvarc(void* fn);
+size_t fn_framec(void* fn);
 size_t fn_fsize(void* fn);
 
 /* Native APIs */

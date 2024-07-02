@@ -22,11 +22,6 @@ typedef size_t (*SizeofFn)(void* x);
 typedef void   (*NativeFn)(RlState* s, bool c);
 
 /* Globals */
-/* Parsed command line arguments and options. */
-extern List* ClArgs;
-extern Set*  ClFlags;
-extern Map*  ClOpts;
-
 /* Global state objects */
 extern RlState Vm;         // main Vm state object
 extern RlProc  Main;       // main process (for the time being this is the only process)

@@ -7,8 +7,15 @@
 
 #include "val/list.h"
 #include "val/function.h"
+#include "val/text.h"
+#include "val/table.h"
+
+#include "util/number.h"
 
 /* Globals */
+// various macros
+#define FN_FRAME_CNT 3
+
 // statically allocated space for stacks/buffers
 Val  IVals[MAX_STACK] = {};
 
@@ -64,11 +71,23 @@ RlProc Main = {
 };
 
 RlState Vm = {
+  /* Environment state */
   .gns  = &Globals,
   .nss  = &NameSpaces,
   .strs = &Strings,
+
+  /* Process state */
   .proc = &Main,
-  
+
+  /* Command line arguments */
+  .args  = &EmptyList,
+  .flags = &EmptyMap,
+  .opts  = &EmptyMap,
+
+  /* Standard streams */
+  .ins   = &StdIn,
+  .outs  = &StdOut,
+  .errs  = &StdErr
 };
 
 /* External APIs */
@@ -162,9 +181,7 @@ size_t rlp_push(RlProc* p, bool m, Val x) {
       o = 0;
     } else {
       mvec_push(p->stk, x);
-
-      if ( m )
-        p->fs++;
+      rlp_grow_fs(p, m);
     }
 
   return o;
@@ -178,9 +195,7 @@ size_t rlp_write(RlProc* p, bool m, Val* x, size_t n) {
     o = 0;
   } else {
     write_mvec(p->stk, x, n);
-
-    if ( m )
-      p->fs += n;
+    rlp_grow_fs(p, m*n);
   }
 
   return o;
@@ -197,9 +212,7 @@ size_t rlp_pushn(RlProc* p, bool m, size_t n, ...) {
     va_start(va, n);
     mvec_pushv(p->stk, n, va);
     va_end(va);
-
-    if ( m )
-      p->fs += n;
+    rlp_grow_fs(p, m*n);
   }
 
   return o;
@@ -214,13 +227,8 @@ size_t rlp_reserve(RlProc* p, bool m, Val x, size_t n) {
       o = 0;
     } else {
       write_mvec(p->stk, NULL, n);
-      Val* b = rlp_svals(p, o);
-      
-      for ( size_t i=0; i<n; i++ )
-        b[i] = x;
-
-      if ( m )
-        p->fs += n;
+      rlp_init_frame(p, o, n, x);
+      rlp_grow_fs(p, m*n);
     }
   }
 
@@ -235,9 +243,7 @@ Val rlp_pop(RlProc* p, bool m) {
       o = NOTHING;
     } else {
       o = mvec_pop(p->stk);
-
-      if ( m )
-        p->fs++;
+      rlp_shrink_fs(p, m);
     }
 
   return o;
@@ -251,57 +257,78 @@ Val rlp_popn(RlProc* p, bool m, size_t n) {
     o = NOTHING;
   } else {
     o = mvec_popn(p->stk, n, true);
-
-    if ( m )
-      p->fs -= n;
+    rlp_shrink_fs(p, m*n);
   }
 
   return o;
 }
 
+void rlp_lrotn(RlProc* p, size_t n) {
+  size_t sp = rlp_sp(p);
+
+  if ( n > sp ) {
+    rlp_panic(p, RUNTIME_ERROR, NULL, "requested left rotate %zu greater than stack size %zu", n, sp);
+  } else if ( n < sp ) {
+    // calculate buffer
+    size_t l = min(n, sp-n);
+    Val b[l];
+
+    // swap values
+    memcpy(b, rlp_svals(p, sp-n-l), l*sizeof(Val));
+    memmove(rlp_svals(p, sp-n-l), rlp_svals(p, sp-n), n*sizeof(Val));
+    memcpy(rlp_svals(p, sp-n), b, l*sizeof(Val));
+  }
+}
+
+void rlp_rrotn(RlProc* p, size_t n) {
+  size_t sp = rlp_sp(p);
+
+  if ( n > sp ) {
+    rlp_panic(p, RUNTIME_ERROR, NULL, "requested right rotate %zu greater than stack size %zu", n, sp);
+  } else if ( n < sp ) {
+    // calculate buffer
+    size_t r = min(n, sp-n);
+    Val b[r];
+
+    // swap values
+    memcpy(b, rlp_svals(p, 0), r*sizeof(Val));
+    memmove(rlp_svals(p, 0), rlp_svals(p, sp-n), n*sizeof(Val));
+    memcpy(rlp_svals(p, sp-r), b, r*sizeof(Val));
+  }
+}
+
+void rlp_move(RlProc* p, size_t d, size_t s, size_t n) {
+  size_t sp = rlp_sp(p);
+
+  if ( )
+}
+
 // frame helpers
-void rlp_save_frame(RlProc* p) {
-  if ( p->ft != F_NONE ) {
-    if ( p->ft < F_HNDL_HANDLER ) {
-      push_rx(p, fs);
-      push_rx(p, ip);
-      push_rx(p, fn.c);
-    } else {
-      push_rx(p, fs);
-      push_rx(p, nv);
-      push_rx(p, fn.f);
-    }
-  }
+void rlp_grow_fs(RlProc* p, size_t n) {
+  p->fs += n;
 }
 
-void rlp_init_frame(RlProc* p, size_t o, size_t n, Val x) {
-  Val* b = rlp_svals(p, o);
-
-  for ( size_t i=0; i<n; i++ )
-    b[i] = x;
+void rlp_shrink_fs(RlProc* p, size_t n) {
+  p->fs -= n;
 }
 
-void rlp_install_cl(RlProc* p, Closure* c, int t) {
-  // arguments are on stack and validated
-  // t is tail call flag. -1 = not a tail call, 0 = general tail call, 1 = self call
-  if ( t == -1 ) { // not a tail call
-    p->fs -= c->argc;                         // remove arguments from calling frame (they now belong to closure)
-    rlp_reserve(p, false, NOTHING, c->lvarc);
-    rlp_save_frame(p);
+void rlp_resize_frame(RlProc* p, size_t ac, size_t lc, size_t fc) {
+  assert(p->fn.f != NULL);
 
-  } else if ( t == 0 ) { // general tail call - extra work needs to be done to ensure frame is properly sized
+  // get current frame size parameters
+  size_t cac = p->fn.f->argc;
+  size_t clc = p->fn.f->lvarc;
+  size_t cfc = p->fn.f->framec;
 
-  } else { // tail recursive call - can assume environment part of the frame is properly sized
-    rlp_rpop(p, false, p->bp, c->argc);
-
-    if ( p->fs > fn_fsize(c) ) // remove extra values from the stack
-      rlp_popn(p, false, p->fs - fn_fsize(c) );
-
-    rlp_init_frame(p, p->bp+c->argc, c->lvarc, NOTHING);
+  // very optimistic case - frames happen to be the same size
+  if ( cac == ac && clc == lc && cfc == fc ) {
+    rlp_move(p, p->bp, rlp_sp(p)-ac, ac);
+    rlp_setsp(p, false, p->bp+ac+lc+fc);
   }
 
-  // install registers
-  p->fn.c = c;
-  p->ip   = cls_ip(c);
-  p->fs   = fn_fsize(c);
+  else {
+    // preserve current frame values
+    Val f[cfc];
+
+    // move call arguments to base pointer
 }

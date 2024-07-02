@@ -66,9 +66,7 @@ static inline Val untag(Val x) {
           Native*:tag_obj,                      \
           Primitive*:tag_obj,                   \
           Generic*:tag_obj,                     \
-          MTRoot*:tag_obj,                      \
           MTNode*:tag_obj,                      \
-          MTLeaf*:tag_obj,                      \
           Cntl*:tag_obj,                        \
           Sym*:tag_obj,                         \
           Env*:tag_obj,                         \
@@ -102,6 +100,26 @@ static inline Val untag(Val x) {
           SCache*:tag_obj,                      \
           EMap*:tag_obj                         \
           )(x)
+
+#define untag(s, x)                                 \
+  ((typeof(s))generic((s),                          \
+                      Obj*:as_obj,                  \
+                      Nul:as_nul,                   \
+                      Bool:as_bool,                 \
+                      Ptr:as_ptr,                   \
+                      short*:as_ptr,                \
+                      ushort*:as_ptr,               \
+                      FunPtr:as_fptr,               \
+                      Type*:as_obj,                 \
+                      Func*:as_obj,                 \
+                      Closure*:as_obj,              \
+                      Native*:as_obj,               \
+                      Primitive*:as_obj,            \
+                      Generic*:as_obj,              \
+                      MTNode*:as_obj,               \
+                      Cntl*:as_obj,                 \
+                      Sym*:as_obj,                  \
+                      Env*:as_obj)(x))
 
 #define as_obj(x)                               \
   generic((x),                                  \

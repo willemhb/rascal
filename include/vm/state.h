@@ -12,10 +12,10 @@
 typedef enum FType {
   F_NONE,          // initial
   F_CLOSURE,       // user function
-  F_CATCH_BODY,    // body of a catch* form
-  F_CATCH_HANDLER, // handler of a catch* form
-  F_HNDL_BODY,     // body of a hndl* form
-  F_HNDL_HANDLER,  // handler of a hndl* form
+  F_CATCH,         // body of a catch* form
+  F_THROW,         // handler of a catch* form
+  F_HNDL,          // body of a hndl* form
+  F_RAISE,         // handler of a hndl* form
   F_NATIVE,        // native function
   F_PRIMITIVE      // primitive function
 } FType;
@@ -46,7 +46,7 @@ struct RlProc {
   Obj*     gcobjs;       // all collectable objects
 
   /* Interpreter state */
-  MVec*    stk;  // runtime stack (single stack machine)
+  MVec*    stk;          // value stack and call stack (single stack machine)
   UpVal*   upvs;
 
   // Main registers (saved with every call)
@@ -76,18 +76,25 @@ struct RlProc {
 
 struct RlState {
   /* environment state */
-  Env*     gns;
-  NSMap*   nss;
-  SCache*  strs;
+  Env*    gns;
+  NSMap*  nss;
+  SCache* strs;
 
   /* Interpreter state */
-  RlProc*  proc; // currently executing process (at present there's only one of these)
+  RlProc* proc; // currently executing process (at present there's only one of these)
 
   /* Error state */
-  Sym**    errkws;
+  Sym**   errkws;
 
-  /* Builtin types */
-  Type**   ptypes;
+  /* Command line arguments */
+  List*   args;
+  Set*    flags;
+  Map*    opts;
+
+  /* Standard streams */
+  Port*   ins;
+  Port*   outs;
+  Port*   errs;
 };
 
 /* External APIs */
@@ -106,21 +113,30 @@ char*  rlp_fname(RlProc* p);
 Env*   rlp_env(RlProc* p);
 
 // stack helpers
+size_t rlp_grow_stk(RlProc* p, bool m, size_t n);
+size_t rlp_shrink_stk(RlProc* p, bool m, size_t n);
 Val    rlp_peek(RlProc* p, long i);
 void   rlp_poke(RlProc* p, long i, Val x);
-void   rlp_rpop(RlProc* p, bool m, size_t d, size_t n);
+void   rlp_setsp(RlProc* p, bool m, size_t n);
 size_t rlp_push(RlProc* p, bool m, Val x);
 size_t rlp_write(RlProc* p, bool m, Val* x, size_t n);
 size_t rlp_pushn(RlProc* p, bool m, size_t n, ...);
 size_t rlp_reserve(RlProc* p, bool m, Val x, size_t n);
+size_t rlp_reserve_at(RlProc* p, bool m, Val x, size_t n, size_t o);
 Val    rlp_pop(RlProc* p, bool m);
 Val    rlp_popn(RlProc* p, bool m, size_t n);
+void   rlp_lrotn(RlProc* p, size_t n);
+void   rlp_rrotn(RlProc* p, size_t n);
+void   rlp_move(RlProc* p, size_t d, size_t s, size_t n);
 
 // frame helpers
-#define push_rx(p, rx) rlp_push(p, false, tag(p->rx))
+#define push_rx(p, rx)     rlp_push(p, false, tag(p->rx))
+#define save_rx(p, rx, o)  rlp_poke(p, o, tag(p->rx))
+#define pop_rx(p, rx)      p->rx = untag(p->rx, rlp_pop(p, false))
 
-void   rlp_save_frame(RlProc* p);
-void   rlp_init_frame(RlProc* p, size_t o, size_t n, Val x);
-void   rlp_install_cl(RlProc* p, Closure* c, int t);
+void   rlp_grow_fs(RlProc* p, size_t n);
+void   rlp_shrink_fs(RlProc* p, size_t n);
+void   rlp_resize_frame(RlProc* p, size_t ac, size_t lc, size_t fc);
+void   rlp_instal_cl(RlProc* p, Closure* cl, int t);
 
 #endif

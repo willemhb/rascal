@@ -17,8 +17,8 @@ typedef enum {
 } LF;
 
 // signature for functions used when a new entry needs to be created in a table
-typedef void (*rl_intern_fn_t)(void* t, void* e, void* k, void* s, hash_t h);
-typedef void (*rl_tinit_fn_t)(void* t, flags_t f);
+typedef void (*InternFn)(void* t, void* e, void* k, void* s, hash_t h);
+typedef void (*TInitFn)(void* t, flags_t f);
 
 // immutable tables
 struct Map {
@@ -112,6 +112,9 @@ struct NSMap {
 // types
 extern Type MapType, MNodeType, MMapType, SCacheType, EMapType, NSMapType;
 
+// empty singletons
+extern Map EmptyMap;
+
 /* APIs */
 // map API
 #define is_map(x) has_type(x, &MapType)
@@ -132,7 +135,7 @@ Map*  join_maps(Map* x, Map* y);
   void     init_##t(T* t, LF l, flags_t f);                         \
   void     free_##t(void* x);                                       \
   E*       t##_find(T* t, K k);                                     \
-  E*       t##_intern(T* t, K k, rl_intern_fn_t f, void* s);        \
+  E*       t##_intern(T* t, K k, InternFn f, void* s);              \
   bool     t##_get(T* t, K k, V* r);                                \
   bool     t##_has(T* t, K k);                                      \
   bool     t##_set(T* t, K k, V v, V* r);                           \
