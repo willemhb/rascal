@@ -4,7 +4,7 @@
 #include "val/object.h"
 
 /* External API */
-rl_err_t rl_exec(Closure* c, Val* b);
-rl_err_t rl_load(const char* f);
+Error rl_exec(RlProc* p, Proto* c, Val* b);
+Error rl_load(RlProc* p, const char* f);
 
 #endif

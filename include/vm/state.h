@@ -10,14 +10,14 @@
 /* Runtime interpreter state types and APIs */
 /* C types */
 typedef enum FType {
-  F_NONE,          // initial
   F_CLOSURE,       // user function
   F_CATCH,         // body of a catch* form
   F_THROW,         // handler of a catch* form
   F_HNDL,          // body of a hndl* form
   F_RAISE,         // handler of a hndl* form
   F_NATIVE,        // native function
-  F_PRIMITIVE      // primitive function
+  F_PRIMITIVE,     // primitive function
+  F_NONE,          // initial
 } FType;
 
 struct HFrame {
@@ -37,6 +37,7 @@ struct RlProc {
 
   /* error state */
   Error    err;        // current error
+  Val      errb;       // cause of current error
   Str*     errm;       // current error message
 
   /* heap state */
@@ -51,11 +52,11 @@ struct RlProc {
 
   // Main registers (saved with every call)
   union {          // currently executing function
-    Func*      f;
-    Closure*   c;
-    Native*    n;
-    Primitive* p;
-  } fn;
+    Func*   fn;
+    Proto*  cl;
+    Native* nf;
+    PrimFn* pf;
+  };
 
   union {
     short* ip;     // if currently executing function is a closure, this is the instruction pointer
@@ -109,34 +110,29 @@ void   mark_rlp(RlProc* p);
 // pseudo-accessors
 size_t rlp_sp(RlProc* p);
 Val*   rlp_svals(RlProc* p, size_t o);
+Val*   rlp_base(RlProc* p);
+Val*   rlp_frame(RlProc* p);
 char*  rlp_fname(RlProc* p);
 Env*   rlp_env(RlProc* p);
 
 // stack helpers
-size_t rlp_grow_stk(RlProc* p, bool m, size_t n);
-size_t rlp_shrink_stk(RlProc* p, bool m, size_t n);
+size_t rlp_grow_stk(RlProc* p, size_t n);
+size_t rlp_shrink_stk(RlProc* p, size_t n);
+void   rlp_setsp(RlProc* p, size_t n);
+
+void   rlp_init_spc(RlProc* p, Val x, size_t o, size_t n);
+
 Val    rlp_peek(RlProc* p, long i);
 void   rlp_poke(RlProc* p, long i, Val x);
-void   rlp_setsp(RlProc* p, bool m, size_t n);
-size_t rlp_push(RlProc* p, bool m, Val x);
-size_t rlp_write(RlProc* p, bool m, Val* x, size_t n);
-size_t rlp_pushn(RlProc* p, bool m, size_t n, ...);
-size_t rlp_reserve(RlProc* p, bool m, Val x, size_t n);
-size_t rlp_reserve_at(RlProc* p, bool m, Val x, size_t n, size_t o);
-Val    rlp_pop(RlProc* p, bool m);
-Val    rlp_popn(RlProc* p, bool m, size_t n);
+size_t rlp_push(RlProc* p, Val x);
+size_t rlp_dup(RlProc* p);
+size_t rlp_write(RlProc* p, Val* x, size_t n);
+size_t rlp_pushn(RlProc* p, size_t n, ...);
+size_t rlp_reserve(RlProc* p, Val x, size_t n);
+Val    rlp_pop(RlProc* p);
+Val    rlp_popn(RlProc* p, size_t n);
 void   rlp_lrotn(RlProc* p, size_t n);
 void   rlp_rrotn(RlProc* p, size_t n);
 void   rlp_move(RlProc* p, size_t d, size_t s, size_t n);
-
-// frame helpers
-#define push_rx(p, rx)     rlp_push(p, false, tag(p->rx))
-#define save_rx(p, rx, o)  rlp_poke(p, o, tag(p->rx))
-#define pop_rx(p, rx)      p->rx = untag(p->rx, rlp_pop(p, false))
-
-void   rlp_grow_fs(RlProc* p, size_t n);
-void   rlp_shrink_fs(RlProc* p, size_t n);
-void   rlp_resize_frame(RlProc* p, size_t ac, size_t lc, size_t fc);
-void   rlp_instal_cl(RlProc* p, Closure* cl, int t);
 
 #endif

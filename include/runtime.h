@@ -19,7 +19,8 @@ typedef hash_t (*HashFn)(Val x);
 typedef bool   (*EgalFn)(Val x, Val y);
 typedef int    (*OrderFn)(Val x, Val y);
 typedef size_t (*SizeofFn)(void* x);
-typedef void   (*NativeFn)(RlState* s, bool c);
+typedef void   (*NativeFn)(RlProc* p, bool c);
+typedef void   (*CastFn)(Val x, void* s);
 
 /* Globals */
 /* Global state objects */

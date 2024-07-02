@@ -29,7 +29,7 @@ typedef struct Func {
   FUNC_HEADER;
 } Func;
 
-struct Closure {
+struct Proto {
   FUNC_HEADER;
 
   // execution information
@@ -40,10 +40,10 @@ struct Closure {
   
   union {
     MVec* c_vals;
-    Bin*  vals;
+    Vec*  vals;
   };
 
-  Env*   envt;
+  Env* envt;
 };
 
 struct Native {
@@ -52,7 +52,7 @@ struct Native {
   NativeFn C_fn;
 };
 
-struct Primitive {
+struct PrimFn {
   FUNC_HEADER;
 
   Label label;
@@ -62,21 +62,18 @@ struct Generic {
   FUNC_HEADER;
 
   // data fields
-  MMap*   cache;
-  MTRoot* root;
+  MMap* cache;  // cache of exact method signatures
+  MT*   v_root; // registered methods with variable arity
+  MT*   f_root; // registered methods with fixed arity
+  Func* thunk;  // method with zero arity (there can only be one, so it's stored here)
 };
 
-struct MTRoot {
+struct MT {
   HEADER;
 
-  MTNode* f_root;
-  MTNode* v_root;
-};
-
-struct MTNode {
-  HEADER;
-
-  
+  size_t off;    // offset of current argument
+  MMap*  meths;  // registered methods with proper signatures
+  MT*    a_meth; // registered methods with no signature for nth argument
 };
 
 // control type (reified continuation)
@@ -85,21 +82,21 @@ struct Cntl {
 
   // data fields
   /* If `raise` is called from within a `hndl` body, this is the Cntl object that was in scope at that time */
-  Cntl* parent;
+  Cntl*  parent;
 
   /* copy of stack values */
-  MVec* scpy;
+  MVec*  stk;
 
   /* Saved registers */
-  Closure*  ex;
-  short*    ip;
-  size_t    fs;
-  size_t    cp;
-  size_t    hp;
+  Proto* cl;
+  short* ip;
+  size_t fs;
+  size_t cp;
+  size_t hp;
 };
 
 /* Globals */
-extern Type ClosureType, NativeType, GenericType, ControlType, MTRootType, MTNodeType, MTLeafType;
+extern Type ProtoType, NativeType, PrimFnType, GenFnType, CntlType, MTType;
 
 /* APIs */
 /* General function APIs */
@@ -116,10 +113,10 @@ size_t fn_fsize(void* fn);
 #define as_native(x) ((Native*)as_obj(x))
 
 /* Closure APIs */
-#define is_cls(x) has_type(x, &ClosureType)
-#define as_cls(x) ((Closure*)as_obj(x))
+#define is_proto(x) has_type(x, &ProtoType)
+#define as_proto(x) ((Proto*)as_obj(x))
 
-short*  cls_ip(Closure* c);
+short*  proto_ip(Proto* c);
 
 /* Cntl APIs */
 #define is_cntl(x) has_type(x, &CntlType)
@@ -128,8 +125,8 @@ short*  cls_ip(Closure* c);
 Cntl* mk_cntl(Cntl* p, RlState* s);
 
 /* Generic APIs */
-Generic* mk_generic(char* name);
-Error add_method(Generic* g, Vec* s, bool v, void* f);
-Error get_method(Generic* g, Vec* s, Func** r);
+GenFn* mk_generic(char* name);
+Error add_method(GenFn* g, Vec* s, bool v, void* f);
+Error get_method(GenFn* g, Vec* s, Func** r);
 
 #endif

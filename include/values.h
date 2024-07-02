@@ -20,15 +20,13 @@ typedef funcptr_t FunPtr;
 typedef struct Type Type;
 
 // function types
-typedef struct Func      Func;      // common function header
-typedef struct Closure   Closure;
-typedef struct Native    Native;
-typedef struct Primitive Primitive;
-typedef struct Generic   Generic;
-typedef struct MTRoot    MTRoot;
-typedef struct MTNode    MTNode;
-typedef struct MTLeaf    MTLeaf;
-typedef struct Cntl      Cntl;
+typedef struct Func   Func;      // common function header
+typedef struct Proto  Proto;
+typedef struct Native Native;
+typedef struct PrimFn PrimFn;
+typedef struct GenFn  GenFn;
+typedef struct MT     MT;
+typedef struct Cntl   Cntl;
 
 // identifier and environment types
 typedef struct Sym   Sym;
@@ -49,8 +47,6 @@ typedef struct RT   RT;
 typedef word_t       Arity; // 48-bit unsigned integer (can hold any valid hash or size)
 typedef int          Small;
 typedef double       Real;
-typedef struct Big   Big;
-typedef struct Ratio Ratio;
 
 // list, pair, and sequence types
 typedef struct Pair  Pair;

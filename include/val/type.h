@@ -96,6 +96,9 @@ struct Type {
   HashFn  hash_fn;
   EgalFn  egal_fn;
   OrderFn ord_fn;
+
+  // other internal methods
+  CastFn  cast_fn;
 };
 
 /* Globals */

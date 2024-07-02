@@ -4,11 +4,12 @@
 
 #include "val/function.h"
 #include "val/environ.h"
+#include "val/text.h"
 
-#include "vm/interpreter.h"
+#include "vm/state.h"
 #include "vm/environ.h"
 
-#include "opcodes.h"
+#include "util/number.h"
 
 /* Internal APIs */
 static inline bool truthy(Val x) {
@@ -29,313 +30,435 @@ static inline int fetch32(short** ip) {
   return buf;
 }
 
-/* External APIs */
-// pseudo-regisers
-#define FUN    Vm.ex
-#define ERR    Vm.err
-#define IP     Vm.ip
-#define FSIZE  Vm.fs
-#define OPENS  Vm.upv
-#define ENV    FUN->envt
-#define VALS   FUN->vals->tail
-#define UPVALS ENV->upvals
-#define ARGS   Vm.bp
-#define TOS    Vm.stk.data[Vm.stk.cnt-1]
-#define CNS    ENV->ns->refs->data
+static inline UpVal** cl_upvs(RlProc* p) {
+  return p->cl->envt->upvals;
+}
 
-#define RESET()             reset_is(&Vm)
-#define FINISHED()          (Vm.ex == NULL)
-#define INIT(c)             init_is(&Vm, c)
-#define CHKARGC(f, x, g, v) is_chkargc(&Vm, EVAL_ERROR, f, x, g, v)
-#define CHKTYPE(f, x, g)    is_chktype(&Vm, EVAL_ERROR, f, x, type_of(g))
-#define CAPTURE(l)          is_capture(&Vm, l)
-#define CLOSE(l)            is_close(&Vm, l)
-#define POP(c)              is_pop(&Vm, c)
-#define POPN(n, c)          is_popn(&Vm, n, c)
-#define PUSH(x, c)          is_push(&Vm, x, c)
-#define DUP(c)              is_dup(&Vm, c)
-#define PUSHF(x, c)         is_pushf(&Vm, x, c)
-#define POPF(c)             is_popf(&Vm, c)
-#define PUSHC(f, h, c)      is_pushc(&Vm, f, h, c)
-#define PUSHH(f, h, c)      is_pushh(&Vm, f, h, c)
+static inline Val* cl_vals(RlProc* p) {
+  return p->cl->vals->tail;
+}
 
-#define FETCH()     (*IP++)
-#define FETCH32()   fetch32(&IP)
-#define DECODE()    goto *labels[op]
-#define JUMP(x)     (IP += (x))
-#define CONTINUE()  goto next
-#define ABORT()     goto end
-#define EXIT()      goto end
-#define MOVE(d, s)  ((d) = (s))
-#define BEGIN()     goto top
+static Ref* get_ns_ref(RlProc* p, int yoff, int xoff) {
+  Env* nv;
+  Ref* o = NULL;
 
-rl_err_t rl_exec(Closure* c, Val* b) {
+  if ( yoff == -1 ) {
+    nv = rlp_env(p)->ns;
+
+    if ( has_ref(nv, xoff) )
+      o = env_ref(nv, xoff);
+
+  } else {
+    nv = p->state->gns;
+
+    if ( has_ref(nv, yoff) ) {
+      o = env_ref(nv, yoff);
+
+      if ( is_ns_ref(o) ) {
+        nv = as_env(o->val);
+
+        if ( has_ref(nv, xoff) )
+          o = env_ref(nv, xoff);
+        else
+          o = NULL;
+      } else {
+        o = NULL;
+      }
+    }
+  }
+
+  return o;
+}
+
+static void save_frame(RlProc* p) {
+  if ( is_proto(p->fn) )
+    rlp_pushn(p, 3, tag(p->fn), tag(p->ip), tag(p->fs));
+
+  else
+    rlp_pushn(p, 3, tag(p->fn), tag(p->nv), tag(p->fs));
+}
+
+static void  install_primfn(RlProc* p, PrimFn* f, int t);
+static void  install_proto(RlProc* p, Proto* f, int t);
+static void  install_catch(RlProc* p, Proto* b, Proto* h);
+static void  restore_catch(RlProc* p, Proto** h);
+static void  apply_throw(RlProc* p, Proto* h, Sym* e, Str* m, Val b);
+static void  install_hndl(RlProc* p, Proto* b, Proto* h);
+static void  restore_hndl(RlProc* p, Proto** h);
+static void  apply_raise(RlProc* p, Proto* h, Cntl* k, Sym* o, Val a);
+
+static inline size_t fpush(RlProc* p, Val x) {
+  p->fs++;
+
+  return rlp_push(p, x);
+}
+
+static inline size_t fpop(RlProc* p) {
+  p->fs--;
+
+  return rlp_pop(p);
+}
+
+static inline size_t fdup(RlProc* p) {
+  p->fs++;
+
+  return rlp_dup(p);
+}
+
+/* Internal */
+Error rl_exec_at(RlProc* p, Val* r, Label e) {
   static void* labels[] = {
+    // miscellaneous
     [OP_NOOP]     = &&op_noop,
+    [OP_ENTER]    = &&op_enter,
 
+    // stack manipulation
     [OP_POP]      = &&op_pop,
     [OP_DUP]      = &&op_dup,
-    [OP_POPF]     = &&op_popf,
 
+    // constant loads
     [OP_LD_NUL]   = &&op_ld_nul,
     [OP_LD_TRUE]  = &&op_ld_true,
     [OP_LD_FALSE] = &&op_ld_false,
     [OP_LD_ZERO]  = &&op_ld_zero,
     [OP_LD_ONE]   = &&op_ld_one,
 
+    // register loads
     [OP_LD_FUN]   = &&op_ld_fun,
     [OP_LD_ENV]   = &&op_ld_env,
 
+    // inlined loads
     [OP_LD_S16]   = &&op_ld_s16,
     [OP_LD_S32]   = &&op_ld_s32,
     [OP_LD_G16]   = &&op_ld_g16,
     [OP_LD_G32]   = &&op_ld_g32,
 
+    // standard loads
     [OP_LD_VAL]   = &&op_ld_val,
-
     [OP_LD_STK]   = &&op_ld_stk,
     [OP_PUT_STK]  = &&op_put_stk,
-
     [OP_LD_UPV]   = &&op_ld_upv,
     [OP_PUT_UPV]  = &&op_put_upv,
-
     [OP_LD_CNS]   = &&op_ld_cns,
-    [OP_PUT_CNS]  = &&op_ld_cns,
+    [OP_PUT_CNS]  = &&op_put_cns,
+    [OP_LD_QNS]   = &&op_ld_qns,
+    [OP_PUT_QNS]  = &&op_put_qns,
 
-    [OP_JMP]      = &&op_jmp,
-    [OP_JMPT]     = &&op_jmpt,
-    [OP_JMPF]     = &&op_jmpf,
+    // nonlocal control constructs
+    [OP_HNDL]     = &&op_hndl,
+    [OP_RAISE]    = &&op_raise,
+    [OP_CATCH]    = &&op_catch,
+    [OP_THROW]    = &&op_throw,
 
-    [OP_CLOSURE]  = &&op_closure,
-    [OP_CAPTURE]  = &&op_capture,
-    
-    [OP_RETURN]   = &&op_return,
-
-    [FN_EXEC]     = &&fn_exec,
+    // 
   };
 
-  rl_err_t o;
-  OpCode op;
   int argx, argy, argz;
   Val tmpx, tmpy;
   UpVal* upv;
   Val* spc;
   Ref* ref;
-  Closure* h;
+  Func* f;
+  Proto* c, * b, * h;
+  Str* errm;
+  Sym* errk;
 
- top:
-  is_pushf(&Vm, c, true);
+  goto *labels[e];
 
  next:
-  if ( Vm.err )
-    goto end;
+  p->lb = *p->ip++;
+  goto *labels[p->lb];
 
-  op = *Vm.ip++;
-  goto *labels[op];
+ error:
+  if ( p->err < READ_ERR || p->cp == 0 ) { // not recoverable
+    rlp_prn_err(p);
+    *r = NOTHING;
+    goto exit;
+  } else {
+    rlp_recover(p, &errk, &errm, &tmpx);
+    argx = tmpx == NOTHING ? 2 : 3;
+    goto recover;
+  }
 
- end:
-  o = Vm.err;
+ recover:
+  // restore catch frame (discards everything between current TOS and current cp)
+  restore_catch(p, &h);
 
-  if ( o == OKAY )
-    *b = is_pop(&Vm, true);
+  // apply catch handler
+  apply_throw(p, h, errk, errm, tmpx);
 
-  reset_is(&Vm);
+  // jump to handler
+  goto next;
+  
+ exit:
+  if ( p->err == OKAY )
+    *r = fpop(p);
 
-  return o;
+  return p->err;
 
+ op_enter:
  op_noop:
   goto next;
 
  op_pop:
-  is_pop(&Vm, true);
+  if ( unlikely(rlp_chk_pop(p, RUN_ERR)) )
+    goto error;
+
+  fpop(p);
+
   goto next;
 
  op_dup:
-  is_dup(&Vm, true);
-  goto next;
+  if ( unlikely(rlp_chk_push(p, RUN_ERR)) )
+    goto error;
+  
+  fdup(p);
 
- op_popf:
-  tmpx = is_tos(&Vm, false);
-  is_popn(&Vm, Vm.fs, false);
-  is_push(&Vm, tmpx, false);
   goto next;
 
  op_ld_nul:
-  PUSH(NUL, true);
-  CONTINUE();
+  if ( unlikely(rlp_chk_push(p, RUN_ERR)) )
+    goto error;
+
+  fpush(p, NUL);
+
+  goto next;
 
  op_ld_true:
-  PUSH(TRUE, true);
-  CONTINUE();
+  if ( unlikely(rlp_chk_push(p, RUN_ERR)) )
+    goto error;
+
+  fpush(p, TRUE);
+
+  goto next;
 
  op_ld_false:
-  PUSH(FALSE, true);
-  CONTINUE();
+  if ( unlikely(rlp_chk_push(p, RUN_ERR)) )
+    goto error;
+
+  fpush(p, FALSE);
+
+  goto next;
 
  op_ld_zero:
-  PUSH(ZERO, true);
-  CONTINUE();
+  if ( unlikely(rlp_chk_push(p, RUN_ERR)) )
+    goto error;
+
+  fpush(p, ZERO);
+
+  goto next;
 
  op_ld_one:
-  PUSH(ONE, true);
-  CONTINUE();
+  if ( unlikely(rlp_chk_push(p, RUN_ERR)) )
+    goto error;
+
+  fpush(p, ONE);
+
+  goto next;
 
  op_ld_fun:
-  MOVE(tmpx, tag(FUN));
-  PUSH(tmpx, true);
-  CONTINUE();
+  if ( unlikely(rlp_chk_push(p, RUN_ERR)) )
+    goto error;
+
+  fpush(p, tag(p->fn));
+
+  goto next;
 
  op_ld_env:
-  MOVE(tmpx, tag(ENV));
-  PUSH(tmpx, true);
-  CONTINUE();
+  if ( unlikely(rlp_chk_push(p, RUN_ERR)) )
+    goto error;
+
+  fpush(p, tag(rlp_env(p)));
+
+  goto next;
 
  op_ld_s16:
-  MOVE(argx, FETCH());
-  MOVE(tmpx, tag_small(argx));
-  PUSH(tmpx, true);
-  CONTINUE();
+  if ( unlikely(rlp_chk_push(p, RUN_ERR)) )
+    goto error;
+  
+  argx = *p->ip++;
+
+  fpush(p, tag(argx));
+
+  goto next;
 
  op_ld_s32:
-  MOVE(argx, FETCH32());
-  MOVE(tmpx, tag_small(argx));
-  PUSH(tmpx, true);
-  CONTINUE();
+  if ( unlikely(rlp_chk_push(p, RUN_ERR)) )
+    goto error;
+
+  argx = fetch32(&p->ip);
+
+  fpush(p, tag(argx));
+
+  goto next;
 
  op_ld_g16:
-  MOVE(argx, FETCH());
-  MOVE(tmpx, tag_glyph(argx));
-  PUSH(tmpx, true);
-  CONTINUE();
+  if ( unlikely(rlp_chk_push(p, RUN_ERR)) )
+    goto error;
+
+  argx = *p->ip++;
+
+  fpush(p, tag_glyph(argx));
+
+  goto next;
 
  op_ld_g32:
-  MOVE(argx, FETCH32());
-  MOVE(tmpx, tag_glyph(argx));
-  PUSH(tmpx, true);
-  CONTINUE();
-  
+  if ( unlikely(rlp_chk_push(p, RUN_ERR)) )
+    goto error;
+
+  argx = fetch32(&p->ip);
+
+  fpush(p, tag_glyph(argx));
+
+  goto next;
+
  op_ld_val:
-  MOVE(argx, FETCH());
-  MOVE(tmpx, VALS[argx]);
-  PUSH(tmpx, true);
-  CONTINUE();
+  if ( unlikely(rlp_chk_push(p, RUN_ERR)) )
+    goto error;
+
+  argx = *p->ip++;
+  tmpx = p->cl->vals->tail[argx];
+
+  rlp_push(p, tmpx);
+
+  goto next;
 
  op_ld_stk:
-  MOVE(argx, FETCH());
-  MOVE(tmpx, ARGS[argx]);
-  PUSH(tmpx, true);
-  CONTINUE();
+  if ( unlikely(rlp_chk_push(p, RUN_ERR)) )
+    goto error;
+
+  argx = *p->ip++;
+  tmpx = rlp_peek(p, p->bp+argx);
+
+  rlp_push(p, tmpx);
+
+  goto next;
 
  op_put_stk:
-  MOVE(argx, FETCH());
-  MOVE(ARGS[argx], TOS);
-  CONTINUE();
+  argx = *p->ip++;
+  tmpx = rlp_pop(p);
+
+  rlp_poke(p, p->bp+argx, tmpx);
+
+  goto next;
 
  op_ld_upv:
-  MOVE(argx, FETCH());
-  MOVE(upv, UPVALS[argx]);
-  MOVE(spc, dr_upv(upv));
-  MOVE(tmpx, *spc);
-  PUSH(tmpx, true);
-  CONTINUE();
+  if ( unlikely(rlp_chk_push(p, RUN_ERR)) )
+    goto error;
+  
+  argx = *p->ip++;
+  upv  = cl_upvs(p)[argx];
+  spc  = dr_upv(upv);
+  tmpx = *spc;
+
+  rlp_push(p, tmpx);
+
+  goto next;
 
  op_put_upv:
-  MOVE(argx, FETCH());
-  MOVE(upv, UPVALS[argx]);
-  MOVE(spc, dr_upv(upv));
-  MOVE(*spc, TOS);
-  CONTINUE();
+  argx = *p->ip++;
+  tmpx = fpop(p);
+  upv  = cl_upvs(p)[argx];
+  spc  = dr_upv(upv);
+  *spc = tmpx;
+
+  goto next;
 
  op_ld_cns:
-  MOVE(argx, FETCH());
-  MOVE(ref,  CNS[argx]);
-  MOVE(tmpx, ref->val);
-  PUSH(tmpx, true);
-  CONTINUE();
+  argy = -1;
+  argx = *p->ip++;
 
- op_jmp:
-  MOVE(argx, FETCH());
-  JUMP(argx);
-  CONTINUE();
+  goto do_get_ns_ref;
 
- op_jmpt:
-  MOVE(argx, FETCH());
-  MOVE(tmpx, POP(true));
+ op_put_cns:
+  argy = -1;
+  argx = *p->ip++;
 
-  if ( truthy(tmpx) )
-    JUMP(argx);
+  goto do_put_ns_ref;
 
-  CONTINUE();
+ op_ld_qns:
+  argy = *p->ip++;
+  argx = *p->ip++;
 
- op_jmpf:
-  MOVE(argx, FETCH());
-  MOVE(tmpx, POP(true));
+  goto do_get_ns_ref;
 
-  if ( falsey(tmpx) )
-    JUMP(argx);
+ op_put_qns:
+  argy = *p->ip++;
+  argx = *p->ip++;
 
-  CONTINUE();
+  goto do_put_ns_ref;
 
- op_closure:
-  // create a copy of the template 
-  MOVE(argx, FETCH());
-  MOVE(tmpx, POP(true));
-  MOVE(c, as_cls(tmpx));
-  MOVE(c, clone_obj(c));
+ do_get_ns_ref:
+  if ( unlikely(rlp_chk_push(p, RUN_ERR)) )
+    goto error;
 
-  for ( int i=0; i<argx; i++ ) {
-    argy = FETCH(); // local?
-    argz = FETCH(); // index
+  ref = get_ns_ref(p, argy, argx);
 
-    if ( argy )
-      upv = CAPTURE(&ARGS[argz]);
+  if ( rlp_chk_def(p, EVAL_ERR, ref) ) // check that reference is defined
+    goto error;
 
-    else
-      upv = UPVALS[argz];
+  tmpx = ref->val;
 
-    set_upv(c, upv, i);
+  fpush(p, tmpx);
+
+  goto next;
+
+ do_put_ns_ref:
+  ref = get_ns_ref(p, argy, argx);
+
+  if ( rlp_chk_def(p, EVAL_ERR, ref) ) // check that reference is defined
+    goto error;
+
+  if ( rlp_chk_refv(p, EVAL_ERR, ref) ) // check that reference can be assigned
+    goto error;
+
+  if ( rlp_chk_reft(p, EVAL_ERR, ref, tmpx) )
+    goto error;
+
+  ref->val = tmpx;
+
+  if ( ref->final ) { // infer type
+    ref->tag = type_of(tmpx);
+    set_meta(ref, ":tag", tag(ref->tag));
   }
 
-  MOVE(tmpx, tag(c));
-  PUSH(tmpx, true);
-  CONTINUE();
+  goto next;
 
- op_capture:
-  close_upvs(&OPENS, ARGS);
-  CONTINUE();
+ op_hndl:
+  tmpx = fpop(p); // handler
+  tmpy = fpop(p); // body
 
- op_catch:
-  MOVE(tmpy, POP(false)); // catch body
-  MOVE(tmpx, POP(false)); // catch handler
-  MOVE(c, as_cls(tmpx));
-  MOVE(h, as_cls(tmpy));
-  PUSHC(c, h, true);
-  CONTINUE();
+  if ( rlp_chk_type(p, EVAL_ERR, &ProtoType, tmpx, &h) )
+    goto error;
 
- op_handle:
-  MOVE(tmpy, POP(false)); // hndl body
-  MOVE(tmpx, POP(false)); // hndl handler
-  MOVE(c, as_cls(tmpx));
-  MOVE(h, as_cls(tmpy));
-  PUSHH(c, h, true);
+  if ( rlp_chk_type(p, EVAL_ERR, &ProtoType, tmpy, &c) )
+    goto error;
 
- op_return:
-  /* Appropriate stack manipulations handled by OP_POPF instruction, this just restores the caller. */
-  POPF(true);
+  if ( unlikely(rlp_chk_grows(p, RUN_ERR, 5)) )
+    goto error;
 
-  if ( FINISHED() )
-    EXIT();
+  install_hndl(p, c, h);
 
-  FSIZE++; // account for return value
-  MOVE(ARGS, );
-  CONTINUE();
+  goto next;
 
-  // primitive functions (separate from native functions mostly to re-use C stack)
- fn_exec:
-  MOVE(tmpx, POP(true));
-  CHKTYPE("exec", &ClosureType, tmpx);
-  MOVE(c, as_cls(tmpx));
-  BEGIN();
-
+ op_raise:
   
+ op_catch:
+  
+ op_throw:
+  
+}
+
+/* External APIs */
+Error rl_exec(RlProc* p, Proto* c, Val* r) {
+  reset_rlp(p);
+  install_proto(p, c, -1);
+  Error o;
+
+  if ( (o=rl_exec_at(p, r, OP_ENTER)) )
+    *r = NOTHING;
+
+  reset_rlp(p);
+
+  return o;
 }

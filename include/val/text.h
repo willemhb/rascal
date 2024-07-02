@@ -110,6 +110,17 @@ struct RT {
 extern Type PortType, GlyphType, StrType, BinType, MStrType, MBinType, RTType;
 
 /* APIs */
+#define is_port(x) has_type(x, &PortType)
+#define as_port(x) ((Port*)as_obj(x))
+
+#define rl_prf(p, f, ...)                               \
+  generic((f),                                          \
+          char*:rl_cprf,                                \
+          Str*:rl_sprf)(p, f __VA_OPT__(,) __VA_ARGS__)
+
+int rl_cprf(Port* p, char* f, ...);
+int rl_sprf(Port* p, Str* f, ...);
+
 /* Str API */
 #define is_str(x) has_type(x, &StrType)
 #define as_str(x) ((Str*)as_obj(x))

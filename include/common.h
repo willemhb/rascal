@@ -34,19 +34,19 @@ typedef enum {
 
   /* error codes */
   /* error codes that may or may not imply a user mistake */
-  SYSTEM_ERROR,     // error originating from OS, eg file not found. Usually fatal
-  RUNTIME_ERROR,    // error originating from runtime, eg stack overflow
+  SYS_ERR,     // error originating from OS, eg file not found. Usually fatal
+  RUN_ERR,    // error originating from runtime, eg stack overflow
 
   /* error codes that always imply a user mistake */
-  READ_ERROR,       // error originating from reader, eg unclosed '('
-  COMPILE_ERROR,    // error originating from compiler, eg 
-  SYNTAX_ERROR,     // error originating from compiler specifically to do with
-  METHOD_ERROR,     // error originating from missing method signature
-  EVAL_ERROR,       // error originating from interpreter, eg a failed type check
-  USER_ERROR,       // error raised by the user
+  READ_ERR,       // error originating from reader, eg unclosed '('
+  COMP_ERR,       // error originating from compiler, eg 
+  STX_ERR,         // error originating from compiler specifically to do with
+  GENFN_ERR,      // error originating from missing method signature
+  EVAL_ERR,       // error originating from interpreter, eg a failed type check
+  USER_ERR,       // error raised by the user
 } Error;
 
-#define NUM_ERRORS (USER_ERROR+1)
+#define NUM_ERRORS (USER_ERR+1)
 
 /* Important limits. */
 #define MAX_ARITY    0x0000ffffffffffffUL // also maximum hash value

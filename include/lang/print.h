@@ -4,7 +4,6 @@
 #include "val/object.h"
 
 /* Toplevel print dispatch. */
-rl_err_t rl_print(Port* ios, Val val);
-
+Error rl_prval(Port* ios, Val val);
 
 #endif

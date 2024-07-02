@@ -80,6 +80,7 @@ struct Ref {
   word_t mm       : 1; // can have methods added
   word_t macro    : 1; // macro name
   word_t private  : 1; // whether this binding can be exported
+  word_t dummy    : 1; // uninitialized forward reference
 
   // data fields
   Ref*  captures; // the binding captured by this binding (if any)
@@ -99,10 +100,11 @@ struct UpVal {
 
   // data fields
   UpVal* n_u;
+  RlProc* p;
 
   union {
-    Val* l;
-    Val  v;
+    size_t l;
+    Val    v;
   };
 };
 
@@ -163,10 +165,12 @@ Sym* sym_qualify(Sym* s, Sym* ns);
 
 size_t lref_cnt(Env* p);
 size_t uref_cnt(Env* p);
+Ref*   env_ref(Env* e, size_t o);
 Env*   mk_env(Scope s, Env* p, Sym* n, int i, bool b);
 Env*   bind_env(Env* t);
 bool   env_get(Env* e, Sym* n, int c, Ref** r);
 bool   env_put(Env* e, Sym* n, Ref** r);
+bool   has_ref(Env* e, int o);
 
 /* Ref APIs */
 #define is_ref(x)   has_type(x, &RefType)
@@ -174,6 +178,7 @@ bool   env_put(Env* e, Sym* n, Ref** r);
 
 Ref* mk_ref(Scope s, Env* e, Ref* c, Sym* n);
 bool is_lupv(Ref* r);
+bool is_ns_ref(Ref* r);
 
 /* UpVal APIs */
 #define is_upval(x) has_type(x, &UpValType)

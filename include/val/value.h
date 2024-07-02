@@ -50,77 +50,6 @@ static inline Val untag(Val x) {
   return (x & LITTLE) == LITTLE ? x & WDATA_BITS : x & DATA_BITS;
 }
 
-// big ass tag macro
-#define tag(x)                                  \
-  generic((x),                                  \
-          Obj*:tag_obj,                         \
-          Nul:tag_nul,                          \
-          Bool:tag_bool,                        \
-          Ptr:tag_ptr,                          \
-          short*:tag_ptr,                       \
-          ushort*:tag_ptr,                      \
-          FunPtr:tag_fptr,                      \
-          Type*:tag_obj,                        \
-          Func*:tag_obj,                        \
-          Closure*:tag_obj,                     \
-          Native*:tag_obj,                      \
-          Primitive*:tag_obj,                   \
-          Generic*:tag_obj,                     \
-          MTNode*:tag_obj,                      \
-          Cntl*:tag_obj,                        \
-          Sym*:tag_obj,                         \
-          Env*:tag_obj,                         \
-          Ref*:tag_obj,                         \
-          UpVal*:tag_obj,                       \
-          Glyph:tag_glyph,                      \
-          Port*:tag_obj,                        \
-          Str*:tag_obj,                         \
-          Bin*:tag_obj,                         \
-          MStr*:tag_obj,                        \
-          MBin*:tag_obj,                        \
-          RT*:tag_obj,                          \
-          Arity:tag_arity,                      \
-          Label:tag_small,                      \
-          Error:tag_small,                      \
-          Small:tag_small,                      \
-          Real:tag_real,                        \
-          Big*:tag_obj,                         \
-          Ratio*:tag_obj,                       \
-          Pair*:tag_obj,                        \
-          List*:tag_obj,                        \
-          MPair*:tag_obj,                       \
-          MList*:tag_obj,                       \
-          Vec*:tag_obj,                         \
-          VNode*:tag_obj,                       \
-          MVec*:tag_obj,                        \
-          Alist*:tag_obj,                       \
-          Map*:tag_obj,                         \
-          MNode*:tag_obj,                       \
-          MMap*:tag_obj,                        \
-          SCache*:tag_obj,                      \
-          EMap*:tag_obj                         \
-          )(x)
-
-#define untag(s, x)                                 \
-  ((typeof(s))generic((s),                          \
-                      Obj*:as_obj,                  \
-                      Nul:as_nul,                   \
-                      Bool:as_bool,                 \
-                      Ptr:as_ptr,                   \
-                      short*:as_ptr,                \
-                      ushort*:as_ptr,               \
-                      FunPtr:as_fptr,               \
-                      Type*:as_obj,                 \
-                      Func*:as_obj,                 \
-                      Closure*:as_obj,              \
-                      Native*:as_obj,               \
-                      Primitive*:as_obj,            \
-                      Generic*:as_obj,              \
-                      MTNode*:as_obj,               \
-                      Cntl*:as_obj,                 \
-                      Sym*:as_obj,                  \
-                      Env*:as_obj)(x))
-
 #define as_obj(x)                               \
   generic((x),                                  \
           Val:val_as_obj,                       \
@@ -140,6 +69,55 @@ static inline Val untag(Val x) {
   generic((x),                                  \
           Val:val_has_type,                     \
           default:obj_has_type)(x, t)
+
+// big ass tag macro
+#define tag(x)                                  \
+  generic((x),                                  \
+          Obj*:tag_obj,                         \
+          Nul:tag_nul,                          \
+          Bool:tag_bool,                        \
+          Ptr:tag_ptr,                          \
+          short*:tag_ptr,                       \
+          ushort*:tag_ptr,                      \
+          FunPtr:tag_fptr,                      \
+          Type*:tag_obj,                        \
+          Func*:tag_obj,                        \
+          Proto*:tag_obj,                       \
+          Native*:tag_obj,                      \
+          PrimFn*:tag_obj,                      \
+          GenFn*:tag_obj,                       \
+          MT*:tag_obj,                          \
+          Cntl*:tag_obj,                        \
+          Sym*:tag_obj,                         \
+          Env*:tag_obj,                         \
+          Ref*:tag_obj,                         \
+          UpVal*:tag_obj,                       \
+          Glyph:tag_glyph,                      \
+          Port*:tag_obj,                        \
+          Str*:tag_obj,                         \
+          Bin*:tag_obj,                         \
+          MStr*:tag_obj,                        \
+          MBin*:tag_obj,                        \
+          RT*:tag_obj,                          \
+          Arity:tag_arity,                      \
+          Label:tag_small,                      \
+          Error:tag_small,                      \
+          Small:tag_small,                      \
+          Real:tag_real,                        \
+          Pair*:tag_obj,                        \
+          List*:tag_obj,                        \
+          MPair*:tag_obj,                       \
+          MList*:tag_obj,                       \
+          Vec*:tag_obj,                         \
+          VNode*:tag_obj,                       \
+          MVec*:tag_obj,                        \
+          Alist*:tag_obj,                       \
+          Map*:tag_obj,                         \
+          MNode*:tag_obj,                       \
+          MMap*:tag_obj,                        \
+          SCache*:tag_obj,                      \
+          EMap*:tag_obj,                        \
+          NSMap*:tag_obj)(x)
 
 // tagging methods
 Val tag_nul(Nul n);
