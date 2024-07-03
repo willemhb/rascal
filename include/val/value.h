@@ -101,7 +101,6 @@ static inline Val untag(Val x) {
           RT*:tag_obj,                          \
           Arity:tag_arity,                      \
           Label:tag_small,                      \
-          Error:tag_small,                      \
           Small:tag_small,                      \
           Real:tag_real,                        \
           Pair*:tag_obj,                        \

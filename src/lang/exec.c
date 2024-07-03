@@ -1,6 +1,7 @@
 #include <string.h>
 
 #include "lang/exec.h"
+#include "lang/compare.h"
 
 #include "val/array.h"
 #include "val/function.h"
@@ -164,7 +165,7 @@ static void install_primfn(Proc* p, PrimFn* f, int t) {
   }
 }
 
-static void  install_proto(Proc* p, Proto* f, int t) {
+static void install_proto(Proc* p, Proto* f, int t) {
   // NB: arguments to call already on stack and validated
 
   if ( t == -1 ) { // not a tail call
@@ -275,126 +276,148 @@ static void  apply_throw(Proc* p, Proto* h, Sym* e, Str* m, Val b);
 
 /* Internal */
 Error rl_exec_at(Proc* p, Val* r, Label e) {
+
   // local macros
-#define chk_pop(p)           unlikely(pr_chk_pop(p, RUN_ERR))
-#define chk_push(p)          unlikely(pr_chk_push(p, RUN_ERR))
-#define chk_pushn(p, n)      unlikely(pr_chk_pushn(p, EVAL_ERR, n))
-#define chk_stkn(p, n)       unlikely(pr_chk_stkn(p, RUN_ERR, n))
-#define chk_def(p, r)        unlikely(pr_chk_def(p, EVAL_ERR, r))
-#define chk_refv(p, r)       unlikely(pr_chk_refv(p, EVAL_ERR, r))
-#define chk_reft(p, r, g)    unlikely(pr_chk_reft(p, EVAL_ERR, r, g))
-#define chk_type(p, x, g, s) unlikely(pr_chk_type(p, EVAL_ERR, x, g, s))
+#define next(p)              *labels[p->nx]
+#define chk_pop(p)           unlikely(pr_chk_pop(p, E_RUN))
+#define chk_push(p)          unlikely(pr_chk_push(p, E_RUN))
+#define chk_pushn(p, n)      unlikely(pr_chk_pushn(p, E_EVAL, n))
+#define chk_stkn(p, n)       unlikely(pr_chk_stkn(p, E_RUN, n))
+#define chk_def(p, r)        unlikely(pr_chk_def(p, E_EVAL, r))
+#define chk_refv(p, r)       unlikely(pr_chk_refv(p, E_EVAL, r))
+#define chk_reft(p, r, g)    unlikely(pr_chk_reft(p, E_EVAL, r, g))
+#define chk_type(p, x, g, s) unlikely(pr_chk_type(p, E_EVAL, x, g, s))
 
 #define fetch(p)             *p->ip++
 
-  
   static void* labels[] = {
+    /* error labels */
+    /* opcode labels */
     // miscellaneous
-    [OP_NOOP]     = &&op_noop,
-    [OP_ENTER]    = &&op_enter,
+    [O_NOOP]     = &&o_noop,
 
     // stack manipulation
-    [OP_POP]      = &&op_pop,
-    [OP_DUP]      = &&op_dup,
+    [O_POP]      = &&o_pop,
+    [O_DUP]      = &&o_dup,
 
     // constant loads
-    [OP_LD_NUL]   = &&op_ld_nul,
-    [OP_LD_TRUE]  = &&op_ld_true,
-    [OP_LD_FALSE] = &&op_ld_false,
-    [OP_LD_ZERO]  = &&op_ld_zero,
-    [OP_LD_ONE]   = &&op_ld_one,
+    [O_LD_NUL]   = &&o_ld_nul,
+    [O_LD_TRUE]  = &&o_ld_true,
+    [O_LD_FALSE] = &&o_ld_false,
+    [O_LD_ZERO]  = &&o_ld_zero,
+    [O_LD_ONE]   = &&o_ld_one,
 
     // register loads
-    [OP_LD_FUN]   = &&op_ld_fun,
-    [OP_LD_ENV]   = &&op_ld_env,
+    [O_LD_FUN]   = &&o_ld_fun,
+    [O_LD_ENV]   = &&o_ld_env,
 
     // inlined loads
-    [OP_LD_S16]   = &&op_ld_s16,
-    [OP_LD_S32]   = &&op_ld_s32,
-    [OP_LD_G16]   = &&op_ld_g16,
-    [OP_LD_G32]   = &&op_ld_g32,
+    [O_LD_S16]   = &&o_ld_s16,
+    [O_LD_S32]   = &&o_ld_s32,
+    [O_LD_G16]   = &&o_ld_g16,
+    [O_LD_G32]   = &&o_ld_g32,
 
     // standard loads
-    [OP_LD_VAL]   = &&op_ld_val,
-    [OP_LD_STK]   = &&op_ld_stk,
-    [OP_PUT_STK]  = &&op_put_stk,
-    [OP_LD_UPV]   = &&op_ld_upv,
-    [OP_PUT_UPV]  = &&op_put_upv,
-    [OP_LD_CNS]   = &&op_ld_cns,
-    [OP_PUT_CNS]  = &&op_put_cns,
-    [OP_LD_QNS]   = &&op_ld_qns,
-    [OP_PUT_QNS]  = &&op_put_qns,
+    [O_LD_VAL]   = &&o_ld_val,
+    [O_LD_STK]   = &&o_ld_stk,
+    [O_PUT_STK]  = &&o_put_stk,
+    [O_LD_UPV]   = &&o_ld_upv,
+    [O_PUT_UPV]  = &&o_put_upv,
+    [O_LD_CNS]   = &&o_ld_cns,
+    [O_PUT_CNS]  = &&o_put_cns,
+    [O_LD_QNS]   = &&o_ld_qns,
+    [O_PUT_QNS]  = &&o_put_qns,
 
     // nonlocal control constructs
-    [OP_HNDL]     = &&op_hndl,
-    [OP_RAISE]    = &&op_raise,
-    [OP_CATCH]    = &&op_catch,
-    [OP_THROW]    = &&op_throw,
+    [O_HNDL]     = &&o_hndl,
+    [O_RAISE1]   = &&o_raise1,
+    [O_RAISE2]   = &&o_raise2,
+    [O_RAISE3]   = &&o_raise3,
+    [O_CATCH]    = &&o_catch,
+    [O_THROW1]   = &&o_throw1,
+    [O_THROW2]   = &&o_throw2,
+    [O_THROW3]   = &&o_throw3,
 
     // branch instructions
-    [OP_JMP]      = &&op_jmp,
-    [OP_JMPT]     = &&op_jmpt,
-    [OP_JMPF]     = &&op_jmpf,
+    [O_JMP]      = &&o_jmp,
+    [O_JMPT]     = &&o_jmpt,
+    [O_JMPF]     = &&o_jmpf,
 
     // closure/upvalue instructions
-    [OP_CLOSURE]  = &&op_closure,
-    [OP_CAPTURE]  = &&op_capture,
+    [O_CLOSURE]  = &&o_closure,
+    [O_CAPTURE]  = &&o_capture,
 
     // exit/return/cleanup instructions
-    [OP_RETURN]   = &&op_return,
-    [OP_EXIT]     = &&op_exit,
+    [O_RETURN]   = &&o_return,
+    [O_EXIT]     = &&o_exit,
+
+    /* primfn labels */
+    [F_TYPEOF]   = &&f_typeof,
+    [F_HASH]     = &&f_hash,
+    [F_SAME]     = &&f_same,
+
+    /* read labels */
+
+    /* compile labels */
+
+    /* general labels */
+    [L_NEXT]     = &&l_next,
   };
 
-  int argx, argy, argz;
-  Val tmpx, tmpy;
-  UpVal* upv;
-  Val* spc;
-  Ref* ref;
-  Func* f;
-  Cntl* k;
-  Proto* c, * b, * h;
-  Str* msg;
-  Sym* op;
-  Label lb;
+  int tf;                // tail call flag
+  int ax, ay, az;        // temporary registers for bytecode arguments
+  Val vx, vy, vz;        // general temporary registers
+  UpVal* ux;
+  Val* vxs;
+  Ref* rx;
+  Func* fx;
+  Cntl* kx;             
+  Proto* cx, * bx, * hx; // closure, body, handler
+  Env* ex;
+  Type* tx;
+  Str* mx;
+  Sym* ox;
+  Label o,n = e;
+  void* next = labels[n];
 
-  goto *labels[e];
+  goto *next;
 
- next:
-  lb = fetch(p);
-  goto *labels[lb];
+ l_next:
+  o    = fetch(p);
+  goto *labels[o];
 
  error:
   // not recoverable
-  if ( p->err < READ_ERR || !restore_catch(p, &h) ) {
+  if ( p->err < E_READ || !restore_catch(p, &hx) ) {
     pr_prn_err(p);           // print current error
     *r = NOTHING;            // set return
-    goto end;               // escape
+    goto end;                // escape
 
   } else {
-    pr_recover(p, &op, &msg, &tmpx);     // clear error
-    apply_throw(p, h, op, msg, tmpx);    // apply handler
-    goto next;                           // jump to handler
+    pr_recover(p, &ox, &mx, &vx);   // clear error
+    apply_throw(p, hx, ox, mx, vx); // apply handler
+    goto next(p);
   }
 
  end:
-  if ( p->err == OKAY )
+  if ( p->err == E_OKAY )
     *r = pr_pop(p);
 
   return p->err;
 
- op_enter:
- op_noop:
-  goto next;
+  /* opcode labels */
+ o_noop:
+  goto *labels[n];
 
- op_pop:
+ o_pop:
   if ( chk_pop(p) )
     goto error;
 
   pr_fpop(p);
 
-  goto next;
+  goto *labels[n];
 
- op_dup:
+ o_dup:
   if ( chk_stkn(p, 1) )
     goto error;
 
@@ -403,176 +426,176 @@ Error rl_exec_at(Proc* p, Val* r, Label e) {
   
   pr_dup(p);
 
-  goto next;
+  goto 
 
- op_ld_nul:
+ o_ld_nul:
   if ( chk_push(p) )
     goto error;
 
   pr_fpush(p, NUL);
 
-  goto next;
+  goto next(p);
 
- op_ld_true:
+ o_ld_true:
   if ( chk_push(p) )
     goto error;
 
   pr_fpush(p, TRUE);
 
-  goto next;
+  goto *labels[n];
 
- op_ld_false:
+ o_ld_false:
   if ( chk_push(p) )
     goto error;
 
   pr_fpush(p, FALSE);
 
-  goto next;
+  goto *labels[n];
 
- op_ld_zero:
+ o_ld_zero:
   if ( chk_push(p) )
     goto error;
 
   pr_fpush(p, ZERO);
 
-  goto next;
+  goto *labels[n];
 
- op_ld_one:
+ o_ld_one:
   if ( chk_push(p) )
     goto error;
 
   pr_fpush(p, ONE);
 
-  goto next;
+  goto *labels[n];
 
- op_ld_fun:
+ o_ld_fun:
   if ( chk_push(p) )
     goto error;
 
   pr_fpush(p, tag(p->fn));
 
-  goto next;
+  goto *labels[n];
 
- op_ld_env:
+ o_ld_env:
   if ( chk_push(p) )
     goto error;
 
   pr_fpush(p, tag(pr_env(p)));
 
-  goto next;
+  goto *labels[n];
 
- op_ld_s16:
+ o_ld_s16:
   if ( chk_push(p) )
     goto error;
   
-  argx = fetch(p);
+  ax = fetch(p);
 
-  pr_fpush(p, tag(argx));
+  pr_fpush(p, tag(ax));
 
-  goto next;
+  goto *labels[n];
 
- op_ld_s32:
+ o_ld_s32:
   if ( chk_push(p) )
     goto error;
 
-  argx = fetch32(p);
+  ax = fetch32(p);
 
-  pr_fpush(p, tag(argx));
+  pr_fpush(p, tag(ax));
 
-  goto next;
+  goto *labels[n];
 
- op_ld_g16:
+ o_ld_g16:
   if ( chk_push(p) )
     goto error;
 
-  argx = fetch(p);
+  ax = fetch(p);
 
-  pr_fpush(p, tag_glyph(argx));
+  pr_fpush(p, tag_glyph(ax));
 
-  goto next;
+  goto *labels[n];
 
- op_ld_g32:
+ o_ld_g32:
   if ( chk_push(p) )
     goto error;
 
-  argx = fetch32(p);
+  ax = fetch32(p);
 
-  pr_fpush(p, tag_glyph(argx));
+  pr_fpush(p, tag_glyph(ax));
 
-  goto next;
+  goto *labels[n];
 
- op_ld_val:
+ o_ld_val:
   if ( chk_push(p) )
     goto error;
 
-  argx = fetch(p);
-  tmpx = pr_vals(p)[argx];
+  ax = fetch(p);
+  vx = pr_vals(p)[ax];
 
-  pr_fpush(p, tmpx);
+  pr_fpush(p, vx);
 
-  goto next;
+  goto *labels[n];
 
- op_ld_stk:
+ o_ld_stk:
   if ( chk_push(p) )
     goto error;
 
-  argx = fetch(p);
-  tmpx = p->bp[argx];
+  ax = fetch(p);
+  vx = p->bp[ax];
 
-  pr_fpush(p, tmpx);
+  pr_fpush(p, vx);
 
-  goto next;
+  goto *labels[n];
 
- op_put_stk:
-  argx        = fetch(p);
-  tmpx        = pr_fpop(p);
-  p->bp[argx] = tmpx;
+ o_put_stk:
+  ax        = fetch(p);
+  vx        = pr_fpop(p);
+  p->bp[ax] = vx;
 
-  goto next;
+  goto *labels[n];
 
- op_ld_upv:
+ o_ld_upv:
   if ( chk_push(p) )
     goto error;
-  
-  argx = fetch(p);
-  upv  = pr_upvs(p)[argx];
-  spc  = dr_upv(upv);
-  tmpx = *spc;
 
-  pr_fpush(p, tmpx);
+  ax  = fetch(p);
+  ux  = pr_upvs(p)[ax];
+  vxs = dr_upv(ux);
+  vx  = *vxs;
 
-  goto next;
+  pr_fpush(p, vx);
 
- op_put_upv:
-  argx = fetch(p);
-  tmpx = pr_fpop(p);
-  upv  = pr_upvs(p)[argx];
-  spc  = dr_upv(upv);
-  *spc = tmpx;
+  goto *labels[n];
 
-  goto next;
+ o_put_upv:
+  ax   = fetch(p);
+  vx   = pr_fpop(p);
+  ux   = pr_upvs(p)[ax];
+  vxs  = dr_upv(ux);
+  *vxs = vx;
 
- op_ld_cns:
-  argy = -1;
-  argx = fetch(p);
+  goto *labels[n];
+
+ o_ld_cns:
+  ay = -1;
+  ax = fetch(p);
 
   goto do_get_ns_ref;
 
- op_put_cns:
-  argy = -1;
-  argx = fetch(p);
+ o_put_cns:
+  ay = -1;
+  ax = fetch(p);
 
   goto do_put_ns_ref;
 
- op_ld_qns:
-  argy = fetch(p);
-  argx = fetch(p);
+ o_ld_qns:
+  ay = fetch(p);
+  ax = fetch(p);
 
   goto do_get_ns_ref;
 
- op_put_qns:
-  argy = fetch(p);
-  argx = fetch(p);
+ o_put_qns:
+  ay = fetch(p);
+  ax = fetch(p);
 
   goto do_put_ns_ref;
 
@@ -580,119 +603,202 @@ Error rl_exec_at(Proc* p, Val* r, Label e) {
   if ( chk_push(p) )
     goto error;
 
-  ref = get_ns_ref(p, argy, argx);
+  rx = get_ns_ref(p, ay, ax);
 
-  if ( chk_def(p, ref) ) // check that reference is defined
+  if ( chk_def(p, rx) ) // check that reference is defined
     goto error;
 
-  tmpx = ref->val;
+  vx = rx->val;
 
-  pr_fpush(p, tmpx);
+  pr_fpush(p, vx);
 
-  goto next;
+  goto *labels[n];
 
  do_put_ns_ref:
-  ref = get_ns_ref(p, argy, argx);
+  rx = get_ns_ref(p, ay, ax);
 
-  if ( chk_def(p, ref) ) // check that reference is defined
+  if ( chk_def(p, rx) ) // check that reference is defined
     goto error;
 
-  if ( chk_refv(p, ref) ) // check that reference can be assigned
+  if ( chk_refv(p, rx) ) // check that reference can be assigned
     goto error;
 
-  if ( chk_reft(p, ref, tmpx) ) // check that assignment has correct type
+  if ( chk_reft(p, rx, vx) ) // check that assignment has correct type
     goto error;
 
-  ref->val = tmpx;
+  rx->val = vx;
 
-  if ( ref->final ) { // infer type
-    ref->tag = type_of(tmpx);
-    set_meta(ref, ":tag", tag(ref->tag));
+  if ( rx->final ) { // infer type
+    rx->tag = type_of(vx);
+    set_meta(rx, ":tag", tag(rx->tag));
   }
 
-  goto next;
+  goto *labels[n];
 
- op_hndl:
-  tmpx = pr_fpop(p); // handler
-  tmpy = pr_fpop(p); // body
+ o_hndl:
+  vx = pr_fpop(p); // handler
+  vy = pr_fpop(p); // body
 
-  if ( chk_type(p, &ProtoType, tmpx, &h) )
+  if ( chk_type(p, &ProtoType, vx, &hx) )
     goto error;
 
-  if ( chk_type(p, &ProtoType, tmpy, &c) )
+  if ( chk_type(p, &ProtoType, vy, &bx) )
     goto error;
 
-  if ( chk_pushn(p, fn_fsize(c)+2) )
+  if ( chk_pushn(p, fn_fsize(bx)+2) )
     goto error;
 
-  install_hndl(p, c, h);
+  install_hndl(p, bx, hx);
 
-  goto next;
+  goto *labels[n];
 
- op_raise:
-  tmpx = pr_fpop(p); // arguments
-  tmpy = pr_fpop(p); // 
-    
- op_catch:
+ o_raise1:
+  vx = NOTHING;    // operation continuation (ignored)
+  vy = pr_fpop(p); // operation label (must be Sym)
+  vz = NOTHING;    // operation argument (ignored)
+
+  goto do_raise;
+
+ o_raise2:
+  vx = NOTHING;
+  vy = pr_fpop(p);
+  vz = pr_fpop(p);
+
+  if ( is_cntl(vy) ) {
+    vx = vy;
+    vy = vz;
+    vz = NOTHING;
+  }
+
+  goto do_raise;
   
- op_throw:
+ o_raise3:
+  vx = pr_fpop(p); // operation continuation (must be Cntl)
+  vy = pr_fpop(p); // operation label (must be Sym)
+  vz = pr_fpop(p); // operation argument (can be anything)
 
- op_jmp:
-  argx   = fetch(p);
-  p->fp += argx;
+  goto do_raise;
 
-  goto next;
+ do_raise:
+  if ( vx == NOTHING )
+    kx = NULL;
 
- op_jmpt:
-  argx   = fetch(p);
-  tmpx   = pr_fpop(p);
+  else if ( chk_type(p, &CntlType, vx, &kx) )
+    goto error;
 
-  if ( truthy(tmpx) )
-    p->fp += argx;
+  if ( chk_type(p, &SymType, vy, &ox) )
+    goto error;
 
-  goto next;
+  if ( restore_hndl(p, &hx, &kx) )
+    goto error;
+  
+ o_catch:
+  
+ o_throw1:
+ o_throw2:
+ o_throw3:
+  
+ o_jmp:
+  ax   = fetch(p);
+  p->fp += ax;
 
- op_jmpf:
-  argx = fetch(p);
-  tmpx = pr_fpop(p);
+  goto *labels[n];
 
-  if ( falsey(tmpx) )
-    p->fp += argx;
+ o_jmpt:
+  ax   = fetch(p);
+  vx   = pr_fpop(p);
 
-  goto next;
+  if ( truthy(vx) )
+    p->fp += ax;
 
- op_closure:
-  argx      = fetch(p);            // number of upvalues to be initialized
-  c         = as_proto(p->sp[-1]); // fetch prototype of new closure
-  c         = bind_proto(c);       // create bound prototype (aka closure)
-  p->sp[-1] = tag(c);              // return to stack in case allocating upvalues triggers gc
+  goto *labels[n];
 
-  // initialize upvalues
-  for ( int i=0; i<argx; i++ ) {
-    argy = fetch(p); // local?
-    argz = fetch(p); // offset
+ o_jmpf:
+  ax = fetch(p);
+  vx = pr_fpop(p);
 
-    if ( argy )
-      cl_upvs(c)[i] = open_upv(&p->upvs, &p->bp[argz]);
+  if ( falsey(vx) )
+    p->fp += ax;
+
+  goto *labels[n];
+
+ o_closure:
+  ax        = fetch(p);            // number of uxalues to be initialized
+  cx        = as_proto(p->sp[-1]); // fetch prototype of new closure
+  cx        = bind_proto(cx);       // create bound prototype (aka closure)
+  p->sp[-1] = tag(cx);              // return to stack in case allocating uxalues triggers gc
+
+  // initialize uxalues
+  for ( int i=0; i < ax; i++ ) {
+    ay = fetch(p); // local?
+    az = fetch(p); // offset
+
+    if ( ay )
+      cl_upvs(cx)[i] = open_upv(&p->upvs, &p->bp[az]);
 
     else
-      cl_upvs(c)[i] = pr_upvs(p)[argz];
+      cl_upvs(cx)[i] = pr_upvs(p)[az];
   }
 
-  goto next;
+  goto *labels[n];
 
- op_capture:
+ o_capture:
   close_upvs(&p->upvs, pr_bp(p));
-  goto next;
-  
- op_return:
-  tmpx = pr_sp(p)[-1]; // return value
-  pr_restoref(p);      // restore caller
-  pr_fpush(p, tmpx);   // push return value
-  goto next;           // jump to caller
+  goto *labels[n];
 
- op_exit:
+ o_call0:
+ o_call1:
+ o_call2:
+ o_calln:
+ o_tcall0:
+ o_tcall1:
+ o_tcall2:
+ o_tcalln:
+ o_scall0:
+ o_scall1:
+ o_scall2:
+ o_scalln:
+ o_apply1:
+ o_apply2:
+ o_applyn:
+ o_tapply1:
+ o_tapply2:
+ o_tapplyn:
+ o_sapply1:
+ o_sapply2:
+ o_sapplyn:
+  
+ o_return:
+  vx = pr_sp(p)[-1]; // return value
+  pr_restoref(p);    // restore caller
+  pr_fpush(p, vx);   // push return value
+  goto *labels[n];   // jump to caller
+
+ o_exit:
   goto end;
+
+ f_typeof:
+  /* Get the data type of TOS */
+  vx        = p->sp[-1];
+  tx        = type_of(vx);
+  p->sp[-1] = tag(tx);
+
+  goto *labels[n];
+
+ f_hash:
+  vx        = p->sp[-1];
+  vy        = rl_hash(vx, false);
+  p->sp[-1] = tag_arity(vy);
+
+  goto *labels[n];
+
+ f_same:
+  vx        = pr_fpop(p);
+  vy        = p->sp[-1];
+  vz        = vx == vy ? TRUE : FALSE;
+  p->sp[-1] = vz;
+
+  goto *labels[n];
 
 #undef chk_pop
 #undef chk_push
@@ -711,7 +817,7 @@ Error rl_exec(Proc* p, Proto* c, Val* r) {
   install_proto(p, c, -1);
   Error o;
 
-  if ( (o=rl_exec_at(p, r, OP_ENTER)) )
+  if ( (o=rl_exec_at(p, r, L_NEXT)) )
     *r = NOTHING;
 
   reset_pr(p);

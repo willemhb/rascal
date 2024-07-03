@@ -53,12 +53,14 @@ struct Proc {
 
   size_t   fs;    // size of the current frame (offset from TOS to base pointer)
 
-  /* Effect registers (saved by `hndl` forms) */
+  /* Effect registers (saved by `catch` and `hndl` forms) */
   Val*     hp;    // stack address of frame saved by `hndl` form
 
   /* volatile registers */
   Val*     bp;
   Val*     fp;
+  
+  Label    op, nx;
 };
 
 struct State {

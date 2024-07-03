@@ -84,7 +84,7 @@ struct Type {
   Set* members;   // union members
 
   // constructor
-  Obj* ctor;
+  Func*    ctor;
 
   // lifetime & object methods
   TraceFn  trace_fn;     // called to trace an object's owned pointers
@@ -96,9 +96,6 @@ struct Type {
   HashFn  hash_fn;
   EgalFn  egal_fn;
   OrderFn ord_fn;
-
-  // other internal methods
-  CastFn  cast_fn;
 };
 
 /* Globals */
@@ -109,9 +106,16 @@ extern Type TypeType, NoneType, AnyType;
 #define is_type(x) has_type(x, &TypeType)
 #define as_type(x) ((Type*)as_obj(x))
 
+#define mk_union(x, ...)                                    \
+  generic((x),                                              \
+          size_t:mk_union_n,                                \
+          Type*:mk_union_2)((x) __VA_OPT__(,) __VA_ARGS__)
+
 bool  has_instance(Type* p, Type* t);
 char* t_name(Type* x);
-Type* get_union_type(size_t n, Type** ts);
-void  init_builtin_type(Type* t, char* n, Obj* c);
+Type* mk_union_2(Type* x, Type* y);
+Type* mk_uion_n(size_t n, Type** ts);
+void  init_builtin_type(Type* t, Obj* c);
+void  rl_cast(Type* t, Val x, void* s);
 
 #endif

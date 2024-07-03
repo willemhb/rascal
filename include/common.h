@@ -26,27 +26,6 @@ typedef void* nullptr_t;
 
 #endif
 
-/* status codes and basic error handling. */
-typedef enum {
-  /* No error */
-  OKAY,
-
-  /* error codes */
-  /* error codes that may or may not imply a user mistake */
-  SYS_ERR,     // error originating from OS, eg file not found. Usually fatal
-  RUN_ERR,    // error originating from runtime, eg stack overflow
-
-  /* error codes that always imply a user mistake */
-  READ_ERR,       // error originating from reader, eg unclosed '('
-  COMP_ERR,       // error originating from compiler, eg 
-  STX_ERR,         // error originating from compiler specifically to do with
-  GENFN_ERR,      // error originating from missing method signature
-  EVAL_ERR,       // error originating from interpreter, eg a failed type check
-  USER_ERR,       // error raised by the user
-} Error;
-
-#define NUM_ERRS (USER_ERR+1)
-
 /* Important limits. */
 #define MAX_ARITY    0x0000ffffffffffffUL // also maximum hash value
 #define MAX_POW2     0x0000800000000000UL

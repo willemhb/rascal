@@ -19,13 +19,13 @@ struct Sym {
   HEADER;
 
   // bit fields
-  word_t form    : 5;
   word_t literal : 1;
 
   // data fields
   Str*   nmspc;
   Str*   name;
   word_t idno;      // non-zero for gensyms
+  Label  labl;      // arbitrary miscellaneous label (used internally)
 };
 
 struct Env {

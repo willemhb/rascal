@@ -2,6 +2,7 @@
 #define rl_error_h
 
 #include "runtime.h"
+#include "labels.h"
 
 /* Globals */
 extern Sym* ErrorKws[NUM_ERRS];
