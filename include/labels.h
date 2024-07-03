@@ -168,13 +168,17 @@ typedef enum Label {
   R_GSYM,   // read gensym (`#` affixed symbol)
 
   /* compile labels */
-  C_EXPR,
+  C_EXPR,              // toplevel dispatch
+  C_VALUE,
+  C_FUNCALL,
 
   /* general labels */  
   L_NEXT,              // get next bytecode instruction
+  L_READY,             // indicates initial state
   L_NOTHING,           // marks no label where a label is expected
 } Label;
 
-#define NUM_ERRS (E_USER+1)
+#define NUM_ERRS  (E_USER+1)
+#define NUM_LABLS (L_NOTHING+1)
 
 #endif

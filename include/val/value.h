@@ -118,6 +118,25 @@ static inline Val untag(Val x) {
           EMap*:tag_obj,                        \
           NSMap*:tag_obj)(x)
 
+#define untag(d, x)                             \
+  ((typeof(d))(generic((d)                      \
+                       Obj*:val_as_obj,         \
+                       Nul:as_nul,              \
+                       Bool:as_bool,            \
+                       Ptr:as_ptr,              \
+                       short*:as_ptr,           \
+                       ushort*:as_ptr,          \
+                       Val*:as_ptr,             \
+                       FunPtr:as_fptr,          \
+                       Type*:val_as_obj,        \
+                       Func*:val_as_obj,        \
+                       Map*:val_as_obj,         \
+                       MNode*:val_as_obj,       \
+                       MMap*:val_as_obj,        \
+                       SCache*:val_as_obj,      \
+                       EMap*:val_as_obj,        \
+                       NSMap*:val_as_obj)(x)))
+
 // tagging methods
 Val tag_nul(Nul n);
 Val tag_bool(Bool b);

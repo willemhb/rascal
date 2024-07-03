@@ -20,17 +20,6 @@ static inline bool falsey(Val x) {
   return x == FALSE || x == NUL;
 }
 
-static inline int fetch32(Proc* p) {
-  int buf;
-
-  // can't guarantee alignment so doing this with memcpy
-  memcpy(&buf, p->ip, sizeof(int));
-
-  p->ip += 2;
-
-  return buf;
-}
-
 static inline UpVal** pr_upvs(Proc* p) {
   return p->cl->envt->upvals;
 }
@@ -274,24 +263,86 @@ static void  install_catch(Proc* p, Proto* b, Proto* h);
 static bool  restore_catch(Proc* p, Proto** h);
 static void  apply_throw(Proc* p, Proto* h, Sym* e, Str* m, Val b);
 
+static inline int do_fetch32(Proc* p) {
+  int b;
+
+  memcpy(&b, p->ip, sizeof(int));
+  p->ip += 2;
+
+  return b;
+}
+
 /* Internal */
 Error rl_exec_at(Proc* p, Val* r, Label e) {
 
-  // local macros
-#define next(p)              *labels[p->nx]
-#define chk_pop(p)           unlikely(pr_chk_pop(p, E_RUN))
-#define chk_push(p)          unlikely(pr_chk_push(p, E_RUN))
-#define chk_pushn(p, n)      unlikely(pr_chk_pushn(p, E_EVAL, n))
-#define chk_stkn(p, n)       unlikely(pr_chk_stkn(p, E_RUN, n))
+// local macros
+#define jmp_nx()             goto *next
+#define jmp_err(p)           goto *labels[p->err]
+#define jmp(l)               goto l
+#define jmp_lbl(l)           goto *labels[l]
+
+#define chk_pop(p)                              \
+  if ( unlikely(pr_chk_pop(p, E_RUN)) )         \
+    jmp_err(p)
+
+#define chk_push(p)                             \
+  if ( unlikely(pr_chk_push(p, E_RUN)) )        \
+    jmp_err(p)
+
+#define chk_pushn(p, n)                                         \
+  if ( unlikely(pr_chk_pushn(p, E_EVAL, n)) )                   \
+    jmp_err(p)
+  
+#define chk_stkn(p, n)                                          \
+  if ( unlikely(pr_chk_stkn(p, E_RUN, n)) )                     \
+    jmp_err(p)
+
 #define chk_def(p, r)        unlikely(pr_chk_def(p, E_EVAL, r))
 #define chk_refv(p, r)       unlikely(pr_chk_refv(p, E_EVAL, r))
 #define chk_reft(p, r, g)    unlikely(pr_chk_reft(p, E_EVAL, r, g))
 #define chk_type(p, x, g, s) unlikely(pr_chk_type(p, E_EVAL, x, g, s))
 
-#define fetch(p)             *p->ip++
+#define push_nx(p, l)                           \
+  do {                                          \
+    if ( reg(nx) < L_READY ) {                  \
+      chk_push(p);                              \
+      pr_push(p, tag(p->nx));                   \
+    }                                           \
+    mov(reg(nx), l);                            \
+    mov(next, labl(l));                         \
+  } while (false)
+
+#define pop_nx(p)                               \
+  do {                                          \
+    mov(reg(nx), as_small(pr_pop(p)));          \
+    mov(next, labl(reg(nx)));                   \
+  } while (false)
+
+
+#define rx_push(p, rx)                          \
+  pr_push(p, tag(p->rx))
+
+#define rx_pop(p, rx)                           \
+  p->rx = untag(pr_pop(p))
+
+#define rx_fpush(p, rx)                         \
+  pr_fpush(p, tag(p->rx))
+
+#define rx_fpop(p, rx)                          \
+  p->rx = untag(pr_fpop(p))
 
   static void* labels[] = {
     /* error labels */
+    [E_OKAY]     = &&e_okay,
+    [E_SYS]      = &&e_sys,
+    [E_RUN]      = &&e_run,
+    [E_READ]     = &&e_read,
+    [E_COMP]     = &&e_comp,
+    [E_STX]      = &&e_stx,
+    [E_GENFN]    = &&e_genfn,
+    [E_EVAL]     = &&e_eval,
+    [E_USER]     = &&e_user,
+
     /* opcode labels */
     // miscellaneous
     [O_NOOP]     = &&o_noop,
@@ -377,225 +428,176 @@ Error rl_exec_at(Proc* p, Val* r, Label e) {
   Type* tx;
   Str* mx;
   Sym* ox;
-  Label o,n = e;
-  void* next = labels[n];
+  Label o;
+  void *next;
 
-  goto *next;
+  push_nx(p, e);
+  jmp_nx();
+
+  /* error labels */
+  // not an error
+ e_okay:
+  jmp_nx();
+
+  // unrecoverable errors
+ e_sys:
+ e_run:
+ e_norecover:
+  pr_prn_err(p);
+  mov(*r, NOTHING);
+  jmp(end);
+
+ e_read:
+ e_comp:
+ e_stx:
+ e_genfn:
+ e_eval:
+ e_user:
+  if ( restore_catch(p, &hx) )
+    jmp(e_norecover);
+
+  pr_recover(p, &ox, &mx, &vx);   // clear error
+  apply_throw(p, hx, ox, mx, vx); // 
+  jmp_nx();
 
  l_next:
-  o    = fetch(p);
-  goto *labels[o];
-
- error:
-  // not recoverable
-  if ( p->err < E_READ || !restore_catch(p, &hx) ) {
-    pr_prn_err(p);           // print current error
-    *r = NOTHING;            // set return
-    goto end;                // escape
-
-  } else {
-    pr_recover(p, &ox, &mx, &vx);   // clear error
-    apply_throw(p, hx, ox, mx, vx); // apply handler
-    goto next(p);
-  }
-
- end:
-  if ( p->err == E_OKAY )
-    *r = pr_pop(p);
-
-  return p->err;
+  mov(o, fetch16(p));             // get next opcode
+  jmp_lbl(o);                     // dispatch to label
 
   /* opcode labels */
  o_noop:
-  goto *labels[n];
+  jmp_nx();
 
  o_pop:
-  if ( chk_pop(p) )
-    goto error;
-
+  chk_pop(p);
   pr_fpop(p);
-
-  goto *labels[n];
+  jmp_nx();
 
  o_dup:
-  if ( chk_stkn(p, 1) )
-    goto error;
-
-  if ( chk_push(p) )
-    goto error;
-  
+  chk_stkn(p, 1);
+  chk_push(p);
   pr_dup(p);
-
-  goto 
+  jmp_nx();
 
  o_ld_nul:
-  if ( chk_push(p) )
-    goto error;
-
+  chk_push(p);
   pr_fpush(p, NUL);
-
-  goto next(p);
+  jmp_nx();
 
  o_ld_true:
-  if ( chk_push(p) )
-    goto error;
-
+  chk_push(p);
   pr_fpush(p, TRUE);
-
-  goto *labels[n];
+  jmp_nx();
 
  o_ld_false:
-  if ( chk_push(p) )
-    goto error;
-
+  chk_push(p);
   pr_fpush(p, FALSE);
-
-  goto *labels[n];
+  jmp_nx();
 
  o_ld_zero:
-  if ( chk_push(p) )
-    goto error;
-
+  chk_push(p);
   pr_fpush(p, ZERO);
-
-  goto *labels[n];
+  jmp_nx();
 
  o_ld_one:
-  if ( chk_push(p) )
-    goto error;
-
+  chk_push(p);
   pr_fpush(p, ONE);
-
-  goto *labels[n];
+  jmp_nx();
 
  o_ld_fun:
-  if ( chk_push(p) )
-    goto error;
-
-  pr_fpush(p, tag(p->fn));
-
-  goto *labels[n];
+  chk_push(p);
+  rx_fpush(p, fn);
+  jmp_nx();
 
  o_ld_env:
-  if ( chk_push(p) )
-    goto error;
-
-  pr_fpush(p, tag(pr_env(p)));
-
-  goto *labels[n];
+  chk_push(p);
+  rx_fpush(p, nv);
+  jmp_nx();
 
  o_ld_s16:
-  if ( chk_push(p) )
-    goto error;
-  
-  ax = fetch(p);
-
+  chk_push(p);
+  fetch16(ax, p);
   pr_fpush(p, tag(ax));
-
-  goto *labels[n];
+  jmp_nx();
 
  o_ld_s32:
-  if ( chk_push(p) )
-    goto error;
-
-  ax = fetch32(p);
-
+  chk_push(p);
+  fetch32(ax, p);
   pr_fpush(p, tag(ax));
-
-  goto *labels[n];
+  jmp_nx();
 
  o_ld_g16:
-  if ( chk_push(p) )
-    goto error;
-
-  ax = fetch(p);
-
+  chk_push(p);
+  fetch16(ax, p);
   pr_fpush(p, tag_glyph(ax));
-
-  goto *labels[n];
+  jmp_nx();
 
  o_ld_g32:
-  if ( chk_push(p) )
-    goto error;
-
-  ax = fetch32(p);
-
+  chk_push(p);
+  fetch32(ax, p);
   pr_fpush(p, tag_glyph(ax));
-
-  goto *labels[n];
+  jmp_nx();
 
  o_ld_val:
-  if ( chk_push(p) )
-    goto error;
-
-  ax = fetch(p);
-  vx = pr_vals(p)[ax];
-
+  chk_push(p);
+  fetch16(ax, p);
+  val(vx, ax);
   pr_fpush(p, vx);
-
-  goto *labels[n];
+  jmp_nx();
 
  o_ld_stk:
-  if ( chk_push(p) )
-    goto error;
-
-  ax = fetch(p);
-  vx = p->bp[ax];
-
+  chk_push(p);
+  fetch16(ax, p);
+  local(vx, ax);
   pr_fpush(p, vx);
-
-  goto *labels[n];
+  jmp_nx();
 
  o_put_stk:
-  ax        = fetch(p);
-  vx        = pr_fpop(p);
-  p->bp[ax] = vx;
+  fetch16(ax, p);
+  mov(vx, pr_fpop(p));
+  mov(local(ax), vx);
 
-  goto *labels[n];
+  jmp_nx();
 
  o_ld_upv:
-  if ( chk_push(p) )
-    goto error;
-
-  ax  = fetch(p);
-  ux  = pr_upvs(p)[ax];
-  vxs = dr_upv(ux);
-  vx  = *vxs;
-
+  chk_push(p);
+  fetch16(ax, p);
+  upval(ux, ax);
+  mov(vxs, dr_upv(ux));
+  mov(vx, *vxs);
   pr_fpush(p, vx);
-
-  goto *labels[n];
+  jmp_nx();
 
  o_put_upv:
-  ax   = fetch(p);
+  ax   = fetch16(p);
   vx   = pr_fpop(p);
   ux   = pr_upvs(p)[ax];
   vxs  = dr_upv(ux);
   *vxs = vx;
 
-  goto *labels[n];
+  jmp_nx();
 
  o_ld_cns:
   ay = -1;
-  ax = fetch(p);
+  ax = fetch16(p);
 
   goto do_get_ns_ref;
 
  o_put_cns:
   ay = -1;
-  ax = fetch(p);
+  ax = fetch16(p);
 
   goto do_put_ns_ref;
 
  o_ld_qns:
-  ay = fetch(p);
-  ax = fetch(p);
+  ay = fetch16(p);
+  ax = fetch16(p);
 
   goto do_get_ns_ref;
 
  o_put_qns:
-  ay = fetch(p);
-  ax = fetch(p);
+  ay = fetch16(p);
+  ax = fetch16(p);
 
   goto do_put_ns_ref;
 
@@ -612,7 +614,7 @@ Error rl_exec_at(Proc* p, Val* r, Label e) {
 
   pr_fpush(p, vx);
 
-  goto *labels[n];
+  jmp_nx();
 
  do_put_ns_ref:
   rx = get_ns_ref(p, ay, ax);
@@ -633,7 +635,7 @@ Error rl_exec_at(Proc* p, Val* r, Label e) {
     set_meta(rx, ":tag", tag(rx->tag));
   }
 
-  goto *labels[n];
+  jmp_nx();
 
  o_hndl:
   vx = pr_fpop(p); // handler
@@ -650,7 +652,7 @@ Error rl_exec_at(Proc* p, Val* r, Label e) {
 
   install_hndl(p, bx, hx);
 
-  goto *labels[n];
+  jmp_nx();
 
  o_raise1:
   vx = NOTHING;    // operation continuation (ignored)
@@ -699,39 +701,39 @@ Error rl_exec_at(Proc* p, Val* r, Label e) {
  o_throw3:
   
  o_jmp:
-  ax   = fetch(p);
+  ax   = fetch16(p);
   p->fp += ax;
 
-  goto *labels[n];
+  jmp_nx();
 
  o_jmpt:
-  ax   = fetch(p);
+  ax   = fetch16(p);
   vx   = pr_fpop(p);
 
   if ( truthy(vx) )
     p->fp += ax;
 
-  goto *labels[n];
+  jmp_nx();
 
  o_jmpf:
-  ax = fetch(p);
+  ax = fetch16(p);
   vx = pr_fpop(p);
 
   if ( falsey(vx) )
     p->fp += ax;
 
-  goto *labels[n];
+  jmp_nx();
 
  o_closure:
-  ax        = fetch(p);            // number of uxalues to be initialized
+  ax        = fetch16(p);            // number of uxalues to be initialized
   cx        = as_proto(p->sp[-1]); // fetch prototype of new closure
   cx        = bind_proto(cx);       // create bound prototype (aka closure)
   p->sp[-1] = tag(cx);              // return to stack in case allocating uxalues triggers gc
 
   // initialize uxalues
   for ( int i=0; i < ax; i++ ) {
-    ay = fetch(p); // local?
-    az = fetch(p); // offset
+    fetch16(ay, p); // local?
+    fetch16(az, p); // offset
 
     if ( ay )
       cl_upvs(cx)[i] = open_upv(&p->upvs, &p->bp[az]);
@@ -740,11 +742,11 @@ Error rl_exec_at(Proc* p, Val* r, Label e) {
       cl_upvs(cx)[i] = pr_upvs(p)[az];
   }
 
-  goto *labels[n];
+  jmp_nx();
 
  o_capture:
   close_upvs(&p->upvs, pr_bp(p));
-  goto *labels[n];
+  jmp_nx();
 
  o_call0:
  o_call1:
@@ -772,7 +774,7 @@ Error rl_exec_at(Proc* p, Val* r, Label e) {
   vx = pr_sp(p)[-1]; // return value
   pr_restoref(p);    // restore caller
   pr_fpush(p, vx);   // push return value
-  goto *labels[n];   // jump to caller
+  jmp_nx();   // jump to caller
 
  o_exit:
   goto end;
@@ -783,14 +785,14 @@ Error rl_exec_at(Proc* p, Val* r, Label e) {
   tx        = type_of(vx);
   p->sp[-1] = tag(tx);
 
-  goto *labels[n];
+  jmp_nx();
 
  f_hash:
   vx        = p->sp[-1];
   vy        = rl_hash(vx, false);
   p->sp[-1] = tag_arity(vy);
 
-  goto *labels[n];
+  jmp_nx();
 
  f_same:
   vx        = pr_fpop(p);
@@ -798,7 +800,13 @@ Error rl_exec_at(Proc* p, Val* r, Label e) {
   vz        = vx == vy ? TRUE : FALSE;
   p->sp[-1] = vz;
 
-  goto *labels[n];
+  jmp_nx();
+
+ end:
+  if ( p->err == E_OKAY )
+    mov(*r, pr_pop(p));
+
+  return p->err;
 
 #undef chk_pop
 #undef chk_push

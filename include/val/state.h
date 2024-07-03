@@ -46,11 +46,7 @@ struct Proc {
     PrimFn* pf;
   };
 
-  union {
-    short* ip;    // if currently executing function is a closure, this is the instruction pointer
-    Env*   nv;    // if currently executing function is a builtin, this is a copy of the nearest enclosing environment
-  };
-
+  short*   ip;
   size_t   fs;    // size of the current frame (offset from TOS to base pointer)
 
   /* Effect registers (saved by `catch` and `hndl` forms) */
@@ -59,7 +55,9 @@ struct Proc {
   /* volatile registers */
   Val*     bp;
   Val*     fp;
-  
+  Env*     nv;
+
+  /* label registers */
   Label    op, nx;
 };
 
