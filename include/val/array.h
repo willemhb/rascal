@@ -43,9 +43,8 @@ struct VNode {
 #define DYNAMIC_ARRAY(X)                        \
   word_t algo   : 3;                            \
   word_t shrink : 1;                            \
-  X* data;                                      \
-  X* _static;                                   \
-  size_t cnt, maxc, maxs
+  X* arr;                                       \
+  size_t cnt, maxc
 
 struct MVec {
   HEADER;
@@ -72,13 +71,13 @@ extern Type VecType, VNodeType, MVecType, AlistType;
 #define is_vec(x) has_type(x, &VecType)
 #define as_vec(x) ((Vec*)as_obj(x))
 
-Vec* mk_vec(size_t n, Val* d);
-Vec* packed_vec(size_t n, Val* d);
+Vec* mk_vec(Proc* p, size_t n, Val* d);
+Vec* packed_vec(Proc* p, size_t n, Val* d);
 Val  vec_ref(Vec* v, size_t n);
-Vec* vec_add(Vec* v, Val x);
-Vec* vec_set(Vec* v, size_t n, Val x);
-Vec* vec_pop(Vec* x);
-Vec* vec_cat(Vec* x, Vec* y);
+Vec* vec_add(Proc* p, Vec* v, Val x);
+Vec* vec_set(Proc* p, Vec* v, size_t n, Val x);
+Vec* vec_pop(Proc* p, Vec* x);
+Vec* vec_cat(Proc* p, Vec* x, Vec* y);
 
 /* VNode API (mostly internal) */
 #define is_vnode(x) has_type(x, &VNodeType)
@@ -92,8 +91,8 @@ Vec* vec_cat(Vec* x, Vec* y);
 #define as_alist(x) ((Alist*)as_obj(x))
 
 #define MUTABLE_ARRAY(T, t, X)                                          \
-  T*     new_##t(X* d, size_t n, bool s, ResizeAlgo ag);                \
-  void   init_##t(T* a, X* _s, size_t ms, bool s, ResizeAlgo ag);       \
+  T*     new_##t(Proc* p, X* d, size_t n, ResizeAlgo ag);               \
+  void   init_##t(T* a, ResizeAlgo ag);                                 \
   void   free_##t(void* x);                                             \
   void   clone_##t(void* x);                                            \
   void   grow_##t(T* a, size_t n);                                      \

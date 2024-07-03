@@ -79,11 +79,11 @@ static inline Val untag(Val x) {
           Ptr:tag_ptr,                          \
           short*:tag_ptr,                       \
           ushort*:tag_ptr,                      \
+          Val*:tag_ptr,                         \
           FunPtr:tag_fptr,                      \
           Type*:tag_obj,                        \
           Func*:tag_obj,                        \
           Proto*:tag_obj,                       \
-          Native*:tag_obj,                      \
           PrimFn*:tag_obj,                      \
           GenFn*:tag_obj,                       \
           MT*:tag_obj,                          \

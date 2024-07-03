@@ -9,6 +9,7 @@
 // common object header macro
 #define HEADER                                   \
   Obj*    next;                                  \
+  Proc*   ownp;                                 \
   Type*   type;                                  \
   Map*    meta;                                  \
   word_t  hash  : 48;                            \
@@ -47,9 +48,9 @@ void mark_obj(void* x);
 void trace(void* x);
 
 // other lifetime methods
-void*  new_obj(Type* t);
+void*  new_obj(Proc* p, Type* t);
 void*  clone_obj(void* x);
-void   init_obj(Type* t, Obj* o);
+void   init_obj(Proc* p, Type* t, Obj* o);
 void   free_obj(void* x);
 size_t sweep_obj(void* x);
 

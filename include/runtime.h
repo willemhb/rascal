@@ -7,10 +7,6 @@
 /* Frame types */
 typedef struct HFrame HFrame;
 
-/* State types */
-typedef struct RlState RlState;
-typedef struct RlProc  RlProc;
-
 // internal function pointer types
 typedef void   (*TraceFn)(void* x);
 typedef void   (*FreeFn)(void* x);
@@ -19,13 +15,12 @@ typedef hash_t (*HashFn)(Val x);
 typedef bool   (*EgalFn)(Val x, Val y);
 typedef int    (*OrderFn)(Val x, Val y);
 typedef size_t (*SizeofFn)(void* x);
-typedef void   (*NativeFn)(RlProc* p, bool c);
 typedef void   (*CastFn)(Val x, void* s);
 
 /* Globals */
 /* Global state objects */
-extern RlState Vm;         // main Vm state object
-extern RlProc  Main;       // main process (for the time being this is the only process)
+extern State Vm;         // main Vm state object
+extern Proc  Main;       // main process (for the time being this is the only process)
 
 /* Standard streams */
 extern Port StdIn;
@@ -33,5 +28,13 @@ extern Port StdOut;
 extern Port StdErr;
 
 /* Empty singletons */
+extern List EmptyList;
+extern Vec  EmptyVec;
+extern Map  EmptyMap;
+
+/* Global environment state */
+extern Env    Globals;
+extern NSMap  NameSpaces;
+extern SCache Strings;
 
 #endif

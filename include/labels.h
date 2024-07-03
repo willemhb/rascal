@@ -3,9 +3,29 @@
 
 #include "common.h"
 
-/* Virtual machine labels (mostly opcodes, but also includes primitive functions and reader/compiler labels) */
+/* Virtual machine labels (mostly opcodes, but also includes primitive functions, special forms, and reader/compiler labels) */
 
 typedef enum {
+  // initial state
+  LB_READY,
+
+  // special forms (first so that they fit into Sym bit fields)
+  F_CATCH,    // (catch [& a] h b)
+  F_DEF,      // (def* x y) | (def* x m y)
+  F_DO,       // (do x & r)
+  F_GENFN,    // (genfn* f ss) | (genfn* n m ss)
+  F_HNDL,     // (hndl [& a] h b)
+  F_IF,       // (if t? t) | (if t? t e)
+  F_LMB,      // (lmb* [& a] b)
+  F_METHOD,   // (method* f s b)
+  F_NS,       // (ns n & body) | (ns n m & body)
+  F_PUT,      // (put* n v)
+  F_QUOTE,    // (quote x)
+  F_RAISE,    // (raise o) | (raise k o) | (raise k o a)
+  F_THROW,    // (throw e) | (throw e m) | (throw e m b)
+  F_TYPE,     // (type* T k s) | (type* T m k s)
+  F_USE,      // (use [& nss])
+
   // miscellaneous
   OP_NOOP,  // do nothing
   OP_ENTER, // default entry point
@@ -15,14 +35,14 @@ typedef enum {
   OP_DUP,  // duplicate TOS
 
   // constant loads
-  OP_LD_NUL,   // push NUL to TOS
-  OP_LD_TRUE,  // push TRUE to TOS
-  OP_LD_FALSE, // push FALSE to TOS
-  OP_LD_ZERO,  // push ZERO to TOS
-  OP_LD_ONE,   // push ONE to TOS
+  OP_LD_NUL,   // push NUL
+  OP_LD_TRUE,  // push TRUE
+  OP_LD_FALSE, // push FALSE
+  OP_LD_ZERO,  // push ZERO
+  OP_LD_ONE,   // push ONE
 
   // register loads
-  OP_LD_FUN, // load currently executing closure
+  OP_LD_FUN, // load currently executing function
   OP_LD_ENV, // load current environment
 
   // inlined loads
@@ -43,14 +63,18 @@ typedef enum {
   OP_PUT_QNS,  // store into qualified namespace
 
   // entry point for generic function specialization
-  OP_ADDM,     // add_method(TOS-1, TOS-2, TOS-3, TOS-4)
+  OP_ADDM,     // add_method(P, TOS-2, TOS-1)
 
   // nonlocal control constructs
   OP_HNDL,     // install a frame for resumable effects
-  OP_RAISE,   // jump to nearest enclosing resumable effect frame
+  OP_RAISE1,   // jump to nearest enclosing resumable effect frame (no k or argument supplied)
+  OP_RAISE2,   // jump to nearest enclosing resumable effect frame (no k supplied)
+  OP_RAISE3,   // jump to nearest enclosing resumable effect frame (all arguments supplied)
 
   OP_CATCH,   // install a frame for a non-resumable effect
-  OP_THROW,   // jump to nearest enclosing non-resumable effect frame
+  OP_THROW1,  // jump to nearest enclosing non-resumable effect frame (no msg or blame supplied)
+  OP_THROW2,  // jump to nearest enclosing non-resumable effect frame (no blame supplied)
+  OP_THROW3,  // jump to nearest enclosing non-resumable effect frame (all arguments supplied)
 
   // branch instructions
   OP_JMP,  // unconditional jump
@@ -61,7 +85,7 @@ typedef enum {
   OP_CLOSURE, // create a bound copy of the closure at TOS
   OP_CAPTURE, // close upvalues greater than current BP
 
-  // call/return instructions
+  // call/return instructions (there's lots of these)
   OP_CALL0,  // (f)
   OP_CALL1,  // (f x)
   OP_CALL2,  // (f x y)
@@ -72,30 +96,12 @@ typedef enum {
   OP_TCALL2, // (f x y)  where `f` is in tail position
   OP_TCALLN, // (f ...)  where `f` is in tail position
 
+  // exit/return/cleanup instructions
   OP_RETURN, // restore caller
   OP_EXIT,   // exit the virtual machine
 
-  // primitive functions
-  FN_READ,   // call `read`
-  FN_TREAD,  // call `read` in tail position
-  FN_COMP,   // call `comp`
-  FN_TCOMP,  // call `comp` in tail position
-  FN_EXEC,   // call `exec`
-  FN_TEXEC,  // call `exec` in tail position
+  // primfn labels
   FN_SAME,   // call `same?`
-  FN_TSAME,  // call `same?` in tail position
-  FN_EGAL,   // call `=`
-  FN_TEGAL,  // call `=` in tail position
-  FN_HASH,   // call `hash`
-  FN_THASH,  // call `hash` in tail position
-  FN_ORD,    // call `ord`
-  FN_TORD,   // call `ord` in tail position
-
-  // reader labels
-  RL_READ_NUMBER,
-
-  // miscellaneous labels
-  LB_READY,
 } Label;
 
 #endif

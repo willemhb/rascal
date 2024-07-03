@@ -10,12 +10,12 @@
 #define FUNC_HEADER                                                   \
   HEADER;                                                             \
   /* bit fields */                                                    \
-  word_t ft      : 3;                                                 \
-  word_t framec  : 3;                                                 \
-  word_t va      : 1;                                                 \
-  word_t comp    : 1;                                                 \
-  word_t m_union : 1;                                                 \
-  word_t m_favor : 1;                                                 \
+  word_t hndl_h   : 1;                                                \
+  word_t catch_h  : 1;                                                \
+  word_t va       : 1;                                                \
+  word_t comp     : 1;                                                \
+  word_t m_union  : 1;                                                \
+  word_t m_favor  : 1;                                                \
   /* data fields */                                                   \
   uint argc, lvarc;                                                   \
   Vec* sig;                                                           \
@@ -46,12 +46,6 @@ struct Proto {
   Env* envt;
 };
 
-struct Native {
-  FUNC_HEADER;
-
-  NativeFn C_fn;
-};
-
 struct PrimFn {
   FUNC_HEADER;
 
@@ -62,10 +56,11 @@ struct Generic {
   FUNC_HEADER;
 
   // data fields
-  MMap* cache;  // cache of exact method signatures
-  MT*   v_root; // registered methods with variable arity
-  MT*   f_root; // registered methods with fixed arity
-  Func* thunk;  // method with zero arity (there can only be one, so it's stored here)
+  size_t mcnt;   // total number of registered methods
+  MMap*  cache;  // cache of exact method signatures
+  MT*    v_root; // registered methods with variable arity
+  MT*    f_root; // registered methods with fixed arity
+  Func*  thunk;  // method with zero arity (there can only be one, so it's stored here)
 };
 
 struct MT {
@@ -88,15 +83,22 @@ struct Cntl {
   MVec*  stk;
 
   /* Saved registers */
-  Proto* cl;
-  short* ip;
+  union {
+    Func*   fn;
+    Proto*  cl;
+    PrimFn* pf;
+  };
+
+  union {
+    short* ip;
+    Env*   nv;
+  };
+
   size_t fs;
-  size_t cp;
-  size_t hp;
 };
 
 /* Globals */
-extern Type ProtoType, NativeType, PrimFnType, GenFnType, CntlType, MTType;
+extern Type ProtoType, PrimFnType, GenFnType, CntlType, MTType;
 
 /* APIs */
 /* General function APIs */
@@ -107,6 +109,7 @@ size_t fn_argc(void* fn);
 size_t fn_lvarc(void* fn);
 size_t fn_framec(void* fn);
 size_t fn_fsize(void* fn);
+short* fn_ip(Proto* fn);
 
 /* Native APIs */
 #define is_native(x) has_type(x, &NativeType)
@@ -116,17 +119,20 @@ size_t fn_fsize(void* fn);
 #define is_proto(x) has_type(x, &ProtoType)
 #define as_proto(x) ((Proto*)as_obj(x))
 
-short*  proto_ip(Proto* c);
+Proto*  mk_proto(Env* p);
+Proto*  bind_proto(Proto* p);
 
 /* Cntl APIs */
 #define is_cntl(x) has_type(x, &CntlType)
 #define as_cntl(x) ((Cntl*)as_obj(x))
 
-Cntl* mk_cntl(Cntl* p, RlState* s);
+Cntl* mk_cntl(Proc* p, Cntl* k);
 
 /* Generic APIs */
 GenFn* mk_generic(char* name);
-Error add_method(GenFn* g, Vec* s, bool v, void* f);
-Error get_method(GenFn* g, Vec* s, Func** r);
+bool   has_arity(GenFn* g, size_t n);
+Error  get_method(Proc* p, GenFn* g, size_t n, Val* a, Func** f);
+Error  add_method(Proc* p, GenFn* g, Func* m);
+Error  join_methods(Proc* p, GenFn* d, GenFn* s);
 
 #endif

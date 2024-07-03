@@ -22,7 +22,6 @@ typedef struct Type Type;
 // function types
 typedef struct Func   Func;      // common function header
 typedef struct Proto  Proto;
-typedef struct Native Native;
 typedef struct PrimFn PrimFn;
 typedef struct GenFn  GenFn;
 typedef struct MT     MT;
@@ -44,9 +43,9 @@ typedef struct MBin MBin;
 typedef struct RT   RT;
 
 // numeric types
-typedef word_t       Arity; // 48-bit unsigned integer (can hold any valid hash or size)
-typedef int          Small;
-typedef double       Real;
+typedef word_t      Arity; // 48-bit unsigned integer (can hold any valid hash or size)
+typedef int         Small;
+typedef double      Real;
 
 // list, pair, and sequence types
 typedef struct Pair  Pair;
@@ -71,5 +70,9 @@ typedef struct MMap   MSet;
 typedef struct SCache SCache;
 typedef struct EMap   EMap;
 typedef struct NSMap  NSMap;
+
+// vm types
+typedef struct State State; // global state object
+typedef struct Proc  Proc;  // single Rascal process
 
 #endif

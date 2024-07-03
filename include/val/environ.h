@@ -14,26 +14,6 @@ typedef enum Scope {
   RECORD_SCOPE,    // value is stored in record object
 } Scope;
 
-typedef enum SpecialForm {
-  NO_FORM,                 // not a special form
-  CATCH_FORM,              // catch
-  DEF_FORM,                // def*
-  DO_FORM,                 // do
-  GENERIC_FORM,            // generic*
-  HNDL_FORM,               // hndl
-  IF_FORM,                 // if
-  LET_FORM,                // let*
-  LMB_FORM,                // lmb*
-  METHOD_FORM,             // method*
-  NS_FORM,                 // ns
-  PUT_FORM,                // put*
-  QUOTE_FORM,              // quote
-  RAISE_FORM,              // raise
-  THROW_FORM,              // throw
-  TYPE_FORM,               // type*
-  USE_FORM,                // use
-} SpecialForm;
-
 // user identifier types
 struct Sym {
   HEADER;
@@ -100,7 +80,7 @@ struct UpVal {
 
   // data fields
   UpVal* n_u;
-  RlProc* p;
+  Proc* p;
 
   union {
     size_t l;
@@ -167,6 +147,7 @@ size_t lref_cnt(Env* p);
 size_t uref_cnt(Env* p);
 Ref*   env_ref(Env* e, size_t o);
 Env*   mk_env(Scope s, Env* p, Sym* n, int i, bool b);
+void   init_gns(State* s, Env* g);
 Env*   bind_env(Env* t);
 bool   env_get(Env* e, Sym* n, int c, Ref** r);
 bool   env_put(Env* e, Sym* n, Ref** r);

@@ -26,7 +26,6 @@ typedef void* nullptr_t;
 
 #endif
 
-
 /* status codes and basic error handling. */
 typedef enum {
   /* No error */
@@ -46,7 +45,7 @@ typedef enum {
   USER_ERR,       // error raised by the user
 } Error;
 
-#define NUM_ERRORS (USER_ERR+1)
+#define NUM_ERRS (USER_ERR+1)
 
 /* Important limits. */
 #define MAX_ARITY    0x0000ffffffffffffUL // also maximum hash value
@@ -55,9 +54,10 @@ typedef enum {
 #define UINT8_COUNT  (UINT8_MAX+1)
 #define UINT16_COUNT (UINT16_MAX+1)
 #define MAX_STACK    UINT16_COUNT
-#define MAX_FRAMES   (UINT8_COUNT<<6)
+#define MIN_ARR      8
 #define INIT_HEAP    (1 << 19) // MAX_STACK * sizeof(Val)
 #define MAX_HEAP     MAX_ARITY
+#define FN_FRAMEC    3
 
 /* redefining important macros with annoying names */
 #define generic _Generic
