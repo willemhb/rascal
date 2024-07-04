@@ -190,15 +190,19 @@ Type* type_of_val(Val x) {
   extern Type GlyphType, SmallType, ArityType, RealType;
   
   switch (tag_of(x)) {
-    default:     return &RealType;
-    case ARITY:  return &ArityType;
-    case CPTR:   return &PtrType;
-    case FPTR:   return &FunPtrType;
-    case NUL:    return &NulType;
-    case BOOL:   return &BoolType;
-    case GLYPH:  return &GlyphType;
-    case SMALL:  return &SmallType;
-    case OBJECT: return as_obj(x)->type;
+    default:      return &RealType;
+    case ARITY:   return &ArityType;
+    case CPTR:    return &PtrType;
+    case FPTR:    return &FunPtrType;
+    case NUL:     return &NulType;
+    case BOOL:    return &BoolType;
+    case GLYPH:   return &GlyphType;
+    case SMALL:   return &SmallType;
+    case PRIM_F:  return &SmallType;
+    case PROTO_F: return &SmallType;
+    case CATCH_F: return &SmallType;
+    case HNDL_F:  return &SmallType;
+    case OBJECT:  return as_obj(x)->type;
   }
 }
 
@@ -267,3 +271,4 @@ bool  is_fptr(Val x) {
 bool  is_obj(Val x) {
   return tag_of(x) == OBJECT;
 }
+

@@ -26,6 +26,14 @@
 #define BOOL      0xffff000100000000UL
 #define GLYPH     0xffff000200000000UL
 #define SMALL     0xffff000300000000UL
+
+// internal tags (alias for Small)
+#define PRIM_F    0xfffffffa00000000UL
+#define PROTO_F   0xfffffffb00000000UL // marks a prototype frame on the stack
+#define CATCH_F   0xfffffffd00000000UL // marks a catch frame on the stack
+#define HNDL_F    0xfffffffe00000000UL // marks a hndl frame on the stack
+
+// internal tags (not values, shouldn't escape)
 #define SENTINEL  0xffffffff00000000UL
 
 #define TRUE      0xffff000100000001UL // BOOL  | 1
@@ -46,7 +54,7 @@ static inline Val tag_of(Val x) {
   return (x & LITTLE) == LITTLE ? x & WTAG_BITS : x & TAG_BITS;
 }
 
-static inline Val untag(Val x) {
+static inline Val untagv(Val x) {
   return (x & LITTLE) == LITTLE ? x & WDATA_BITS : x & DATA_BITS;
 }
 
@@ -69,6 +77,9 @@ static inline Val untag(Val x) {
   generic((x),                                  \
           Val:val_has_type,                     \
           default:obj_has_type)(x, t)
+
+// lower-level tag macro
+#define tagv(v, t) (((Val)(v)) | (t))
 
 // big ass tag macro
 #define tag(x)                                  \

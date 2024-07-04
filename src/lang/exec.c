@@ -20,24 +20,12 @@ static inline bool falsey(Val x) {
   return x == FALSE || x == NUL;
 }
 
-static inline UpVal** pr_upvs(Proc* p) {
-  return p->cl->envt->upvals;
-}
-
-static inline Val* pr_vals(Proc* p) {
-  return p->cl->vals->tail;
-}
-
-static inline UpVal** cl_upvs(Proto* p) {
-  return p->envt->upvals;
-}
-
 static Ref* get_ns_ref(Proc* p, int yoff, int xoff) {
   Env* nv;
   Ref* o = NULL;
 
   if ( yoff == -1 ) {
-    nv = pr_env(p)->ns;
+    nv = p->nv->ns;
 
     if ( has_ref(nv, xoff) )
       o = env_ref(nv, xoff);
@@ -64,205 +52,6 @@ static Ref* get_ns_ref(Proc* p, int yoff, int xoff) {
   return o;
 }
 
-static void pr_savef(Proc* p) {
-  if ( is_proto(p->fn) )
-    pr_pushn(p, 3, tag(p->fn), tag(p->ip), tag(p->fs));
-
-  else
-    pr_pushn(p, 3, tag(p->fn), tag(p->nv), tag(p->fs));
-}
-
-static void pr_restoref(Proc* p) {
-  Val* f     = p->fp;
-  size_t ofs = p->fs;
-
-  // restore calling frame
-  p->fs      = as_arity(f[-1]);
-  p->ip      = as_ptr(f[-2]);
-  p->fn      = as_func(f[-3]);
-
-  // discard finished frame
-  pr_popn(p, ofs);
-
-  // update volatile registers
-  p->bp      = p->sp-p->fs;
-  p->fp      = p->bp + fn_fsize(p->fn);
-}
-
-static void adjust_args(Proc* p, Func* f) {
-  size_t cac = p->fn->argc;
-  size_t fac = f->argc;
-
-  if ( cac < fac )
-    pr_pushat(p, pr_bp(p)+cac, fac-cac, NOTHING);
-
-  else if ( cac > fac )
-    pr_popat(p, p->bp+cac, cac-fac);
-}
-
-static void adjust_lvars(Proc* p, Func* f) {
-  size_t clc = pr_lvarc(p);
-  size_t flc = fn_lvarc(f);
-  size_t fac = fn_argc(f);
-
-  if ( clc < flc )
-    pr_pushat(p, pr_bp(p)+fac, flc-clc, NOTHING);
-
-  else if ( clc > flc )
-    pr_popat(p, pr_bp(p)+fac, clc-flc);
-}
-
-static void install_primfn(Proc* p, PrimFn* f, int t) {
-  // NB: arguments to call already on stack and validated
-  Env* nv = pr_env(p); // save current environment
-  
-  if ( t == -1 ) { // not a tail call
-    pr_shrinkf(p, f->argc);           // remove arguments to f from calling frame
-    pr_reserve(p, f->lvarc, NOTHING); // reserve space for other locals
-    pr_savef(p);                      // save current frame
-
-    // install registers
-    p->fs = fn_fsize(f);
-    p->pf = f;
-    p->nv = nv;
-    p->bp = pr_sp(p)-pr_fs(p);
-    p->fp = pr_sp(p);
-
-  } else if ( t == 0 ) { // general tail call (frame may need to be resized)
-    // adjust size
-    adjust_args(p, (Func*)f);
-    adjust_lvars(p, (Func*)f);
-
-    // move arguments and initialize locals
-    pr_move(p, pr_bp(p), pr_sp(p)-fn_argc(f), fn_argc(f));
-    pr_initf(p, pr_bp(p)+fn_argc(f), fn_lvarc(f), NOTHING);
-
-    // install registers
-    p->fs = fn_fsize(f);
-    p->pf = f;
-    p->sp = pr_bp(p)+pr_fs(p);
-    p->fp = pr_sp(p);
-
-  } else { // tail recursive call (frame size can be safely assumed)
-    // move arguments to bp and initialize other locals
-    pr_move(p, pr_bp(p), p->sp-fn_argc(f), fn_argc(f));
-    pr_initf(p, pr_bp(p)+fn_argc(f), NOTHING, fn_lvarc(f));
-
-    // install registers
-    p->fs = fn_fsize(f);
-    p->sp = pr_bp(p) + pr_fs(p); // discard any remaining temporaries
-  }
-}
-
-static void install_proto(Proc* p, Proto* f, int t) {
-  // NB: arguments to call already on stack and validated
-
-  if ( t == -1 ) { // not a tail call
-    pr_shrinkf(p, f->argc);           // remove arguments to f from calling frame
-    pr_reserve(p, f->lvarc, NOTHING); // reserve space for other locals
-    pr_savef(p);                      // save current frame
-
-    // install registers
-    p->fs = fn_fsize(f);
-    p->cl = f;
-    p->ip = fn_ip(f);
-    p->bp = pr_sp(p)-pr_fs(p);
-    p->fp = pr_sp(p);
-
-  } else if ( t == 0 ) { // general tail call (frame may need to be resized)
-    // adjust size
-    adjust_args(p, (Func*)f);
-    adjust_lvars(p, (Func*)f);
-
-    // move arguments and initialize locals
-    pr_move(p, pr_bp(p), pr_sp(p)-fn_argc(f), fn_argc(f));
-    pr_initf(p, pr_bp(p)+fn_argc(f), fn_lvarc(f), NOTHING);
-
-    // install registers
-    p->fs = fn_fsize(f);
-    p->cl = f;
-    p->ip = fn_ip(f);
-    p->sp = pr_bp(p)+pr_fs(p);
-    p->fp = pr_sp(p);
-
-  } else { // tail recursive call (frame size can be safely assumed)
-    // move arguments to bp and initialize other locals
-    pr_move(p, pr_bp(p), p->sp-fn_argc(f), fn_argc(f));
-    pr_initf(p, pr_bp(p)+fn_argc(f), NOTHING, fn_lvarc(f));
-
-    // discard remaining temporaries and install registers
-    p->fs = fn_fsize(f);
-    p->ip = fn_ip(f);
-    p->sp = pr_bp(p) + pr_fs(p); // discard any remaining temporaries
-  }
-}
-
-static void install_hndl(Proc* p, Proto* b, Proto* h) {
-  // install the hndl body
-  install_proto(p, b, -1);
-
-  // save body and current frame pointer
-  pr_fpush(p, tag(h));
-  pr_fpush(p, tag(p->fp));
-
-  // set handle pointer
-  p->hp = pr_sp(p);
-}
-
-static bool has_hndl(Proc* p) {
-  Val* hp = pr_hp(p);
-  bool o = false;
-  Proto* h;
-
-  while ( o == false && hp != NULL ) {
-    h = as_proto(hp[-2]);
-    o = h->hndl_h;
-    h = as_ptr(hp[-1]);
-  }
-
-  return o;
-}
-
-static bool has_catch(Proc* p) {
-  Val* hp = pr_hp(p);
-  bool o  = false;
-  Proto* h;
-
-  while ( o == false && hp != NULL ) {
-    h = as_proto(hp[-2]);
-    o = h->catch_h;
-    h = as_ptr(hp[-1]);
-  }
-
-  return o;
-}
-
-static void pop_hndl(Proc* p);
-
-static bool restore_hndl(Proc* p, Proto** h, Cntl** k) {
-  bool o = has_hndl(p);
-
-  if ( o ) {
-    bool d = false;
-    Val* f;
-
-    while ( !d ) {
-      f  = pr_hp(p);
-      *h = as_proto(f[-2]);
-      *k = mk_cntl(p, *k);
-      d  = (*h)->hndl_h;
-      pop_hndl(p);
-    }
-  }
-
-  return o;
-}
-
-static void  apply_raise(Proc* p, Proto* h, Cntl* k, Sym* o, Val a);
-static void  install_catch(Proc* p, Proto* b, Proto* h);
-static bool  restore_catch(Proc* p, Proto** h);
-static void  apply_throw(Proc* p, Proto* h, Sym* e, Str* m, Val b);
-
 static inline int do_fetch32(Proc* p) {
   int b;
 
@@ -272,64 +61,228 @@ static inline int do_fetch32(Proc* p) {
   return b;
 }
 
+static void save_caller(Proc* p, size_t n);
+
+static void restore_caller(Proc* p) {
+  Val*  bp = p->bp;
+  Val    f = bp[-1];
+  Val    t = tag_of(f);
+  ushort o = untagv(f);
+  Val*  cs = p->bp+p->fn->vc;
+
+  if ( t == PRIM_F ) {
+    p->fn    = as_func(cs[0]);
+    p->nv    = as_env(cs[1]);
+    p->nx    = as_small(cs[2]);
+
+  } else {
+    Proto* c = as_proto(cs[0]);
+    p->fn    = (Func*)c;
+    p->nv    = c->envt;
+    p->vs    = c->vals;
+    p->ip    = as_ptr(cs[1]);
+    p->nx    = L_NEXT;
+  }
+
+  p->bp -= o;
+  p->sp  = bp;                    // NB: this leaves space for return value
+}
+
+static void resize_args(Proc* p, size_t c, size_t n) {
+  if ( c < n )
+    pr_pushat(p, p->bp+c, n-c, NOTHING);
+
+  else if ( c > n )
+    pr_popat(p, p->bp+n, c-n);
+}
+
+static void resize_locals(Proc* p, size_t a, size_t c, size_t n) {
+  if ( c < n )
+    pr_pushat(p, p->bp+a+c, n-c, NOTHING);
+
+  else if ( c > n )
+    pr_popat(p, p->bp+a+n, c-n);
+}
+
+static void resize_vars(Proc* p, void* o) {
+  Func* f = o;
+  size_t oac = p->fn->ac;
+  size_t olc = p->fn->lc;
+  size_t nac = f->ac;
+  size_t nlc = f->lc;
+
+  resize_args(p, oac, nac);
+  resize_locals(p, nac, olc, nlc);
+}
+
+static void mov_tail_args(Proc* p, size_t n) {
+  pr_move(p, p->bp, p->sp-n, n);
+  p->sp -= n+1;
+}
+
+static void install_closure(Proc* p, Proto* c, int t) {
+  /* NB: function arguments have already been validated.
+
+     Stack overflow has already been checked.
+     
+     `t` indicates frame reuse for tail calls. */
+
+  Val* a = p->stk - c->ac;
+
+  if ( t == -1 ) { // not a tail call
+    pr_reserve(p, NOTHING, c->lc); // reserve space for other locals
+    save_caller(p, c->vc);         // save caller state
+
+    // install registers
+    p->fn    = (Func*)c;
+    p->ip    = c->start;
+    p->bp    = a;
+    p->nv    = c->envt;
+    p->vs    = c->vals;
+    p->nx    = L_NEXT;
+
+  } else if ( t == 0 ) { // general tail call - frame may need to be resized
+    resize_vars(p, c);                         // resize frame
+    mov_tail_args(p, c->ac);                   // copy arguments (also pops arguments)
+    pr_initf(p, p->bp+c->ac, c->lc, NOTHING);  // initialize other locals
+
+    // install registers
+    p->fn    = (Func*)c;
+    p->ip    = c->start;
+    p->nv    = c->envt;
+    p->vs    = c->vals;
+    p->nx    = L_NEXT;
+
+  } else { // tail recursive call - frame can be assumed to be correct size
+    mov_tail_args(p, c->ac);                   // rebind arguments
+    pr_initf(p, p->bp+c->ac, c->lc, NOTHING);  // initialize other locals
+
+    // install registers
+    p->ip    = c->start;
+    p->nx    = L_NEXT;
+  }
+}
+
+static void install_catch(Proc* p, Proto* b, Proto* h) {
+  ushort o;
+
+  install_closure(p, b, -1);               // prepare body for execution
+  pr_push(p, tag(h));                      // save handler
+
+  o     = p->rp == NULL ? 0 : p->sp-p->rp; // compute offset to current rp (0 means it doesn't exist)
+  p->rp = pr_push(p, tagv(o, CATCH_F));
+}
+
+static void install_hndl(Proc* p, Proto* b, Proto* h) {
+  ushort o;
+
+  install_closure(p, b, -1);               // prepare body for execution
+  pr_push(p, tag(h));                      // save handler
+
+  o     = p->rp == NULL ? 0 : p->sp-p->rp; // compute offset to current rp (0 means it doesn't exist)
+  p->rp = pr_push(p, tagv(o, HNDL_F));     // set new rp
+}
+
+static Val* find_catch_rp(Proc* p) {
+  /* Traverse stack to find nearest enclosing frame installed by `catch`.
+
+     This is necessary because both `catch` and */
+  Val* rp = p->rp;
+
+  while ( rp && tag_of(*rp) != CATCH_F ) {
+    ushort o = *rp & WDATA_BITS;
+
+    if ( o == 0 )
+      rp = NULL;
+
+    else
+      rp = rp - o;
+  }
+
+  return rp;
+}
+
+static bool restore_catch(Proc* p, Proto** h) {
+  Val* f = find_catch_rp(p);
+  bool o = f == NULL;
+  
+  if ( !o ) {
+    
+  }
+
+  return o;
+}
+
 /* Internal */
 Error rl_exec_at(Proc* p, Val* r, Label e) {
 
-// local macros
-#define jmp_nx()             goto *next
-#define jmp_err(p)           goto *labels[p->err]
-#define jmp(l)               goto l
-#define jmp_lbl(l)           goto *labels[l]
+  // local macros
+  // accessor macros  
+#define fetch16(d)    ((d) = *(p)->ip++)
+#define fetch32(d)    ((d) = do_fetch32(p)) 
+#define reg(rx)       (p->rx)
+#define stk(i)        (p->stk[i])
+#define loc(i)        (p->bp[i])
+#define vals(i)       (p->vs->tail[i])
+#define upvs(i)       (p->nv->upvs[i])
+#define mov(d, s)     ((d) = (s))
+#define mov_rx(d, rx) ((d) = p->rx)
 
-#define chk_pop(p)                              \
-  if ( unlikely(pr_chk_pop(p, E_RUN)) )         \
-    jmp_err(p)
+  // jump macros
+#define jmp(l)     goto l
+#define jmp_n()    goto *next
+#define jmp_l(l)   goto *labels[l]
+#define jmp_e(p)   goto *labels[p->err]
 
-#define chk_push(p)                             \
-  if ( unlikely(pr_chk_push(p, E_RUN)) )        \
-    jmp_err(p)
+  // errror macros
+#define chk_pop()                                   \
+  if ( unlikely(pr_chk_pop(p, E_RUN)) ) jmp_e(p) 
 
-#define chk_pushn(p, n)                                         \
-  if ( unlikely(pr_chk_pushn(p, E_EVAL, n)) )                   \
-    jmp_err(p)
+#define chk_push()                                             \
+  if ( unlikely(pr_chk_push(p, E_RUN)) ) jmp_e(p)
+
+#define chk_pushn(n)                                 \
+  if ( unlikely(pr_chk_pushn(p, E_EVAL, n)) ) jmp_e(p)
+
+#define chk_stkn(n)                                  \
+  if ( unlikely(pr_chk_stkn(p, E_RUN, n)) ) jmp_e(p)
   
-#define chk_stkn(p, n)                                          \
-  if ( unlikely(pr_chk_stkn(p, E_RUN, n)) )                     \
-    jmp_err(p)
+#define chk_def(r)                                   \
+  if ( unlikely(pr_chk_def(p, E_EVAL, r)) ) jmp_e(p)
 
-#define chk_def(p, r)        unlikely(pr_chk_def(p, E_EVAL, r))
-#define chk_refv(p, r)       unlikely(pr_chk_refv(p, E_EVAL, r))
-#define chk_reft(p, r, g)    unlikely(pr_chk_reft(p, E_EVAL, r, g))
-#define chk_type(p, x, g, s) unlikely(pr_chk_type(p, E_EVAL, x, g, s))
+#define chk_refv(r)                                  \
+  if ( unlikely(pr_chk_refv(p, E_EVAL, r)) ) jmp_e(p)
+  
+#define chk_reft(r, g)                                      \
+  if ( unlikely(pr_chk_reft(p, E_EVAL, r, g)) ) jmp_e(p)
+  
+#define chk_type(x, g, s)                                   \
+  if ( unlikely(pr_chk_type(p, E_EVAL, x, g, s)) ) jmp_e(p)
 
-#define push_nx(p, l)                           \
-  do {                                          \
-    if ( reg(nx) < L_READY ) {                  \
-      chk_push(p);                              \
-      pr_push(p, tag(p->nx));                   \
-    }                                           \
-    mov(reg(nx), l);                            \
-    mov(next, labl(l));                         \
+#define dup()       pr_dup(p)
+#define push(x)     pr_push(p, x)
+#define push_d(x)   pr_push(p, tag(x))
+#define push_rx(rx) pr_push(p, tag(p->rx))
+#define pop()       pr_pop(p)
+#define pop_d(d)    ((d) = untag((d), pr_pop(p)))
+#define pop_rx(rx)  (p->rx = untag((p->rx), p))
+
+#define push_nx(l)                                \
+  do {                                            \
+    if ( reg(nx) < L_READY ) {                    \
+      chk_push();                                 \
+      push_rx(nx);                                \
+    }                                             \
+    mov(reg(nx), l);                              \
+    mov(next, labels[l]);                         \
   } while (false)
 
-#define pop_nx(p)                               \
+#define pop_nx()                                \
   do {                                          \
     mov(reg(nx), as_small(pr_pop(p)));          \
     mov(next, labl(reg(nx)));                   \
   } while (false)
 
-
-#define rx_push(p, rx)                          \
-  pr_push(p, tag(p->rx))
-
-#define rx_pop(p, rx)                           \
-  p->rx = untag(pr_pop(p))
-
-#define rx_fpush(p, rx)                         \
-  pr_fpush(p, tag(p->rx))
-
-#define rx_fpop(p, rx)                          \
-  p->rx = untag(pr_fpop(p))
 
   static void* labels[] = {
     /* error labels */
@@ -416,6 +369,7 @@ Error rl_exec_at(Proc* p, Val* r, Label e) {
   };
 
   int tf;                // tail call flag
+  Glyph gx;
   int ax, ay, az;        // temporary registers for bytecode arguments
   Val vx, vy, vz;        // general temporary registers
   UpVal* ux;
@@ -431,13 +385,13 @@ Error rl_exec_at(Proc* p, Val* r, Label e) {
   Label o;
   void *next;
 
-  push_nx(p, e);
-  jmp_nx();
+  push_nx(e);
+  jmp_n();
 
   /* error labels */
   // not an error
  e_okay:
-  jmp_nx();
+  jmp_n();
 
   // unrecoverable errors
  e_sys:
@@ -453,111 +407,110 @@ Error rl_exec_at(Proc* p, Val* r, Label e) {
  e_genfn:
  e_eval:
  e_user:
-  if ( restore_catch(p, &hx) )
-    jmp(e_norecover);
+  
 
   pr_recover(p, &ox, &mx, &vx);   // clear error
   apply_throw(p, hx, ox, mx, vx); // 
-  jmp_nx();
+  jmp_n();
 
  l_next:
-  mov(o, fetch16(p));             // get next opcode
-  jmp_lbl(o);                     // dispatch to label
+  fetch16(o);             // get next opcode
+  jmp_l(o);               // dispatch to label
 
   /* opcode labels */
- o_noop:
-  jmp_nx();
+ o_noop:                 // dummy operation (does nothing)
+  jmp_n();
 
- o_pop:
-  chk_pop(p);
-  pr_fpop(p);
-  jmp_nx();
+ o_pop:                  // removes TOS
+  chk_pop();             // check underflow
+  pop();                 // remove TOS
+  jmp_n();               // fetch next instruction
 
- o_dup:
-  chk_stkn(p, 1);
-  chk_push(p);
-  pr_dup(p);
-  jmp_nx();
+ o_dup:                  // duplicates TOS
+  chk_stkn(1);           // check underflow (have to have something to duplicate)
+  chk_push();            // check overflow
+  dup();                 // duplicate TOS
+  jmp_n();               // fetch next instruction
 
- o_ld_nul:
-  chk_push(p);
-  pr_fpush(p, NUL);
-  jmp_nx();
+ o_ld_nul:               // adds NUL to stack
+  chk_push();            // check overflow
+  push(NUL);             // push NUL
+  jmp_n();               // fetch next instruction
 
- o_ld_true:
-  chk_push(p);
-  pr_fpush(p, TRUE);
-  jmp_nx();
+ o_ld_true:              // adds TRUE to stack
+  chk_push();            // check overflow
+  push(TRUE);            // push TRUE
+  jmp_n();               // fetch next instruction
 
- o_ld_false:
-  chk_push(p);
-  pr_fpush(p, FALSE);
-  jmp_nx();
+ o_ld_false:             // adds FALSE to stack
+  chk_push();            // check overflow
+  push(FALSE);           // push FALSE
+  jmp_n();               // fetch next instruction
 
- o_ld_zero:
-  chk_push(p);
-  pr_fpush(p, ZERO);
-  jmp_nx();
+ o_ld_zero:              // adds ZERO to stack
+  chk_push();            // check overflow
+  push(ZERO);            // push ZERO
+  jmp_n();               // fetch next instruction
 
- o_ld_one:
-  chk_push(p);
-  pr_fpush(p, ONE);
-  jmp_nx();
+ o_ld_one:               // adds ONE to stack
+  chk_push();            // check overflow
+  push(ONE);             // push ONE
+  jmp_n();               // fetch next instruction
 
- o_ld_fun:
-  chk_push(p);
-  rx_fpush(p, fn);
-  jmp_nx();
+ o_ld_fun:               // loads currently executing function
+  chk_push();            // check overflow
+  push_rx(fn);           // push p->fn
+  jmp_n();               // fetch next instruction
 
- o_ld_env:
-  chk_push(p);
-  rx_fpush(p, nv);
-  jmp_nx();
+ o_ld_env:               // loads current environment
+  chk_push();            // check overflow
+  push_rx(nv);           // push p->nv
+  jmp_n();               // fetch next instruction
 
- o_ld_s16:
-  chk_push(p);
-  fetch16(ax, p);
-  pr_fpush(p, tag(ax));
-  jmp_nx();
+ o_ld_s16:               // loads 16-bit Small inlined in bytecode
+  chk_push();            // check overflow
+  fetch16(ax);           // fetch inlined small
+  push_d(ax);            // add to stack
+  jmp_n();               // fetch next instruction
 
- o_ld_s32:
-  chk_push(p);
-  fetch32(ax, p);
-  pr_fpush(p, tag(ax));
-  jmp_nx();
+ o_ld_s32:               // loads 32-bit Small inlined in bytecode
+  chk_push();            // check overflow
+  fetch32(ax);           // fetch inlined small from bytecode
+  push_d(ax); 
+  jmp_n();
 
  o_ld_g16:
   chk_push(p);
   fetch16(ax, p);
   pr_fpush(p, tag_glyph(ax));
-  jmp_nx();
+  jmp_n();
 
  o_ld_g32:
   chk_push(p);
   fetch32(ax, p);
   pr_fpush(p, tag_glyph(ax));
-  jmp_nx();
+  jmp_n();
 
  o_ld_val:
   chk_push(p);
   fetch16(ax, p);
   val(vx, ax);
   pr_fpush(p, vx);
-  jmp_nx();
+  jmp_n();
 
  o_ld_stk:
   chk_push(p);
   fetch16(ax, p);
   local(vx, ax);
   pr_fpush(p, vx);
-  jmp_nx();
+  jmp_n();
 
  o_put_stk:
   fetch16(ax, p);
   mov(vx, pr_fpop(p));
   mov(local(ax), vx);
 
-  jmp_nx();
+  jmp_n();
 
  o_ld_upv:
   chk_push(p);
@@ -566,7 +519,7 @@ Error rl_exec_at(Proc* p, Val* r, Label e) {
   mov(vxs, dr_upv(ux));
   mov(vx, *vxs);
   pr_fpush(p, vx);
-  jmp_nx();
+  jmp_n();
 
  o_put_upv:
   ax   = fetch16(p);
@@ -575,13 +528,12 @@ Error rl_exec_at(Proc* p, Val* r, Label e) {
   vxs  = dr_upv(ux);
   *vxs = vx;
 
-  jmp_nx();
+  jmp_n();
 
  o_ld_cns:
   ay = -1;
-  ax = fetch16(p);
-
-  goto do_get_ns_ref;
+  fetch16(ax, p);
+  jmp(do_get_ns_ref);
 
  o_put_cns:
   ay = -1;
@@ -614,7 +566,7 @@ Error rl_exec_at(Proc* p, Val* r, Label e) {
 
   pr_fpush(p, vx);
 
-  jmp_nx();
+  jmp_n();
 
  do_put_ns_ref:
   rx = get_ns_ref(p, ay, ax);
@@ -635,7 +587,7 @@ Error rl_exec_at(Proc* p, Val* r, Label e) {
     set_meta(rx, ":tag", tag(rx->tag));
   }
 
-  jmp_nx();
+  jmp_n();
 
  o_hndl:
   vx = pr_fpop(p); // handler
@@ -652,7 +604,7 @@ Error rl_exec_at(Proc* p, Val* r, Label e) {
 
   install_hndl(p, bx, hx);
 
-  jmp_nx();
+  jmp_n();
 
  o_raise1:
   vx = NOTHING;    // operation continuation (ignored)
@@ -704,7 +656,7 @@ Error rl_exec_at(Proc* p, Val* r, Label e) {
   ax   = fetch16(p);
   p->fp += ax;
 
-  jmp_nx();
+  jmp_n();
 
  o_jmpt:
   ax   = fetch16(p);
@@ -713,7 +665,7 @@ Error rl_exec_at(Proc* p, Val* r, Label e) {
   if ( truthy(vx) )
     p->fp += ax;
 
-  jmp_nx();
+  jmp_n();
 
  o_jmpf:
   ax = fetch16(p);
@@ -722,7 +674,7 @@ Error rl_exec_at(Proc* p, Val* r, Label e) {
   if ( falsey(vx) )
     p->fp += ax;
 
-  jmp_nx();
+  jmp_n();
 
  o_closure:
   ax        = fetch16(p);            // number of uxalues to be initialized
@@ -742,11 +694,11 @@ Error rl_exec_at(Proc* p, Val* r, Label e) {
       cl_upvs(cx)[i] = pr_upvs(p)[az];
   }
 
-  jmp_nx();
+  jmp_n();
 
- o_capture:
-  close_upvs(&p->upvs, pr_bp(p));
-  jmp_nx();
+ o_capture:                      // captures 
+  close_upvs(&reg(ou), reg(bp));
+  jmp_n();
 
  o_call0:
  o_call1:
@@ -771,10 +723,10 @@ Error rl_exec_at(Proc* p, Val* r, Label e) {
  o_sapplyn:
   
  o_return:
-  vx = pr_sp(p)[-1]; // return value
+  mov(vx, stk(-1)); // return value
   pr_restoref(p);    // restore caller
   pr_fpush(p, vx);   // push return value
-  jmp_nx();   // jump to caller
+  jmp_n();   // jump to caller
 
  o_exit:
   goto end;
@@ -785,14 +737,14 @@ Error rl_exec_at(Proc* p, Val* r, Label e) {
   tx        = type_of(vx);
   p->sp[-1] = tag(tx);
 
-  jmp_nx();
+  jmp_n();
 
  f_hash:
   vx        = p->sp[-1];
   vy        = rl_hash(vx, false);
   p->sp[-1] = tag_arity(vy);
 
-  jmp_nx();
+  jmp_n();
 
  f_same:
   vx        = pr_fpop(p);
@@ -800,7 +752,7 @@ Error rl_exec_at(Proc* p, Val* r, Label e) {
   vz        = vx == vy ? TRUE : FALSE;
   p->sp[-1] = vz;
 
-  jmp_nx();
+  jmp_n();
 
  end:
   if ( p->err == E_OKAY )

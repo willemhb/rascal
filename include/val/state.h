@@ -15,7 +15,7 @@ struct HFrame {
 struct Proc {
   HEADER;
   // bit fields
-  word_t ini : 1;
+  word_t ini   : 1;
 
   // data fields
   /* global state */
@@ -37,28 +37,16 @@ struct Proc {
   Val*     stk, *sp, *top;
 
   /* open upvalues */
-  UpVal*   upvs;
+  UpVal*   ou;
 
-  /* Main registers (saved with every call) */
-  union {          // currently executing function
-    Func*   fn;
-    Proto*  cl;
-    PrimFn* pf;
-  };
-
-  short*   ip;
-  size_t   fs;    // size of the current frame (offset from TOS to base pointer)
-
-  /* Effect registers (saved by `catch` and `hndl` forms) */
-  Val*     hp;    // stack address of frame saved by `hndl` form
-
-  /* volatile registers */
-  Val*     bp;
-  Val*     fp;
-  Env*     nv;
-
-  /* label registers */
-  Label    op, nx;
+  /* Main registers (some of these are saved by non-tail calls). */
+  Func*    fn;    // currently executing function (could be closure or primitive)
+  short*   ip;    // instruction pointer (for compiled code)
+  Env*     nv;    // active environment
+  Vec*     vs;    // constant store for active function
+  Val*     rp;    // recover pointer (set by `catch`/`hndl` forms)
+  Val*     bp;    // arguments to current function (bp[-1] contains offset to caller state)
+  Label    nx;    // next vm label (used by complex primitives like read and compile that work like state machines)
 };
 
 struct State {
@@ -72,7 +60,7 @@ struct State {
   MMap*   md;   // value metadata
 
   /* Process state */
-  Proc* pr; // currently executing process (at present there's only one of these)
+  Proc*   pr; // currently executing process (at present there's only one of these)
 
   /* Error state */
   Sym** errkws;
@@ -101,20 +89,7 @@ void   reset_pr(Proc* p);
 void   trace_pr(void* o);
 void   free_pr(void* o);
 
-// pseudo-accessors
-char*  pr_fname(Proc* p);
-Env*   pr_env(Proc* p);
-size_t pr_argc(Proc* p);
-size_t pr_lvarc(Proc* p);
-size_t pr_fs(Proc* p);
-Val*   pr_sp(Proc* p);
-Val*   pr_bp(Proc* p);
-Val*   pr_fp(Proc* p);
-Val*   pr_hp(Proc* p);
-
 // frame helpers
-void   pr_growf(Proc* p, size_t n);
-void   pr_shrinkf(Proc* p, size_t n);
 void   pr_initf(Proc* p, Val* d, size_t n, Val x);
 void   pr_pushat(Proc* p, Val* d, size_t n, Val x);
 void   pr_popat(Proc* p, Val* d, size_t n);
@@ -128,16 +103,6 @@ Val*   pr_reserve(Proc* p, size_t n, Val x);
 Val    pr_pop(Proc* p);
 Val    pr_popn(Proc* p, size_t n);
 Val    pr_popnth(Proc* p, size_t n);
-
-// frame synchronized stack helpers
-Val*   pr_fpush(Proc* p, Val x);
-Val*   pr_fdup(Proc* p);
-Val*   pr_fwrite(Proc* p, size_t n, Val* x);
-Val*   pr_fpushn(Proc* p, size_t n, ...);
-Val*   pr_freserve(Proc* p, size_t n, Val x);
-Val    pr_fpop(Proc* p);
-Val    pr_fpopn(Proc* p, size_t n);
-Val    pr_fpopnth(Proc* p, size_t n);
 
 // other stack helpers
 void   pr_move(Proc* p, Val* d, Val* s, size_t n);

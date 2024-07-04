@@ -33,7 +33,7 @@ Proc Main = {
   .pid    = 0,
 
   /* Error state */
-  .err    = OKAY,
+  .err    = E_OKAY,
   .errb   = NOTHING,
   .errm   = NULL,
 
@@ -55,7 +55,6 @@ Proc Main = {
   /* interpreter state */
   .fn     = NULL,
   .nv     = NULL,
-  .fs     = 0,
 
   .hp     = NULL,
 
@@ -131,15 +130,16 @@ void reset_pr(Proc* p) {
   free_pr(p);
 
   // reset registers and flags (skip heap)
-  p->err  = OKAY;
+  p->err  = E_OKAY;
   p->errb = NOTHING;
   p->errm = NULL;
   p->fn   = NULL;
+  p->ip   = NULL;
   p->nv   = &Globals;
-  p->fs   = 0;
-  p->hp   = NULL;
+  p->vs   = NULL;
+  p->rp   = NULL;
   p->bp   = NULL;
-  p->fp   = NULL;
+  p->nx   = L_READY;
 }
 
 void trace_pr(void* o) {
@@ -169,25 +169,6 @@ void free_pr(void* o) {
   Proc* p = o;
 
   deallocate(NULL, p->stk, 0);
-}
-
-// pseudo-accessors
-char* pr_fname(Proc* p) {
-  if ( p->fn == NULL )
-    return "runtime";
-
-  return fn_name(p->fn);
-}
-
-Env* pr_env(Proc* p) {
-  if ( p->fn == NULL )
-    return p->state->gns;
-
-  else if ( is_proto(p->fn) )
-    return p->cl->envt;
-
-  else
-    return p->nv;
 }
 
 // stack helpers (unchecked, validation happens elsewhere)
@@ -253,76 +234,6 @@ Val pr_popnth(Proc* p, size_t n) {
 
   memmove(p->sp-n, p->sp-(n-1), n-1*sizeof(Val));
   p->sp--;
-
-  return o;
-}
-
-
-// frame synchronized stack helpers
-Val* pr_fpush(Proc* p, Val x) {
-  Val* o = pr_push(p, x);
-
-  p->fs++;
-
-  return o;
-}
-Val* pr_fdup(Proc* p) {
-  Val* o = pr_dup(p);
-
-  p->fs++;
-
-  return o;
-}
-
-Val* pr_fwrite(Proc* p, size_t n, Val* x) {
-  Val* o = pr_write(p, n, x);
-  
-  p->fs += n;
-
-  return o;
-}
-
-Val* pr_fpushn(Proc* p, size_t n, ...) {
-  Val* b = pr_fwrite(p, n, NULL);
-  va_list va;
-  va_start(va, n);
-  
-  for ( size_t i=0; i<n; i++ )
-    b[i] = va_arg(va, Val);
-
-  va_end(va);
-
-  return b;
-}
-
-Val* pr_freserve(Proc* p, size_t n, Val x) {
-  Val* o = pr_reserve(p, n, x);
-
-  p->fs += n;
-
-  return o;
-}
-
-Val pr_fpop(Proc* p) {
-  Val o = pr_pop(p);
-
-  p->fs--;
-
-  return o;
-}
-
-Val pr_fpopn(Proc* p, size_t n) {
-  Val o = pr_popn(p, n);
-
-  p->fs -= n;
-
-  return o;
-}
-
-Val pr_fpopnth(Proc* p, size_t n) {
-  Val o = pr_popnth(p, n);
-
-  p->fs -= n;
 
   return o;
 }

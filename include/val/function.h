@@ -10,14 +10,12 @@
 #define FUNC_HEADER                                                   \
   HEADER;                                                             \
   /* bit fields */                                                    \
-  word_t hndl_h   : 1;                                                \
-  word_t catch_h  : 1;                                                \
   word_t va       : 1;                                                \
   word_t comp     : 1;                                                \
   word_t m_union  : 1;                                                \
   word_t m_favor  : 1;                                                \
   /* data fields */                                                   \
-  uint argc, lvarc;                                                   \
+  ushort ac, lc, vc, fc;                                              \
   Vec* sig;                                                           \
   /* _sname field exists to aid static initialization */              \
   union {                                                             \
@@ -43,7 +41,8 @@ struct Proto {
     Vec*  vals;
   };
 
-  Env* envt;
+  Env*   envt;
+  short* start;
 };
 
 struct PrimFn {
@@ -104,7 +103,6 @@ extern Type ProtoType, PrimFnType, GenFnType, CntlType, MTType;
 /* General function APIs */
 #define as_func(x) ((Func*)as_obj(x))
 
-char*  fn_name(void* fn);
 size_t fn_argc(void* fn);
 size_t fn_lvarc(void* fn);
 size_t fn_framec(void* fn);

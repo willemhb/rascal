@@ -7,6 +7,7 @@
 #include <stdarg.h>
 #include <assert.h>
 #include <stdio.h>
+#include <uchar.h>
 
 /* Utility typedefs. */
 typedef uint8_t    uchar;

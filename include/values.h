@@ -34,7 +34,7 @@ typedef struct Ref   Ref;
 typedef struct UpVal UpVal;
 
 // text, binary, and IO types
-typedef char        Glyph;
+typedef char32_t    Glyph;
 typedef struct Port Port;
 typedef struct Str  Str;
 typedef struct Bin  Bin;
