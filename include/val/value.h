@@ -112,6 +112,7 @@ static inline Val untagv(Val x) {
           RT*:tag_obj,                          \
           Arity:tag_arity,                      \
           Label:tag_small,                      \
+          ushort:tag_small,                     \
           Small:tag_small,                      \
           Real:tag_real,                        \
           Pair*:tag_obj,                        \
@@ -130,7 +131,7 @@ static inline Val untagv(Val x) {
           NSMap*:tag_obj)(x)
 
 #define untag(d, x)                             \
-  ((typeof(d))(generic((d)                      \
+  ((typeof(d))(generic((d),                     \
                        Obj*:val_as_obj,         \
                        Nul:as_nul,              \
                        Bool:as_bool,            \
@@ -141,6 +142,35 @@ static inline Val untagv(Val x) {
                        FunPtr:as_fptr,          \
                        Type*:val_as_obj,        \
                        Func*:val_as_obj,        \
+                       Proto*:val_as_obj,       \
+                       PrimFn*:val_as_obj,      \
+                       GenFn*:val_as_obj,       \
+                       MT*:val_as_obj,          \
+                       Cntl*:val_as_obj,        \
+                       Sym*:val_as_obj,         \
+                       Env*:val_as_obj,         \
+                       Ref*:val_as_obj,         \
+                       UpVal*:val_as_obj,       \
+                       Glyph:val_as_obj,        \
+                       Port*:val_as_obj,        \
+                       Str*:val_as_obj,         \
+                       Bin*:val_as_obj,         \
+                       MStr*:val_as_obj,        \
+                       MBin*:val_as_obj,        \
+                       RT*:val_as_obj,          \
+                       Arity:as_arity,          \
+                       Label:as_small,          \
+                       ushort:as_small,         \
+                       Small:as_small,          \
+                       Real:as_real,            \
+                       Pair*:val_as_obj,        \
+                       List*:val_as_obj,        \
+                       MPair*:val_as_obj,       \
+                       MList*:val_as_obj,       \
+                       Vec*:val_as_obj,         \
+                       VNode*:val_as_obj,       \
+                       MVec*:val_as_obj,        \
+                       Alist*:val_as_obj,       \
                        Map*:val_as_obj,         \
                        MNode*:val_as_obj,       \
                        MMap*:val_as_obj,        \

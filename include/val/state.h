@@ -44,7 +44,8 @@ struct Proc {
   short*   ip;    // instruction pointer (for compiled code)
   Env*     nv;    // active environment
   Vec*     vs;    // constant store for active function
-  Val*     rp;    // recover pointer (set by `catch`/`hndl` forms)
+  Val*     cp;    // catch pointer (set by `catch` forms)
+  Val*     hp;    // handle pointer (sdet by `hndl` forms)
   Val*     bp;    // arguments to current function (bp[-1] contains offset to caller state)
   Label    nx;    // next vm label (used by complex primitives like read and compile that work like state machines)
 };

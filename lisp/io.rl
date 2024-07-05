@@ -1,5 +1,6 @@
 (ns io
   "Rascal IO standard library module."
+  (use [base])
 
   ;; Standard streams.
   (val &in
@@ -18,11 +19,27 @@
   ;; output functions.
   (fun prn
     "Write's lisp representation to given output. If the given object has reader support, reading the printed representation should yield an identical object."
-    ([x] (prn &out x))
-    ([p x])
-    ([p x & r]
-     (do (prn p x)
-       (apply prn p r))))
+    [x]
+    [p x]
+    [p x & r])
+
+  (method pr
+    "Implementation for `List`s."
+    [xs: List]
+      (prn &out xs)
+    [p: Port xs: List]
+      (label
+        [p xs]
+        (do (pr p (hd xs))
+          (if (empty?|tl xs)
+            (prc p \))
+            (do (prc p \space)
+              (pr p (tl xs))))))
+        ;; Entry point.
+        (if (empty? xs)
+          (prs p "()")
+          (do (prc p \()
+            (loop p xs))))
 
   (fun show
     "Write's a human-readable representation to given output. Does not have the same constraints as prn."
