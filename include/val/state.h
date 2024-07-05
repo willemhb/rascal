@@ -81,14 +81,19 @@ struct State {
 extern Type StateType, ProcType;
 
 /* External APIs */
-/* RlState APIs */
+/* State APIs */
 void init_rs(State* s);
 
-/* RlProc APIs */
+/* Proc APIs */
 void   init_pr(Proc* p);
 void   reset_pr(Proc* p);
 void   trace_pr(void* o);
 void   free_pr(void* o);
+
+// pseudo-accessors
+size_t pr_nstk(Proc* p);
+size_t pr_nabove(Proc* p, Val* s);
+size_t pr_nbelow(Proc* p, Val* s);
 
 // frame helpers
 void   pr_initf(Proc* p, Val* d, size_t n, Val x);

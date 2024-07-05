@@ -50,16 +50,16 @@ Proc Main = {
   .sp      = IVals,
 
   /* upvalue state */
-  .upvs   = NULL,
+  .ou      = NULL,
 
   /* interpreter state */
   .fn     = NULL,
+  .ip     = NULL,
   .nv     = NULL,
-
   .hp     = NULL,
-
+  .cp     = NULL,
   .bp     = NULL,
-  .fp     = NULL
+  .nx     = L_READY
 };
 
 State Vm = {
@@ -124,7 +124,7 @@ void init_pr(Proc* p) {
 
 void reset_pr(Proc* p) {
   // close any open upvalues
-  close_upvs(&p->upvs, p->bp);
+  close_upvs(&p->ou, p->bp);
 
   // free stack space
   free_pr(p);
@@ -137,7 +137,8 @@ void reset_pr(Proc* p) {
   p->ip   = NULL;
   p->nv   = &Globals;
   p->vs   = NULL;
-  p->rp   = NULL;
+  p->hp   = NULL;
+  p->cp   = NULL;
   p->bp   = NULL;
   p->nx   = L_READY;
 }
@@ -148,7 +149,7 @@ void trace_pr(void* o) {
   mark(p->state);
   mark(p->errm);
   mark(p->grays); // won't be added to itself because of trace flag
-  mark(p->upvs);
+  mark(p->ou);
   mark(p->fn);
   
   if ( p->fn != NULL && !is_proto(p->fn) )
@@ -169,6 +170,61 @@ void free_pr(void* o) {
   Proc* p = o;
 
   deallocate(NULL, p->stk, 0);
+}
+
+// pseudo-accessors
+size_t pr_nstk(Proc* p) {
+  return p->sp - p->stk;
+}
+
+size_t pr_nabove(Proc* p, Val* s) {
+  assert(s >= p->stk && s < p->sp);
+
+  return p->sp - s;
+}
+
+size_t pr_nbelow(Proc* p, Val* s) {
+  assert(s >= p->stk && s < p->sp);
+
+  return s - p->stk;
+}
+
+void pr_growsp(Proc* p, size_t n) {
+  p->sp += n;
+}
+
+void pr_shrinksp(Proc* p, size_t n) {
+  p->sp -= n;
+}
+
+// frame helpers (unchecked, validation happens elsewhere)
+void pr_initf(Proc* p, Val* d, size_t n, Val x) {
+  assert(d >= p->stk && d < p->sp);
+  assert(d+n < p->sp);
+
+  for ( size_t i=0; i<n; i++ )
+    d[i] = x;
+}
+
+void pr_pushat(Proc* p, Val* d, size_t n, Val x) {
+  assert(d >= p->stk && d < p->sp);
+  assert(p->sp+n < p->top);
+
+  size_t na  = pr_nabove(p, d);
+
+  pr_growsp(p, n);
+  pr_move(p, d, d+n, na);
+  pr_initf(p, d, x, n);
+}
+
+void pr_popat(Proc* p, Val* d, size_t n) {
+  assert(d >= p->stk && d < p->top);
+  assert(p->sp-n >= p->stk);
+
+  size_t na = pr_nabove(p, d);
+
+  pr_move(p, d, d-n, na);
+  pr_shrinksp(p, n);
 }
 
 // stack helpers (unchecked, validation happens elsewhere)
@@ -236,4 +292,13 @@ Val pr_popnth(Proc* p, size_t n) {
   p->sp--;
 
   return o;
+}
+
+// other stack helpers
+void pr_move(Proc* p, Val* d, Val* s, size_t n) {
+  assert(d >= p->stk && d < p->sp);
+  assert(d+n < p->sp);
+  assert(s >= p->stk && s < p->sp);
+  assert(s+n < p->sp);
+  memmove(d, s, n*sizeof(Val));
 }
