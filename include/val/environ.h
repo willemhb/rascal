@@ -10,8 +10,6 @@ typedef enum Scope {
   LOCAL_SCOPE,     // value is on stack
   UPVALUE_SCOPE,   // value is indirected through an upvalue
   NAMESPACE_SCOPE, // value is stored in the current namespace environ
-  STRUCT_SCOPE,    // value is stored in struct object
-  RECORD_SCOPE,    // value is stored in record object
 } Scope;
 
 // user identifier types
@@ -22,7 +20,6 @@ struct Sym {
   word_t literal : 1;
 
   // data fields
-  Str*   nmspc;
   Str*   name;
   word_t idno;      // non-zero for gensyms
   Label  labl;      // arbitrary miscellaneous label (used internally)
@@ -107,16 +104,6 @@ static inline bool is_gs(Sym* s) {
   return s->idno > 0;
 }
 
-static inline Str* get_ns(Sym* s) {
-  return s->nmspc ? : GlobalNs;
-}
-
-#define qualify(s, ns)                          \
-  generic((ns),                                 \
-          char*:cstr_qualify,                   \
-          Str*:str_qualify,                     \
-          Sym*:sym_qualify)(s, ns)
-
 #define mk_sym(n, ns, gs)                       \
   generic((n),                                  \
           char*:c_mk_sym,                       \
@@ -135,9 +122,6 @@ bool v_sn_eq(Val x, const char* n);
 
 // qualify methods
 Sym* unqualify(Sym* s);
-Sym* cstr_qualify(Sym* s, char* ns);
-Sym* str_qualify(Sym* s, Str* ns);
-Sym* sym_qualify(Sym* s, Sym* ns);
 
 /* Env APIs */
 #define is_env(x) has_type(x, &EnvType)
