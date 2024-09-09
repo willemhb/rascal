@@ -12,20 +12,14 @@
   '(
     ;; syntax affixed with `*` is superseded or otherwise not intended to be used
     ;; directly in user code
-    ;; variable binding & rebinding
-    "def*" "val" "var" "put"
+    ;; binding syntax
+    "def" "put" "lmb" "fun" "mac"
 
-    ;; function/macro binding
-    "fun" "mac" "method" "impl"
-
-    ;; type binding
-    "type" "union" "abstract" "trait" "record" "struct"
-
-    ;; namespace binding
-    "ns" "use" "import"
+    ;; module system
+    "use"
 
     ;; closures and blocks
-    "fn*" "let*" "let" "label" "loop"
+    "let" "label" "loop"
 
     ;; threading syntax
     "->"
@@ -34,7 +28,7 @@
     "if" "cond" "case" "and" "or"
 
     ;; non-local control syntax
-    "hndl" "raise" "catch" "throw"
+    "catch" "throw"
 
     ;; miscellaneous syntax
     "c-call" "quote" "do" "bq*" "uq*" "splc*"
@@ -42,7 +36,7 @@
   '(("\\(?:[^:]:[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ("\\(?:[^~]@[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^@[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ;; special constants
-    ("\\_<nothing\\_>" . font-lock-constant-face)
+    ("\\_<none\\_>" . font-lock-constant-face)
     ("\\_<nul\\_>" . font-lock-constant-face)
     ("\\_<true\\_>" . font-lock-constant-face)
     ("\\_<false\\_>" . font-lock-constant-face)

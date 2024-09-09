@@ -56,7 +56,6 @@ struct State {
   // data fields
   /* environment state */
   Env*    gns;
-  NSMap*  nss;
   SCache* strs;
   MMap*   md;   // value metadata
 
@@ -68,7 +67,6 @@ struct State {
 
   /* Command line arguments */
   List* args;
-  Set*  flags;
   Map*  opts;
 
   /* Standard streams */
@@ -78,8 +76,6 @@ struct State {
 };
 
 /* Globals */
-extern Type StateType, ProcType;
-
 /* External APIs */
 /* State APIs */
 void init_rs(State* s);

@@ -15,6 +15,7 @@ typedef uint16_t   ushort;
 typedef uint32_t   uint;
 typedef uint64_t   ulong;
 typedef uint8_t    byte;
+typedef uint32_t   arity_t;
 typedef uint32_t   flags_t;
 typedef uint64_t   word_t;
 typedef uint64_t   hash_t;
@@ -37,7 +38,7 @@ typedef void* nullptr_t;
 #define MIN_ARR      8
 #define INIT_HEAP    (1 << 19) // MAX_STACK * sizeof(Val)
 #define MAX_HEAP     MAX_ARITY
-#define FN_FRAMEC    3
+#define FN_FRAMEC    4
 
 /* redefining important macros with annoying names */
 #define generic _Generic

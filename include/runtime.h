@@ -19,7 +19,6 @@ typedef size_t (*SizeofFn)(void* x);
 /* Globals */
 /* Global state objects */
 extern State Vm;         // main Vm state object
-extern Proc  Main;       // main process (for the time being this is the only process)
 
 /* Standard streams */
 extern Port StdIn;
@@ -30,10 +29,5 @@ extern Port StdErr;
 extern List EmptyList;
 extern Vec  EmptyVec;
 extern Map  EmptyMap;
-
-/* Global environment state */
-extern Env    Globals;
-extern NSMap  NameSpaces;
-extern SCache Strings;
 
 #endif

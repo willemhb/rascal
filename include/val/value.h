@@ -9,53 +9,35 @@
 #define SIGN       0x8000000000000000UL
 
 #define TAG_BITS   0xffff000000000000UL
-#define WTAG_BITS  0xffffffff00000000UL
-#define WDATA_BITS 0x00000000ffffffffUL
 #define DATA_BITS  0x0000ffffffffffffUL
 
-// narrow tags
-#define REAL      0x0000000000000000UL // dummy tag
-#define ARITY     0x7ffc000000000000UL // arity value
-#define CPTR      0x7ffd000000000000UL
-#define FPTR      0x7ffe000000000000UL
-#define OBJECT    0x7fff000000000000UL
-#define LITTLE    0xffff000000000000UL // 32-bit value with wide tag
+// value tags
+#define REAL    0x0000000000000000UL // dummy tag
+#define NUL     0x7ffc000000000000UL
+#define BOOL    0x7ffd000000000000UL
+#define LABL    0x7ffe000000000000UL
+#define PTR     0x7fff000000000000UL
+#define GLYPH   0xfffc000000000000UL
+#define OBJECT  0xfffd000000000000UL
 
-// wide tags
-#define NUL       0xffff000000000000UL
-#define BOOL      0xffff000100000000UL
-#define GLYPH     0xffff000200000000UL
-#define SMALL     0xffff000300000000UL
+// sentinel tags
+#define NOTHING 0xfffe000000000000UL
+#define OFFSET  0xffff000000000000UL
 
-// internal tags (alias for Small)
-#define PRIM_F    0xfffffffa00000000UL
-#define PROTO_F   0xfffffffb00000000UL // marks a prototype frame on the stack
-#define CATCH_F   0xfffffffd00000000UL // marks a catch frame on the stack
-#define HNDL_F    0xfffffffe00000000UL // marks a hndl frame on the stack
-
-// internal tags (not values, shouldn't escape)
-#define SENTINEL  0xffffffff00000000UL
-
-#define TRUE      0xffff000100000001UL // BOOL  | 1
-#define FALSE     0xffff000100000000UL // BOOL  | 0
-#define ZERO      0xffff000300000000UL // SMALL | 0
-#define ONE       0xffff000300000001UL // SMALL | 1
+#define TRUE    0x7ffd000000000001UL // BOOL  | 1
+#define FALSE   0x7ffd000000000000UL // BOOL  | 0
 
 // sentinel values, shouldn't be visible in user code
-#define NOTHING   0xffffffff00000000UL // SENTINEL | 0
 
 /* Globals */
-// type objects
-extern Type NulType, BoolType, PtrType, FunPtrType;
-
 /* APIs */
 // tagging/untagging macros & functions
-static inline Val tag_of(Val x) {
-  return (x & LITTLE) == LITTLE ? x & WTAG_BITS : x & TAG_BITS;
+static inline Val tag_bits(Val x) {
+  return x & TAG_BITS;
 }
 
-static inline Val untagv(Val x) {
-  return (x & LITTLE) == LITTLE ? x & WDATA_BITS : x & DATA_BITS;
+static inline Val data_bits(Val x) {
+  return x & DATA_BITS;
 }
 
 #define as_obj(x)                               \
@@ -84,51 +66,34 @@ static inline Val untagv(Val x) {
 // big ass tag macro
 #define tag(x)                                  \
   generic((x),                                  \
-          Obj*:tag_obj,                         \
           Nul:tag_nul,                          \
           Bool:tag_bool,                        \
+          Label:tag_lbl,                        \
           Ptr:tag_ptr,                          \
           short*:tag_ptr,                       \
           ushort*:tag_ptr,                      \
+          char*:tag_ptr,                        \
           Val*:tag_ptr,                         \
-          FunPtr:tag_fptr,                      \
-          Type*:tag_obj,                        \
-          Func*:tag_obj,                        \
-          Proto*:tag_obj,                       \
-          PrimFn*:tag_obj,                      \
-          GenFn*:tag_obj,                       \
-          MT*:tag_obj,                          \
-          Cntl*:tag_obj,                        \
-          Sym*:tag_obj,                         \
-          Env*:tag_obj,                         \
-          Ref*:tag_obj,                         \
-          UpVal*:tag_obj,                       \
           Glyph:tag_glyph,                      \
+          char:tag_glyph,                       \
+          Real:tag_real,                        \
+          Obj*:tag_obj,                         \
           Port*:tag_obj,                        \
+          Func*:tag_obj,                        \
+          Sym*:tag_obj,                         \
           Str*:tag_obj,                         \
           Bin*:tag_obj,                         \
-          MStr*:tag_obj,                        \
-          MBin*:tag_obj,                        \
-          RT*:tag_obj,                          \
-          Arity:tag_arity,                      \
-          Label:tag_small,                      \
-          ushort:tag_small,                     \
-          Small:tag_small,                      \
-          Real:tag_real,                        \
           Pair*:tag_obj,                        \
           List*:tag_obj,                        \
-          MPair*:tag_obj,                       \
-          MList*:tag_obj,                       \
           Vec*:tag_obj,                         \
-          VNode*:tag_obj,                       \
-          MVec*:tag_obj,                        \
-          Alist*:tag_obj,                       \
           Map*:tag_obj,                         \
+          Buffer*:tag_obj,                      \
+          Alist*:tag_obj,                       \
+          Table*:tag_obj,                       \
+          UpVal*:tag_obj,                       \
+          VNode*:tag_obj,                       \
           MNode*:tag_obj,                       \
-          MMap*:tag_obj,                        \
-          SCache*:tag_obj,                      \
-          EMap*:tag_obj,                        \
-          NSMap*:tag_obj)(x)
+          State*:tag_obj)(x)
 
 #define untag(d, x)                             \
   ((typeof(d))(generic((d),                     \
@@ -181,23 +146,19 @@ static inline Val untagv(Val x) {
 // tagging methods
 Val tag_nul(Nul n);
 Val tag_bool(Bool b);
+Val tag_lbl(Label l);
 Val tag_glyph(Glyph g);
-Val tag_small(Small s);
-Val tag_arity(Arity a);
 Val tag_real(Real n);
 Val tag_ptr(Ptr p);
-Val tag_fptr(FunPtr f);
 Val tag_obj(void* p);
 
 // casting methods
 Nul    as_nul(Val x);
 Bool   as_bool(Val x);
+Label  as_lbl(Val x);
 Glyph  as_glyph(Val x);
-Small  as_small(Val x);
-Arity  as_arity(Val x);
 Real   as_real(Val x);
 Ptr    as_ptr(Val x);
-FunPtr as_fptr(Val x);
 Obj*   val_as_obj(Val v);
 Obj*   ptr_as_obj(void* p);
 
@@ -206,8 +167,8 @@ Type* type_of_val(Val v);
 Type* type_of_obj(void* p);
 
 // has_type methods
-bool val_has_type(Val v, Type* t);
-bool obj_has_type(void* p, Type* t);
+bool val_has_type(Val v, Type t);
+bool obj_has_type(void* p, Type t);
 
 // size_of methods
 size_t size_of_val(Val x, bool o);
@@ -217,8 +178,8 @@ size_t size_of_obj(void* x, bool o);
 bool  is_nul(Val x);
 bool  is_bool(Val x);
 bool  is_glyph(Val x);
-bool  is_cptr(Val x);
-bool  is_fptr(Val x);
+bool  is_ptr(Val x);
+bool  is_real(Val x);
 bool  is_obj(Val x);
 
 #endif
