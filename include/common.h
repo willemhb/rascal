@@ -15,11 +15,20 @@ typedef uint16_t   ushort;
 typedef uint32_t   uint;
 typedef uint64_t   ulong;
 typedef uint8_t    byte;
-typedef uint32_t   arity_t;
-typedef uint32_t   flags_t;
 typedef uint64_t   word_t;
 typedef uint64_t   hash_t;
 typedef void     (*funcptr_t)(void);
+
+// explicitly sizee types
+typedef uint8_t    size8;
+typedef uint16_t   size16;
+typedef uint32_t   size32;
+typedef size_t     size64;
+
+typedef uint8_t    flags8;
+typedef uint16_t   flags16;
+typedef uint32_t   flags32;
+typedef uint64_t   flags64;
 
 #if __GNUC__ < 13
 

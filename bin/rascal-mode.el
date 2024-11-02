@@ -13,10 +13,10 @@
     ;; syntax affixed with `*` is superseded or otherwise not intended to be used
     ;; directly in user code
     ;; binding syntax
-    "def" "put" "lmb" "fun" "mac"
+    "def" "put" "lmb" "fun" "mac" "method" "type" "val" "var"
 
     ;; module system
-    "use"
+    "module" "import" "export"
 
     ;; closures and blocks
     "let" "label" "loop"
@@ -25,15 +25,15 @@
     "->"
 
     ;; branching syntax
-    "if" "cond" "case" "and" "or"
+    "if" "cond" "case" "match" "and" "or"
 
     ;; non-local control syntax
-    "hndl" "raise"
+    "hndl" "raise" "try" "catch"
 
     ;; miscellaneous syntax
     "c-call" "quote" "do" "bq*" "uq*" "splc*"
     )
-  '(("\\(?:[^:]:[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
+  '(("\\(?:[^-_a-zA-Z?*+0-9/:]:[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ("\\(?:[^~]@[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^@[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ;; special constants
     ("\\_<none\\_>" . font-lock-constant-face)

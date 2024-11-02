@@ -7,16 +7,18 @@
 
 /* C types*/
 // common object header macro
-#define HEADER                                   \
-  Obj*    heap;                                  \
-  word_t  hash  : 48;                            \
-  word_t  type  : 10;                            \
-  word_t  ownh  :  1;                            \
-  word_t  trace :  1;                            \
-  word_t  free  :  1;                            \
-  word_t  sweep :  1;                            \
-  word_t  gray  :  1;                            \
-  word_t  black :  1
+#define HEADER                                    \
+  Obj*     heap;                                  \
+  flags64  hash  : 48;                            \
+  flags64  mut   :  1;                            \
+  flags64  trans :  1;                            \
+  flags64  ownh  :  1;                            \
+  flags64  trace :  1;                            \
+  flags64  free  :  1;                            \
+  flags64  sweep :  1;                            \
+  flags64  gray  :  1;                            \
+  flags64  black :  1;                            \
+  flags64  tag   :  5
 
 struct Obj {
   HEADER;

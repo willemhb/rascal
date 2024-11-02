@@ -15,7 +15,6 @@
 #define REAL    0x0000000000000000UL // dummy tag
 #define NUL     0x7ffc000000000000UL
 #define BOOL    0x7ffd000000000000UL
-#define LABL    0x7ffe000000000000UL
 #define PTR     0x7fff000000000000UL
 #define GLYPH   0xfffc000000000000UL
 #define OBJECT  0xfffd000000000000UL
@@ -146,7 +145,6 @@ static inline Val data_bits(Val x) {
 // tagging methods
 Val tag_nul(Nul n);
 Val tag_bool(Bool b);
-Val tag_lbl(Label l);
 Val tag_glyph(Glyph g);
 Val tag_real(Real n);
 Val tag_ptr(Ptr p);
@@ -155,7 +153,6 @@ Val tag_obj(void* p);
 // casting methods
 Nul    as_nul(Val x);
 Bool   as_bool(Val x);
-Label  as_lbl(Val x);
 Glyph  as_glyph(Val x);
 Real   as_real(Val x);
 Ptr    as_ptr(Val x);

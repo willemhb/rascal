@@ -8,8 +8,21 @@
     verbose     #x08
     locale      #x10)
 
-  (struct Regex
+  (struct Re
     "Stores a compiled regular expression."
-    [flags: Small,
-     pattern: String,
-     exec: Binary]))
+    [flags:   Small,
+     pattern: Str,
+     exec:    Bin])
+
+  (struct Match
+    "Stores the result of a regular expression match."
+    [regex:  Re,
+     string: Str,
+     start:  Small,
+     stop:   Small,
+     groups: List])
+
+  (fun match: Opt[Match]
+    "Applies the search function designed by a regex to given string."
+    [r: Re, s: Str]
+    ()))
