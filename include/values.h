@@ -19,13 +19,17 @@ typedef double      Real;
 // user object types
 typedef struct Port   Port;
 typedef struct Func   Func;
+typedef struct Cntl   Cntl;
 typedef struct Sym    Sym;
-typedef struct Str    Str;
 typedef struct Bin    Bin;
 typedef struct Pair   Pair;
 typedef struct List   List;
 typedef struct Vec    Vec;
+
 typedef struct Map    Map;
+
+// aliases for user object types
+typedef struct Bin    Str;
 
 // internal object types
 typedef struct Buffer Buffer; // binary or text buffer (mostly for IO)

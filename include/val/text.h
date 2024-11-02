@@ -13,10 +13,13 @@ struct Port {
   HEADER;
 
   // bit fields
-  word_t encoding : 4;
-  word_t input    : 1;
-  word_t output   : 1;
-  word_t lispfile : 1;
+  int     line;
+  int     col;
+  
+  flags_t encoding : 28;
+  flags_t input    :  1;
+  flags_t output   :  1;
+  flags_t lispfile :  1;
 
   // data fields
   FILE* ios;
@@ -26,73 +29,50 @@ struct Port {
     char* _sname;
   };
 
-  int line;
-  int col;
-
   // reader fields
   // read buffer
-  union {
-    MStr* t;
-    MBin* b;
-  } b;
+  Buffer* b;
 
   // last expression read
   Val x;
-};
-
-struct Str {
-  HEADER;
-
-  // bit fields
-  word_t enc      : 4;
-  word_t hasmb    : 1;
-  word_t interned : 1;
-  word_t _static  : 1;
-
-  // data fields
-  char*  chars;
-  size_t cnt;
 };
 
 struct Bin {
   HEADER;
 
   // bit fields
-  word_t eltype : 4;
+  flags_t ctype    : 28;
+  flags_t encp     :  1;
+  flags_t hasmb    :  1;
+  flags_t interned :  1;
+  flags_t _static  :  1;
 
   // data fields
-  byte*  data;
+  union {
+    char* chars;
+    byte* data;
+  };
+
   size_t cnt;
 };
 
-#define DYNAMIC_BUFFER(X)                       \
-  word_t algo : 3;                              \
-  X* data;                                      \
-  X* _static;                                   \
-  size_t cnt, maxc, maxs
-
-struct MStr {
+struct Buffer {
   HEADER;
 
   // bit fields
-  word_t encoding : 4;
-  word_t hasmb    : 1;
+  flags_t ctype    : 27;
+  flags_t algo     :  3;
+  flags_t encp     :  1;
+  flags_t hasmb    :  1;
 
   // data fields
-  DYNAMIC_BUFFER(char);
+  union {
+    char* chars;
+    byte* data;
+  };
+
+  size_t cnt, cap;
 };
-
-struct MBin {
-  HEADER;
-
-  // bit fields
-  word_t eltype : 4;
-
-  // data fields
-  DYNAMIC_BUFFER(byte);
-};
-
-#undef DYNAMIC_BUFFER
 
 // read table type (intention is for this to eventually be extensible)
 #define RT_SIZE 128

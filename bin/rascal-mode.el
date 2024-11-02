@@ -28,7 +28,7 @@
     "if" "cond" "case" "and" "or"
 
     ;; non-local control syntax
-    "catch" "throw"
+    "hndl" "raise"
 
     ;; miscellaneous syntax
     "c-call" "quote" "do" "bq*" "uq*" "splc*"
