@@ -10,45 +10,44 @@ struct HFrame {
   Val*    saved;
 };
 
-/* Stores all the information necessary to resume an execution context. */
-struct EFrame {
-  Func*   handler;
-  HFrame* hfs;
-  Table*  module;
-  Func*   code;
-  sint16* ip;
-  Val*    fp, * bp, * sp;
-  jmp_buf Cstate;
-};
-
-/* Stores all internal state used by the Rascal virtual machine. */
+/* Stores all globals used by the Rascal virtual machine. */
 struct State {
   /* Heap state */
-  HFrame* hfs;
-  Alist*  grays;
-  Obj*    objs;
-  size64  alloc, limit;
-
-  /* Error state */
-  EFrame* ep, * ebase, * elast;
+  HFrame*  hfs;
+  Vec*     grays;
+  Obj*     heap;
+  size64   alloc, limit;
 
   /* Environment state */
-  UpVal* upvals;  // linked list of open upvalues
-  Table* globals; // global variables
-  Table* module;  // variables for currently executing script (NULL in repl)
-  Sym*   symbols; // symbol table root (symbol table is invasive tree)
+  Map*     globals;  // global variables
+  Map*     metadata; // metadata for immediate values
+  Sym*     symbols;  // symbol table root (symbol table itself is an invasive tree)
+
+  /* execution state */
+  Process* main;
+};
+
+struct Process {
+  /* link back to global state */
+  State*  vm;
+
+  /* Environment state */
+  Cons*   upvals;
 
   /* Execution state */
-  Func*   code;
+  UserFn* code;
   sint16* ip;
-  Val*    fp, * bp;
+  Val*    bp;
+  Val*    fp;
+  Val*    cp;
 
-  /* stack state */
-  Val*    sp, * sbase, * slast;
+  /* Stack state */
+  Val*    base;
 };
 
 /* APIs for State object. */
-void rl_init_state(State* state, Alist* grays, Table* globals, Val* stack, EFrame* errors);
+void rl_init_state(State* state, Process* proc);
+void rl_init_process(Process* proc, State* state, Val* stack);
 void rl_toplevel_init_state(void);
 
 #endif

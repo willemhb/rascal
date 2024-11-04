@@ -11,28 +11,25 @@ typedef struct Obj  Obj;  // Compound or large values are stored in a boxed obje
 // immediate types
 typedef nullptr_t   Nul;
 typedef bool        Bool;
-typedef void*       Ptr;
 typedef char32_t    Glyph;
-typedef double      Real;
+typedef double      Num;
+typedef void*       Ptr;
 
-// user object types
-typedef struct Port   Port;
-typedef struct Func   Func;
-typedef struct Sym    Sym;
-typedef struct Bin    Bin;
-typedef struct List   List;
+// callable types
+typedef struct Cntl     Cntl;
+typedef struct NativeFn NativeFn;
+typedef struct UserFn   UserFn;
+
+// reference types
+typedef struct Sym      Sym;
+
+// IO types
+typedef struct Stream   Stream;
+typedef struct Bin      Bin;
+
+// uxer collection types
+typedef struct Cons   Cons;
 typedef struct Vec    Vec;
 typedef struct Map    Map;
-
-// mutable user objects
-typedef struct Pair   Pair;
-typedef struct Buffer Buffer;
-typedef struct Alist  Alist;
-typedef struct Table  Table;
-
-// internal object types
-typedef struct UpVal  UpVal;  // upvalue
-typedef struct VNode  VNode;  // vector node
-typedef struct MNode  MNode;  // map node
 
 #endif

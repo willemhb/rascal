@@ -4,12 +4,14 @@
 #include "values.h"
 
 /* Just some preliminary typedefs and globals for runtime state. */
-// internal structure types (not accessible in Rascal)
-typedef struct State  State;
-typedef struct HFrame HFrame;
-typedef struct EFrame EFrame;
+// internal structure types (not immediately accessible in Rascal)
+typedef struct State   State;   // all of Rascal's global state lives here
+typedef struct Process Process; // 
+typedef struct HFrame  HFrame;  // keeps track of  values in the C stack that need to be garbage collected
+typedef struct VTable  VTable;  // internal methods for values of a given type
 
 // internal function pointer types
+typedef int    (*RascalFn)(State* vm);
 typedef void   (*TraceFn)(void* x);
 typedef void   (*FreeFn)(void* x);
 typedef void   (*CloneFn)(void* x);

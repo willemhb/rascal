@@ -3,54 +3,47 @@
 
 #include "common.h"
 
-/* Virtual machine labels Mostly opcodes, but also includes primitive functions, special forms,
-   and reader/compiler labels.
-
-   Naming convention:
-
-   E_ = error label
-   S_ = syntax or special label (dispatches to compiler label)
-   T_ = type label
-   O_ = opcode
-   R_ = reader label
-   C_ = compiler label
-   F_ = primitive function label
-   L_ = general label
- */
-
-typedef enum Label {
-  /* type labels */  
+/* Various enum types */
+typedef enum Type : uint8_t {
   // immediate types
-  T_NUL,      // unit type
-  T_BOOL,     // true | false
-  T_PTR,      // C pointer
-  T_GLYPH,    // unicode character
-  T_REAL,     // 64-bit float
+  T_NUL      =  1,
+  T_BOOL     =  2,
+  T_GLYPH    =  3,
+  T_NUMBER   =  4,
+  T_CPOINTER =  5,
 
-  // user object types
-  T_PORT,     // IO port
-  T_FUNC,     // any function
-  T_SYM,      // 'symbol
-  T_BIN,      // <255 000 123>
-  T_PAIR,     // (x . y)
-  T_LIST,     // (x y z)
-  T_VEC,      // [x y z]
-  T_MAP,      // { :x 1, :y 2 }
+  // callable types
+  T_CONTROL  =  6,
+  T_NATIVEFN =  7,
+  T_USERFN   =  8,
 
-  // internal object types
-  T_BUFFER,   // 
-  T_ALIST,
-  T_TABLE,
-  T_UPVAL,
-  T_VNODE,    // vector node
-  T_MNODE,    // map node
+  // reference types
+  T_SYMBOL   =  9,
 
-  // miscellaneous labels
-  L_NOTHING,  // marks no label where a label is expected
-} Label;
+  // IO types
+  T_STREAM   = 10,
+  T_BINARY   = 11,
 
-typedef Label Type;
+  // user collection types
+  T_CONS     = 12,
+  T_VECTOR   = 13,
+  T_MAP      = 14,
 
-#define NUM_LABLS (L_NOTHING+1)
+  // miscellaneous internal types
+  // T_STATE    = 16,
+} Type;
+
+typedef enum MFlags : uint8_t {
+  MF_NOTRACE    =   1,
+  MF_NOSWEEP    =   2,
+  MF_NOFREE     =   4,
+  MF_PERSISTENT =   8,
+  MF_TRANSIENT  =  16,
+  MF_SEALED     =  32,
+  MF_GRAY       =  64,
+  MF_BLACK      = 128,
+  } MFlags;
+
+#define N_TYPES (T_MAP+1)
 
 #endif

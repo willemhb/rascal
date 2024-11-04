@@ -12,57 +12,18 @@
 #define DATA_BITS  0x0000ffffffffffffUL
 
 // value tags
-#define REAL    0x0000000000000000UL // dummy tag
-#define NUL     0x7ffc000000000000UL
-#define BOOL    0x7ffd000000000000UL
-#define PTR     0x7fff000000000000UL
-#define GLYPH   0xfffc000000000000UL
-#define OBJECT  0xfffd000000000000UL
+#define REAL     0x0000000000000000ul
+#define CPOINTER 0x7ffc000000000000ul
+#define OBJECT   0x7ffe000000000000ul
+#define LITTLE   0x7fff000000000000ul
+
+#define NUL      0xffff000100000000ul
+#define BOOL     0xffff000200000000ul
+#define GLYPH    0xffff000300000000ul
+#define SMALL    0xffff000400000000ul
 
 /*
-  #define REAL     0x0000000000000000ul
-  #define CONTROL  0x7ffc000000000000ul
-  #define USERFN   0x7ffd000000000000ul
-  #define SYMBOL   0x7ffe000000000000ul
-  #define CONS     0x7fff000000000000ul
-  #define BINARY   0xfffc000000000000ul
-  #define VECTOR   0xfffd000000000000ul
-  #define MAP      0xfffe000000000000ul
-  #define LITTLE   0xffff000000000000ul
 
-  #define NUL      0xffff000100000000ul
-  #define BOOL     0xffff000200000000ul
-  #define GLYPH    0xffff000300000000ul
-  #define NATIVEFN 0xffff000400000000ul
-  #define SMALL    0xffff000500000000ul
-  #define PORT     0xffff000600000000ul
-  
-
-  typedef enum Type : uint8 {
-      T_NUL      =  1,
-      T_BOOL     =  2,
-      T_GLYPH    =  3,
-      T_NATIVEFN =  4,
-      T_NUMBER   =  5,
-      T_PORT     =  6,
-      T_CONTROL  =  7,
-      T_USERFN   =  8,
-      T_CONS     =  9,
-      T_BINARY   = 10,
-      T_VECTOR   = 11,
-      T_MAP      = 12,
-  } Type;
-
-  typedef enum MFlags : uint8 {
-      MF_TRACE      =   1,
-      MF_SWEEP      =   2,
-      MF_FREE       =   4,
-      MF_PERSISTENT =   8,
-      MF_TRANSIENT  =  16,
-      MF_SEALED     =  32,
-      MF_GRAY       =  64,
-      MF_BLACK      = 128,
-  } MFlags;
 
   #define HEADER                     \
       Obj*    heap;                  \
@@ -85,15 +46,16 @@
       }
 
    typedef enum RFlags : uint8 {
-       PMAP_ENTRY     = 1, // persistent map entry node
-       PMAP_COLLISION = 2, // persistent map collision node
-       MMAP_ENTRY     = 3, // generic mutable map entry node
-       REF_LOCAL      = 4, // 
-       REF_UPVAL      = 5,
-       REF_MODULE     = 6,
-       REF_GLOBAL     = 7,
-       UPV_OPEN       = 8,
-       UPV_CLOSED     = 9,
+       PMAP_ENTRY         =  1, // persistent map entry node
+       PMAP_COLLISION     =  2, // persistent map collision node
+       MMAP_ENTRY         =  3, // generic mutable map entry node
+       REF_LOCAL          =  4, // 
+       REF_LOCAL_UPVAL    =  5,
+       REF_BORROWED_UPVAL =  6,
+       REF_MODULE         =  7,
+       REF_GLOBAL         =  8,
+       UPV_OPEN           =  9,
+       UPV_CLOSED         = 10,
    };
 
    struct Cons {
