@@ -19,6 +19,164 @@
 #define GLYPH   0xfffc000000000000UL
 #define OBJECT  0xfffd000000000000UL
 
+/*
+  #define REAL     0x0000000000000000ul
+  #define CONTROL  0x7ffc000000000000ul
+  #define USERFN   0x7ffd000000000000ul
+  #define SYMBOL   0x7ffe000000000000ul
+  #define CONS     0x7fff000000000000ul
+  #define BINARY   0xfffc000000000000ul
+  #define VECTOR   0xfffd000000000000ul
+  #define MAP      0xfffe000000000000ul
+  #define LITTLE   0xffff000000000000ul
+
+  #define NUL      0xffff000100000000ul
+  #define BOOL     0xffff000200000000ul
+  #define GLYPH    0xffff000300000000ul
+  #define NATIVEFN 0xffff000400000000ul
+  #define SMALL    0xffff000500000000ul
+  #define PORT     0xffff000600000000ul
+  
+
+  typedef enum Type : uint8 {
+      T_NUL      =  1,
+      T_BOOL     =  2,
+      T_GLYPH    =  3,
+      T_NATIVEFN =  4,
+      T_NUMBER   =  5,
+      T_PORT     =  6,
+      T_CONTROL  =  7,
+      T_USERFN   =  8,
+      T_CONS     =  9,
+      T_BINARY   = 10,
+      T_VECTOR   = 11,
+      T_MAP      = 12,
+  } Type;
+
+  typedef enum MFlags : uint8 {
+      MF_TRACE      =   1,
+      MF_SWEEP      =   2,
+      MF_FREE       =   4,
+      MF_PERSISTENT =   8,
+      MF_TRANSIENT  =  16,
+      MF_SEALED     =  32,
+      MF_GRAY       =  64,
+      MF_BLACK      = 128,
+  } MFlags;
+
+  #define HEADER                     \
+      Obj*    heap;                  \
+      Map*    meta;                  \
+      hash_t  hash;                  \
+      Type    tag;                   \
+      union {                        \
+          uint8 mflags;              \
+                                     \
+          struct {                   \
+              uint8 trace      : 1;  \
+              uint8 sweep      : 1;  \
+              uint8 free       : 1;  \
+              uint8 persistent : 1;  \
+              uint8 transient  : 1;  \
+              uint8 sealed     : 1;  \
+              uint8 black      : 1;  \
+              uint8 gray       : 1;  \
+          };          
+      }
+
+   typedef enum RFlags : uint8 {
+       PMAP_ENTRY     = 1, // persistent map entry node
+       PMAP_COLLISION = 2, // persistent map collision node
+       MMAP_ENTRY     = 3, // generic mutable map entry node
+       REF_LOCAL      = 4, // 
+       REF_UPVAL      = 5,
+       REF_MODULE     = 6,
+       REF_GLOBAL     = 7,
+       UPV_OPEN       = 8,
+       UPV_CLOSED     = 9,
+   };
+
+   struct Cons {
+       HEADER;
+       uint8 proper;
+       uint8 reftype;
+
+       Value car;
+
+       size32 arity;
+       size32 offset;
+
+       union {
+           Value cdr;
+           Cons* tail;
+       };
+   };
+
+   struct Symbol {
+       HEADER;
+       uint8 literal;
+
+       Symbol* left, * right;
+       size64 idno;
+       char* name;
+   };
+
+   struct Binary {
+       HEADER;
+       uint8 eltype;
+       uint8 encoded;
+
+       size32 arity, capacity;
+       void*  data;
+   };
+
+   struct Vector {
+       HEADER;
+       sint8 shift; // if -1 then this vector is packed
+
+       size32 arity, capacity;
+
+       Value*  data;
+       Vector* root;
+   };
+
+   struct Map {
+       HEADER;
+       sint8 shift;   // 
+       uint8 fastcmp; // 
+
+       size32 arity, capacity; // for internal nodes arity stores the bitmap
+
+       union {
+           Cons** entries;     // for mutable maps and persistent maps below a certain size
+           Obj**  children;    // for persistent map internal nodes
+           Map*   root;        // for persistent map root object
+       };
+   };
+
+   struct Control {
+       HEADER;
+       
+       Vector* stack;
+   };
+
+   struct UserFn {
+       HEADER;
+       uint8 variadic;
+
+       size32  arity, rxcount; // the minimum number of positional arguments and amount of stack space to reserve (respectively)
+       Symbol* name;           // human-readable function name
+       Cons*   form;           // 
+       Table*  module;         // file-level environment
+       Table*  locals;         // local environment
+       Table*  upvalues;       // nonlocal environment (values captured from a parent)
+       Vector* values;         // constant store
+       Binary* bytecode;       // instruction sequence
+       Vector* closure;        // if this is a 
+   };
+
+ */
+
 // sentinel tags
 #define NOTHING 0xfffe000000000000UL
 #define OFFSET  0xffff000000000000UL

@@ -16,7 +16,7 @@
     "def" "put" "lmb" "fun" "mac"
 
     ;; module system
-    "require" "toplevel"
+    "require" "toplevel*"
 
     ;; closures and blocks
     "let"
