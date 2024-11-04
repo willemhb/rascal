@@ -5,83 +5,33 @@
 #include "values.h"
 
 /* tags and masks */
-#define QNAN       0x7ff8000000000000UL
-#define SIGN       0x8000000000000000UL
+#define QNAN       0x7ff8000000000000ul
+#define SIGN       0x8000000000000000ul
 
-#define TAG_BITS   0xffff000000000000UL
-#define DATA_BITS  0x0000ffffffffffffUL
+#define TAG_BITS   0xffff000000000000ul
+#define DATA_BITS  0x0000fffffffffffful
+#define WTAG_BITS  0xffffffff00000000ul
+#define WDATA_BITS 0x00000000fffffffful
+#define TAG_SHIFT  48
+#define WTAG_SHIFT 32
+#define WTYPE_MASK 255
 
 // value tags
-#define REAL     0x0000000000000000ul
-#define CPOINTER 0x7ffc000000000000ul
-#define OBJECT   0x7ffe000000000000ul
-#define LITTLE   0x7fff000000000000ul
+#define REAL       0x0000000000000000ul
+#define CPOINTER   0x7ffc000000000000ul
+#define OBJECT     0x7ffe000000000000ul
+#define LITTLE     0xffff000000000000ul
 
-#define NUL      0xffff000100000000ul
-#define BOOL     0xffff000200000000ul
-#define GLYPH    0xffff000300000000ul
-#define SMALL    0xffff000400000000ul
+#define NUL        0xffff000100000000ul
+#define BOOL       0xffff000200000000ul
+#define GLYPH      0xffff000300000000ul
+#define SMALL      0xffff000400000000ul
+
+#define TRUE       0xffff000200000001UL // BOOL  | 1
+#define FALSE      0xffff000200000000UL // BOOL  | 0
+
 
 /*
-
-
-  #define HEADER                     \
-      Obj*    heap;                  \
-      Map*    meta;                  \
-      hash_t  hash;                  \
-      Type    tag;                   \
-      union {                        \
-          uint8 mflags;              \
-                                     \
-          struct {                   \
-              uint8 trace      : 1;  \
-              uint8 sweep      : 1;  \
-              uint8 free       : 1;  \
-              uint8 persistent : 1;  \
-              uint8 transient  : 1;  \
-              uint8 sealed     : 1;  \
-              uint8 black      : 1;  \
-              uint8 gray       : 1;  \
-          };          
-      }
-
-   typedef enum RFlags : uint8 {
-       PMAP_ENTRY         =  1, // persistent map entry node
-       PMAP_COLLISION     =  2, // persistent map collision node
-       MMAP_ENTRY         =  3, // generic mutable map entry node
-       REF_LOCAL          =  4, // 
-       REF_LOCAL_UPVAL    =  5,
-       REF_BORROWED_UPVAL =  6,
-       REF_MODULE         =  7,
-       REF_GLOBAL         =  8,
-       UPV_OPEN           =  9,
-       UPV_CLOSED         = 10,
-   };
-
-   struct Cons {
-       HEADER;
-       uint8 proper;
-       uint8 reftype;
-
-       Value car;
-
-       size32 arity;
-       size32 offset;
-
-       union {
-           Value cdr;
-           Cons* tail;
-       };
-   };
-
-   struct Symbol {
-       HEADER;
-       uint8 literal;
-
-       Symbol* left, * right;
-       size64 idno;
-       char* name;
-   };
 
    struct Binary {
        HEADER;
@@ -139,13 +89,6 @@
 
  */
 
-// sentinel tags
-#define NOTHING 0xfffe000000000000UL
-#define OFFSET  0xffff000000000000UL
-
-#define TRUE    0x7ffd000000000001UL // BOOL  | 1
-#define FALSE   0x7ffd000000000000UL // BOOL  | 0
-
 // sentinel values, shouldn't be visible in user code
 
 /* Globals */
@@ -157,6 +100,14 @@ static inline Val tag_bits(Val x) {
 
 static inline Val data_bits(Val x) {
   return x & DATA_BITS;
+}
+
+static inline Val wtag_bits(Val x) {
+  return x & WTAG_BITS;
+}
+
+static inline Val wdata_bits(Val x) {
+  return x & WDATA_BITS;
 }
 
 #define as_obj(x)                               \
@@ -183,90 +134,36 @@ static inline Val data_bits(Val x) {
 #define tagv(v, t) (((Val)(v)) | (t))
 
 // big ass tag macro
-#define tag(x)                                  \
-  generic((x),                                  \
-          Nul:tag_nul,                          \
-          Bool:tag_bool,                        \
-          Label:tag_lbl,                        \
-          Ptr:tag_ptr,                          \
-          short*:tag_ptr,                       \
-          ushort*:tag_ptr,                      \
-          char*:tag_ptr,                        \
-          Val*:tag_ptr,                         \
-          Glyph:tag_glyph,                      \
-          char:tag_glyph,                       \
-          Real:tag_real,                        \
-          Obj*:tag_obj,                         \
-          Port*:tag_obj,                        \
-          Func*:tag_obj,                        \
-          Sym*:tag_obj,                         \
-          Str*:tag_obj,                         \
-          Bin*:tag_obj,                         \
-          Pair*:tag_obj,                        \
-          List*:tag_obj,                        \
-          Vec*:tag_obj,                         \
-          Map*:tag_obj,                         \
-          Buffer*:tag_obj,                      \
-          Alist*:tag_obj,                       \
-          Table*:tag_obj,                       \
-          UpVal*:tag_obj,                       \
-          VNode*:tag_obj,                       \
-          MNode*:tag_obj,                       \
-          State*:tag_obj)(x)
-
-#define untag(d, x)                             \
-  ((typeof(d))(generic((d),                     \
-                       Obj*:val_as_obj,         \
-                       Nul:as_nul,              \
-                       Bool:as_bool,            \
-                       Ptr:as_ptr,              \
-                       short*:as_ptr,           \
-                       ushort*:as_ptr,          \
-                       Val*:as_ptr,             \
-                       FunPtr:as_fptr,          \
-                       Type*:val_as_obj,        \
-                       Func*:val_as_obj,        \
-                       Proto*:val_as_obj,       \
-                       PrimFn*:val_as_obj,      \
-                       GenFn*:val_as_obj,       \
-                       MT*:val_as_obj,          \
-                       Cntl*:val_as_obj,        \
-                       Sym*:val_as_obj,         \
-                       Env*:val_as_obj,         \
-                       Ref*:val_as_obj,         \
-                       UpVal*:val_as_obj,       \
-                       Glyph:val_as_obj,        \
-                       Port*:val_as_obj,        \
-                       Str*:val_as_obj,         \
-                       Bin*:val_as_obj,         \
-                       MStr*:val_as_obj,        \
-                       MBin*:val_as_obj,        \
-                       RT*:val_as_obj,          \
-                       Arity:as_arity,          \
-                       Label:as_small,          \
-                       ushort:as_small,         \
-                       Small:as_small,          \
-                       Real:as_real,            \
-                       Pair*:val_as_obj,        \
-                       List*:val_as_obj,        \
-                       MPair*:val_as_obj,       \
-                       MList*:val_as_obj,       \
-                       Vec*:val_as_obj,         \
-                       VNode*:val_as_obj,       \
-                       MVec*:val_as_obj,        \
-                       Alist*:val_as_obj,       \
-                       Map*:val_as_obj,         \
-                       MNode*:val_as_obj,       \
-                       MMap*:val_as_obj,        \
-                       SCache*:val_as_obj,      \
-                       EMap*:val_as_obj,        \
-                       NSMap*:val_as_obj)(x)))
+#define tag(x)                                   \
+  generic((x),                                   \
+          Nul:tag_nul,                           \
+          Bool:tag_bool,                         \
+          Glyph:tag_glyph,                       \
+          char:tag_glyph,                        \
+          Small:tag_small,                       \
+          Num:tag_num,                           \
+          Ptr:tag_ptr,                           \
+          sint16*:tag_ptr,                       \
+          uint16*:tag_ptr,                       \
+          char*:tag_ptr,                         \
+          Val*:tag_ptr,                          \
+          Obj*:tag_obj,                          \
+          Cntl*:tag_obj,                         \
+          NativeFn*:tag_obj,                     \
+          UserFn*:tag_obj,                       \
+          Sym*:tag_obj,                          \
+          Stream*:tag_obj,                       \
+          Bin*:tag_obj,                          \
+          Cons*:tag_obj,                         \
+          Vec*:tag_obj,                          \
+          Map*:tag_obj )(x)
 
 // tagging methods
 Val tag_nul(Nul n);
 Val tag_bool(Bool b);
 Val tag_glyph(Glyph g);
-Val tag_real(Real n);
+Val tag_num(Num n);
+Val tag_small(Small s);
 Val tag_ptr(Ptr p);
 Val tag_obj(void* p);
 
@@ -274,29 +171,27 @@ Val tag_obj(void* p);
 Nul    as_nul(Val x);
 Bool   as_bool(Val x);
 Glyph  as_glyph(Val x);
-Real   as_real(Val x);
+Num    as_num(Val x);
 Ptr    as_ptr(Val x);
 Obj*   val_as_obj(Val v);
 Obj*   ptr_as_obj(void* p);
 
 // type_of methods
-Type* type_of_val(Val v);
-Type* type_of_obj(void* p);
+Type type_of_val(Val v);
+Type type_of_obj(void* p);
 
 // has_type methods
 bool val_has_type(Val v, Type t);
 bool obj_has_type(void* p, Type t);
 
-// size_of methods
-size_t size_of_val(Val x, bool o);
-size_t size_of_obj(void* x, bool o);
-
 // value predicates
 bool  is_nul(Val x);
 bool  is_bool(Val x);
 bool  is_glyph(Val x);
+bool  is_num(Val x);
+bool  is_big(Val x);
+bool  is_small(Val x);
 bool  is_ptr(Val x);
-bool  is_real(Val x);
 bool  is_obj(Val x);
 
 #endif

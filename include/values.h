@@ -13,6 +13,7 @@ typedef nullptr_t   Nul;
 typedef bool        Bool;
 typedef char32_t    Glyph;
 typedef double      Num;
+typedef sint32      Small;
 typedef void*       Ptr;
 
 // callable types
