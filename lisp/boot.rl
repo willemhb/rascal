@@ -1,10 +1,13 @@
-;; load language core.
-(load "core.rl")
-(load "base.rl")
-
-;; load standard library.
-(load "seq.rl")
-(load "sys.rl")
-(load "os.rl")
-(load "math.rl")
-(load "io.rl")
+(toplevel
+  ;; binding macro definitions.
+  (def fun
+    {
+      :macro => true,
+      :doc   => "Idiomatic macro for creating new function bindings."
+    }
+    (lmb
+      ([&form &env a b]     `(lmb ~a ~b))
+      ([&form &env n a b]   `(def ~n (lmb ~a ~b)))
+      ([&form &env n m a b] `(def ~n ~m (lmb ~a ~b)))))
+  (def &required
+    "Cache of loaded modules." #{}))

@@ -1,7 +1,0 @@
-;; example of a rascal package file.
-{
-  :name    example,
-  :doc     "Example of the generic layout of a Rascal package.",
-  :version "0.0.1a",
-  :depends {}
-}

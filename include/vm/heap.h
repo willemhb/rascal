@@ -1,7 +1,7 @@
 #ifndef rl_vm_heap_h
 #define rl_vm_heap_h
 
-#include "val/state.h"
+#include "vm/state.h"
 
 /* Definitions and declarations for internal state objects & functions (memory management, vm, &c). */
 

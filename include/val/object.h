@@ -9,16 +9,14 @@
 // common object header macro
 #define HEADER                                    \
   Obj*     heap;                                  \
+  Map*     meta;                                  \
   flags64  hash  : 48;                            \
-  flags64  mut   :  1;                            \
-  flags64  trans :  1;                            \
-  flags64  ownh  :  1;                            \
+  flags64  tag   :  5;                            \
   flags64  trace :  1;                            \
   flags64  free  :  1;                            \
   flags64  sweep :  1;                            \
   flags64  gray  :  1;                            \
-  flags64  black :  1;                            \
-  flags64  tag   :  5
+  flags64  black :  1
 
 struct Obj {
   HEADER;
@@ -46,6 +44,6 @@ void*  new_obj(Type t);
 void*  clone_obj(void* x);
 void   init_obj(Type t, Obj* o);
 void   free_obj(void* x);
-size_t sweep_obj(void* x);
+size64 sweep_obj(void* x);
 
 #endif

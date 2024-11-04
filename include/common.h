@@ -1,6 +1,7 @@
 #ifndef rl_common_h
 #define rl_common_h
 
+#include <setjmp.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
@@ -20,6 +21,16 @@ typedef uint64_t   hash_t;
 typedef void     (*funcptr_t)(void);
 
 // explicitly sizee types
+typedef int8_t     sint8;
+typedef int16_t    sint16;
+typedef int32_t    sint32;
+typedef int64_t    sint64;
+
+typedef uint8_t    uint8;
+typedef uint16_t   uint16;
+typedef uint32_t   uint32;
+typedef uint64_t   uint64;
+
 typedef uint8_t    size8;
 typedef uint16_t   size16;
 typedef uint32_t   size32;
@@ -44,10 +55,10 @@ typedef void* nullptr_t;
 #define UINT8_COUNT  (UINT8_MAX+1)
 #define UINT16_COUNT (UINT16_MAX+1)
 #define MAX_STACK    UINT16_COUNT
+#define MAX_ERROR    512
 #define MIN_ARR      8
 #define INIT_HEAP    (1 << 19) // MAX_STACK * sizeof(Val)
 #define MAX_HEAP     MAX_ARITY
-#define FN_FRAMEC    4
 
 /* redefining important macros with annoying names */
 #define generic _Generic

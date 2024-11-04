@@ -9,6 +9,7 @@
 struct Pair {
   HEADER;
 
+  // data fields
   Val car;
   Val cdr;
 };

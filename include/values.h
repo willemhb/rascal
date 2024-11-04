@@ -20,24 +20,19 @@ typedef struct Port   Port;
 typedef struct Func   Func;
 typedef struct Sym    Sym;
 typedef struct Bin    Bin;
-typedef struct Pair   Pair;
 typedef struct List   List;
 typedef struct Vec    Vec;
 typedef struct Map    Map;
 
-// aliases for user object types
-typedef struct Bin    Str;
-typedef struct Vec    Struct;
-typedef struct Bin    Buffer;
-typedef struct Map    Record;
-typedef struct Vec    Alist;
-typedef struct Map    Table;
+// mutable user objects
+typedef struct Pair   Pair;
+typedef struct Buffer Buffer;
+typedef struct Alist  Alist;
+typedef struct Table  Table;
 
 // internal object types
 typedef struct UpVal  UpVal;  // upvalue
 typedef struct VNode  VNode;  // vector node
 typedef struct MNode  MNode;  // map node
-
-// internal structure types (not accessible from Rascal)
 
 #endif

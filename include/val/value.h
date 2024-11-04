@@ -1,8 +1,8 @@
 #ifndef rl_val_value_h
 #define rl_val_value_h
 
-#include "error.h"
 #include "labels.h"
+#include "values.h"
 
 /* tags and masks */
 #define QNAN       0x7ff8000000000000UL

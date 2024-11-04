@@ -4,8 +4,10 @@
 #include "values.h"
 
 /* Just some preliminary typedefs and globals for runtime state. */
-/* Frame types */
+// internal structure types (not accessible in Rascal)
+typedef struct State  State;
 typedef struct HFrame HFrame;
+typedef struct EFrame EFrame;
 
 // internal function pointer types
 typedef void   (*TraceFn)(void* x);
@@ -18,16 +20,6 @@ typedef size_t (*SizeofFn)(void* x);
 
 /* Globals */
 /* Global state objects */
-extern State Vm;         // main Vm state object
-
-/* Standard streams */
-extern Port StdIn;
-extern Port StdOut;
-extern Port StdErr;
-
-/* Empty singletons */
-extern List EmptyList;
-extern Vec  EmptyVec;
-extern Map  EmptyMap;
+extern State Vm;
 
 #endif
