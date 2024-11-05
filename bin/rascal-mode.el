@@ -13,13 +13,13 @@
     ;; syntax affixed with `*` is superseded or otherwise not intended to be used
     ;; directly in user code
     ;; binding syntax
-    "def" "put" "lmb" "fun" "mac"
+    "def*" "put" "lmb*" "fun" "mac" "val" "var"
 
     ;; module system
     "require" "toplevel*"
 
     ;; closures and blocks
-    "let"
+    "let" "label"
 
     ;; threading syntax
     "->"
@@ -28,7 +28,7 @@
     "if" "cond" "case" "and" "or"
 
     ;; non-local control syntax
-    "catch" "throw"
+    "catch*" "catch" "throw"
 
     ;; miscellaneous syntax
     "c-call" "quote" "do" "bq*" "uq*" "splc*"
