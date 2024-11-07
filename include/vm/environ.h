@@ -1,14 +1,21 @@
 #ifndef rl_vm_environ_h
 #define rl_vm_environ_h
 
-#include "values.h"
+#include "runtime.h"
 
 /* Globals */
-extern Env    Globals;
-extern NSMap  NameSpaces;
-extern SCache Strings;
+// string table (simpler implementation and API)
+struct StrTable {
+  State* vm;
+  size64 cnt, cap, nts;
+  Str** strs;
+};
 
 /* External API */
-void init_globals(Env* g);
+void init_str_table(StrTable* st);
+void free_str_table(StrTable* st);
+void resize_str_table(StrTable* st, size64 n);
+void sweep_str_table(StrTable* st);
+Str* intern_str(StrTable* st, char* cs, size64 n);
 
 #endif

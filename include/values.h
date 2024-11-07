@@ -17,7 +17,6 @@ typedef sint32      Small;
 typedef void*       Ptr;
 
 // callable types
-typedef struct Cntl     Cntl;
 typedef struct NativeFn NativeFn;
 typedef struct UserFn   UserFn;
 
@@ -25,12 +24,17 @@ typedef struct UserFn   UserFn;
 typedef struct Sym      Sym;
 
 // IO types
-typedef struct Stream   Stream;
-typedef struct Bin      Bin;
+typedef struct Port     Port;
+typedef struct Str      Str;
 
-// uxer collection types
-typedef struct Cons   Cons;
-typedef struct Vec    Vec;
-typedef struct Map    Map;
+// user collection types
+typedef struct Pair   Pair;
+typedef struct Buffer Buffer;
+typedef struct Alist  Alist;
+typedef struct Table  Table;
+
+// miscellaneous internal types
+typedef struct Env      Env;
+typedef struct Ref      Ref;
 
 #endif

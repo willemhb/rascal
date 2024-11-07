@@ -1,7 +1,10 @@
 #include "labels.h"
+#include "runtime.h"
 
 #include "val/value.h"
 #include "val/object.h"
+
+#include "vm/state.h"
 
 #include "util/hash.h"
 
@@ -92,8 +95,8 @@ Obj* ptr_as_obj(void* p) {
 // type_of methods
 Type type_of_val(Val x) {  
   switch (tag_bits(x)) {
-    default:       return T_NUMBER;
-    case CPOINTER: return T_CPOINTER;
+    default:       return T_NUM;
+    case CPOINTER: return T_PTR;
     case OBJECT:   return as_obj(x)->tag;
     case LITTLE:   return x >> WTAG_SHIFT & WTYPE_MASK;
   }
@@ -112,6 +115,19 @@ bool val_has_type(Val x, Type t) {
 
 bool obj_has_type(void* x, Type t) {
   return type_of(x) == t;
+}
+
+// vtbl methods
+VTable* val_vtbl(Val x) {
+  Type t = type_of(x);
+
+  return Vm.vts[t];
+}
+
+VTable* obj_vtbl(void* x) {
+  Type t = type_of(x);
+
+  return Vm.vts[t];
 }
 
 // value predicates

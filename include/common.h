@@ -41,6 +41,9 @@ typedef uint16_t   flags16;
 typedef uint32_t   flags32;
 typedef uint64_t   flags64;
 
+typedef uint32_t   hash32;
+typedef uint64_t   hash64;
+
 #if __GNUC__ < 13
 
 typedef void* nullptr_t;
@@ -55,6 +58,7 @@ typedef void* nullptr_t;
 #define UINT8_COUNT  (UINT8_MAX+1)
 #define UINT16_COUNT (UINT16_MAX+1)
 #define MAX_STACK    UINT16_COUNT
+#define MAX_FRAMES   8192
 #define MAX_ERROR    512
 #define MIN_ARR      8
 #define INIT_HEAP    (1 << 19) // MAX_STACK * sizeof(Val)

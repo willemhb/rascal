@@ -9,7 +9,7 @@
 // common object header macro
 #define HEADER                       \
   Obj*    heap;                      \
-  Map*    meta;                      \
+  Table*  meta;                      \
   hash_t  hash;                      \
   Type    tag;                       \
   union {                            \
@@ -41,18 +41,24 @@ struct Obj {
           Val:mark_val,                         \
           default:mark_obj)(x)
 
+#define trace(x)                                \
+  generic((x),                                  \
+          Val:trace_val,                        \
+          default:trace_obj)(x)
+
 // mark methods
-void mark_val(Val v);
+void mark_val(Val x);
 void mark_obj(void* x);
 
 // trace method
-void trace(void* x);
+void trace_val(Val x);
+void trace_obj(void* x);
 
 // other lifetime methods
-void*  new_obj(Type t);
+void*  new_obj(Type t, flags32 f);
 void*  clone_obj(void* x);
-void   init_obj(Type t, Obj* o);
+void   init_obj(Obj* o, Type t, flags32 f);
 void   free_obj(void* x);
-size64 sweep_obj(void* x);
+size64 sweep_obj(State* vm, void* x);
 
 #endif

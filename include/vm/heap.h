@@ -10,23 +10,23 @@
 // preserving values
 void unpreserve(HFrame* f);
 
-#define preserve(p, n, vals...)                                         \
+#define preserve(s, n, vals...)                                         \
   Val __heap_frame_vals__[(n)] = { vals };                              \
   HFrame __heap_frame__ cleanup(unpreserve) =                           \
-    { .proc=(p),                                                        \
-      .next=(p)->hfs,                                                   \
-      .cnt=(n),                                                         \
+    { .vm  =(s),                                                        \
+      .next=(s)->hfs,                                                   \
+      .cnt =(n),                                                        \
       .vals=__heap_frame_vals__ };                                      \
-  (p)->hfs=&__heap_frame__
+  (s)->hfs=&__heap_frame__
 
 // memory management
-void* allocate(Proc* p, size_t n);
-void* reallocate(Proc* p, void* s, size_t o, size_t n);
-void* duplicate(Proc* p, void* s, size_t n);
-void  deallocate(Proc* p, void* s, size_t n);
-void  collect_garbage(Proc* p, size_t n);
-void  add_to_heap(Proc* p, void* o);
-void  push_gray(void* o);
-void* pop_gray(Proc* p);
+void* rl_alloc(State* vm, size64 n);
+void* rl_realloc(State* vm, void* s, size64 o, size64 n);
+void* rl_dup(State* vm, void* s, size64 n);
+void  rl_dealloc(State* vm, void* s, size64 n);
+void  rl_gc(State* vm, size64 n);
+void  add_to_heap(State* vm, void* o);
+void  push_gray(State* vm, void* o);
+void* pop_gray(State* vm);
 
 #endif

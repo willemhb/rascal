@@ -1,4 +1,7 @@
+#include "labels.h"
+
 #include "vm/state.h"
+#include "vm/type.h"
 
 #include "val/array.h"
 #include "val/table.h"
@@ -6,65 +9,62 @@
 /* Globals */
 /* Stacks */
 Val    Stack[MAX_STACK];
+void*  Frames[MAX_FRAMES];
 EFrame Errors[MAX_ERROR];
 
-/* Global array objects */
-Alist Grays = {
-  .tag   = T_ALIST,
-  .free  = true,
-  .gray  = true,
-  .cnt   = 0,
-  .cap   = 0,
-  .data  = NULL
+/* Global State objects */
+extern Table    Globals, Meta;
+extern StrTable Strings;
+extern Alist    Grays;
+extern VTable   Vts[N_TYPES];
+
+State Vm = {
+  /* Heap state */
+  .hfs     = NULL,
+  .grays   = &Grays,
+  .heap    = NULL,
+  .limit   = INIT_HEAP,
+
+  /* Environment state */
+  .globals = &Globals,
+  .meta    = &Meta,
+  .strs    = &Strings,
+  .vts     = Vts,
+
+  /* Execution state */
+  .main    = &Main,
 };
 
-/* Global table objects */
-Table Globals = {
-  .tag   = T_TABLE,
-  .trace = true,
-  .free  = true,
-  .gray  = true,
-  .cnt   = 0,
-  .cap   = 0,
-  .kvs   = NULL,
-  .map   = NULL
-};
+Proc Main = {
+  /* link back to global state */
+  .vm          = &Vm,
 
-/* Global State object */
-State Vm = {};
+  /* Environment state */
+  .upvals      = NULL,
+
+  /* Error state */
+  .cp          = Errors,
+  .catches     = Errors,
+  .catches_end = &Errors[MAX_ERROR],
+
+  /* Execution state */
+  .code        = NULL,
+  .ip          = NULL,
+  .bp          = NULL,
+
+  /* Stacks */
+  .sp          = Stack,
+  .stack       = Stack,
+  .stack_end   = &Stack[MAX_STACK],
+
+  .fp          = Frames,
+  .frames      = Frames,
+  .frames_end  = &Frames[MAX_FRAMES]
+};
 
 /* APIs for State object. */
-void rl_init_state(State* state, Alist* grays, Table* globals, Val* stack, EFrame* errors) {
-  /* Initialize heap state */
-  state->hfs     = NULL;
-  state->grays   = grays;
-  state->objs    = NULL;
-  state->alloc   = 0;
-  state->limit   = INIT_HEAP;
 
-  /* Initialize error state */
-  state->ebase   = errors;
-  state->ep      = errors;
-  state->elast   = errors + MAX_ERROR;
-
-  /* Initialize environment state */
-  state->upvals  = NULL;
-  state->globals = globals;
-  state->module  = globals;
-  state->symbols = NULL;
-
-  /* Initialize execution state */
-  state->code    = NULL;
-  state->ip      = NULL;
-  state->fp      = NULL;
-  state->bp      = NULL;
-
-  /* Initialize stack state */
-  state->sbase   = stack;
-  state->sp      = stack;
-  state->slast   = stack + MAX_STACK;
-}
 
 void rl_toplevel_init_state(void) {
-  rl_init_state(&Vm, &Grays, &Globals, Stack, Errors);
+  rl_init_state(&Vm, &Main);
 }

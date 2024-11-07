@@ -8,51 +8,34 @@
 /* Types, APIs, and globals for mutable and immutable Rascal arrays. */
 /* C types */
 // vector root and node types
-struct Vec {
-  HEADER;
-
-  size64  arity;
-  VNode*  root;
-  Val*    tail;
-};
-
-struct VNode {
-  HEADER;
-
-  size32 cnt;
-  uint16 shift;
-  uint16 trans;
-
-  union {
-    VNode** cn;
-    Val*    slots;
-  };
-};
-
 struct Alist {
   HEADER;
 
   size64 cnt, cap;
 
-  void** data;
+  Val* data;
 };
 
 /* Globals */
 /* APIs */
 /* Vec API */
-#define is_vec(x) has_type(x, &VecType)
-#define as_vec(x) ((Vec*)as_obj(x))
+#define is_alist(x) has_type(x, T_ALIST)
+#define as_alist(x) ((Alist*)as_obj(x))
 
-Vec* mk_vec(size64 n, Val* d);
-Vec* packed_vec(size64 n, Val* d);
-Val  vec_ref(Vec* v, size64 n);
-Vec* vec_add(Vec* v, Val x);
-Vec* vec_set(Vec* v, size64 n, Val x);
-Vec* vec_pop(Vec* x);
-Vec* vec_cat(Vec* x, Vec* y);
+// mostly internal methods
+Alist* new_alist(void);
+void   init_alist(Alist* a);
+void   free_alist(Alist* a);
+void   grow_alist(Alist* a, size64 n);
+void   shrink_alist(Alist* a, size64 n);
+void   resize_alist(Alist* a, size64 n);
 
-/* VNode API (mostly internal) */
-#define is_vnode(x) has_type(x, &VNodeType)
-#define as_vnode(x) ((VNode*)as_obj(x))
+// 
+Alist* mk_alist(size64 n, Val* d);
+Val    alist_ref(Alist* a, size64 n);
+size64 alist_add(Alist* v, Val x);
+size64 alist_set(Alist* v, size64 n, Val x);
+Val    alist_pop(Alist* x);
+Alist* alist_cat(Alist* x, Alist* y);
 
 #endif

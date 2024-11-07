@@ -2,29 +2,31 @@
 This phase should implement a minimal but still interesting language on which the more complete version of Rascal can be built.
 
 ## Highlights
-* A register-based virtual machine with upvalue-based closures.
+* A stack-based virtual machine with upvalue-based closures.
+  * Using a two stack design, one for values and one for call state.
 * VM support for exceptions (accessed in Rascal with `catch*` and `throw*` special forms).
 * VM support for a basic module system (no module nesting, idempotent `require` form, can rename bindings from module using `(require "module.rl" :as module)`).
 * Support for the following user types:
   * Nul
-  * Boolean
+  * Bool
   * Glyph
-  * Number
-  * Stream
-  * String
+  * Num
+  * Port
+  * Str
   * UserFn
-  * Symbol
+  * Sym
   * Pair     (mutable)
   * Buffer   (mutable)
   * Alist    (mutable)
   * Table    (mutable)
 
 * Support for the following VM types:
-  * Pointer
+  * Ptr
   * NativeFn
   * Environ
+  * Ref
 
-* Standard library modules for math and io
+* `math`, `os`, `txt`, and `io` standard library modules
 * Basic C ffi with `c-call` interface
 * Support for metadata
 * Support for macros
