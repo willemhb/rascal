@@ -16,9 +16,9 @@
     uint8 mflags;                    \
                                      \
     struct {                         \
-      uint8 trace      : 1;          \
-      uint8 sweep      : 1;          \
-      uint8 free       : 1;          \
+      uint8 notrace    : 1;          \
+      uint8 nosweep    : 1;          \
+      uint8 nofree     : 1;          \
       uint8 persistent : 1;          \
       uint8 transient  : 1;          \
       uint8 sealed     : 1;          \
@@ -36,29 +36,29 @@ struct Obj {
 
 /* APIs */
 // lifetime APIs
-#define mark(x)                                 \
+#define mark(vm, x)                             \
   generic((x),                                  \
           Val:mark_val,                         \
-          default:mark_obj)(x)
+          default:mark_obj)(vm, x)
 
-#define trace(x)                                \
+#define trace(vm, x)                            \
   generic((x),                                  \
           Val:trace_val,                        \
-          default:trace_obj)(x)
+          default:trace_obj)(vm, x)
 
 // mark methods
-void mark_val(Val x);
-void mark_obj(void* x);
+void mark_val(State* vm, Val x);
+void mark_obj(State* vm, void* x);
 
 // trace method
-void trace_val(Val x);
-void trace_obj(void* x);
+void trace_val(State* vm, Val x);
+void trace_obj(State* vm, void* x);
 
 // other lifetime methods
-void*  new_obj(Type t, flags32 f);
-void*  clone_obj(void* x);
-void   init_obj(Obj* o, Type t, flags32 f);
-void   free_obj(void* x);
+void*  new_obj(State* vm, Type t, flags32 f);
+void*  clone_obj(State* vm, void* x);
+void   init_obj(State* vm, Obj* o, Type t, flags32 f);
+void   free_obj(State* vm, void* x);
 size64 sweep_obj(State* vm, void* x);
 
 #endif

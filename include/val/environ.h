@@ -25,4 +25,11 @@ struct Env {
   Table* module;
 };
 
+/* External APIs */
+#define is_sym(x) has_type(x, T_SYM)
+#define as_sym(x) ((Sym*)as_obj(x))
+
+Sym* new_sym(Str* n, Str* ns, bool lit, bool gs);
+Sym* get_sym(char* n, char* ns, bool gs);
+
 #endif

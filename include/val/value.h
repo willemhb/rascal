@@ -88,15 +88,17 @@ static inline Val wdata_bits(Val x) {
           char*:tag_ptr,                         \
           Val*:tag_ptr,                          \
           Obj*:tag_obj,                          \
-          Cntl*:tag_obj,                         \
           NativeFn*:tag_obj,                     \
           UserFn*:tag_obj,                       \
           Sym*:tag_obj,                          \
-          Stream*:tag_obj,                       \
-          Bin*:tag_obj,                          \
-          Cons*:tag_obj,                         \
-          Vec*:tag_obj,                          \
-          Map*:tag_obj )(x)
+          Port*:tag_obj,                         \
+          Str*:tag_obj,                          \
+          Pair*:tag_obj,                         \
+          Buffer*:tag_obj,                       \
+          Alist*:tag_obj,                        \
+          Table*:tag_obj,                        \
+          Env*:tag_obj,                          \
+          Ref*:tag_obj )(x)
 
 // tagging methods
 Val tag_nul(Nul n);

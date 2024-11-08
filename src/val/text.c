@@ -3,143 +3,107 @@
 #include "val/text.h"
 #include "val/table.h"
 
+#include "vm/state.h"
 #include "vm/heap.h"
+#include "vm/type.h"
+#include "vm/environ.h"
 
-/* Forward declarations */
-Str* new_str(char* cs, size_t n);
+#include "util/text.h"
+#include "util/hash.h"
+#include "util/number.h"
 
 /* Globals */
-// types
-extern Type PortType, GlyphType, StrType, BinType, MStrType, MBinType, RTType;
-
-// standard ports
-extern Port StdIn, StdOut, StdErr;
-
-// string cache
-extern SCache StrCache;
-
 /* Internal APIs */
-void intern_in_scache(void* t, void* e, void* k,  void* s, hash_t h) {
-  (void)t;
+void free_str(State* vm, void* x) {
+  Str* s = x;
 
-  size_t n      = *(size_t*)s;
-  SCEntry* ce   = e;
-  ce->val       = new_str(k, n);
-  ce->key       = ce->val->chars;
-  ce->val->hash = h;
+  // free characters
+  rl_dealloc(NULL, s->cs, 0);
+
+  if ( s->cached ) { // mark as tombstone to be cleaned up and temporarily prevent sweeping
+    s->nosweep = true;
+    vm->strs->nts++;
+  }
+}
+
+bool egal_strs(Val x, Val y) {
+  Str* sx = as_str(x), * sy = as_str(y);
+
+  return sx->cnt == sy->cnt && sx->chash == sy->chash && seq(sx->cs, sy->cs);
+}
+
+int order_strs(Val x, Val y) {
+  Str* sx = as_str(x), * sy = as_str(y);
+
+  return scmp(sx->cs, sy->cs);
 }
 
 /* External APIs */
-/* String API */
-Str* mk_str(char* cs, size_t n) {
-  assert(cs != NULL);
+// String API
 
-  if ( n == 0 && *cs != '\0' )
-    n = strlen(cs);
+Str* new_str(char* cs, size64 n, bool i, hash64 h) {
+  Str* s    = new_obj(&Vm, T_STR, MF_PERSISTENT);
 
-  SCEntry* e = scache_intern(&StrCache, cs, intern_in_scache, &n);
+  // initialize string fields
+  s->hash   = mix_hashes(h, Vm.vts[T_STR].hash);
+  s->cached = i;
+  s->chash  = h;
+  s->cnt    = n;
+  s->cs     = rl_dup(&Vm, cs, n+1);
 
-  return e->val;
+  // return string
+  return s;
 }
 
-Str* new_str(char* cs, size_t n) {
-  Str* out   = new_obj(&StrType);
-  out->enc   = ASCII;
-  out->hasmb = false;
-  out->chars = duplicate(cs, n+1, false);
+Str* mk_str(char* cs, size64 n, bool i) {
+  Str* s;
 
-  return out;
+  if ( i && n <= MAX_INTERN ) {
+    /* call gc pre-emptively in case allocation would cause a collection and possible
+       reallocation of the string table */
+    rl_gc(&Vm, sizeof(Str));
+
+    s = intern_str(Vm.strs, cs, n);
+  } else {
+    s = new_str(cs, n, false, hash_chars(cs, n));
+  }
+
+  return s;
 }
 
-Glyph str_ref(Str* s, size_t n) {
-  assert(n < s->count); // should already be checked
-
-  return s->chars[n];
+Str* get_str(char* cs, size64 n) {
+  return mk_str(cs, n, true);
 }
 
-Str* str_set(Str* s, size_t n, Glyph g) {
-  assert(n < s->count); // should already be checked
+Glyph str_ref(Str* s, size64 n) {
+  // unsafe method, calls to str_ref from user code should be validated
+  assert(n < s->cnt);
 
-  char buf[s->count+1] = {};
+  return s->cs[n];
+}
 
-  strcpy(buf, s->chars);
+Str* str_set(Str* s, size64 n, Glyph g) {
+  //unsafe method, calls to str_set from user code should be validated
+  assert(n < s->cnt);
 
+  // create buffer for modified string
+  char buf[s->cnt+1];
+  
+  str_buf(s, buf, s->cnt+1);
+
+  // update buffer with new character
   buf[n] = g;
 
-  return mk_str(buf, s->count);
+  // get a copy of the modified string
+  s = get_str(buf, s->cnt+1);
+  
+  return s;
 }
 
-/* Bin API */
-Bin*   new_bin(size_t n, void* d, CType ct);
-byte_t bin_ref(Bin* b, size_t n);
-Bin*   bin_set(Bin* b, size_t n, byte_t u);
+size64 str_buf(Str* s, char* buf, size64 bufsz) {
+  size64 nwrite = min(s->cnt, bufsz-1);
 
-/* RT API */
-RT* mk_rt(RT* p) {
-  RT* o = new_obj(&RTType);
+  strncpy(buf, s->cs, nwrite);
 
-  init_rt(o, p);
-
-  return o;
-}
-
-void init_rt(RT* rt, RT* p) {
-  rt->parent = p;
-
-  if ( p != NULL ) {
-    // copy readers from parent read table
-    rt->eof_fn = p->eof_fn;
-    memcpy(rt->dispatch, p->dispatch, sizeof(rt->dispatch));
-    memcpy(rt->intrasym, p->intrasym, sizeof(rt->intrasym));
-  } else {
-    // initialize everything to NULL (rt_get returns fail reader if result is NULL)
-    rt->eof_fn = NULL;
-
-    memset(rt->dispatch, 0, sizeof(rt->dispatch));
-    memset(rt->intrasym, 0, sizeof(rt->intrasym));
-  }
-}
-
-void rt_set_g(RT* rt, int d, rl_read_fn_t r, bool is) {
-  assert(d == EOF || d < RT_SIZE); // require ASCII atm
-
-  if ( d == EOF )
-    rt->eof_fn = r;
-
-  else if ( is )
-    rt->intrasym[d] = r;
-
-  else
-    rt->dispatch[d] = r;
-}
-
-void rt_set_s(RT* rt, char* ds, rl_read_fn_t r, bool is) {
-  assert(ds != NULL);
-
-  while ( *ds ) {
-    rt_set(rt, *ds, r, is);
-    ds++;
-  }
-}
-
-extern void rl_read_fail(RState* s, int d);
-
-rl_read_fn_t rt_get(RT* rt, int d, bool is) {
-  assert(d == EOF || d < RT_SIZE); // require ASCII atm
-
-  rl_read_fn_t f;
-
-  if ( d == EOF )
-    f = rt->eof_fn;
-
-  else if ( is )
-    f = rt->intrasym[d] ? : rt->dispatch[d];
-
-  else
-    f = rt->dispatch[d];
-
-  if ( f == NULL )
-    f = rl_read_fail;
-
-  return f;
+  return nwrite;
 }

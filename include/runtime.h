@@ -16,6 +16,7 @@ typedef struct VTable   VTable;   // internal methods for values of a given type
 typedef int    (*BuiltinFn)(State* vm, size32 n);
 typedef int    (*RascalFn)(State* vm);
 typedef int    (*ErrorFn)(State* vm, int code, char* reason);
+typedef void*  (*CloneFn)(State* vm, void* x);
 typedef void   (*TraceFn)(State* vm, void* x);
 typedef void   (*FreeFn)(State* vm, void* x);
 typedef void   (*SweepFn)(State* vm, void* x);

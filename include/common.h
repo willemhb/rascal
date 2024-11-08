@@ -63,13 +63,15 @@ typedef void* nullptr_t;
 #define MIN_ARR      8
 #define INIT_HEAP    (1 << 19) // MAX_STACK * sizeof(Val)
 #define MAX_HEAP     MAX_ARITY
+#define MAX_INTERN   512
+
 
 /* redefining important macros with annoying names */
 #define generic _Generic
 #define unreachable __builtin_unreachable
 
 // other utilitiy macros
-#define cleanup(f)   __attribute__((cleanup(f)))
+#define cleanup(f)   __attribute__((__cleanup__(f)))
 #define unlikely(x)  __builtin_expect((x), 0)
 #define likely(x)    __builtin_expect((x), 1)
 

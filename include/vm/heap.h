@@ -16,7 +16,7 @@ void unpreserve(HFrame* f);
     { .vm  =(s),                                                        \
       .next=(s)->hfs,                                                   \
       .cnt =(n),                                                        \
-      .vals=__heap_frame_vals__ };                                      \
+      .saved=__heap_frame_vals__ };                                     \
   (s)->hfs=&__heap_frame__
 
 // memory management

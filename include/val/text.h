@@ -12,7 +12,7 @@
 struct Str {
   HEADER;
   // bit fields
-  uint8  interned;
+  uint8  cached;
 
   // data fields
   hash64 chash;  // character hash (distinct from object hash)
@@ -31,7 +31,6 @@ Str*   mk_str(char* cs, size64 n, bool i);
 Str*   get_str(char* cs, size64 n);
 Glyph  str_ref(Str* s, size64 n);
 Str*   str_set(Str* s, size64 n, Glyph g);
-size64 str_len(Str* s);
-size64 str_buf(Str* s, char** buf, size64 bufsz);
+size64 str_buf(Str* s, char* buf, size64 bufsz);
 
 #endif
