@@ -7,6 +7,6 @@
 bool   rl_same(Val x, Val y);
 bool   rl_egal(Val x, Val y);
 int    rl_order(Val x, Val y);
-hash_t rl_hash(Val x, bool f);
+hash_t rl_hash(Val x);
 
 #endif

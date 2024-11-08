@@ -7,17 +7,20 @@
 /* C types */
 
 // general mutable tables
+typedef struct TNode {
+  Val    key;
+  hash64 hash;
+  Val    val;
+} TNode;
+
 struct Table {
   HEADER;
 
   // size information
-  size64 kcnt, kcap, mcnt, mcap;
+  size64 cnt, cap;
 
   // actual key/value pairs
-  Pair** kvs;
-
-  // mapping from 
-  void*  map;
+  TNode* kvs;
 };
 
 /* Globals */
@@ -27,13 +30,13 @@ struct Table {
 #define is_table(x) has_type(x, T_TABLE)
 #define as_table(x) ((Table*)as_obj(x))
 
-// tables (mutable mappings, used to implement environments)
-Table* mk_table(void);
-void   init_table(Table* t);
+Table* mk_table(State* vm);
+void   free_table(State* vm, void* x);
+void   init_table(State* vm, Table* t);
 bool   table_get(Table* t, Val k, Val* v);
-bool   table_set(Table* t, Val k, Val* v);
-bool   table_put(Table* t, Val k, Val* v);
-bool   table_pop(Table* t, Val k, Pair** kv);
+bool   table_set(Table* t, Val k, Val v);
+bool   table_add(Table* t, Val k, TNode** l);
+bool   table_del(Table* t, Val k, Val* v);
 void   join_tables(Table* tx, Table* ty);
 
 #endif

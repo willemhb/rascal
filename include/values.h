@@ -28,13 +28,15 @@ typedef struct Port     Port;
 typedef struct Str      Str;
 
 // user collection types
-typedef struct Pair   Pair;
+typedef struct List   List;
 typedef struct Buffer Buffer;
 typedef struct Alist  Alist;
 typedef struct Table  Table;
 
 // miscellaneous internal types
+typedef struct Ns       Ns;
 typedef struct Env      Env;
 typedef struct Ref      Ref;
+typedef struct Upv      Upv;
 
 #endif

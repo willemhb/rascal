@@ -31,6 +31,8 @@ Str*   mk_str(char* cs, size64 n, bool i);
 Str*   get_str(char* cs, size64 n);
 Glyph  str_ref(Str* s, size64 n);
 Str*   str_set(Str* s, size64 n, Glyph g);
+bool   egal_str_obs(Str* sx, Str* sy);
+int    order_str_obs(Str* sx, Str* sy);
 size64 str_buf(Str* s, char* buf, size64 bufsz);
 
 #endif

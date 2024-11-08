@@ -53,7 +53,7 @@ struct Proc {
   State*  vm;
 
   /* Environment state */
-  Pair*   upvals;
+  Upv*   upvals;
 
   /* Error state */
   EFrame* cp, * catches, * catches_end;

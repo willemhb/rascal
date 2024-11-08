@@ -29,13 +29,13 @@ void free_str(State* vm, void* x) {
 bool egal_strs(Val x, Val y) {
   Str* sx = as_str(x), * sy = as_str(y);
 
-  return sx->cnt == sy->cnt && sx->chash == sy->chash && seq(sx->cs, sy->cs);
+  return egal_str_obs(sx, sy);
 }
 
 int order_strs(Val x, Val y) {
   Str* sx = as_str(x), * sy = as_str(y);
 
-  return scmp(sx->cs, sy->cs);
+  return order_str_obs(sx, sy);
 }
 
 /* External APIs */
@@ -98,6 +98,14 @@ Str* str_set(Str* s, size64 n, Glyph g) {
   s = get_str(buf, s->cnt+1);
   
   return s;
+}
+
+bool egal_str_obs(Str* sx, Str* sy) {
+  return sx->cnt == sy->cnt && sx->chash == sy->chash && seq(sx->cs, sy->cs);
+}
+
+int order_str_obs(Str* sx, Str* sy) {
+  return scmp(sx->cs, sy->cs);
 }
 
 size64 str_buf(Str* s, char* buf, size64 bufsz) {

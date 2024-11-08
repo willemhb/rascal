@@ -8,28 +8,44 @@
 #include "util/text.h"
 #include "util/hash.h"
 
+/* Globals */
+extern Str* DefaultNs;
+
 /* Internal APIs */
+static Str* get_ns(Sym* s) {
+  return s->ns ? : DefaultNs;
+}
+
 void trace_sym(State* vm, void* x) {
   Sym* sym = x;
 
-  mark(vm, sym->name);
+  mark(vm, sym->n);
   mark(vm, sym->ns);
 }
 
 bool egal_syms(Val x, Val y) {
-  
+  Sym* sx  = as_sym(x), * sy = as_sym(y);
+
+  return sx->ns == sy->ns && sx->n == sy->n && sx->id == sy->id;
 }
 
-int  order_syms(Val x, Val y);
+int order_syms(Val x, Val y) {
+  Sym* sx = as_sym(x), * sy = as_sym(y);
+  int o = 0;
+
+  Str* nsx = get_ns(sx), * nsy = get_ns(sy);
+
+  if 
+}
 
 void init_sym(State* vm, Sym* sym, Str* n, Str* ns, bool lit, bool gs) {
   // Gensym counter
   static size64 gscnt = 0;
   
-  sym->literal = lit;
-  sym->idno    = gs ? ++gscnt : 0;
-  sym->name    = n;
-  sym->ns      = ns;
+  sym->lit  = lit;
+  sym->id = gs ? ++gscnt : 0;
+  sym->n    = n;
+  sym->ns   = ns;
 
   hash64 shash = n->chash;
 
@@ -37,7 +53,7 @@ void init_sym(State* vm, Sym* sym, Str* n, Str* ns, bool lit, bool gs) {
     shash = mix_hashes(ns->chash, shash);
 
   if ( gs )
-    shash = mix_hashes(hash_word(sym->idno), shash);
+    shash = mix_hashes(hash_word(sym->id), shash);
 
   shash = mix_hashes(vm->vts[T_SYM].hash, shash);
 

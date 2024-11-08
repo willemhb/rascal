@@ -28,8 +28,15 @@
 #define GLYPH      0xffff000300000000ul
 #define SMALL      0xffff000400000000ul
 
-#define TRUE       0xffff000200000001UL // BOOL  | 1
-#define FALSE      0xffff000200000000UL // BOOL  | 0
+/* not a real value (shouldn't leak), but used to detect absent or uninitialized
+   values where a value is expected. Eg, unused table nodes have both their key and
+   value set to NOTHING, while tombstones have their key set to NOTHING but retain
+   a valid value. */
+#define NOTHING    0xffff001000000001ul // NUL   | 1
+
+// Rascal true and false representation
+#define TRUE       0xffff000200000001ul // BOOL  | 1
+#define FALSE      0xffff000200000000ul // BOOL  | 0
 
 /* Globals */
 /* APIs */
