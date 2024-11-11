@@ -60,7 +60,7 @@ typedef void* nullptr_t;
 #define MAX_STACK    UINT16_COUNT
 #define MAX_FRAMES   8192
 #define MAX_ERROR    512
-#define MIN_ARR      8
+#define MIN_ARR      8ul
 #define INIT_HEAP    (1 << 19) // MAX_STACK * sizeof(Val)
 #define MAX_HEAP     MAX_ARITY
 #define MAX_INTERN   512
@@ -72,6 +72,7 @@ typedef void* nullptr_t;
 
 // other utilitiy macros
 #define cleanup(f)   __attribute__((__cleanup__(f)))
+#define noreturn     __attribute__((__noreturn__))
 #define unlikely(x)  __builtin_expect((x), 0)
 #define likely(x)    __builtin_expect((x), 1)
 

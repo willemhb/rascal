@@ -1,6 +1,7 @@
 #include "labels.h"
 
 #include "vm/state.h"
+#include "vm/error.h"
 #include "vm/type.h"
 
 #include "val/array.h"
@@ -13,7 +14,8 @@ void*  Frames[MAX_FRAMES];
 EFrame Errors[MAX_ERROR];
 
 /* Global State objects */
-extern Table    Globals, Meta;
+extern Ns       Globals;
+extern Table    Meta;
 extern StrTable Strings;
 extern Alist    Grays;
 extern VTable   Vts[N_TYPES];
@@ -40,7 +42,7 @@ Proc Main = {
   .vm          = &Vm,
 
   /* Environment state */
-  .upvals      = NULL,
+  .upvs        = NULL,
 
   /* Error state */
   .cp          = Errors,
@@ -63,7 +65,8 @@ Proc Main = {
 };
 
 /* APIs for State object. */
-
+void rl_init_state(State* vm, Proc* pr);
+void rl_init_process(Proc* pr, State* vm, Val* vs, EFrame* es);
 
 void rl_toplevel_init_state(void) {
   rl_init_state(&Vm, &Main);

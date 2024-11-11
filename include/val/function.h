@@ -14,11 +14,11 @@
   size32 arity;                                 \
   bool   variadic
 
-typedef struct Fn {
+struct Fn {
   FN_HEADER;
-} Fn;
+};
 
-struct NativeFn {
+struct PrimFn {
   FN_HEADER;
 
   Opcode    label;   // if non-zero, this function's action is an inlineable VM label
@@ -28,7 +28,26 @@ struct NativeFn {
 struct UserFn {
   FN_HEADER;
 
-  
+  Ns*     ns;   // namespace in which the function was compiled
+  Env*    env;  // local variables
+  Buffer* code; // instruction sequence
+  Alist*  vals; // compiler constants
+  Alist*  cls;  // closure (array of upvalues; NULL if this is a function prototype)
 };
+
+/* External APIs */
+// general function APIs
+#define as_fn(x)   ((Fn*)as_obj(x))
+#define fn_name(x) ((x)->name->n->cs)
+#define fn_ac(x)   ((x)->arity)
+#define fn_va(x)   ((x)->variadic)
+
+// primitive function APIs
+#define is_primfn(x) has_type(x, T_PRIMFN)
+#define as_primfn(x) ((PrimFn*)as_obj(x))
+
+// user function APIs
+#define is_userfn(x) has_type(x, T_USERFN)
+#define as_userfn(x) ((UserFn*)as_obj(x))
 
 #endif

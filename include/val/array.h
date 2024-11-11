@@ -3,11 +3,8 @@
 
 #include "val/object.h"
 
-#include "util/table.h"
-
 /* Types, APIs, and globals for mutable and immutable Rascal arrays. */
 /* C types */
-// vector root and node types
 struct Alist {
   HEADER;
 
@@ -25,17 +22,18 @@ struct Alist {
 // mostly internal methods
 Alist* new_alist(void);
 void   init_alist(Alist* a);
-void   free_alist(Alist* a);
-void   grow_alist(Alist* a, size64 n);
 void   shrink_alist(Alist* a, size64 n);
+void   grow_alist(Alist* a, size64 n);
 void   resize_alist(Alist* a, size64 n);
 
-// 
+// external methods
 Alist* mk_alist(size64 n, Val* d);
 Val    alist_ref(Alist* a, size64 n);
 size64 alist_add(Alist* v, Val x);
-size64 alist_set(Alist* v, size64 n, Val x);
-Val    alist_pop(Alist* x);
-Alist* alist_cat(Alist* x, Alist* y);
+size64 alist_wrt(Alist* a, size64 n, Val* d);
+void   alist_set(Alist* v, size64 n, Val x);
+Val    alist_pop(Alist* a);
+Val    alist_popn(Alist* a, size64 n, bool e);
+void   alist_cat(Alist* x, Alist* y);
 
 #endif

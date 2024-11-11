@@ -6,33 +6,28 @@
 /* Types, APIs, and globals supporting Rascal lists and pairs. */
 
 /* C types. */
-struct Pair {
+struct List {
   HEADER;
-  uint8 proper;
   
-  Val car;
-
-  size64 arity;
-  
-  union {
-    Val   cdr;
-    Pair* tail;
-  };
+  Val    head;
+  size64 cnt;
+  List*  tail;
 };
 
 /* External APIs */
 /* List API */
-#define is_cons(x) has_type(x, T_CONS)
-#define as_cons(x) ((Pair*)as_obj(x))
-
-Pair* mk_cons(Val car, Val cdr);
-Pair* mk_list2(Val hd, Pair* tl);
-Pair* mk_listn(size32 n, Val* d);
-Val   list_ref(Pair* xs, size32 n);
+#define is_list(x) has_type(x, T_LIST)
+#define as_list(x) ((List*)as_obj(x))
 
 #define mk_list(x, y)                           \
   generic((y),                                  \
           Val*:mk_listn,                        \
-          Pair*:mk_list2)(x, y)
+          List*:mk_list2)(x, y)
+
+List* mk_list2(Val hd, List* tl);
+List* mk_listn(size32 n, Val* d);
+Val   list_ref(List* xs, size64 n);
+
+void rl_toplevel_init_list(void);
 
 #endif

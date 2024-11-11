@@ -3,33 +3,6 @@
 
 #include "runtime.h"
 
-/* Stores references to values that only exist on the C stack in case a garbage collection cycle occurs before an object is visible in Rascal. */
-struct HFrame {
-  HFrame* next;
-  State*  vm;
-  size64  cnt;
-  Val*    saved;
-};
-
-struct EFrame {
-  /* Saved call state */
-  UserFn* code;
-  sint16* ip;
-  Val*    bp;
-  Val*    sp;
-  void**  fp;
-
-  /* saved error state */
-  bool user_ch;
-
-   union {
-    ErrorFn n;
-    UserFn* u;
-  } ch;
-
-  jmp_buf Cstate;
-};
-
 /* Stores all globals used by the Rascal virtual machine. */
 struct State {
   /* Heap state */
@@ -39,13 +12,13 @@ struct State {
   size64   alloc, limit;
 
   /* Environment state */
-  Table*    globals;  // global variables
+  Ns*       globals;  // global namespace
   Table*    meta;     // metadata for immediate values
   StrTable* strs;     // table of interned strings
-  VTable*   vts;
+  VTable*   vts;      // type information needed by runtime
 
   /* execution state */
-  Proc*     main;
+  Proc*     main;     // execution state
 };
 
 struct Proc {
@@ -53,7 +26,7 @@ struct Proc {
   State*  vm;
 
   /* Environment state */
-  Upv*   upvals;
+  Upv*    upvs;
 
   /* Error state */
   EFrame* cp, * catches, * catches_end;
@@ -69,6 +42,21 @@ struct Proc {
 };
 
 /* APIs for State object. */
+// stack manipulation
+Val* push(Proc* p, Val x);
+Val* pushn(Proc* p, size32 n, ...);
+Val* writen(Proc* p, size32 n, Val* src);
+Val  pop(Proc* p);
+Val  popn(Proc* p, size32 n);
+Val  popnth(Proc* p, int n);
+Val  getrx(Proc* p, int n);
+Val  setrx(Proc* p, int n, Val v);
+
+// call stack manipulation
+void pushf(Proc* p);
+void popf(Proc* p);
+
+// initialization
 void rl_init_state(State* vm, Proc* pr);
 void rl_init_process(Proc* pr, State* vm, Val* vs, EFrame* es);
 void rl_toplevel_init_state(void);

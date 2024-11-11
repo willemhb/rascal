@@ -5,6 +5,7 @@
 #include "val/object.h"
 
 #include "vm/state.h"
+#include "vm/type.h"
 
 #include "util/hash.h"
 
@@ -121,13 +122,17 @@ bool obj_has_type(void* x, Type t) {
 VTable* val_vtbl(Val x) {
   Type t = type_of(x);
 
-  return Vm.vts[t];
+  return &Vm.vts[t];
+}
+
+VTable* type_vtbl(Type t) {
+  return &Vm.vts[t];
 }
 
 VTable* obj_vtbl(void* x) {
   Type t = type_of(x);
 
-  return Vm.vts[t];
+  return &Vm.vts[t];
 }
 
 // value predicates
@@ -162,4 +167,3 @@ bool is_ptr(Val x) {
 bool is_obj(Val x) {
   return tag_bits(x) == OBJECT;
 }
-

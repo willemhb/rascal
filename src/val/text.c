@@ -14,6 +14,37 @@
 
 /* Globals */
 /* Internal APIs */
+static void* buffer_offset(Buffer* b, size64 n) {
+  return (void*)&b->data[n*b->elsize];
+}
+
+static bool check_buffer_grow(size64 n, size64 c, bool e) {
+  return n + e > c;
+}
+
+static bool check_buffer_shrink(size64 n, size64 c, bool e) {
+  return c == MIN_ARR ? n == 0 : (n + e) < c >> 1;
+}
+
+static size64 calc_buffer_size(size64 n, bool e) {
+  if ( n == 0 )
+    return 0;
+  
+  size64 p = ceil2(n + e);
+
+  return max(p, MIN_ARR);
+}
+
+static byte* alloc_buffer_bin(size64 n, size64 es) {
+  return rl_alloc(NULL, n*es);
+}
+
+static byte* realloc_buffer_bin(byte* b, size64 on, size64 nn, size64 es) {
+  return rl_realloc(NULL, b, on*es, nn*es);
+}
+
+/* Runtime APIs */
+// Str APIs
 void free_str(State* vm, void* x) {
   Str* s = x;
 
@@ -38,9 +69,19 @@ int order_strs(Val x, Val y) {
   return order_str_obs(sx, sy);
 }
 
-/* External APIs */
-// String API
+// Buffer APIs
+void free_buffer(State* vm, void* x) {
+  (void)vm;
 
+  Buffer* b = x;
+
+  rl_dealloc(NULL, b->data, 0);
+
+  init_buffer(vm, b, VOID);
+}
+
+/* External APIs */
+// Str APIs
 Str* new_str(char* cs, size64 n, bool i, hash64 h) {
   Str* s    = new_obj(&Vm, T_STR, MF_PERSISTENT);
 
@@ -114,4 +155,112 @@ size64 str_buf(Str* s, char* buf, size64 bufsz) {
   strncpy(buf, s->cs, nwrite);
 
   return nwrite;
+}
+
+// Buffer APIs
+
+// mostly internal methods
+Buffer* new_buffer(CType type) {
+  Buffer* b = new_obj(&Vm, T_BUFFER, 0);
+
+  init_buffer(&Vm, b, type);
+
+  return b;
+}
+
+void init_buffer(State* vm, Buffer* b, CType type) {
+  (void)vm;
+
+  // initialize Ctype info (pass VOID to indicate that this field doesn't need to be set)
+  if ( type ) {
+    b->type    = type;
+    b->elsize  = ct_size(type);
+    b->encoded = ct_is_encoded(type);
+  }
+
+  // initialize array info
+  b->cnt     = 0;
+  b->cap     = 0;
+  b->data     = NULL;
+}
+
+void grow_buffer(Buffer* b, size64 n) {
+  size64 newc = calc_buffer_size(n, b->encoded);
+  size64 oldc = b->cap;
+  byte*  newd = realloc_buffer_bin(b->data, oldc, newc, b->encoded);
+  b->cap      = newc;
+  b->data     = newd;
+}
+
+void shrink_buffer(Buffer* b, size64 n) {
+  if ( n == 0 )
+    free_buffer(&Vm, b);
+
+  else {
+    size64 newc = calc_buffer_size(n, b->encoded);
+    byte*  newb = realloc_buffer_bin(b->data, b->cap, newc, b->encoded);
+    b->cap      = newc;
+    b->data     = newb;
+  }
+}
+
+void resize_buffer(Buffer* b, size64 n) {
+  if ( check_buffer_shrink(n, b->cap, b->encoded) )
+    shrink_buffer(b, n);
+
+  else if ( check_buffer_grow(n, b->cap, b->encoded) )
+    grow_buffer(b, n);
+}
+
+// external methods
+void* buffer_ref(Buffer* b, size64 n) {
+  assert(n < b->cnt);
+
+  return buffer_offset(b, n);
+}
+
+size64 buffer_add(Buffer* b, word_t d) {
+  if ( check_buffer_grow(b->cnt+1, b->cap, b->encoded) )
+    grow_buffer(b, b->cnt+1);
+
+  void* spc = buffer_offset(b, b->cnt);
+
+  switch ( b->elsize ) {
+    case 1: *(uint8*)spc  = (uint8)d;  break;
+    case 2: *(uint16*)spc = (uint16)d; break;
+    case 4: *(uint32*)spc = (uint32)d; break;
+    case 8: *(uint64*)spc = (uint64)d; break;
+  }
+
+  return b->cnt++;
+}
+
+size64 buffer_wrt(Buffer* b, size64 n, byte* d) {
+  if ( check_buffer_grow(b->cnt+n, b->cap, b->encoded) )
+    grow_buffer(b, b->cnt+n);
+
+
+  size64 o = b->cnt;
+  
+  if ( d ) {
+    void* spc = buffer_offset(b, o);
+    memcpy(spc, d, n*b->elsize);
+  }
+
+  b->cnt += n;
+
+  return o;
+}
+
+void buffer_set(Buffer* b, size64 n, word_t d) {
+  assert(n < b->cnt);
+
+  void* spc = buffer_offset(b, n);
+
+  switch ( b->elsize ) {
+    case 1: *(uint8*)spc  = (uint8)d;  break;
+    case 2: *(uint16*)spc = (uint16)d; break;
+    case 4: *(uint32*)spc = (uint32)d; break;
+    case 8: *(uint64*)spc = (uint64)d; break;
+  }
 }

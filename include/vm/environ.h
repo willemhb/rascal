@@ -12,6 +12,10 @@ struct StrTable {
 };
 
 /* External API */
+// Upv API
+void close_upvs(Proc* p, Val* bp);
+
+// StrTable API
 void init_str_table(StrTable* st);
 void free_str_table(StrTable* st);
 void resize_str_table(StrTable* st, size64 n);

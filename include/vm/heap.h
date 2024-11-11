@@ -4,6 +4,14 @@
 #include "vm/state.h"
 
 /* Definitions and declarations for internal state objects & functions (memory management, vm, &c). */
+/* C types */
+/* Stores references to values that only exist on the C stack in case a garbage collection cycle occurs before an object is visible in Rascal. */
+struct HFrame {
+  HFrame* next;
+  State*  vm;
+  size64  cnt;
+  Val*    saved;
+};
 
 /* Globals */
 /* HState & Heap APIs */

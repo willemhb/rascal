@@ -6,6 +6,7 @@
 #include "vm/type.h"
 
 #include "util/text.h"
+#include "util/number.h"
 #include "util/hash.h"
 
 /* Globals */
@@ -23,7 +24,7 @@ void trace_sym(State* vm, void* x) {
   mark(vm, sym->ns);
 }
 
-bool egal_syms(Val x, Val y) {
+bool egal_syms(Val x, Val  y) {
   Sym* sx  = as_sym(x), * sy = as_sym(y);
 
   return sx->ns == sy->ns && sx->n == sy->n && sx->id == sy->id;
@@ -32,10 +33,14 @@ bool egal_syms(Val x, Val y) {
 int order_syms(Val x, Val y) {
   Sym* sx = as_sym(x), * sy = as_sym(y);
   int o = 0;
-
   Str* nsx = get_ns(sx), * nsy = get_ns(sy);
 
-  if 
+  // order on namespace, name, then idno
+  o = order_str_obs(nsx, nsy);
+  o = o ? : order_str_obs(sx->n, sy->n);
+  o = o ? : cmp(sx->id, sy->id);
+
+  return o;
 }
 
 void init_sym(State* vm, Sym* sym, Str* n, Str* ns, bool lit, bool gs) {

@@ -15,11 +15,11 @@
 
 /* Internal APIs */
 static inline bool is_ts(TNode* n) {
-  return n->key == NOTHING && n->val != NOTHING;
+  return n->key == NOTHING && n->hash != 0;
 }
 
 static inline bool isnt_used(TNode* n) {
-  return n->key == NOTHING && n->val == NOTHING;
+  return n->key == NOTHING && n->hash == 0;
 }
 
 static size64 pad_table_size(size64 n) {
@@ -46,17 +46,6 @@ static TNode* alloc_table_kvs(size64 cap) {
   init_table_kvs(ns, cap);
 
   return ns;
-}
-
-/* Runtime methods */
-void trace_table(State* vm, void* x) {
-  Table* t = x; TNode* ns = t->kvs;
-  
-  for (size64 i=0; i < t->cnt && i < t->cap; i++ ) {
-    TNode* n = &ns[i];
-
-    if ( n->)
-  }
 }
 
 /* Rehash and return an updated count of live entries */
@@ -93,7 +82,7 @@ static TNode* find_node(Table* t, Val k, hash64 h) {
     n = &ns[idx];
 
     if ( n->key == NOTHING ) {
-      if ( n->val == NOTHING ) // empty entry, didn't find key
+      if ( n->hash == 0 ) // empty entry, didn't find key
         break;
 
       // check if we've found any tombstones yet. If not, save this one
@@ -141,6 +130,32 @@ static void resize_table(Table* t, size64 n) {
   }
 }
 
+/* Runtime methods */
+void trace_table(State* vm, void* x) {
+  Table* t = x; TNode* ns = t->kvs;
+
+  for (size64 i=0, m=0; i < t->cap && m < t->cnt; i++ ) {
+    TNode* n = &ns[i];
+
+    if ( n->hash ) {
+      m++;
+
+      if ( n->key != NOTHING ) {
+        mark(vm, n->key);
+        mark(vm, n->val);
+      }
+    }
+  }
+}
+
+void free_table(State* vm, void* x) {
+  (void)vm;
+
+  Table* t = x;
+
+  rl_dealloc(NULL, t->kvs, 0);
+}
+
 /* External APIs */
 // Table API
 Table* mk_table(State* vm) {
@@ -176,27 +191,94 @@ bool table_set(Table* t, Val k, Val v) {
 
   hash64 h = rl_hash(k);
   TNode* n = find_node(t, k, h);
-  bool   o = false;
+  bool   o = n->key == NOTHING;
 
-  if ( isnt_used(n) ) { // increase count
-    t->cnt++;
-    n->key  = k;
+  if ( o ) {
+    n->key = k;
+
+    if ( n->hash == 0 ) // fresh entry, not a tombstone
+      t->cnt++;
+
     n->hash = h;
-    n->val  = v;
-  } else if ( is_ts(n) ) {
-    n->key  = k;
+  }
+
+  n->val = v;
+
+  return o;
+}
+
+bool table_add(Table* t, Val k, TNode** l) {
+  if ( check_resize(t->cnt+1, t->cap) )
+    resize_table(t, t->cnt+1);
+
+  hash64 h = rl_hash(k);
+  TNode* n = find_node(t, k, h);
+  bool   o = n->key == NOTHING;
+
+  if ( o ) {
+    n->key = k;
+
+    if ( n->hash ) // reusing a tombstone
+      t->cnt++;
+
     n->hash = h;
-    n->val  = v;
-  } else {
-    o       = true;
-    n->val  = v;
+  }
+
+  if ( l )
+    *l = n;
+
+  return o;
+}
+
+bool table_del(Table* t, Val k, Val* v) {
+  hash64 h = rl_hash(k);
+  TNode* n = find_node(t, k, h);
+  bool   o = n != NULL && n->key != NOTHING;
+
+  if ( o ) {
+    /* create a tombstone; invalidate the `key` and `val` fields but leave the hash. */
+    n->key = NOTHING;
+
+    if ( v )
+      *v = n->val;
+
+    n->val = NOTHING;
   }
 
   return o;
 }
 
-bool table_add(Table* t, Val k, TNode** l);
-bool table_del(Table* t, Val k, Val* v);
-void join_tables(Table* tx, Table* ty);
+void join_tables(Table* tx, Table* ty) {
+  if ( ty->kvs != NULL ) {
+    if ( check_resize(tx->cnt+ty->cnt, tx->cap) )
+      resize_table(tx, tx->cnt+ty->cnt);
+
+    TNode* ykvs = ty->kvs;
+    size64 ycnt = ty->cnt, ymax = ty->cap;
+
+    for ( size64 i=0, cnt=0; i < ymax && cnt < ycnt; i++ ) {
+      TNode* ykv = &ykvs[i];
+
+      if ( ykv->hash )
+        ycnt++;
+
+      // we're duplicating some of the code from table_set to avoid recomputing the hash
+      if ( ykv->key != NOTHING ) {
+        TNode* xkv = find_node(tx, ykv->key, ykv->hash);
+
+        if ( xkv->key == NOTHING ) {
+          xkv->key = ykv->key;
+
+          if ( xkv->hash != 0 )
+            tx->cnt++;
+
+          xkv->hash = ykv->hash;
+        }
+
+        xkv->val = ykv->val;
+      }
+    }
+  }
+}
 
 #undef LF

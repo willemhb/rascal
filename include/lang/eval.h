@@ -4,9 +4,7 @@
 #include "val/value.h"
 
 /* Toplevel eval dispatch and repl. */
-
-rl_err_t rl_eval(Val v, Env* e, Val* b);
-rl_err_t rl_repl(void);
-
+Error rl_eval(State* vm, Val v, Val* b);
+Error rl_repl(State* vm);
 
 #endif
