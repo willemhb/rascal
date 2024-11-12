@@ -27,7 +27,7 @@
       uint8 black      : 1;          \
       uint8 gray       : 1;          \
     };                               \
-  }  
+  }
 
 struct Obj {
   HEADER;

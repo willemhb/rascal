@@ -29,7 +29,7 @@ struct Proc {
   Upv*    upvs;
 
   /* Error state */
-  EFrame* cp, * catches, * catches_end;
+  EFrame* cp, * cth, * c_end;
 
   /* Execution state */
   UserFn* code;
@@ -37,8 +37,7 @@ struct Proc {
   Val*    bp;
 
   /* Stacks */
-  Val* sp, * stack, * stack_end;
-  void** fp, ** frames, ** frames_end;
+  Val* sp, * stk, * s_end;
 };
 
 /* APIs for State object. */

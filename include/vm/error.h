@@ -14,9 +14,7 @@ struct EFrame {
   /* Saved execution state */
   UserFn* code;
   sint16* ip;
-  Val*    bp;
-  Val*    sp;
-  void**  fp;
+  Val*    bp, * sp;
 
   /* Saved C state */
   jmp_buf Cstate;

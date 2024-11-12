@@ -14,8 +14,7 @@ typedef struct StrTable StrTable; // for string interning
 typedef struct VTable   VTable;   // internal methods for values of a given type
 
 // internal function pointer types
-typedef Val    (*BuiltinFn)(Proc* p, size64 n);
-typedef int    (*RascalFn)(State* vm);
+typedef Val    (*BuiltinFn)(Proc* p, size32 n);
 typedef void   (*TraceFn)(State* vm, void* x);
 typedef void   (*FreeFn)(State* vm, void* x);
 typedef void   (*SealFn)(State* vm, void* x);
