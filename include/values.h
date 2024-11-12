@@ -28,18 +28,24 @@ typedef struct Sym Sym;
 typedef struct Port Port;
 typedef struct Str  Str;
 
-// user collection types
+// persistent collection types
 typedef struct List List;
+typedef struct Vec  Vec;
 
+// mutable collection types
+typedef struct Pair   Pair;
 typedef struct Buffer Buffer;
 typedef struct Alist  Alist;
 typedef struct Table  Table;
 
-// miscellaneous internal types
+// internal environment types
 typedef struct Ns  Ns;
 typedef struct Env Env;
 typedef struct Ref Ref;
 typedef struct Upv Upv;
+
+// internal node types
+typedef struct VNode VNode;
 
 // lots generics with this particular pattern
 #define generic2(method, dispatch, args...)                 \

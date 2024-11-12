@@ -13,9 +13,28 @@ struct Alist {
   Val* data;
 };
 
+struct Vec {
+  HEADER;
+
+  size64 arity;
+  VNode* root;
+  Val*   tail;
+};
+
+struct VNode {
+  HEADER;
+
+  size32 cnt, shift;
+
+  union {
+    VNode* cn;
+    Val*   vals;
+  };
+};
+
 /* Globals */
 /* APIs */
-/* Vec API */
+// Alist API
 #define is_alist(x) has_type(x, T_ALIST)
 #define as_alist(x) ((Alist*)as_obj(x))
 
@@ -35,5 +54,9 @@ void   alist_set(Alist* v, size64 n, Val x);
 Val    alist_pop(Alist* a);
 Val    alist_popn(Alist* a, size64 n, bool e);
 void   alist_cat(Alist* x, Alist* y);
+
+// Vec API
+#define is_vec(x) has_type(x, T_VEC)
+#define as_vec(x) ((Vec*)as_obj(x))
 
 #endif

@@ -105,11 +105,14 @@ static inline Val wdata_bits(Val x) {
           Port*:tag_obj,                         \
           Str*:tag_obj,                          \
           List*:tag_obj,                         \
+          Vec*:tag_obj,                          \
+          Pair*:tag_obj,                         \
           Buffer*:tag_obj,                       \
           Alist*:tag_obj,                        \
           Table*:tag_obj,                        \
           Env*:tag_obj,                          \
-          Ref*:tag_obj )(x)
+          Ref*:tag_obj,                          \
+          VNode*:tag_obj )(x)
 
 // tagging methods
 Val tag_nul(Nul n);
