@@ -31,6 +31,7 @@ typedef struct Str  Str;
 // persistent collection types
 typedef struct List List;
 typedef struct Vec  Vec;
+typedef struct Map  Map;
 
 // mutable collection types
 typedef struct Pair   Pair;
@@ -46,6 +47,7 @@ typedef struct Upv Upv;
 
 // internal node types
 typedef struct VNode VNode;
+typedef struct MNode MNode;
 
 // lots generics with this particular pattern
 #define generic2(method, dispatch, args...)                 \

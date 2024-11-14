@@ -1,3 +1,5 @@
+#include <string.h>
+
 #include "labels.h"
 
 #include "vm/state.h"
@@ -39,32 +41,75 @@ State Vm = {
 
 Proc Main = {
   /* link back to global state */
-  .vm          = &Vm,
+  .vm    = &Vm,
 
   /* Environment state */
-  .upvs        = NULL,
+  .upvs  = NULL,
 
   /* Error state */
-  .cp          = Errors,
-  .catches     = Errors,
-  .catches_end = &Errors[MAX_ERROR],
+  .cp    = Errors,
+  .ctch  = Errors,
+  .c_end = &Errors[MAX_ERROR],
 
   /* Execution state */
-  .code        = NULL,
-  .ip          = NULL,
-  .bp          = NULL,
+  .code  = NULL,
+  .ip    = NULL,
+  .bp    = NULL,
 
   /* Stacks */
-  .sp          = Stack,
-  .stack       = Stack,
-  .stack_end   = &Stack[MAX_STACK],
-
-  .fp          = Frames,
-  .frames      = Frames,
-  .frames_end  = &Frames[MAX_FRAMES]
+  .sp    = Stack,
+  .stk   = Stack,
+  .s_end = &Stack[MAX_STACK],
 };
 
 /* APIs for State object. */
+// stack manipulation
+Val* push(Proc* p, Val x) {
+  assert(p->sp < p->s_end);
+
+  *p->sp = x;     // add to stack
+  return p->sp++; // increment stack pointer and return location
+}
+
+Val* pushn(Proc* p, size32 n, ...) {
+  // unpack variadic arguments and pass to writen
+  va_list va;
+  va_start(va, n);
+  Val buf[n];
+
+  for ( size32 i=0; i < n; i++ )
+    buf[i] = va_arg(va, Val);
+
+  va_end(va);
+
+  return writen(p, n, buf);
+}
+
+Val* writen(Proc* p, size32 n, Val* s) {
+  assert(p->sp + n < p->s_end);
+
+  Val* d = p->sp; p->sp += n;
+
+  memcpy(d, s, n*sizeof(Val));
+
+  return d;
+}
+
+Val pop(Proc* p) {
+  assert(p->sp > p->stk);
+
+  return *(--p->sp);
+}
+
+Val popn(Proc* p, size32 n, bool e) {
+  assert(p->sp + n >= p->sp);
+
+  // fetch return value and update stack pointer
+  Val o = *(e ? p->sp-1 : p->sp-n); p->sp -= n;
+
+  return o;
+}
+
 void rl_init_state(State* vm, Proc* pr);
 void rl_init_process(Proc* pr, State* vm, Val* vs, EFrame* es);
 

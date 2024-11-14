@@ -98,7 +98,7 @@ static char* rl_perror(ErrorBuffer* b, Error e, char* f, char* t, ...) {
 /* External APIs */
 // managing error state
 void rl_epush(Proc* p) {
-  assert(p->cp < p->catches_end);
+  assert(p->cp < p->ctch);
 
   EFrame* e = p->cp++;
 
@@ -107,18 +107,16 @@ void rl_epush(Proc* p) {
   e->code = p->code;
   e->ip   = p->ip;
   e->bp   = p->sp;
-  e->fp   = p->fp;
 }
 
 void rl_epop(Proc* p, bool r) {
-  assert(p->cp > p->catches);
+  assert(p->cp > p->ctch);
 
   if ( r ) {
     p->vm->hfs = p->cp->hfs;
     p->code    = p->cp->code;
     p->ip      = p->cp->ip;
     p->bp      = p->cp->bp;
-    p->fp      = p->cp->fp;
   }
 
   p->cp--;
@@ -157,7 +155,7 @@ int rl_require(Proc* p, bool c, Error e, char* f, char* t, ...) {
   return 0;
 }
 
-size32 rl_argco(Proc* p, char* f, size32 g, size32 e, bool v) {
+size32 rl_argco(Proc* p, char* f, size32 g, bool v, size32 e) {
   static char* ff = "expected %d arguments to #, got %d";
   static char* vf = "expected at least %d arguments to #, got %d";
 

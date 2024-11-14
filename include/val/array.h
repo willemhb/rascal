@@ -16,23 +16,25 @@ struct Alist {
 struct Vec {
   HEADER;
 
-  size64 arity;
-  VNode* root;
-  Val*   tail;
+  size64 cnt, shft;
+  VNode* rt;
+  Val*   tl;
 };
 
 struct VNode {
   HEADER;
 
-  size32 cnt, shift;
+  size32 cnt, shft;
 
   union {
-    VNode* cn;
-    Val*   vals;
+    VNode** cn;
+    Val*    vs;
   };
 };
 
 /* Globals */
+extern Vec EmptyVec;
+
 /* APIs */
 // Alist API
 #define is_alist(x) has_type(x, T_ALIST)
@@ -58,5 +60,9 @@ void   alist_cat(Alist* x, Alist* y);
 // Vec API
 #define is_vec(x) has_type(x, T_VEC)
 #define as_vec(x) ((Vec*)as_obj(x))
+
+Vec* mk_vec(size64 n, Val* vs);
+Val  vec_ref(Vec* v, size64 n);
+Vec* vec_add(Vec* v, Val x);
 
 #endif

@@ -11,8 +11,8 @@
 #define FN_HEADER                               \
   HEADER;                                       \
   Sym*   name;                                  \
-  size32 arity;                                 \
-  bool   variadic
+  size32 ac, lc;                                \
+  bool   va
 
 struct Fn {
   FN_HEADER;
@@ -21,8 +21,7 @@ struct Fn {
 struct PrimFn {
   FN_HEADER;
 
-  Opcode    label;   // if non-zero, this function's action is an inlineable VM label
-  BuiltinFn builtin; // if non-null, call this function with the vm and arity as arguments
+  BuiltinFn fn; // if non-null, call this function with the vm and arity as arguments
 };
 
 struct UserFn {
@@ -39,8 +38,9 @@ struct UserFn {
 // general function APIs
 #define as_fn(x)   ((Fn*)as_obj(x))
 #define fn_name(x) ((x)->name->n->cs)
-#define fn_ac(x)   ((x)->arity)
-#define fn_va(x)   ((x)->variadic)
+#define fn_ac(x)   ((x)->ac)
+#define fn_lc(x)   ((x)->lc)
+#define fn_va(x)   ((x)->va)
 
 // primitive function APIs
 #define is_primfn(x) has_type(x, T_PRIMFN)

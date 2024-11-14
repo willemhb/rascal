@@ -27,7 +27,7 @@ static inline Val* get_upval(Proc* p, size32 i) {
 }
 
 static inline Val* get_sref(Proc* p, int i) {
-  return i < 0 ? p->sp + i : p->stack + i;
+  return i < 0 ? p->sp + i : p->stk + i;
 }
 
 /* External APIs */
@@ -102,7 +102,7 @@ Error rl_exec(Proc* p, UserFn* c, Val* b) {
 
  op_ldval: // load from closure's value store
   rx = fetch(p);
-  x = constant(p, rx);
+  x  = constant(p, rx);
   push(p, x);
   next(p);
 
@@ -113,20 +113,20 @@ Error rl_exec(Proc* p, UserFn* c, Val* b) {
   next(p);
 
  op_putstk: // store TOS to a local variable stored on the stack
-  rx = fetch(p);
-  x = pop(p);
+  rx           = fetch(p);
+  x            = pop(p);
   local(p, rx) = x;
   next(p);
 
   // jumps
  op_jmp: // unconditional jump
-  rx = fetch(p);
+  rx     = fetch(p);
   ip(p) += rx;
   next(p);
 
  op_jmpt: // pop TOS and jump if the value is any value besides false or nul
   rx = fetch(p);
-  x = pop(p);
+  x  = pop(p);
 
   if ( truthy(x) )
     ip(p) += rx;
@@ -135,7 +135,7 @@ Error rl_exec(Proc* p, UserFn* c, Val* b) {
 
  op_jmpf: // pop TOS and jump if the value is false or nul
   rx = fetch(p);
-  x = pop(p);
+  x  = pop(p);
 
   if ( falsey(x) )
     ip(p) += rx;
@@ -148,10 +148,10 @@ Error rl_exec(Proc* p, UserFn* c, Val* b) {
   status = rl_eset(p); // set jump buffer
 
   if ( status ) {
-    x = pop(p);        // save TOS (argument to throw closure)
+    ac = 1;            // set ac
+    x  = pop(p);       // save TOS (argument to throw closure)
     rl_epop(p, true);  // restore execution state (throw closure is tos)
     push(p, x);        // push argument to throw onto the stack
-    ac = 1;            // set ac
 
     goto do_call;
   } else {
@@ -163,38 +163,32 @@ Error rl_exec(Proc* p, UserFn* c, Val* b) {
   next(p);
 
  op_throw:
+  
 
  op_call:
   ac = fetch(p);
 
  do_call:
-  x = stack(p, -ac-1);                                     // caller
+  x  = stack(p, -ac-1);                                    // caller
   fn = as_fn_s(p, cname(p), x);                            // validate type
   ac = rl_argco(p, fn_name(fn), ac, fn_va(fn), fn_ac(fn)); // validate arity
 
   if ( is_userfn(fn) )
-    goto do_user_call;
+    goto user_call;
 
- do_prim_call:
-  pf = as_primfn(fn);
+  else
+    goto prim_call;
 
-  if ( pf->label ) {
-    popnth(p, -ac-1);        // remove the un-inlined function from the stack
-    goto *labels[pf->label]; // jump to corresponding label
-  }
-  
-  x = pf->builtin(p, ac);    // apply C function
-  sp(p) -= ac;               // remove arguments from stack
-  stack(p, -1) = x;          // replace TOS (calling function) with result
+ prim_call:
+  pf            = as_primfn(fn);
+  x             = pf->fn(p, ac); // apply C function
+  sp(p)        -= ac;            // remove arguments from stack
+  stack(p, -1)  = x;             // replace TOS (calling function) with result
   next(p);
 
-  do_user_call:
+  user_call:
+  uf            = as_userfn(fn); // 
   
- op_egal:
-  x = pop(p);
-  y = pop(p);
-  v = rl_egal(x, y) ? TRUE : FALSE;
-  push(p, v);
   next(p);
 
  end:

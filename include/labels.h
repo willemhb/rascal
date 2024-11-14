@@ -60,11 +60,9 @@ typedef enum MFlags : uint8 {
   MF_NOTRACE    =   1,
   MF_NOSWEEP    =   2,
   MF_NOFREE     =   4,
-  MF_PERSISTENT =   8,
-  MF_TRANSIENT  =  16,
-  MF_SEALED     =  32,
-  MF_GRAY       =  64,
-  MF_BLACK      = 128,
+  MF_SEALED     =   8,
+  MF_GRAY       =  16,
+  MF_BLACK      =  32,
   } MFlags;
 
 typedef enum Opcode : sint16 {
@@ -104,11 +102,6 @@ typedef enum Opcode : sint16 {
   O_CLOSURE = 22,
   O_CALL    = 23,
   O_RTN     = 24,
-
-  // inlineable primitive functions
-  O_EGAL   =  25,
-  O_ORDER  =  26,
-  O_HASH   =  27,
 } Opcode;
 
 typedef enum RefType : uint8 {
@@ -118,7 +111,7 @@ typedef enum RefType : uint8 {
 } RefType;
 
 #define N_TYPES   (T_UPV+1)
-#define N_OPCODES (O_HASH+1)
+#define N_OPCODES (O_RTN+1)
 #define N_ERRORS  (E_SYSTEM+1)
 
 #endif

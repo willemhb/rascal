@@ -23,6 +23,22 @@ struct Table {
   TNode* kvs;
 };
 
+// general immutable table
+struct Map {
+  HEADER;
+
+  // size information
+  size64 cnt;
+  MNode* root;
+};
+
+struct MNode {
+  HEADER;
+  size16 cnt, cap, shft;
+  size64 bm;
+  Obj** cn;
+};
+
 /* Globals */
 
 /* APIs */

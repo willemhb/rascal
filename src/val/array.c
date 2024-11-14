@@ -6,8 +6,12 @@
 #include "util/number.h"
 
 /* Globals */
+#define TL_SIZE   64ul
+#define TL_MASK   63ul
+#define VEC_SHIFT  6ul
 
 /* Internal APIs */
+// Alist APIs
 static bool check_grow(size64 n, size64 c) {
   return n >= c;
 }
@@ -18,8 +22,95 @@ static bool check_shrink(size64 n, size64 c) {
 
 static size64 calc_alist_size(size64 n) {
   size64 p = ceil2(n);
-  
+
   return max(p, MIN_ARR);
+}
+
+// Vec/VNode APIs
+static inline size64 tloff(size64 c) {
+  return c < TL_SIZE ? 0 : (c - 1) & ~TL_MASK;
+}
+
+static inline size64 tlsize(size64 c) {
+  return c < TL_SIZE ? c : ((c - 1) & TL_MASK) + 1;
+}
+
+static inline size64 idx_for(size64 i, size64 s) {
+  return i >> s & TL_MASK;
+}
+
+static Val* arr_for(Vec* v, size64 i) {
+  if ( i < tloff(v->cnt) )
+    return v->tl;
+
+  VNode* n = v->rt;
+
+  for ( size64 l=v->shft; l > 0; l -= VEC_SHIFT )
+    n = n->cn[idx_for(i, l)];
+
+  return n->vs;
+}
+
+static void init_vec(Vec* v) {
+  v->cnt  = 0;
+  v->shft = 0;
+  v->rt   = NULL;
+  v->tl   = rl_alloc(NULL, TL_SIZE*sizeof(Val));
+}
+
+static Vec* new_vec(void) {
+  // create and initialize vector
+  Vec* v = new_obj(&Vm, T_VEC, 0); init_vec(v);
+
+  // return new vector
+  return v;
+}
+
+static void init_vnode(VNode* n) {
+  n->cnt  = 0;
+  n->shft = 0;
+  n->vs   = rl_alloc(NULL, TL_SIZE*sizeof(Val));
+}
+
+static VNode* new_vnode(void) {
+  // create and initialize vnode
+  VNode* n = new_obj(&Vm, T_VEC, 0); init_vnode(n);
+
+  // return new vnode
+  return n;
+}
+
+static VNode* mk_vleaf(Val* vs) {
+  // create and initialize new leaf
+  VNode* n = new_vnode();
+  n->cnt   = TL_SIZE;
+
+  memcpy(n->vs, vs, TL_SIZE*sizeof(Val));
+
+  // return the leaf
+  return n;
+}
+
+static VNode* mk_vnode(VNode** cn, size32 c, size32 s) {
+  VNode* n = new_vnode();
+  n->cnt   = c;
+  n->shft  = s;
+
+  if ( cn )
+    memcpy(n->cn, cn, c*sizeof(VNode*));
+
+  return n;
+}
+
+static void push_tail(Vec* v) {
+  // TODO
+}
+
+static void add_to_tail(Vec* v, Val x) {
+  // current size is equal to next free index
+  size64 o = tlsize(v->cnt);
+  v->tl[o] = x;
+  v->cnt++;
 }
 
 /* Runtime APIs */
@@ -167,4 +258,47 @@ void alist_cat(Alist* x, Alist* y) {
     return;
 
   alist_wrt(x, y->cnt, y->data);
+}
+
+// Vec/Vnode API
+Vec* mk_vec(size64 n, Val* vs) {
+  Vec* v = NULL;
+
+  if ( n == 0 )
+    v = &EmptyVec;
+
+  else {
+    v = new_vec();
+
+    for ( size64 i=0; i < n; i++ )
+      v = vec_add(v, vs[i]);
+
+    // mark persistent
+    seal_obj(&Vm, v);
+  }
+
+  return v;
+}
+
+Val vec_ref(Vec* v, size64 n) {
+  assert(n < v->cnt);
+
+  Val* a = arr_for(v, n);
+
+  return a[n & TL_MASK];
+}
+
+Vec* vec_add(Vec* v, Val x) {
+  if ( v->sealed ) {
+    v = unseal_obj(&Vm, v);
+    v = vec_add(v, x);
+    v = seal_obj(&Vm, v);
+  } else {
+    if ( tlsize(v->cnt) == TL_SIZE )
+      push_tail(v);
+
+    add_to_tail(v, x);
+  }
+
+  return v;
 }

@@ -9,24 +9,24 @@
 
 /* C types*/
 // common object header macro
-#define HEADER                       \
-  Obj*    heap;                      \
-  Table*  meta;                      \
-  hash_t  hash;                      \
-  Type    tag;                       \
-  union {                            \
-    uint8 mflags;                    \
-                                     \
-    struct {                         \
-      uint8 notrace    : 1;          \
-      uint8 nosweep    : 1;          \
-      uint8 nofree     : 1;          \
-      uint8 persistent : 1;          \
-      uint8 transient  : 1;          \
-      uint8 sealed     : 1;          \
-      uint8 black      : 1;          \
-      uint8 gray       : 1;          \
-    };                               \
+#define HEADER                          \
+  Obj*    heap;                         \
+  Table*  meta;                         \
+  union {                               \
+    struct {                            \
+      word_t hash    : 48;              \
+      word_t tag     :  8;              \
+      word_t notrace :  1;              \
+      word_t nosweep :  1;              \
+      word_t nofree  :  1;              \
+      word_t sealed  :  1;              \
+      word_t black   :  1;              \
+      word_t gray    :  1;              \
+    };                                  \
+    struct {                            \
+    word_t : 56;                        \
+      word_t mflags  :  8;              \
+    };                                  \
   }
 
 struct Obj {
@@ -54,5 +54,8 @@ void* new_obj(State* vm, Type t, flags32 f);
 void  init_obj(State* vm, Obj* o, Type t, flags32 f);
 void  free_obj(State* vm, void* x);
 void  sweep_obj(State* vm, void* x);
+void* clone_obj(State* vm, void* x);
+void* seal_obj(State* vm, void* x);   // permanently mark an object as read-only
+void* unseal_obj(State* vm, void* x); // return the unsealed object or an editable copy
 
 #endif

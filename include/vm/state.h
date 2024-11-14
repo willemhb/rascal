@@ -29,7 +29,7 @@ struct Proc {
   Upv*    upvs;
 
   /* Error state */
-  EFrame* cp, * cth, * c_end;
+  EFrame* cp, * ctch, * c_end;
 
   /* Execution state */
   UserFn* code;
@@ -44,12 +44,10 @@ struct Proc {
 // stack manipulation
 Val* push(Proc* p, Val x);
 Val* pushn(Proc* p, size32 n, ...);
-Val* writen(Proc* p, size32 n, Val* src);
+Val* writen(Proc* p, size32 n, Val* s);
 Val  pop(Proc* p);
-Val  popn(Proc* p, size32 n);
+Val  popn(Proc* p, size32 n, bool e);
 Val  popnth(Proc* p, int n);
-Val  getrx(Proc* p, int n);
-Val  setrx(Proc* p, int n, Val v);
 
 // call stack manipulation
 void pushf(Proc* p);
