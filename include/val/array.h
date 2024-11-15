@@ -16,7 +16,7 @@ struct Alist {
 struct Vec {
   HEADER;
 
-  size64 cnt, shft;
+  size64 cnt;
   VNode* rt;
   Val*   tl;
 };
@@ -24,7 +24,8 @@ struct Vec {
 struct VNode {
   HEADER;
 
-  size32 cnt, shft;
+  bool full;         // indicates whether the node is full
+  size16 cnt, shft;
 
   union {
     VNode** cn;

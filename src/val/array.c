@@ -3,7 +3,9 @@
 #include "val/array.h"
 
 #include "vm/heap.h"
+
 #include "util/number.h"
+#include "util/bits.h"
 
 /* Globals */
 #define TL_SIZE   64ul
@@ -27,12 +29,35 @@ static size64 calc_alist_size(size64 n) {
 }
 
 // Vec/VNode APIs
-static inline size64 tloff(size64 c) {
-  return c < TL_SIZE ? 0 : (c - 1) & ~TL_MASK;
+// size and layout helpers
+static inline size32 vec_shft(Vec* v) {
+  // maximum shift for this vector
+  return v->rt ? v->rt->shft : 0;
 }
 
-static inline size64 tlsize(size64 c) {
-  return c < TL_SIZE ? c : ((c - 1) & TL_MASK) + 1;
+static inline size64 tl_off(Vec* v) {
+  // indices greater than this value are in the tail
+  return v->cnt < TL_SIZE ? 0 : (v->cnt - 1) & ~TL_MASK;
+}
+
+static inline size64 tl_size(Vec* v) {
+  // number of elements in the tail
+  return v->cnt < TL_SIZE ? v->cnt : ((v->cnt - 1) & TL_MASK) + 1;
+}
+
+static inline size64 rt_size(Vec* v) {
+  // number of elements in the root
+  return v->cnt - tl_size(v);
+}
+
+static inline bool spc_in_tl(Vec* v) {
+  return tl_size(v) < TL_SIZE;
+}
+
+static inline bool spc_in_rt(Vec* v) {
+  // Since ctz is guaranteed to be 64 or less the % shouldn't be too much of a
+  // problem (who is this comment for?)
+  return ctz(rt_size(v)) % 6 == 0;
 }
 
 static inline size64 idx_for(size64 i, size64 s) {
@@ -40,12 +65,12 @@ static inline size64 idx_for(size64 i, size64 s) {
 }
 
 static Val* arr_for(Vec* v, size64 i) {
-  if ( i < tloff(v->cnt) )
+  if ( i < tl_off(v) )
     return v->tl;
 
   VNode* n = v->rt;
 
-  for ( size64 l=v->shft; l > 0; l -= VEC_SHIFT )
+  for ( size64 l=vec_shft(v); l > 0; l -= VEC_SHIFT )
     n = n->cn[idx_for(i, l)];
 
   return n->vs;
@@ -53,7 +78,6 @@ static Val* arr_for(Vec* v, size64 i) {
 
 static void init_vec(Vec* v) {
   v->cnt  = 0;
-  v->shft = 0;
   v->rt   = NULL;
   v->tl   = rl_alloc(NULL, TL_SIZE*sizeof(Val));
 }
@@ -69,6 +93,7 @@ static Vec* new_vec(void) {
 static void init_vnode(VNode* n) {
   n->cnt  = 0;
   n->shft = 0;
+  n->full = false;
   n->vs   = rl_alloc(NULL, TL_SIZE*sizeof(Val));
 }
 
@@ -102,13 +127,29 @@ static VNode* mk_vnode(VNode** cn, size32 c, size32 s) {
   return n;
 }
 
+static void add_vec_level(Vec* v) {
+  size64 shft = vec_shft(v);
+
+  if ( shft == 0 )
+    v->rt = mk_vnode(NULL, 0, VEC_SHIFT);
+
+  else
+    v->rt = mk_vnode(&v->rt, 1, shft + VEC_SHIFT);
+}
+
+static bool add_to_vnode(VNode* n, Val* vs) {
+  if ( n->cnt == 0 ) {
+    
+  }
+}
+
 static void push_tail(Vec* v) {
   // TODO
 }
 
 static void add_to_tail(Vec* v, Val x) {
   // current size is equal to next free index
-  size64 o = tlsize(v->cnt);
+  size64 o = tl_size(v);
   v->tl[o] = x;
   v->cnt++;
 }
@@ -270,6 +311,11 @@ Vec* mk_vec(size64 n, Val* vs) {
   else {
     v = new_vec();
 
+    /* preserve for GC, since adding could create new objects and trigger the
+       collector. */
+
+    preserve(&Vm, 1, tag(v));
+
     for ( size64 i=0; i < n; i++ )
       v = vec_add(v, vs[i]);
 
@@ -294,8 +340,12 @@ Vec* vec_add(Vec* v, Val x) {
     v = vec_add(v, x);
     v = seal_obj(&Vm, v);
   } else {
-    if ( tlsize(v->cnt) == TL_SIZE )
+    if ( !spc_in_tl(v) ) {
+      if ( !spc_in_rt(v) )
+        add_vec_level(v);
+
       push_tail(v);
+    }
 
     add_to_tail(v, x);
   }

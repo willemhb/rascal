@@ -11,4 +11,11 @@
           int64_t:__builtin_popcountl,          \
           uint64_t:__builtin_popcountl)(x)
 
+#define ctz(x)                                  \
+  generic((x),                                  \
+          sint32:__builtin_ctz,                \
+          uint32:__builtin_ctz,                \
+          sint64:__builtin_ctzl,               \
+          uint64:__builtin_ctzl)(x)
+
 #endif
