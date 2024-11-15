@@ -9,6 +9,7 @@
 struct Seq {
   HEADER;
 
+  bool   done; // boolean flag indicating whether the sequence has any more values
   Seq*   cseq; // child sequence (for iterating through inductive objects)
   Val    fst;  // cached first element
   void*  src;  // source object
@@ -19,9 +20,9 @@ struct Seq {
 #define is_seq(x) has_type(x, T_SEQ)
 #define as_seq(x) ((Seq*)as_obj(x))
 
-Seq*  mk_seq(void* x, bool m);
-bool  seq_done(Seq* s);
-Val   seq_first(Seq* s);
-Seq*  seq_rest(Seq* s);
+Seq*   mk_seq(void* x, bool m);
+void   init_seq(Seq* s, void* x);
+Val    seq_first(Seq* s);
+Seq*   seq_rest(Seq* s);
 
 #endif

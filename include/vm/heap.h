@@ -40,4 +40,8 @@ void  add_to_heap(State* vm, void* o);
 void  push_gray(State* vm, void* o);
 void* pop_gray(State* vm);
 
+// utilities
+void mark_vals(State* vm, size64 n, Val* vs);
+void mark_objs(State* vm, size64 n, void* os);
+
 #endif

@@ -77,9 +77,18 @@ static inline Val wdata_bits(Val x) {
 #define obsize(x)      (vtbl(x)->obsize)
 #define tracefn(x)     (vtbl(x)->tracefn)
 #define freefn(x)      (vtbl(x)->freefn)
+#define clonefn(x)     (vtbl(x)->clonefn)
+#define sealfn(x)      (vtbl(x)->sealfn)
+#define prfn(x)        (vtbl(x)->prfn)
 #define hashfn(x)      (vtbl(x)->hashfn)
 #define egalfn(x)      (vtbl(x)->egalfn)
 #define orderfn(x)     (vtbl(x)->orderfn)
+#define emptyfn(x)     (vtbl(x)->emptyfn)
+#define firstfn(x)     (vtbl(x)->firstfn)
+#define restfn(x)      (vtbl(x)->restfn)
+#define sinitfn(x)     (vtbl(x)->sinitfn)
+#define sfirstfn(x)    (vtbl(x)->sfirstfn)
+#define srestfn(x)     (vtbl(x)->srestfn)
 
 // lower-level tag macro
 #define tagv(v, t) (((Val)(v)) | (t))
@@ -110,6 +119,7 @@ static inline Val wdata_bits(Val x) {
           Buffer*:tag_obj,                       \
           Alist*:tag_obj,                        \
           Table*:tag_obj,                        \
+          Seq*:tag_obj,                          \
           Env*:tag_obj,                          \
           Ref*:tag_obj,                          \
           VNode*:tag_obj )(x)

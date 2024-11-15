@@ -28,13 +28,18 @@ typedef bool   (*EgalFn)(Val x, Val y);               // egal method
 typedef int    (*OrderFn)(Val x, Val y);              // order method
 
 // sequence interface methods
-typedef void*  (*SeqFn)(void* x);                     // return a sequence
-typedef bool   (*DoneFn)(void* x);                    // 
+// for types that implement the interface directly
+typedef bool   (*EmptyFn)(void* x);                   // empty predicate
 typedef Val    (*FirstFn)(void* x);                   // get the first item in sequence
 typedef void*  (*RestFn)(void* x);                    // get the reset of the sequence
 
+// for types that use a Seq object
+typedef void   (*SInitFn)(Seq* s);
+typedef Val    (*SFirstFn)(Seq* s);
+typedef Seq*   (*SRestFn)(Seq* s);
+
 // miscellaneous interface methods
-typedef size64 (*PrintFn)(State* vm, Port* p, Val x); // print method
+typedef size64 (*PrFn)(State* vm, Port* p, Val x); // print method
 
 /* Globals */
 /* Global state objects */

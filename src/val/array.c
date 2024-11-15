@@ -1,6 +1,7 @@
 #include <string.h>
 
 #include "val/array.h"
+#include "val/sequence.h"
 
 #include "vm/heap.h"
 
@@ -8,7 +9,8 @@
 #include "util/bits.h"
 
 /* Globals */
-#define TL_SIZE   64ul
+#define TL_CNT    64ul
+#define TL_SIZE   (TL_CNT*sizeof(Val))
 #define TL_MASK   63ul
 #define VEC_SHIFT  6ul
 
@@ -37,12 +39,12 @@ static inline size32 vec_shft(Vec* v) {
 
 static inline size64 tl_off(Vec* v) {
   // indices greater than this value are in the tail
-  return v->cnt < TL_SIZE ? 0 : (v->cnt - 1) & ~TL_MASK;
+  return v->cnt < TL_CNT ? 0 : (v->cnt - 1) & ~TL_MASK;
 }
 
 static inline size64 tl_size(Vec* v) {
   // number of elements in the tail
-  return v->cnt < TL_SIZE ? v->cnt : ((v->cnt - 1) & TL_MASK) + 1;
+  return v->cnt < TL_CNT ? v->cnt : ((v->cnt - 1) & TL_MASK) + 1;
 }
 
 static inline size64 rt_size(Vec* v) {
@@ -51,13 +53,20 @@ static inline size64 rt_size(Vec* v) {
 }
 
 static inline bool spc_in_tl(Vec* v) {
-  return tl_size(v) < TL_SIZE;
+  return tl_size(v) < TL_CNT;
 }
 
 static inline bool spc_in_rt(Vec* v) {
   // Since ctz is guaranteed to be 64 or less the % shouldn't be too much of a
   // problem (who is this comment for?)
   return ctz(rt_size(v)) % 6 == 0;
+}
+
+static inline bool is_last_leaf(Vec* v) {
+  /* Used to detect whether popping a leaf will reduce the level of the vector
+     will occur when the count is exactly 64 more than a power of 64. */
+  size64 rs = rt_size(v);
+  return rs == TL_CNT || ctz(rs - TL_CNT) % 6 == 0;
 }
 
 static inline size64 idx_for(size64 i, size64 s) {
@@ -76,10 +85,24 @@ static Val* arr_for(Vec* v, size64 i) {
   return n->vs;
 }
 
+static VNode* last_child(VNode* n) {
+  assert(n->cnt > 0);
+  assert(n->shft > 0);
+
+  return n->cn[n->cnt-1];
+}
+
+static VNode* last_leaf(VNode* n) {
+  while ( n->shft > 0 )
+    n = last_child(n);
+
+  return n;
+}
+
 static void init_vec(Vec* v) {
   v->cnt  = 0;
   v->rt   = NULL;
-  v->tl   = rl_alloc(NULL, TL_SIZE*sizeof(Val));
+  v->tl   = rl_alloc(NULL, TL_SIZE);
 }
 
 static Vec* new_vec(void) {
@@ -94,7 +117,7 @@ static void init_vnode(VNode* n) {
   n->cnt  = 0;
   n->shft = 0;
   n->full = false;
-  n->vs   = rl_alloc(NULL, TL_SIZE*sizeof(void*));
+  n->vs   = rl_alloc(NULL, TL_SIZE);
 }
 
 static VNode* new_vnode(void) {
@@ -108,11 +131,11 @@ static VNode* new_vnode(void) {
 static VNode* mk_vleaf(Val* vs) {
   // create and initialize new leaf
   VNode* n = new_vnode();
-  n->cnt   = TL_SIZE;
+  n->cnt   = TL_CNT;
   n->shft  = 0;
   n->full  = true;
 
-  memcpy(n->vs, vs, TL_SIZE*sizeof(Val));
+  memcpy(n->vs, vs, TL_SIZE);
 
   // return the leaf
   return n;
@@ -126,7 +149,7 @@ static VNode* mk_vnode(void* d, size32 c, size32 s) {
 
   if ( d ) {
     memcpy(n->cn, d, c*sizeof(Val*));
-    n->full = c == TL_SIZE && (s == 0 || ((VNode**)d)[c-1]->full);
+    n->full = c == TL_CNT && (s == 0 || ((VNode**)d)[c-1]->full);
   }
 
   return n;
@@ -148,7 +171,7 @@ static VNode* vnode_set(VNode* n, size64 i, Val x) {
   return n;
 }
 
-static void add_vec_level(Vec* v) {
+static void add_vec_lvl(Vec* v) {
   size64 shft = vec_shft(v);
 
   if ( shft == 0 )
@@ -158,11 +181,23 @@ static void add_vec_level(Vec* v) {
     v->rt = mk_vnode(&v->rt, 1, shft + VEC_SHIFT);
 }
 
-static VNode* add_to_vnode(VNode* n, Val* vs) {
+static void rm_vec_lvl(Vec* v) {
+    VNode* lf = last_leaf(v->rt);
+
+    if ( vec_shft(v) == VEC_SHIFT )
+      v->rt = NULL;
+
+    else
+      v->rt = v->rt->cn[0];
+
+    memcpy(v->tl, lf->vs, TL_SIZE);
+}
+
+static VNode* push_leaf(VNode* n, Val* vs) {
   if ( n->sealed ) {
-    n = unseal_obj(&Vm, n);
-    preserve(&Vm, 1, tag(n));
-    n = add_to_vnode(n, vs);
+    n = unseal_obj(&Vm, n); preserve(&Vm, 1, tag(n));
+    n = push_leaf(n, vs);
+    n = seal_obj(&Vm, n);
 
   } else if ( n->shft == VEC_SHIFT ) {
     assert(!n->full);   // should be checked before insertion at child
@@ -170,22 +205,80 @@ static VNode* add_to_vnode(VNode* n, Val* vs) {
     // add leaf and update full
     n->cn[n->cnt++] = mk_vleaf(vs);
 
-  } else if ( n->cnt == 0 || n->cn[n->cnt-1]->full )
+  } else if ( n->cnt == 0 || n->cn[n->cnt-1]->full ) {
     // create new empty level and add there
-    n->cn[n->cnt++] = mk_vnode(NULL, 0, n->shft-1);
-
-  else
-    n->cn[n->cnt-1] = add_to_vnode(n->cn[n->cnt-1], vs);
+    n->cn[n->cnt++] = mk_vnode(NULL, 0, n->shft-VEC_SHIFT);
+    push_leaf(n->cn[n->cnt-1], vs);
+  } else
+    n->cn[n->cnt-1] = push_leaf(n->cn[n->cnt-1], vs);
 
   // check whether the current node is now full
-  n->full = n->cnt == TL_SIZE && n->cn[n->cnt-1]->full;
+  n->full = n->cnt == TL_CNT && n->cn[n->cnt-1]->full;
+
+  return n;
+}
+
+static VNode* pop_leaf(VNode* n, VNode** lf) {
+  /**
+   * the control is a little goofy here because we want to avoid making
+   * unnecessary copies that won't get used. So we check if a node will be used
+   * after popping (possibly calling pop_leaf recursively) before deciding whether
+   * the current node needs to be copied preserved. This leads to a lot of duplication
+   * of the "unseal, modify, seal" sequence that we normally try to do once up front,
+   * but it's actually a lot simpler that way.
+   **/
+
+  if ( n->shft == VEC_SHIFT ) {
+    *lf = last_child(n);
+
+    if ( n->cnt == 1 )
+      n = NULL;
+
+    else if ( n->sealed ) {
+      // create a copy to modify
+      n = unseal_obj(&Vm, n);
+      n->cnt--;
+      n = seal_obj(&Vm, n);
+    } else {
+      n->cnt--;
+    }
+  } else {
+    VNode* cn = pop_leaf(last_child(n), lf);
+
+    if ( cn == NULL ) {
+      if ( n->cnt == 1 )
+        n = NULL;
+      else if ( n->sealed ) {
+        n = unseal_obj(&Vm, n);
+        n->cnt--;
+        n = seal_obj(&Vm, n);
+      } else {
+        n->cnt--;
+      }
+    } else if ( n->sealed ) {
+      preserve(&Vm, 1, tag(cn));
+      n = unseal_obj(&Vm, n);
+      n->cn[n->cnt-1] = cn;
+      n = seal_obj(&Vm, n);
+    } else {
+      n->cn[n->cnt-1] = cn;
+    }
+  }
 
   return n;
 }
 
 static void push_tail(Vec* v) {
-  add_to_vnode(v->rt, v->tl);
-  memset(v->tl, 0, TL_SIZE*sizeof(Val));
+  push_leaf(v->rt, v->tl);
+  memset(v->tl, 0, TL_CNT*sizeof(Val));
+}
+
+static void pop_tail(Vec* v) {
+  VNode* lf;
+
+  v->rt = pop_leaf(v->rt, &lf);
+
+  memcpy(v->tl, lf->vs, TL_SIZE);
 }
 
 static void add_to_tail(Vec* v, Val x) {
@@ -195,12 +288,12 @@ static void add_to_tail(Vec* v, Val x) {
   v->cnt++;
 }
 
-/* Runtime APIs */
+/* Runtime APIs and interfaces */
+// for Alist
 void trace_alist(State* vm, void* x) {
   Alist* a = x;
 
-  for ( size_t i=0; i < a->cnt; i++ )
-    mark(vm, a->data[i]);
+  mark_vals(vm, a->cnt, a->data);
 }
 
 void free_alist(State* vm, void* x) {
@@ -213,6 +306,92 @@ void free_alist(State* vm, void* x) {
 
   // re-initialize
   init_alist(a);
+}
+
+// for Vec
+void trace_vec(State* vm, void* x) {
+  Vec* v = x;
+
+  mark(vm, v->rt);
+  mark_vals(vm, tl_size(v), v->tl);
+}
+
+void free_vec(State* vm, void* x) {
+  (void)vm;
+
+  Vec* v = x;
+
+  rl_dealloc(NULL, v->tl, 0);
+}
+
+// sequence interface
+Seq* vec_seq(void* x, bool m) {
+  Vec* v = x;
+
+  Seq* s = new_seq(v, m);
+
+  if ( v->rt ) {
+    preserve(&Vm, 1, tag(s));
+    s->cseq = mk_seq(v->rt, m);
+  }
+
+  return s;
+}
+
+Val vec_first(void* x) {
+  Seq* s = x;
+  Vec* v = s->src;
+  Val r;
+
+  if ( s->fst == NOTHING ) {
+    if ( s->cseq )
+      r = seq_first(s->cseq);
+
+    else
+      r = v->tl[s->off];
+
+    s->fst = r;
+  }
+
+  return r;
+}
+
+// for VNode
+void trace_vnode(State* vm, void* x) {
+  VNode* n = x;
+
+  if ( n->shft == 0 )
+    mark_vals(vm, n->cnt, n->vs);
+
+  else
+    mark_objs(vm, n->cnt, n->cn);
+}
+
+void free_vnode(State* vm, void* x) {
+  (void)vm;
+
+  VNode* n = x;
+
+  rl_dealloc(NULL, n->vs, 0);
+}
+
+// sequence interface
+Seq* vnode_seq(void* x, bool m) {
+  VNode* n = x;
+
+  Seq* s = new_seq(n, m);
+
+  if ( n->shft ) {
+    preserve(&Vm, 1, tag(s));
+    s->cseq = vnode_seq(n->cn[0], m);
+  }
+
+  return s;
+}
+
+Val vnode_first(void* x) {
+  Seq* s = x;
+  VNode* n = s->src;
 }
 
 /* External APIs */
@@ -383,7 +562,7 @@ Vec* vec_add(Vec* v, Val x) {
   } else {
     if ( !spc_in_tl(v) ) {
       if ( !spc_in_rt(v) )
-        add_vec_level(v);
+        add_vec_lvl(v);
 
       push_tail(v);
     }
@@ -426,6 +605,18 @@ Vec* vec_pop(Vec* v, Val* r) {
     v = unseal_obj(&Vm, v); preserve(&Vm, 1, tag(v));
     v = vec_pop(v, r);
     v = seal_obj(&Vm, v);
+  } else {
+    size64 tsz = tl_size(v);
+    x = v->tl[(tsz -= 1)];
+    v->cnt--;
+
+    if ( tsz == 0 ) {
+      if ( is_last_leaf(v) )
+        rm_vec_lvl(v);
+
+      else
+        pop_tail(v);
+    }
   }
 
   if ( r )
