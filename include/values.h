@@ -39,15 +39,19 @@ typedef struct Buffer Buffer;
 typedef struct Alist  Alist;
 typedef struct Table  Table;
 
+// internal node types
+typedef struct VNode VNode;
+typedef struct MNode MNode;
+
+// miscellaneous internal types
+typedef struct Seq Seq;
+typedef struct RT RT;
+
 // internal environment types
 typedef struct Ns  Ns;
 typedef struct Env Env;
 typedef struct Ref Ref;
 typedef struct Upv Upv;
-
-// internal node types
-typedef struct VNode VNode;
-typedef struct MNode MNode;
 
 // lots generics with this particular pattern
 #define generic2(method, dispatch, args...)                 \

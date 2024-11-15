@@ -40,10 +40,11 @@ typedef enum Type : uint8 {
   T_MNODE  = 20,
 
   // miscellaneous internal types
-  T_NS     = 21,
-  T_ENV    = 22,
-  T_REF    = 23,
-  T_UPV    = 24,
+  T_SEQ    = 21,
+  T_NS     = 22,
+  T_ENV    = 23,
+  T_REF    = 24,
+  T_UPV    = 25,
 } Type;
 
 typedef enum Error {

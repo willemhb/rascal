@@ -41,6 +41,10 @@ typedef uint16_t   flags16;
 typedef uint32_t   flags32;
 typedef uint64_t   flags64;
 
+typedef uint8_t    bool8;
+typedef uint16_t   bool16;
+typedef uint32_t   bool32;
+
 typedef uint32_t   hash32;
 typedef uint64_t   hash64;
 

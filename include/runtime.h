@@ -14,13 +14,27 @@ typedef struct StrTable StrTable; // for string interning
 typedef struct VTable   VTable;   // internal methods for values of a given type
 
 // internal function pointer types
-typedef Val    (*BuiltinFn)(Proc* p, size32 n);
-typedef void   (*TraceFn)(State* vm, void* x);
-typedef void   (*FreeFn)(State* vm, void* x);
-typedef void   (*SealFn)(State* vm, void* x);
-typedef hash64 (*HashFn)(Val x);
-typedef bool   (*EgalFn)(Val x, Val y);
-typedef int    (*OrderFn)(Val x, Val y);
+typedef Val    (*BuiltinFn)(Proc* p, size32 n);       // handler for native primfn
+
+// lifetime methods
+typedef void   (*TraceFn)(State* vm, void* x);        // trace lifetime method
+typedef void   (*FreeFn)(State* vm, void* x);         // free lifetime method
+typedef void*  (*CloneFn)(State* vm, void* x);        // clone lifetime method
+typedef void   (*SealFn)(State* vm, void* x);         // seal lifetime method
+
+// comparison interface methods
+typedef hash64 (*HashFn)(Val x);                      // hash method
+typedef bool   (*EgalFn)(Val x, Val y);               // egal method
+typedef int    (*OrderFn)(Val x, Val y);              // order method
+
+// sequence interface methods
+typedef void*  (*SeqFn)(void* x);                     // return a sequence
+typedef bool   (*DoneFn)(void* x);                    // 
+typedef Val    (*FirstFn)(void* x);                   // get the first item in sequence
+typedef void*  (*RestFn)(void* x);                    // get the reset of the sequence
+
+// miscellaneous interface methods
+typedef size64 (*PrintFn)(State* vm, Port* p, Val x); // print method
 
 /* Globals */
 /* Global state objects */

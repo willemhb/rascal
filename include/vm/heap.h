@@ -27,6 +27,9 @@ void unpreserve(HFrame* f);
       .saved=__heap_frame_vals__ };                                     \
   (s)->hfs=&__heap_frame__
 
+#define add_to_preserved(v, n)                  \
+  __heap_frame_vals__[(n)] = (v)
+
 // memory management
 void* rl_alloc(State* vm, size64 n);
 void* rl_realloc(State* vm, void* s, size64 o, size64 n);

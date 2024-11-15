@@ -65,5 +65,8 @@ void   alist_cat(Alist* x, Alist* y);
 Vec* mk_vec(size64 n, Val* vs);
 Val  vec_ref(Vec* v, size64 n);
 Vec* vec_add(Vec* v, Val x);
+Vec* vec_set(Vec* v, size64 i, Val x);
+Vec* vec_pop(Vec* v, Val* r);
+Vec* vec_cat(Vec* vx, Vec* vy);
 
 #endif

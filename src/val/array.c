@@ -65,7 +65,7 @@ static inline size64 idx_for(size64 i, size64 s) {
 }
 
 static Val* arr_for(Vec* v, size64 i) {
-  if ( i < tl_off(v) )
+  if ( i > tl_off(v) )
     return v->tl;
 
   VNode* n = v->rt;
@@ -94,7 +94,7 @@ static void init_vnode(VNode* n) {
   n->cnt  = 0;
   n->shft = 0;
   n->full = false;
-  n->vs   = rl_alloc(NULL, TL_SIZE*sizeof(Val));
+  n->vs   = rl_alloc(NULL, TL_SIZE*sizeof(void*));
 }
 
 static VNode* new_vnode(void) {
@@ -109,6 +109,8 @@ static VNode* mk_vleaf(Val* vs) {
   // create and initialize new leaf
   VNode* n = new_vnode();
   n->cnt   = TL_SIZE;
+  n->shft  = 0;
+  n->full  = true;
 
   memcpy(n->vs, vs, TL_SIZE*sizeof(Val));
 
@@ -116,13 +118,32 @@ static VNode* mk_vleaf(Val* vs) {
   return n;
 }
 
-static VNode* mk_vnode(VNode** cn, size32 c, size32 s) {
+static VNode* mk_vnode(void* d, size32 c, size32 s) {
   VNode* n = new_vnode();
   n->cnt   = c;
   n->shft  = s;
+  n->full  = false;
 
-  if ( cn )
-    memcpy(n->cn, cn, c*sizeof(VNode*));
+  if ( d ) {
+    memcpy(n->cn, d, c*sizeof(Val*));
+    n->full = c == TL_SIZE && (s == 0 || ((VNode**)d)[c-1]->full);
+  }
+
+  return n;
+}
+
+static VNode* vnode_set(VNode* n, size64 i, Val x) {
+  if ( n->sealed ) { // unseal, save, set, and seal
+    n = unseal_obj(&Vm, n); preserve(&Vm, 1, tag(n));
+    n = vnode_set(n, i, x);
+    n = seal_obj(&Vm, n);
+  } else if ( n->shft == 0 ) {        // leaf, insert at appropriate index
+    n->vs[i & TL_MASK] = x;
+  } else {                            // insert in appropriate child
+    size64 idx = idx_for(i, n->shft);
+    VNode* c   = n->cn[idx];
+    n->cn[idx] = vnode_set(c, i, x);
+  }
 
   return n;
 }
@@ -137,14 +158,34 @@ static void add_vec_level(Vec* v) {
     v->rt = mk_vnode(&v->rt, 1, shft + VEC_SHIFT);
 }
 
-static bool add_to_vnode(VNode* n, Val* vs) {
-  if ( n->cnt == 0 ) {
-    
-  }
+static VNode* add_to_vnode(VNode* n, Val* vs) {
+  if ( n->sealed ) {
+    n = unseal_obj(&Vm, n);
+    preserve(&Vm, 1, tag(n));
+    n = add_to_vnode(n, vs);
+
+  } else if ( n->shft == VEC_SHIFT ) {
+    assert(!n->full);   // should be checked before insertion at child
+
+    // add leaf and update full
+    n->cn[n->cnt++] = mk_vleaf(vs);
+
+  } else if ( n->cnt == 0 || n->cn[n->cnt-1]->full )
+    // create new empty level and add there
+    n->cn[n->cnt++] = mk_vnode(NULL, 0, n->shft-1);
+
+  else
+    n->cn[n->cnt-1] = add_to_vnode(n->cn[n->cnt-1], vs);
+
+  // check whether the current node is now full
+  n->full = n->cnt == TL_SIZE && n->cn[n->cnt-1]->full;
+
+  return n;
 }
 
 static void push_tail(Vec* v) {
-  // TODO
+  add_to_vnode(v->rt, v->tl);
+  memset(v->tl, 0, TL_SIZE*sizeof(Val));
 }
 
 static void add_to_tail(Vec* v, Val x) {
@@ -336,7 +377,7 @@ Val vec_ref(Vec* v, size64 n) {
 
 Vec* vec_add(Vec* v, Val x) {
   if ( v->sealed ) {
-    v = unseal_obj(&Vm, v);
+    v = unseal_obj(&Vm, v); preserve(&Vm, 1, tag(v));
     v = vec_add(v, x);
     v = seal_obj(&Vm, v);
   } else {
@@ -349,6 +390,46 @@ Vec* vec_add(Vec* v, Val x) {
 
     add_to_tail(v, x);
   }
+
+  return v;
+}
+
+Vec* vec_set(Vec* v, size64 i, Val x) {
+  if ( v->sealed ) {
+    v = unseal_obj(&Vm, v); preserve(&Vm, 1, tag(v));
+    v = vec_set(v, i, x);
+    v = seal_obj(&Vm, v);
+  } else {
+    assert(i < v->cnt); // should be checked elsewhere
+
+    if ( i > tl_off(v) )
+      v->tl[i & TL_MASK] = x;
+
+    else {
+      v->rt = vnode_set(v->rt, i, x);
+    }
+  }
+
+  return v;
+}
+
+Vec* vec_pop(Vec* v, Val* r) {
+  assert(v->cnt > 0);
+
+  Val x;
+
+  if ( v->cnt == 1 ) {
+    x = v->tl[0];
+    v = &EmptyVec;
+
+  } else if ( v->sealed ) {
+    v = unseal_obj(&Vm, v); preserve(&Vm, 1, tag(v));
+    v = vec_pop(v, r);
+    v = seal_obj(&Vm, v);
+  }
+
+  if ( r )
+    *r = x;
 
   return v;
 }
