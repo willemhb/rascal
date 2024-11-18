@@ -36,7 +36,7 @@ typedef void*  (*RestFn)(void* x);                    // get the reset of the se
 // for types that use a Seq object
 typedef void   (*SInitFn)(Seq* s);
 typedef Val    (*SFirstFn)(Seq* s);
-typedef Seq*   (*SRestFn)(Seq* s);
+typedef void   (*SRestFn)(Seq* s);
 
 // miscellaneous interface methods
 typedef size64 (*PrFn)(State* vm, Port* p, Val x); // print method

@@ -46,10 +46,9 @@ struct Buffer {
 #define is_port(x) has_type(x, T_PORT)
 #define as_port(x) ((Port*)as_obj(x))
 
-Port* rl_popen(Str* fname, Str* fmode);
-int   rl_pclose(Port* p);
-bool  rl_pisopen(Port* p);
-bool  rl_pisclosed(Port* p);
+int rl_printf(Port* p, char* fmt, ...);
+int rl_printv(Port* p, char* fmt, va_list va);
+int rl_putc(Port* p, Glyph g);
 
 // Str API
 #define is_str(x) has_type(x, T_STR)

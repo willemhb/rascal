@@ -1,7 +1,9 @@
 #include "val/list.h"
 #include "val/array.h"
+#include "val/text.h"
 
 #include "lang/compare.h"
+#include "lang/print.h"
 
 #include "vm/heap.h"
 
@@ -11,8 +13,8 @@
 List EmptyList = {
   .tag        = T_LIST,
   .nosweep    = true,
-  .persistent = true,
   .gray       = true,
+  .sealed     = true,
   .head       = NUL,
   .cnt        = 0,
   .tail       = &EmptyList,
@@ -26,6 +28,7 @@ void init_list(List* l, Val h, size64 c, List* t) {
 }
 
 /* Runtime APIs */
+// lifetime
 void trace_list(State* vm, void* x) {
   List* l = x;
 
@@ -33,6 +36,7 @@ void trace_list(State* vm, void* x) {
   mark(vm, l->tail);
 }
 
+// comparison
 hash64 hash_list(Val x) {
   List* lx = as_list(x);
 
@@ -59,12 +63,52 @@ bool egal_lists(Val x, Val y) {
   return out;
 }
 
-int order_lists(Val x, Val y);
+int order_lists(Val x, Val y) {
+  
+}
+
+// sequence
+bool list_empty(void* x) {
+  List* xs = x;
+
+  return xs->cnt == 0;
+}
+
+Val list_first(void* x) {
+  List* xs = x;
+
+  return xs->head;
+}
+
+void* list_rest(void* x) {
+  List* xs = x;
+
+  return xs->cnt == 1 ? NULL : xs->tail;
+}
+
+// print
+size64 pr_list(State* vm, Port* p, Val x) {
+  (void)vm;
+
+  List* xs = as_list(x);
+  size64 o = rl_putc(p, '(');
+
+  for ( ; xs->cnt; xs=xs->tail ) {
+    o += rl_pr(p, xs->head);
+
+    if ( xs->cnt > 1 )
+      o += rl_putc(p, ' ');
+  }
+
+  o += rl_putc(p, ')');
+
+  return o;
+}
 
 /* External APIs */
 // List API
 List* mk_list2(Val hd, List* tl) {
-  List* l = new_obj(&Vm, T_LIST, MF_PERSISTENT);
+  List* l = new_obj(&Vm, T_LIST, MF_SEALED);
 
   init_list(l, hd, tl->cnt+1, tl);
 
@@ -87,7 +131,7 @@ List* mk_listn(size32 n, Val* d) {
     for ( size64 i=0, j=n; i < n; i++, j--) {
       List* nxt = i + 1 == n ? &EmptyList : spc+1;
 
-      init_obj(&Vm, (Obj*)spc, T_LIST, MF_PERSISTENT);
+      init_obj(&Vm, (Obj*)spc, T_LIST, MF_SEALED);
       init_list(spc, d[i], j, nxt);
     }
 

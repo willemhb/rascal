@@ -1,0 +1,4 @@
+#!/usr/bin/bash
+
+
+find src/ include/ -name '*.[ch]' | xargs wc -l | tail -1

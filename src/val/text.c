@@ -2,6 +2,7 @@
 
 #include "val/text.h"
 #include "val/table.h"
+#include "val/sequence.h"
 
 #include "vm/state.h"
 #include "vm/heap.h"
@@ -43,8 +44,9 @@ static byte* realloc_buffer_bin(byte* b, size64 on, size64 nn, size64 es) {
   return rl_realloc(NULL, b, on*es, nn*es);
 }
 
-/* Runtime APIs */
+/* Runtime APIs & interfaces */
 // Str APIs
+// lifetime
 void free_str(State* vm, void* x) {
   Str* s = x;
 
@@ -57,6 +59,7 @@ void free_str(State* vm, void* x) {
   }
 }
 
+// comparison
 bool egal_strs(Val x, Val y) {
   Str* sx = as_str(x), * sy = as_str(y);
 
@@ -69,7 +72,46 @@ int order_strs(Val x, Val y) {
   return order_str_obs(sx, sy);
 }
 
-// Buffer APIs
+// sequence
+bool str_empty(void* x) {
+  Str* s = x;
+
+  return s->cnt == 0;
+}
+
+void str_sinit(Seq* s) {
+  Str* cs = s->src;
+
+  s->done = cs->cnt == 0;
+}
+
+Val str_sfirst(Seq* s) {
+  Str* cs = s->src;
+
+  return tag(cs->cs[s->off]);
+}
+
+void str_srest(Seq* s) {
+  Str* cs = s->src;
+
+  s->done = s->off == cs->cnt;
+
+  if ( !s->done )
+    s->off++;
+}
+
+// print
+size64 pr_str(State* vm, Port* p, Val x) {
+  (void)vm;
+
+  Str* xs  = as_str(x);
+  size64 r = rl_printf(p, "\"%s\"", xs->cs);
+
+  return r;
+}
+
+// Buffer
+// lifetime
 void free_buffer(State* vm, void* x) {
   (void)vm;
 
@@ -81,9 +123,30 @@ void free_buffer(State* vm, void* x) {
 }
 
 /* External APIs */
+// Port APIs
+int rl_printf(Port* p, char* fmt, ...) {
+  assert(p->ios);
+  va_list va;
+  va_start(va, fmt);
+  int r = vfprintf(p->ios, fmt, va);
+  va_end(va);
+  return r;
+}
+
+int rl_printv(Port* p, char* fmt, va_list va) {
+  assert(p->ios);
+  int r = vfprintf(p->ios, fmt, va);
+  return r;
+}
+
+int rl_putc(Port* p, Glyph g) {
+  assert(p->ios);
+  return fputc(g, p->ios);
+}
+
 // Str APIs
 Str* new_str(char* cs, size64 n, bool i, hash64 h) {
-  Str* s    = new_obj(&Vm, T_STR, MF_PERSISTENT);
+  Str* s    = new_obj(&Vm, T_STR, MF_SEALED);
 
   // initialize string fields
   s->hash   = mix_hashes(h, Vm.vts[T_STR].hash);

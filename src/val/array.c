@@ -3,8 +3,11 @@
 #include "val/array.h"
 #include "val/sequence.h"
 
+#include "lang/compare.h"
+
 #include "vm/heap.h"
 
+#include "util/hash.h"
 #include "util/number.h"
 #include "util/bits.h"
 
@@ -325,35 +328,89 @@ void free_vec(State* vm, void* x) {
 }
 
 // sequence interface
-Seq* vec_seq(void* x, bool m) {
+Seq* vec_sinit(Seq* s, void* x) {
   Vec* v = x;
-
-  Seq* s = new_seq(v, m);
 
   if ( v->rt ) {
     preserve(&Vm, 1, tag(s));
-    s->cseq = mk_seq(v->rt, m);
+    s->cseq = mk_seq(v->rt, s->sealed);
   }
 
   return s;
 }
 
-Val vec_first(void* x) {
-  Seq* s = x;
+Val  vnode_sfirst(Seq* s);
+Seq* vnode_srest(Seq* s);
+
+Val vec_sfirst(Seq* s) {
   Vec* v = s->src;
-  Val r;
 
-  if ( s->fst == NOTHING ) {
-    if ( s->cseq )
-      r = seq_first(s->cseq);
+  if ( s->cseq )
+    return vnode_sfirst(s->cseq);
 
-    else
-      r = v->tl[s->off];
+  return v->tl[s->off];
+}
 
-    s->fst = r;
+Seq* vec_srest(Seq* s) {
+  if ( s->sealed ) {
+    s = unseal_obj(&Vm, s); preserve(&Vm, 1, tag(s));
+    s = vec_srest(s);
+    s = seal_obj(&Vm, s);
+  } else {
+    
+  }
+  
+  return s;
+}
+
+// comparison interface
+  /* Probably don't actually need to use sequences for egal or hash */
+hash64 hash_vec(Val x) {
+  Vec* v   = as_vec(x);
+  hash64 h = 0, xh;
+  Seq* s   = mk_seq(v, true); preserve(&Vm, 1, tag(s));
+
+  while ( !s->done ) {
+    x  = seq_first(s);
+    xh = rl_hash(x);
+    h  = h ? mix_hashes(h, xh) : xh;
+    s  = seq_rest(s);
   }
 
-  return r;
+  return h;
+}
+
+bool egal_vecs(Val x, Val y) {
+  Vec* vx = as_vec(x), * vy = as_vec(y);
+  bool o = vx->cnt == vy->cnt;
+
+  if ( o ) {
+    if ( vx->cnt <= TL_SIZE ) {
+      // optimize for small vectors (don't need to compare sequences of values)
+      for (size64 i=0; o && i < vx->cnt; i++ )
+        o = rl_egal(vx->tl[i], vy->tl[i]);
+
+    } else {
+  
+      preserve(&Vm, 2, NUL, NUL);
+
+      Seq* sx = mk_seq(vx, true); add_to_preserved(0, tag(sx));
+      Seq* sy = mk_seq(vy, true); add_to_preserved(1, tag(sy));
+      
+      while ( o && !sx->done ) {
+        Val x0 = seq_first(sx);
+        Val y0 = seq_first(sx);
+        o      = rl_egal(x0, y0);
+        
+        if ( o ) {
+          sx = seq_rest(sx);
+          sy = seq_rest(sy);
+        }
+      }
+    }
+  }
+
+  return o;
 }
 
 // for VNode
@@ -376,22 +433,25 @@ void free_vnode(State* vm, void* x) {
 }
 
 // sequence interface
-Seq* vnode_seq(void* x, bool m) {
-  VNode* n = x;
-
-  Seq* s = new_seq(n, m);
-
-  if ( n->shft ) {
-    preserve(&Vm, 1, tag(s));
-    s->cseq = vnode_seq(n->cn[0], m);
-  }
-
-  return s;
+void vnode_sinit(Seq* s) {
+  VNode* n = s->src;
+  
+  if ( n->shft )
+    s->cseq = mk_seq(n->cn[0], s->sealed);
 }
 
-Val vnode_first(void* x) {
-  Seq* s = x;
-  VNode* n = s->src;
+Val vnode_sfirst(Seq* s) {
+  if ( s->fst == NOTHING ) {
+    if ( s->cseq )
+      s->fst = vnode_sfirst(s->cseq);
+
+    else { // should be a leaf node
+      VNode* n = s->src;
+      s->fst   = n->vs[s->off];
+    }
+  }
+
+  return s->fst;
 }
 
 /* External APIs */
