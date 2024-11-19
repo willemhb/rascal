@@ -64,7 +64,14 @@ bool egal_lists(Val x, Val y) {
 }
 
 int order_lists(Val x, Val y) {
-  
+  List* xs = as_list(x), * ys = as_list(y);
+
+  int out = 0;
+
+  for ( ; out == 0 && xs->cnt && ys->cnt; xs=xs->tail, ys=ys->tail )
+    out = rl_order(xs->head, ys->head);
+
+  return out ? : 0 - (xs->cnt == 0) + (ys->cnt == 0);
 }
 
 // sequence
