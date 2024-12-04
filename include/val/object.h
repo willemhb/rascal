@@ -16,12 +16,12 @@
     struct {                            \
       word_t hash    : 48;              \
       word_t tag     :  8;              \
-      word_t _flag   :  1;              \
+      word_t sealed  :  1;              \
       word_t nohash  :  1;              \
       word_t notrace :  1;              \
       word_t nosweep :  1;              \
       word_t nofree  :  1;              \
-      word_t sealed  :  1;              \
+      word_t _flag   :  1;              \
       word_t black   :  1;              \
       word_t gray    :  1;              \
     };                                  \

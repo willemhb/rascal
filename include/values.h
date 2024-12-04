@@ -45,7 +45,7 @@ typedef struct MNode MNode;
 
 // miscellaneous internal types
 typedef struct Seq Seq;
-typedef struct RT RT;
+typedef struct Rt Rt;
 
 // internal environment types
 typedef struct Ns  Ns;

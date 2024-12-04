@@ -14,6 +14,10 @@ struct VTable {
   // layout information
   size64  obsize;
 
+  // interface information
+  bool    is_seq;
+  bool    is_iseq;
+
   // lifetime methods
   TraceFn tracefn;
   FreeFn  freefn;

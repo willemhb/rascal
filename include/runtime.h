@@ -46,4 +46,10 @@ typedef size64 (*PrFn)(State* vm, Port* p, Val x); // print method
 extern State Vm;
 extern Proc  Main;
 
+/* VTables */
+extern VTable NulVt, BoolVt, GlyphVt, NumVt, PtrVt,
+  PrimFnVt, UserFnVt, SymVt, PortVt, StrVt, ListVt, VecVt, MapVt,
+  PairVt, BufferVt, AlistVt, TableVt, VNodeVt, MNodeVt,
+  SeqVt, RtVt, NsVt, EnvVt, RefVt, UpvVt;
+
 #endif

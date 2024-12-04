@@ -9,20 +9,30 @@
 struct Seq {
   HEADER;
 
-  bool   done; // boolean flag indicating whether the sequence has any more values
-  Seq*   cseq; // child sequence (for iterating through inductive objects)
-  Val    fst;  // cached first element
-  void*  src;  // source object
-  size64 off;  // offset counter
+  bool     done;  // boolean flag indicating whether the sequence has any more values
+  Seq*     cseq;  // child sequence (for iterating through inductive objects)
+  Val      fst;   // cached first element
+  void*    src;   // source object
+  size64   off;   // offset counter
+
+  // interface functions cached from VTable
+  SInitFn  i_fn;
+  SFirstFn f_fn;
+  SRestFn  r_fn;
 };
 
 /* External APIs */
 #define is_seq(x) has_type(x, T_SEQ)
 #define as_seq(x) ((Seq*)as_obj(x))
 
-Seq*   mk_seq(void* x, bool m);
-void   init_seq(Seq* s, void* x);
-Val    seq_first(Seq* s);
-Seq*   seq_rest(Seq* s);
+// toplevel seq and iter APIs (iter is a mutable seq, used internally)
+void*  rl_seq(void* x);
+bool   rl_empty(void* x);
+Val    rl_first(void* x);
+void*  rl_rest(void* x);
+
+void*   rl_iter(void* x);
+bool    rl_done(void* x);    // synonym for rl_empty
+void*   rl_advance(void* s);
 
 #endif
