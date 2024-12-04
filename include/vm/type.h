@@ -41,6 +41,7 @@ struct VTable {
 };
 
 /* External APIs */
+void rl_init_vtable(State* vm, VTable* vt);
 void rl_init_types(State* vm);
 void rl_toplevel_init_types(void);
 

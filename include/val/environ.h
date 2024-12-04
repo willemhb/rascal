@@ -48,7 +48,7 @@ struct Ref {
 struct Upv {
   HEADER;
 
-  uint8 open;
+  bool8 open;
   Upv*  next;
 
   union {

@@ -14,7 +14,7 @@ typedef struct StrTable StrTable; // for string interning
 typedef struct VTable   VTable;   // internal methods for values of a given type
 
 // internal function pointer types
-typedef Val    (*BuiltinFn)(Proc* p, size32 n);       // handler for native primfn
+typedef Error  (*BuiltinFn)(Proc* p, size32 n);          // handler for native primfn
 
 // lifetime methods
 typedef void   (*TraceFn)(State* vm, void* x);           // trace lifetime method

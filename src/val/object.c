@@ -6,7 +6,7 @@
 /* Internal APIs */
 /* External APIs */
 // mark methods
-void mark_val(State* vm, Val x) {
+void val_mark(State* vm, Val x) {
   if ( is_obj(x) )
     obj_mark(vm, as_obj(x));
 }
@@ -54,7 +54,6 @@ void* new_obj(State* vm, Type t, flags32 f) {
 }
 
 void init_obj(State* vm, Obj* o, Type t, flags32 f) {
-
   // initialize heajder fields
   o->meta   = NULL;
   o->hash   = 0;
@@ -75,4 +74,46 @@ void free_obj(State* vm, void* x) {
 
 void sweep_obj(State* vm, void* x) {
   rl_dealloc(vm, x, obsize(x));
+}
+
+void* clone_obj(State* vm, void* x) {
+  assert(x != NULL);
+
+  Obj* o = rl_dup(vm, x, obsize(x));
+  CloneFn cf = clonefn(o);
+
+  if ( cf )
+    cf(vm, o);
+
+  return o;
+}
+
+void* seal_obj(State* vm, void* x, bool d) {
+  assert(x != NULL);
+  
+  Obj* o = x;
+
+  if ( !o->sealed ) {
+    o->sealed = true;
+
+    SealFn sf = sealfn(o);
+
+    if ( sf )
+      sf(vm, o, d);
+  }
+
+  return o;
+}
+
+void* unseal_obj(State* vm, void* x) {
+  assert(x != NULL);
+
+  Obj* o = x;
+
+  if ( o->sealed ) {
+    o = clone_obj(vm, o);
+    o->sealed = false;
+  }
+
+  return o;
 }

@@ -57,7 +57,7 @@ void  init_obj(State* vm, Obj* o, Type t, flags32 f);
 void  free_obj(State* vm, void* x);
 void  sweep_obj(State* vm, void* x);
 void* clone_obj(State* vm, void* x);
-void* seal_obj(State* vm, void* x, bool deep); // permanently mark an object as read-only
-void* unseal_obj(State* vm, void* x);          // return the unsealed object or an editable copy
+void* seal_obj(State* vm, void* x, bool d); // permanently mark an object as read-only
+void* unseal_obj(State* vm, void* x);       // return the unsealed object or an editable copy
 
 #endif

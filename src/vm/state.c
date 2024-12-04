@@ -6,13 +6,13 @@
 #include "vm/error.h"
 #include "vm/type.h"
 
+#include "val/function.h"
 #include "val/array.h"
 #include "val/table.h"
 
 /* Globals */
 /* Stacks */
 Val    Stack[MAX_STACK];
-void*  Frames[MAX_FRAMES];
 EFrame Errors[MAX_ERROR];
 
 /* Global State objects */
@@ -20,7 +20,7 @@ extern Ns       Globals;
 extern Table    Meta;
 extern StrTable Strings;
 extern Alist    Grays;
-extern VTable   Vts[N_TYPES];
+extern VTable*  Vts[N_TYPES];
 
 State Vm = {
   /* Heap state */
@@ -39,28 +39,7 @@ State Vm = {
   .main    = &Main,
 };
 
-Proc Main = {
-  /* link back to global state */
-  .vm    = &Vm,
-
-  /* Environment state */
-  .upvs  = NULL,
-
-  /* Error state */
-  .cp    = Errors,
-  .ctch  = Errors,
-  .c_end = &Errors[MAX_ERROR],
-
-  /* Execution state */
-  .code  = NULL,
-  .ip    = NULL,
-  .bp    = NULL,
-
-  /* Stacks */
-  .sp    = Stack,
-  .stk   = Stack,
-  .s_end = &Stack[MAX_STACK],
-};
+Proc Main = {};
 
 /* APIs for State object. */
 // stack manipulation
@@ -110,9 +89,53 @@ Val popn(Proc* p, size32 n, bool e) {
   return o;
 }
 
-void rl_init_state(State* vm, Proc* pr);
-void rl_init_process(Proc* pr, State* vm, Val* vs, EFrame* es);
+// call stack manipulation
+void pushf(Proc* p) {
+  assert(p->sp + 3 < p->s_end);
+
+  // push current execution state
+  push(p, tag(p->code));
+  push(p, tag(p->ip));
+  push(p, tag(p->bp));
+}
+
+void popf(Proc* p) {
+  assert(p->sp - 3 >= p->stk);
+
+  p->bp   = as_ptr(*(--p->sp));
+  p->ip   = as_ptr(*(--p->sp));
+  p->code = as_ufn(*(--p->sp));
+}
+
+// initialization
+void rl_init_state(State* vm, Proc* pr) {
+  vm->main = pr;
+}
+
+void rl_init_process(Proc* pr, State* vm, Val* vs, EFrame* es) {
+  pr->vm    = vm;
+  pr->upvs  = NULL;
+
+  // error state
+  pr->cp    = es;
+  pr->ctch  = es;
+  pr->c_end = es+MAX_ERROR;
+
+  // execution state
+  pr->next  = O_NOOP;
+  pr->code  = NULL;
+  pr->ip    = NULL;
+  pr->bp    = NULL;
+
+  // stack state
+  pr->sp    = vs;
+  pr->stk   = vs;
+  pr->s_end = vs+MAX_STACK;
+
+  // initialize state object
+  rl_init_state(vm, pr);
+}
 
 void rl_toplevel_init_state(void) {
-  rl_init_state(&Vm, &Main);
+  rl_init_process(&Main, &Vm, Stack, Errors);
 }

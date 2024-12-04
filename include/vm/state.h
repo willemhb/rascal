@@ -15,7 +15,7 @@ struct State {
   Ns*       globals;  // global namespace
   Table*    meta;     // metadata for immediate values
   StrTable* strs;     // table of interned strings
-  VTable*   vts;      // type information needed by runtime
+  VTable**  vts;      // type information needed by runtime
 
   /* execution state */
   Proc*     main;     // execution state
@@ -32,6 +32,13 @@ struct Proc {
   EFrame* cp, * ctch, * c_end;
 
   /* Execution state */
+  /*
+   * `next` is used by some builtin functions like `apply` and `exec` to
+   * avoid recursive calls to `rl_exec`. This is accomplished by setting up
+   * the stack and setting the `next` parameter to an appropriate virtual machine
+   * label before returning. Most of the time this should be `OP_NOOP`.
+   */
+  Opcode  next;
   UserFn* code;
   sint16* ip;
   Val*    bp;

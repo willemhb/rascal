@@ -43,11 +43,11 @@ struct UserFn {
 #define fn_va(x)   ((x)->va)
 
 // primitive function APIs
-#define is_primfn(x) has_type(x, T_PRIMFN)
-#define as_primfn(x) ((PrimFn*)as_obj(x))
+#define is_pfn(x) has_type(x, T_PRIMFN)
+#define as_pfn(x) ((PrimFn*)as_obj(x))
 
 // user function APIs
-#define is_userfn(x) has_type(x, T_USERFN)
-#define as_userfn(x) ((UserFn*)as_obj(x))
+#define is_ufn(x) has_type(x, T_USERFN)
+#define as_ufn(x) ((UserFn*)as_obj(x))
 
 #endif
