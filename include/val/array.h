@@ -69,4 +69,7 @@ Vec* vec_set(Vec* v, size64 i, Val x);
 Vec* vec_pop(Vec* v, Val* r);
 Vec* vec_cat(Vec* vx, Vec* vy);
 
+// initialization
+void rl_toplevel_init_array(void);
+
 #endif

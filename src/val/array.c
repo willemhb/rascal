@@ -17,6 +17,14 @@
 #define TL_MASK   63ul
 #define VEC_SHIFT  6ul
 
+Vec EmptyVec = {
+  .tag     = T_VEC,
+  .nosweep = true,
+  .nofree  = true,
+  .sealed  = true,
+  .gray    = true,
+};
+
 /* Internal APIs */
 // Alist APIs
 static bool check_grow(size64 n, size64 c) {
@@ -683,4 +691,10 @@ Vec* vec_pop(Vec* v, Val* r) {
     *r = x;
 
   return v;
+}
+
+// initialization
+void rl_toplevel_init_array(void) {
+  // comput empty vector hash
+  EmptyVec.hash = mix_hashes(hash_word(T_VEC), hash_pointer(&EmptyVec));
 }

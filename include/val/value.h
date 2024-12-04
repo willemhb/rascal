@@ -115,6 +115,7 @@ static inline Val wdata_bits(Val x) {
           Str*:tag_obj,                          \
           List*:tag_obj,                         \
           Vec*:tag_obj,                          \
+          Map*:tag_obj,                          \
           Pair*:tag_obj,                         \
           Buffer*:tag_obj,                       \
           Alist*:tag_obj,                        \
@@ -122,7 +123,8 @@ static inline Val wdata_bits(Val x) {
           Seq*:tag_obj,                          \
           Env*:tag_obj,                          \
           Ref*:tag_obj,                          \
-          VNode*:tag_obj )(x)
+          VNode*:tag_obj,                        \
+          MNode*:tag_obj )(x)
 
 // tagging methods
 Val tag_nul(Nul n);

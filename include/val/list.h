@@ -5,7 +5,7 @@
 
 /* Types, APIs, and globals supporting Rascal lists and pairs. */
 
-/* C types. */
+/* C types */
 struct List {
   HEADER;
 
@@ -20,6 +20,9 @@ struct Pair {
   Val car;
   Val cdr;
 };
+
+/* Globals */
+extern List EmptyList;
 
 /* External APIs */
 // List API
@@ -39,6 +42,10 @@ Val   list_ref(List* xs, size64 n);
 #define is_pair(x) has_type(x, T_PAIR)
 #define as_pair(x) ((Pair*)as_obj(x))
 
+Pair* mk_pair(Val car, Val cdr);
+Pair* mk_kv(Val k, hash64 h);
+
+// initialization
 void rl_toplevel_init_list(void);
 
 #endif

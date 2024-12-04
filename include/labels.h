@@ -58,12 +58,13 @@ typedef enum Error {
 } Error;
 
 typedef enum MFlags : uint8 {
-  MF_NOTRACE    =   1,
-  MF_NOSWEEP    =   2,
-  MF_NOFREE     =   4,
-  MF_SEALED     =   8,
-  MF_GRAY       =  16,
-  MF_BLACK      =  32,
+  MF_NOHASH     =   2,
+  MF_NOTRACE    =   4,
+  MF_NOSWEEP    =   8,
+  MF_NOFREE     =  16,
+  MF_SEALED     =  32,
+  MF_GRAY       =  64,
+  MF_BLACK      = 128,
   } MFlags;
 
 typedef enum Opcode : sint16 {
