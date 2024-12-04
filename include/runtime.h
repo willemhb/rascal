@@ -17,10 +17,10 @@ typedef struct VTable   VTable;   // internal methods for values of a given type
 typedef Val    (*BuiltinFn)(Proc* p, size32 n);       // handler for native primfn
 
 // lifetime methods
-typedef void   (*TraceFn)(State* vm, void* x);        // trace lifetime method
-typedef void   (*FreeFn)(State* vm, void* x);         // free lifetime method
-typedef void*  (*CloneFn)(State* vm, void* x);        // clone lifetime method
-typedef void   (*SealFn)(State* vm, void* x);         // seal lifetime method
+typedef void   (*TraceFn)(State* vm, void* x);           // trace lifetime method
+typedef void   (*FreeFn)(State* vm, void* x);            // free lifetime method
+typedef void   (*CloneFn)(State* vm, void* x);           // clone lifetime method (only responsible for duplicating owned data)
+typedef void   (*SealFn)(State* vm, void* x, bool d);    // seal lifetime method
 
 // comparison interface methods
 typedef hash64 (*HashFn)(Val x);                      // hash method

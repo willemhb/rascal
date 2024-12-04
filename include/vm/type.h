@@ -21,7 +21,7 @@ struct VTable {
   SealFn  sealfn;
 
   // print interface
-  PrFn prfn;
+  PrFn    prfn;
 
   // comparison interface
   HashFn  hashfn;

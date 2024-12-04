@@ -210,7 +210,7 @@ static VNode* push_leaf(VNode* n, Val* vs) {
   if ( n->sealed ) {
     n = unseal_obj(&Vm, n); preserve(&Vm, 1, tag(n));
     n = push_leaf(n, vs);
-    n = seal_obj(&Vm, n);
+    n = seal_obj(&Vm, n, false);
 
   } else if ( n->shft == VEC_SHIFT ) {
     assert(!n->full);   // should be checked before insertion at child
@@ -335,6 +335,18 @@ void free_vec(State* vm, void* x) {
   Vec* v = x;
 
   rl_dealloc(NULL, v->tl, 0);
+}
+
+void clone_vec(State* vm, void* x) {
+  Vec* v = x;
+  v->tl  = rl_dup(vm, v->tl, tl_size(v)*sizeof(Val));
+}
+
+void seal_vec(State* vm, void* x, bool d) {
+  Vec* v = x;
+
+  if ( d && v->rt )
+    seal_obj(vm, v->rt, d);
 }
 
 // sequence interface
@@ -480,6 +492,20 @@ void free_vnode(State* vm, void* x) {
   VNode* n = x;
 
   rl_dealloc(NULL, n->vs, 0);
+}
+
+void clone_vnode(State* vm, void* x) {
+  VNode* n = x;
+
+  n->cn = rl_dup(vm, n->cn, TL_SIZE);
+}
+
+void seal_vnode(State* vm, void* x, bool d) {
+  VNode* n = x;
+
+  if ( d && n->shft > 0 )
+    for ( size64 i=0; i < n->cnt; i++ )
+      seal_obj(vm, n->cn[i], d);
 }
 
 // sequence interface
@@ -650,7 +676,7 @@ Vec* mk_vec(size64 n, Val* vs) {
       v = vec_add(v, vs[i]);
 
     // mark persistent
-    seal_obj(&Vm, v);
+    seal_obj(&Vm, v, true);
   }
 
   return v;
@@ -714,8 +740,7 @@ Vec* vec_pop(Vec* v, Val* r) {
   } else if ( v->sealed ) {
     v = unseal_obj(&Vm, v); preserve(&Vm, 1, tag(v));
     v = vec_pop(v, r);
-    v = seal_obj(&Vm, v);
-  } else {
+    v = seal_obj(&Vm, v, false);  } else {
     size64 tsz = tl_size(v);
     x = v->tl[(tsz -= 1)];
     v->cnt--;
