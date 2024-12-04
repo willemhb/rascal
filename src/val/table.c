@@ -24,7 +24,8 @@
 #define MN_MINC  8ul
 #define MN_MSK   63ul
 #define MN_SHFT  6ul
-#define MAX_SHFT 42ul
+#define MN_MAXP  48ul // max prefix
+#define MN_MAXS  42ul // max shift
 
 // empty map singleton
 Map EmptyMap = {
@@ -153,82 +154,92 @@ static void resize_table(Table* t, size64 n) {
   }
 }
 
-// internal Map APIs
-// hash segment
-static inline size64 mn_aidx(MNode* mn, hash64 h) {
-  return h >> mn->shft && MN_MSK;
+// internal Map/MNode APIs
+static Pair* mk_kv(Val k, hash64 h) {
+  Pair* kv = mk_pair(k, NOTHING);
+  kv->hash = h;
+
+  return kv;
 }
 
-static inline size64 mn_hmsk(MNode* mn, hash64 h) {
-  return 1ul << (h >> mn->shft && MN_MSK);
+static hash64 get_hash_prefix(size64 shft, hash64 h) {
+  hash64 o = 0;
+
+  for ( size64 s=MN_MAXS; s > shft; s -= MN_SHFT )
+    o |= h & (MN_MSK << s);
+
+  return o;
 }
 
-static inline size64 mn_cidx(MNode* mn, hash64 h) {
-  size64 hm = mn_hmsk(mn, h);
-
-  return popc((mn->bm | hm) & (hm - 1));
+static void init_mnode(MNode* mn, size64 shft, hash64 h) {
+  mn->hash = get_hash_prefix(shft, h);
+  mn->cnt  = 0;
+  mn->cap  = MN_MINC;
+  mn->shft = shft;
+  mn->bm   = 0;
+  mn->cn   = rl_alloc(NULL, MN_MINC*sizeof(Obj*));
 }
 
-static inline size64 mn_idx(MNode* mn, hash64 h) {
-  return mn->cap == MN_MAXC ? mn_aidx(mn, h) : mn_cidx(mn, h);
+static MNode* new_mnode(size64 shft, hash64 h) {
+  MNode* n = new_obj(&Vm, T_MNODE, MF_NOHASH);
+
+  init_mnode(n, shft, h);
+
+  return n;
 }
 
-static inline bool aidx_free(MNode* mn, hash64 h) {
-  return (mn->bm & mn_hmsk(mn, h)) == 0;
+static inline bool mn_is_compd(MNode* n) {
+  return n->cap < MN_MAXC;
 }
 
-static inline bool cidx_free(MNode* mn, hash64 h) {
-  return mn_cidx(mn, h) == mn->cnt;
+static inline size64 mn_aidx(MNode* n, hash64 h) {
+  return h >> n->shft & MN_MSK;
 }
 
-static inline hash64 cd_hash(Obj* o) {
-  if ( o->tag == T_LIST )
-    o = as_obj(as_list(o)->head);
-
-  return o->hash;
+static inline bool mn_has_aidx(MNode* n, size64 ai) {
+  return (n->bm & (1ul << ai)) != 0;
 }
 
-static void mn_comp_kvs(MNode* n, Obj** dst) {
-  // compress child array (when shrinking from 64 -> 32)
-  Obj** src = n->cn;
-
-  for ( size64 i=0, j=0; i < MN_MAXC && j < n->cnt; i++ ) {
-    Obj* cd = src[i];
-
-    if ( cd == NULL )
-      continue;
-    
-    dst[j++] = cd;
-  }
+static inline size64 mn_cidx(MNode* n, size64 ai) {
+  /* get the compressed index for the given hash in a compressed node.
+     assumes the abstract index exists and the node is compressed.
+     violations of these invariants could cause a SIGSEGV. */
+  return popc(n->bm & ((1ul << ai) - 1));
 }
 
-static void mn_decomp_kvs(MNode* mn, Obj** dst) {
-  // decompress child array (when growing from 32 -> 64)
-  Obj** src = mn->cn;
+static size64 mn_idx(MNode* n, size64  ai) {
+  /* Get the index for the given node. Returns the abstract index if
+     the node is uncompressed, otherwise the compressed index. Assumes
+     the abstract index exists. Violation of this invariant could cause
+     a SIGSEGV. */
+  
+  return mn_is_compd(n) ? mn_cidx(n, ai) : ai;
+}
 
-  for ( size64 i=0; i < mn->cnt; i++ ) {
-    Obj* cd  = src[i];
-    hash64 h = cd_hash(cd);
-    size64 s = mn_aidx(mn, h);
-    dst[s]   = cd;
-  }
+static bool mn_cidx_free(MNode* n, size64 ci) {
+  return ci+1 == n->cnt;
 }
 
 static void mn_grow(MNode* n) {
   assert(n->cap < MN_MAXC);
 
-  size64 oc = n->cap;
-  size64 nc = oc << 1;
-  size64 os = oc * sizeof(Obj*);
-  size64 ns = nc * sizeof(Obj*);
-  Obj** ocn = n->cn;
-  Obj** ncn = rl_alloc(NULL, ns);
-
-  if (nc == MN_MAXC)
-    mn_decomp_kvs(n, ncn);
-
-  else
+  size64 oc  = n->cap;
+  size64 nc  = oc << 1;
+  size64 os  = oc * sizeof(Obj*);
+  size64 ns  = nc * sizeof(Obj*);
+  Obj**  ocn = n->cn;
+  Obj**  ncn = rl_alloc(NULL, ns);
+  
+  if ( nc == MN_MAXC ) { // uncompress array
+    for ( size64 i=0; i < n->cnt; i++ ) {
+      Obj* c   = ocn[i];
+      hash64 h = c->hash;
+      size64 i = mn_aidx(n, h);
+      ncn[i]   = c;
+    }
+  } else {
     memcpy(ncn, ocn, os);
+  }
 
   rl_dealloc(NULL, ocn, 0);
 
@@ -236,104 +247,107 @@ static void mn_grow(MNode* n) {
   n->cn  = ncn;
 }
 
-static void mn_shrink(MNode* n) {
-  size64 oc = n->cap;
-  size64 nc = max(oc << 1, MN_MINC);
-  size64 ns = nc * sizeof(Obj*);
-  Obj** ocn = n->cn;
-  Obj** ncn = rl_alloc(NULL, ns);
-
-  if (oc == MN_MAXC)
-    mn_comp_kvs(n, ncn);
-
-  else
-    memcpy(ncn, ocn, ns);
-
-  rl_dealloc(NULL, ocn, 0);
-
-  n->cap = nc;
-  n->cn  = ncn;
-}
-
-static void mn_shunt(MNode* n, size64 i) {
-  // move everything above index i
-  size64 di = i+1;
-  size64 c  = n->cnt-i;
-  size64 s  = c * sizeof(Obj*);
-
-  memmove(n->cn+di, n->cn+i, s);
-}
-
-static void mn_unshunt(MNode* n, size64 i) {
-  size64 di = i;
-  size64 c  = n->cnt-i-1;
-  size64 s  = c * sizeof(Obj*);
-
-  memmove(n->cn+di, n->cn+i+1, s);
-}
-
-static size64 mn_setbm(MNode* n, size64 h) {
-  // manages updating the bitmap and the count, as well as moving items in the child array if necessary
+static void mn_add_child(MNode* n, Obj* c, size64 ai) {
+  /* Add the given child to the node. Assumes that there is no abstract collision,
+     but there may be a compressed collision that needs to be managed. */
+  
   if ( n->cnt == n->cap )
     mn_grow(n);
 
-  size64 aidx = mn_aidx(n, h), idx = aidx;
+  size64 af = 1ul << ai;
 
-  if ( n->cap < MN_MAXC ) {
-    idx = popc((n->bm | aidx) & (aidx - 1));
+  // update bitmap
+  n->bm  |= af;
+  n->cnt += 1;
 
-    if ( idx < n->cnt )
-      mn_shunt(n, idx);
+  if ( !mn_is_compd(n) ) {
+    n->cn[ai] = c;
+  } else {
+    size64 ci = mn_cidx(n, ai);
+
+    if ( !mn_cidx_free(n, ci) ) {
+      Obj** dst  = n->cn+ci+1;
+      Obj** src  = n->cn+ci;
+      size64 cnt = (n->cnt-ci)*sizeof(Obj*);
+
+      memmove(dst, src, cnt);
+    }
+
+    n->cn[ci] = c;
+  }
+}
+
+static Pair* mn_put(MNode* n, MNode** p, bool rs, hash64 h, Val k) {
+  Pair* kv = NULL;
+
+  if ( rs && n->sealed )
+    n = *p = unseal_obj(&Vm, n);
+
+  size64 ai = mn_aidx(n, h);
+
+  if ( !mn_has_aidx(n, ai) ) { // simplest case, no collision
+    kv = mk_kv(k, h);
+
+    mn_add_child(n, (Obj*)kv, ai);
+  } else {
+    size64 i = mn_idx(n, ai); // get the concrete index
+    Obj* c   = n->cn[i];
+
+    if ( c->tag == T_MNODE ) // just insert in child
+      kv = mn_put((MNode*)c, (MNode**)&n->cn[i], rs, h, k);
+
+    else {
+      assert(c->tag == T_PAIR);
+
+      kv = (Pair*)c;
+
+      if ( kv->hash != h ) {
+        /*
+         * Create a new level, move colliding node down, insert key in new level.
+         * TODO: handle colliding hashes.
+         */
+
+        MNode* s = new_mnode(n->shft-MN_SHFT, h);
+        n->cn[i] = (Obj*)s;
+
+        mn_add_child(s, c, mn_aidx(s, c->hash));
+        kv = mn_put(s, (MNode**)&n->cn[i], rs, h, k);
+      }
+    }
   }
 
-  n->cnt += 1;
-  n->bm  |= aidx;
+  // cleanup (re-seal if necessary)
+  if ( rs ) {
+    seal_obj(&Vm, n, false);
+    seal_obj(&Vm, kv, false);
+  }
 
-  return idx;
+  return kv;
 }
 
-static void mn_delbm(MNode* n, hash64 h) {
-  
-}
-
-static void add_leaf(MNode* n, Pair* kv) {
-  hash64 h  = kv->hash;
-  size64 i  = mn_setbm(n, h);
-  n->cn[i]  = (Obj*)kv;
-}
+static Pair* mn_pop(MNode* n, MNode** p, bool rs, hash64 h, Val k);
 
 static Pair* mn_get(MNode* n, hash64 h) {
   Pair* o = NULL;
 
   for (;;) {
-    size64 idx = mn_idx(n, h);
-    Obj* cd    = n->cn[idx];
+    size64 ai = mn_aidx(n, h);
 
-    if ( cd == NULL )
+    if ( !mn_has_aidx(n, ai) )
       break;
+
+    size64 i  = mn_idx(n, ai);
+    Obj* cd   = n->cn[i];
 
     if ( cd->tag == T_MNODE ) { // child node
       n = (MNode*)cd;
 
-    } else if ( cd->tag == T_PAIR ) {
+    } else {
+      assert(cd->tag == T_PAIR);
+
       if ( cd->hash == h )
         o = (Pair*)cd;
       
-      break;
-    } else { // collision node
-      assert(cd->tag == T_LIST);
-      List* kvs = (List*)cd;
-
-      while ( o == NULL && kvs->cnt > 0 ) {
-        Pair* kv = as_pair(kvs->head);
-
-        if ( kv->hash == h )
-          o = kv;
-
-        else
-          kvs = kvs->tail;
-      }
-
       break;
     }
   }
@@ -341,37 +355,11 @@ static Pair* mn_get(MNode* n, hash64 h) {
   return o;
 }
 
-static Pair* mn_put(MNode* mn, MNode** pl, bool rs, hash64 h, Val k) {
-  Pair* kv = NULL;
-
-  if ( rs )
-    mn = *pl = unseal_obj(&Vm, mn);
-
-  size64 ai = mn_aidx(mn, h);
-  size64 ab = 1 << ai;
-
-  if ( (mn->bm & ai) == 0 ) { // abstract index is free, insert new leaf
-    kv = mk_kv(k, h);
-    add_leaf(mn, kv);
-
-  } else {
-    size64 ci = mn->cnt == MN_MAXC ? ai : popc(mn->bm & (ab - 1));
-    Obj*   cd = mn->cn[ci];
-
-    if ( )
-  }
-
-  if ( rs )
-    seal_obj(&Vm, mn);
-
-  return kv;
-}
-
 static void do_map_set(Map* m, Val k, Val v, bool rs) {
   hash64 h = rl_hash(k);
 
   if ( m->root == NULL )
-    m->root = new_mnode(rs, MAX_SHFT, 0);
+    m->root = new_mnode(MN_MAXS, h);
 
   Pair* kv = mn_put(m->root, &m->root, rs, h, k);
 
@@ -381,12 +369,17 @@ static void do_map_set(Map* m, Val k, Val v, bool rs) {
   kv->cdr = v;
 
   if ( rs ) {
-    seal_obj(&Vm, m);
-    seal_obj(&Vm, kv);
+    seal_obj(&Vm, m, false);
+    seal_obj(&Vm, kv, false);
   }
 }
 
+static void do_map_pop(Map* m, Val k, bool rs) {
+  
+}
+
 /* Runtime methods */
+// Table APIs
 void trace_table(State* vm, void* x) {
   Table* t = x; TNode* ns = t->kvs;
 
@@ -410,6 +403,32 @@ void free_table(State* vm, void* x) {
   Table* t = x;
 
   rl_dealloc(NULL, t->kvs, 0);
+}
+
+// Map APIs
+void trace_map(State* vm, void* x) {
+  Map* m = x;
+
+  mark(vm, m->root);
+}
+
+// MNode APIs
+void trace_mnode(State* vm, void* x) {
+  MNode* n = x;
+
+  if ( mn_is_compd(n) )
+    mark_objs(vm, n->cnt, n->cn);
+
+  else
+    mark_objs(vm, n->cap, n->cn);
+}
+
+void free_mnode(State* vm, void* x) {
+  (void)vm;
+
+  MNode* n = x;
+
+  rl_dealloc(NULL, n->cn, 0);
 }
 
 /* External APIs */
@@ -538,6 +557,7 @@ void join_tables(Table* tx, Table* ty) {
 }
 
 // Map API
+// external methods
 Map* mk_map(size64 n, Val* kvs) {
   Map* r;
   
@@ -554,7 +574,7 @@ Map* mk_map(size64 n, Val* kvs) {
     for ( size64 i=0; i < n; i+= 2 )
       r = map_set(r, kvs[i], kvs[i+1]);
 
-    r = seal_obj(&Vm, r);
+    r = seal_obj(&Vm, r, true);
   }
 
   return r;
@@ -596,6 +616,32 @@ Map* map_set(Map* m, Val k, Val v) {
   return m;
 }
 
+Map* map_pop(Map* m, Val k) {
+  if ( m->cnt > 0 && map_has(m, k) ) {
+    if ( m->cnt == 1 ) {
+        m = &EmptyMap;
+
+    } else if ( m->sealed ) {
+      m = unseal_obj(&Vm, m);
+      preserve(&Vm, 1, tag(m));
+      do_map_pop(m, k, true);
+    } else {
+      do_map_pop(m, k, false);
+    }
+  }
+
+  return m;
+}
+
+// internal methods
+Map* new_map(void) {
+  Map* o  = new_obj(&Vm, T_MAP, 0);
+  o->cnt  = 0;
+  o->root = NULL;
+
+  return o;
+}
+
 // initialization
 void rl_toplevel_init_map(void) {
   // set empty map hash
@@ -609,4 +655,4 @@ void rl_toplevel_init_map(void) {
 #undef MN_MINC
 #undef MN_MSK
 #undef MN_SHFT
-#undef MAX_SHFT
+#undef MN_MAXS

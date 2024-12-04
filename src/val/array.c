@@ -2,8 +2,10 @@
 
 #include "val/array.h"
 #include "val/sequence.h"
+#include "val/text.h"
 
 #include "lang/compare.h"
+#include "lang/print.h"
 
 #include "vm/heap.h"
 
@@ -170,7 +172,7 @@ static VNode* vnode_set(VNode* n, size64 i, Val x) {
   if ( n->sealed ) { // unseal, save, set, and seal
     n = unseal_obj(&Vm, n); preserve(&Vm, 1, tag(n));
     n = vnode_set(n, i, x);
-    n = seal_obj(&Vm, n);
+    n = seal_obj(&Vm, n, false);
   } else if ( n->shft == 0 ) {        // leaf, insert at appropriate index
     n->vs[i & TL_MASK] = x;
   } else {                            // insert in appropriate child
@@ -249,7 +251,7 @@ static VNode* pop_leaf(VNode* n, VNode** lf) {
       // create a copy to modify
       n = unseal_obj(&Vm, n);
       n->cnt--;
-      n = seal_obj(&Vm, n);
+      n = seal_obj(&Vm, n, false);
     } else {
       n->cnt--;
     }
@@ -262,7 +264,7 @@ static VNode* pop_leaf(VNode* n, VNode** lf) {
       else if ( n->sealed ) {
         n = unseal_obj(&Vm, n);
         n->cnt--;
-        n = seal_obj(&Vm, n);
+        n = seal_obj(&Vm, n, false);
       } else {
         n->cnt--;
       }
@@ -270,7 +272,7 @@ static VNode* pop_leaf(VNode* n, VNode** lf) {
       preserve(&Vm, 1, tag(cn));
       n = unseal_obj(&Vm, n);
       n->cn[n->cnt-1] = cn;
-      n = seal_obj(&Vm, n);
+      n = seal_obj(&Vm, n, false);
     } else {
       n->cn[n->cnt-1] = cn;
     }
@@ -363,7 +365,7 @@ Seq* vec_srest(Seq* s) {
   if ( s->sealed ) {
     s = unseal_obj(&Vm, s); preserve(&Vm, 1, tag(s));
     s = vec_srest(s);
-    s = seal_obj(&Vm, s);
+    s = seal_obj(&Vm, s, false);
   } else {
     
   }
@@ -417,6 +419,46 @@ bool egal_vecs(Val x, Val y) {
       }
     }
   }
+
+  return o;
+}
+
+// print
+size64 pr_vnode_vals(State* vm, Port* p, VNode* n) {
+  size64 o = 0;
+
+  if ( n ) {
+    if ( n->shft == 0 ) {
+      for ( size64 i=0; i < TL_CNT; i++ ) {
+        o += rl_pr(p, n->vs[i]);
+        o += rl_putc(p, ' ');
+      }
+    } else {
+      for ( size64 i=0; i < n->cnt; i++ ) {
+        o += pr_vnode_vals(vm, p, n->cn[i]);
+      }
+    }
+  }
+
+  return o;
+}
+
+size64 pr_vec(State* vm, Port* p, Val x) {
+  (void)vm;
+
+  Vec* v = as_vec(x);
+  size64 ts = tl_size(v);
+  size64 o = rl_putc(p, '[');
+  o += pr_vnode_vals(vm, p, v->rt);
+
+  for ( size64 i=0; i < ts; i++ ) {
+    o += rl_pr(p, v->tl[i]);
+
+    if ( i+1 < ts )
+      o += rl_putc(p, ' ');
+  }
+
+  o += rl_putc(p, ']');
 
   return o;
 }

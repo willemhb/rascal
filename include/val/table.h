@@ -29,7 +29,11 @@ struct Map {
 
   // size information
   size64 cnt;
-  MNode* root;
+  
+  union {
+    MNode* root; // large maps (more than 16 keys)
+    Pair** kvs;  // small maps (fewer than 16 keys - linear search)
+  };
 };
 
 struct MNode {
@@ -65,8 +69,7 @@ Map* mk_map(size64 n, Val* kvs);
 bool map_get(Map* m, Val k, Val* v);
 bool map_has(Map* m, Val k);
 Map* map_set(Map* m, Val k, Val v);
-Map* map_del(Map* m, Val k);
-Map* join_maps(Map* mx, Map* my);
+Map* map_pop(Map* m, Val k);
 
 // internal methods
 Map* new_map(void);
@@ -74,8 +77,6 @@ Map* new_map(void);
 // MNode API
 #define is_mnode(x) has_type(x, T_MNODE)
 #define as_mnode(x) ((MNode*)as_obj(x))
-
-MNode* new_mnode(bool s, size64 shft, hash64 h);
 
 // initialization
 void rl_toplevel_init_table(void);

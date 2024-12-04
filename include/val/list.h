@@ -43,7 +43,6 @@ Val   list_ref(List* xs, size64 n);
 #define as_pair(x) ((Pair*)as_obj(x))
 
 Pair* mk_pair(Val car, Val cdr);
-Pair* mk_kv(Val k, hash64 h);
 
 // initialization
 void rl_toplevel_init_list(void);
