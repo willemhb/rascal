@@ -176,20 +176,56 @@ void* rl_rest(void* x) {
       if ( o->sealed ) {
         o = unseal_obj(&Vm, o);
         preserve(&Vm, 1, tag(o));
-        r = rl_advance(o);
+        r = rl_next(o);
         seal_obj(&Vm, o, false);
       } else {
-        r = rl_advance(o);
+        r = rl_next(o);
       }
     } else {
       VTable* vt = vtbl(o->tag); assert_seq(vt);
       RestFn rf  = restfn(vt);
 
       if ( rf )
-        ;
+        r = rf(o);
+
+      else { // unlikely case of rest being called on an ISeq object directly
+        Seq* s = mk_seq(o, vt, true);
+        r      = seq_rest(s);
+      }
     }
   }
+
+  return r;
 }
 
-void* rl_iter(void* x);
-void* rl_advance(void* x);
+void* rl_iter(void* x) {
+  void* r;
+
+  if ( x == NULL )
+    r = NULL;
+
+  else {
+    Obj* o     = x;
+    VTable* vt = vtbl(o->tag); assert_seq(vt);
+
+    if ( emptyfn(vt)(o) )
+      r = NULL;
+
+    else if ( vt->is_seq )
+      r = o;
+
+    else
+      r = mk_seq(o, vt, false);
+  }
+
+  return r;
+}
+
+bool  rl_done(void* x) {
+  // synonym for `empty?`
+  return rl_empty(x);
+}
+
+void* rl_next(void* x) {
+  
+}

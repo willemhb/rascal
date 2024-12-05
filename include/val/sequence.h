@@ -31,8 +31,8 @@ bool   rl_empty(void* x);
 Val    rl_first(void* x);
 void*  rl_rest(void* x);
 
-void*   rl_iter(void* x);
-bool    rl_done(void* x);    // synonym for rl_empty
-void*   rl_advance(void* s);
+void*  rl_iter(void* x);
+bool   rl_done(void* x);    // synonym for rl_empty
+void*  rl_next(void* s);
 
 #endif
