@@ -387,53 +387,9 @@ Seq* vec_srest(Seq* s) {
 
 // comparison interface
   /* Probably don't actually need to use sequences for egal or hash */
-hash64 hash_vec(Val x) {
-  Vec* v   = as_vec(x);
-  hash64 h = 0, xh;
-  Seq* s   = mk_seq(v, true); preserve(&Vm, 1, tag(s));
+hash64 hash_vec(Val x);
 
-  while ( !s->done ) {
-    x  = seq_first(s);
-    xh = rl_hash(x);
-    h  = h ? mix_hashes(h, xh) : xh;
-    s  = seq_rest(s);
-  }
-
-  return h;
-}
-
-bool egal_vecs(Val x, Val y) {
-  Vec* vx = as_vec(x), * vy = as_vec(y);
-  bool o = vx->cnt == vy->cnt;
-
-  if ( o ) {
-    if ( vx->cnt <= TL_SIZE ) {
-      // optimize for small vectors (don't need to compare sequences of values)
-      for (size64 i=0; o && i < vx->cnt; i++ )
-        o = rl_egal(vx->tl[i], vy->tl[i]);
-
-    } else {
-  
-      preserve(&Vm, 2, NUL, NUL);
-
-      Seq* sx = mk_seq(vx, true); add_to_preserved(0, tag(sx));
-      Seq* sy = mk_seq(vy, true); add_to_preserved(1, tag(sy));
-      
-      while ( o && !sx->done ) {
-        Val x0 = seq_first(sx);
-        Val y0 = seq_first(sx);
-        o      = rl_egal(x0, y0);
-        
-        if ( o ) {
-          sx = seq_rest(sx);
-          sy = seq_rest(sy);
-        }
-      }
-    }
-  }
-
-  return o;
-}
+bool egal_vecs(Val x, Val y);
 
 // print
 size64 pr_vnode_vals(State* vm, Port* p, VNode* n) {
@@ -763,5 +719,7 @@ Vec* vec_pop(Vec* v, Val* r) {
 // initialization
 void rl_toplevel_init_array(void) {
   // comput empty vector hash
-  EmptyVec.hash = mix_hashes(hash_word(T_VEC), hash_pointer(&EmptyVec));
+  EmptyVec.hash = mix_hashes(hash_word(T_VEC, true),
+                             hash_pointer(&EmptyVec, true),
+                             true);
 }

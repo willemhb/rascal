@@ -74,6 +74,7 @@ static inline Val wdata_bits(Val x) {
 
 // VTable accessor macros
 #define tname(x)       (vtbl(x)->name)
+#define thash(x)       (vtbl(x)->hash)
 #define obsize(x)      (vtbl(x)->obsize)
 #define tracefn(x)     (vtbl(x)->tracefn)
 #define freefn(x)      (vtbl(x)->freefn)
@@ -102,6 +103,7 @@ static inline Val wdata_bits(Val x) {
           char:tag_glyph,                        \
           Small:tag_small,                       \
           Num:tag_num,                           \
+          word_t:tag_num,                        \
           Ptr:tag_ptr,                           \
           sint16*:tag_ptr,                       \
           uint16*:tag_ptr,                       \

@@ -20,6 +20,43 @@ List EmptyList = {
   .tail       = &EmptyList,
 };
 
+// VTables
+void   trace_list(State* vm, void* x);
+size64 pr_list(State* vm, Port* p, Val x);
+hash64 hash_list(Val x);
+bool   egal_lists(Val x, Val y);
+int    order_lists(Val x, Val y);
+bool   list_empty(void* x);
+Val    list_first(void* x);
+void*  list_rest(void* x);
+
+
+VTable ListVt = {
+  .code    = T_LIST,
+  .name    = "List",
+  .obsize  = sizeof(List),
+  .is_seq  = true,
+  .tracefn = trace_list,
+  .prfn    = pr_list,
+  .hashfn  = hash_list,
+  .egalfn  = egal_lists,
+  .orderfn = order_lists,
+  .emptyfn = list_empty,
+  .firstfn = list_first,
+  .restfn  = list_rest,
+};
+
+void   trace_pair(State* vm, void* x);
+size64 pr_pair(State* vm, Port* p, Val x);
+
+VTable PairVt = {
+  .code    = T_PAIR,
+  .name    = "Pair",
+  .obsize  = sizeof(Pair),
+  .tracefn = trace_pair,
+  .prfn    = pr_pair,
+};
+
 /* Internal APIs */
 void init_list(List* l, Val h, size64 c, List* t) {
   l->head = h;
@@ -27,7 +64,8 @@ void init_list(List* l, Val h, size64 c, List* t) {
   l->tail = t;
 }
 
-/* Runtime APIs */
+/* Runtime APIs & Interfaces */
+// list APIs
 // lifetime
 void trace_list(State* vm, void* x) {
   List* l = x;
@@ -41,7 +79,7 @@ hash64 hash_list(Val x) {
   List* lx = as_list(x);
 
   // should never be called on an empty list
-  assert(lx->cnt == 0);
+  assert(lx->cnt != 0);
 
   // mix hashes of values (rl_hash handles mixing with type hash)
   hash64 h = 0;
@@ -112,6 +150,27 @@ size64 pr_list(State* vm, Port* p, Val x) {
   return o;
 }
 
+// Pair APIs
+void trace_pair(State* vm, void* x) {
+  Pair* p = x;
+
+  mark(vm, p->car);
+  mark(vm, p->cdr);
+}
+
+size64 pr_pair(State* vm, Port* p, Val x) {
+  (void)vm;
+
+  Pair* c   = as_pair(x);
+  size64 r  = rl_putc(p, '(');
+  r        += rl_pr(p, c->car);
+  r        += rl_printf(p, " . ");
+  r        += rl_pr(p, c->cdr);
+  r        += rl_putc(p, ')');
+
+  return r;
+}
+
 /* External APIs */
 // List API
 List* mk_list2(Val hd, List* tl) {
@@ -155,6 +214,16 @@ Val list_ref(List* xs, size64 n) {
   return xs->head;
 }
 
+// Pair API
+Pair* mk_pair(Val a, Val d) {
+  Pair* r = new_obj(&Vm, T_PAIR, MF_NOHASH);
+  r->car  = a;
+  r->cdr  = d;
+
+  return r;
+}
+
+// initialization
 void rl_toplevel_init_list(void) {
   // compute empty list hash
   EmptyList.hash = mix_hashes(hash_word(T_LIST), hash_pointer(&EmptyList));

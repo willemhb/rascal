@@ -227,5 +227,40 @@ bool  rl_done(void* x) {
 }
 
 void* rl_next(void* x) {
-  
+  void* r;
+
+  if ( x == NULL )
+    r = NULL;
+
+  else {
+    Obj* o = x;
+
+    if ( o->tag == T_SEQ ) {
+      assert(o->sealed == false);
+      Seq* s = (Seq*)o;
+      s->r_fn(s);
+
+      if ( !s->done )
+        r = s;
+ 
+    } else {
+      VTable* vt = vtbl(o->tag); assert_seq(vt);
+      RestFn rf  = restfn(vt);
+
+      if ( rf )
+        r = rf(o);
+
+      else { // unlikely case of rest being called on an ISeq object directly
+        Seq* s = mk_seq(o, vt, false);
+        s->r_fn(s);
+
+        if ( !s->done )
+          r = s;
+      }
+    }
+  }
+
+  return r;
 }
+
+#undef assert_seq

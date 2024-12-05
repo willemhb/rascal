@@ -77,7 +77,9 @@ static inline Val* dr_upv(Upv* u) {
 }
 
 Upv* new_upv(Val* l, Upv* n);
-Upv* get_upv(Val* l);
 Upv* close_upv(Upv* u);
+
+// initialization
+void rl_toplevel_init_environ(void);
 
 #endif

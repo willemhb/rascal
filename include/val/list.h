@@ -37,12 +37,13 @@ extern List EmptyList;
 List* mk_list2(Val hd, List* tl);
 List* mk_listn(size32 n, Val* d);
 Val   list_ref(List* xs, size64 n);
+Val*  push_list(Proc* p, List* xs);
 
 // Pair API
 #define is_pair(x) has_type(x, T_PAIR)
 #define as_pair(x) ((Pair*)as_obj(x))
 
-Pair* mk_pair(Val car, Val cdr);
+Pair* mk_pair(Val a, Val d);
 
 // initialization
 void rl_toplevel_init_list(void);

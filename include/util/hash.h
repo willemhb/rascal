@@ -4,7 +4,7 @@
 #include "common.h"
 
 /* Basic hashing library. */
-// hashing utilities
+// hashing utilities (if c is true compress to 48 bits)
 hash64 hash_word(word_t w);
 hash64 hash_chars(const char* d, size64 n);
 hash64 hash_bytes(const byte* d, size64 n);

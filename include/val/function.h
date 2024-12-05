@@ -21,7 +21,7 @@ struct Fn {
 struct PrimFn {
   FN_HEADER;
 
-  BuiltinFn fn; // if non-null, call this function with the vm and arity as arguments
+  CPrimFn fn; // if non-null, call this function with the vm and arity as arguments
 };
 
 struct UserFn {

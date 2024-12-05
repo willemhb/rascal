@@ -10,7 +10,17 @@
 #include "util/hash.h"
 
 /* Globals */
-extern Str* DefaultNs;
+Str* DefaultNs;
+
+// VTables
+void   trace_sym(State* vm, void* x);
+size64 pr_sym(State* vm, Port* p, Val x);
+
+VTable SymVt = {
+  .code   = T_SYM,
+  .obsize = sizeof(Sym),
+  .
+};
 
 /* Internal APIs */
 static Str* get_ns(Sym* s) {
@@ -22,19 +32,19 @@ void init_sym(State* vm, Sym* sym, Str* n, Str* ns, bool lit, bool gs) {
   static size64 gscnt = 0;
   
   sym->lit  = lit;
-  sym->id = gs ? ++gscnt : 0;
+  sym->id   = gs ? ++gscnt : 0;
   sym->n    = n;
   sym->ns   = ns;
 
   hash64 shash = n->chash;
 
   if ( ns )
-    shash = mix_hashes(ns->chash, shash);
+    shash = mix_hashes(ns->chash, shash, true);
 
   if ( gs )
-    shash = mix_hashes(hash_word(sym->id), shash);
+    shash = mix_hashes(hash_word(sym->id, false), shash, true);
 
-  shash = mix_hashes(vm->vts[T_SYM].hash, shash);
+  shash = mix_hashes(vm->vts[T_SYM]->hash, shash, true);
 
   sym->hash = shash;
 }
@@ -121,4 +131,33 @@ Sym* get_sym(char* n, char* ns, bool gs) {
   sym = new_sym(no, nso, lit, gs);
 
   return sym;
+}
+
+// Upv API
+void init_upv(Upv* u, Val* l, Upv* n) {
+  u->open = true;
+  u->next = n;
+  u->loc  = l;
+}
+
+Upv* new_upv(Val* l, Upv* n) {
+  Upv* u = new_obj(&Vm, T_UPV, false); init_upv(u, l, n);
+
+  return u;
+}
+
+Upv* close_upv(Upv* u) {
+  if ( u->open ) {
+    Val v   = *u->loc;
+    u->val  = v;
+    u->open = false;
+    u->next = NULL;
+  }
+
+  return u;
+}
+
+// initialization
+void rl_toplevel_init_environ(void) {
+  DefaultNs = get_str("toplevel", 0);
 }

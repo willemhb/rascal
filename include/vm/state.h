@@ -55,6 +55,8 @@ Val* writen(Proc* p, size32 n, Val* s);
 Val  pop(Proc* p);
 Val  popn(Proc* p, size32 n, bool e);
 Val  popnth(Proc* p, int n);
+Val* tos(Proc* p);
+Val* sref(Proc* p, int i);
 
 // call stack manipulation
 void pushf(Proc* p);
