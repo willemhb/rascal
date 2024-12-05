@@ -1,6 +1,8 @@
 #ifndef rl_util_text_h
 #define rl_util_text_h
 
+#include <string.h>
+
 #include "common.h"
 /* String, text, and binary utilities. */
 
@@ -37,9 +39,11 @@ bool   ct_is_signed(CType bt);
 bool   ct_is_float(CType bt);
 
 // string utilities
-size_t ssz(const char* s);
-size_t scnt(const char* s);
-int    scmp(const char* x, const char* y);
-bool   seq(const char* sx, const char* sy);
+void    cleanup_str(char** s);
+
+#define tmp_str cleanup(cleanup_cstr)
+
+char*  str(char* ini, size_t n);
+bool   streql(char* sx, char* sy);
 
 #endif

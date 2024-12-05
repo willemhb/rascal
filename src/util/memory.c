@@ -1,8 +1,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "util/memory.h"
+#include "vm/error.h"
 
+#include "util/memory.h"
 
 /* external API */
 void* s_malloc(size_t n, byte i) {
@@ -12,7 +13,7 @@ void* s_malloc(size_t n, byte i) {
     b = malloc(n);
 
     if ( unlikely(b == NULL) )
-      s_fatal_err(SYSTEM_ERROR, "malloc", "couldn't allocate %zu bytes", n);
+      rl_sys_err(&Main, "malloc", "couldn't allocate %zu bytes", n);
     
     memset(b, i, n);
   }
@@ -27,7 +28,7 @@ void* s_calloc(size_t n, size_t o, byte i) {
     b = calloc(n, o);
 
     if ( unlikely(b == NULL) )
-      s_fatal_err(SYSTEM_ERROR, "calloc", "couldn't allocate %zu bytes", n*o);
+      rl_sys_err(&Main, "calloc", "couldn't allocate %zu bytes", n*o);
 
     memset(b, i, n*o);
   }
@@ -69,7 +70,7 @@ void* s_realloc(void* s, size_t p, size_t n, byte i) {
     o = realloc(s, n);
 
     if ( unlikely(o == NULL) )
-      s_fatal_err(SYSTEM_ERROR, "realloc", "couldn't allocate %zu bytes", n);
+      rl_sys_err(&Main, "realloc", "couldn't allocate %zu bytes", n);
 
     if ( n > p )
       memset(o+p, i, n-p);
@@ -87,7 +88,7 @@ void* s_crealloc(void* s, size_t p, size_t n, size_t o, byte i) {
     b = realloc(s, n*o);
 
     if ( unlikely(b == NULL) )
-      s_fatal_err(SYSTEM_ERROR, "realloc", "couldn't allocate %zu bytes", n*o);
+      rl_sys_err(&Main, "realloc", "couldn't allocate %zu bytes", n*o);
 
     if ( n > p )
       memset(b+p*o, i, (n-p)*o);

@@ -41,14 +41,20 @@ struct Buffer {
 };
 
 /* Globals */
+extern Port Ins, Outs, Errs;
+
 /* External APIs */
 // Port API
 #define is_port(x) has_type(x, T_PORT)
 #define as_port(x) ((Port*)as_obj(x))
 
-int rl_printf(Port* p, char* fmt, ...);
-int rl_printv(Port* p, char* fmt, va_list va);
-int rl_putc(Port* p, Glyph g);
+Port* rl_popen(char* f, bool r);
+int   rl_printf(Port* p, char* fmt, ...);
+int   rl_printv(Port* p, char* fmt, va_list va);
+int   rl_putc(Port* p, Glyph g);
+int   rl_getc(Port* p);
+int   rl_ungetc(Port* p, Glyph g);
+int   rl_peekc(Port* p);
 
 // Str API
 #define is_str(x) has_type(x, T_STR)
@@ -79,5 +85,7 @@ void*  buffer_ref(Buffer* b, size64 n);
 size64 buffer_add(Buffer* b, word_t d);
 size64 buffer_wrt(Buffer* b, size64 n, byte* d);
 void   buffer_set(Buffer* b, size64 n, word_t d);
+
+// initialization
 
 #endif

@@ -14,6 +14,34 @@
 #include "util/number.h"
 
 /* Globals */
+// standard streams
+Port Ins = {
+  .tag     = T_PORT,
+  .sealed  = true,
+  .nohash  = true,
+  .nosweep = true,
+  .isrl    = true,
+  .ios     = NULL
+};
+
+Port Outs = {
+  .tag     = T_PORT,
+  .sealed  = true,
+  .nohash  = true,
+  .nosweep = true,
+  .isrl    = true,
+  .ios     = NULL
+};
+
+Port Errs = {
+  .tag     = T_PORT,
+  .sealed  = true,
+  .nohash  = true,
+  .nosweep = true,
+  .isrl    = true,
+  .ios     = NULL
+};
+
 /* Internal APIs */
 static void* buffer_offset(Buffer* b, size64 n) {
   return (void*)&b->data[n*b->elsize];
@@ -144,12 +172,31 @@ int rl_putc(Port* p, Glyph g) {
   return fputc(g, p->ios);
 }
 
+int rl_getc(Port* p) {
+  assert(p->ios);
+  return fgetc(p->ios);
+}
+
+int rl_ungetc(Port* p, Glyph g) {
+  assert(p->ios);
+  return ungetc(g, p->ios);
+}
+
+int rl_peekc(Port* p) {
+  int c = rl_getc(p);
+
+  if ( c != EOF )
+    rl_ungetc(p, c);
+
+  return c;
+}
+
 // Str APIs
 Str* new_str(char* cs, size64 n, bool i, hash64 h) {
   Str* s    = new_obj(&Vm, T_STR, MF_SEALED);
 
   // initialize string fields
-  s->hash   = mix_hashes(h, Vm.vts[T_STR].hash);
+  s->hash   = mix_hashes(Vm.vts[T_STR]->hash, h);
   s->cached = i;
   s->chash  = h;
   s->cnt    = n;
