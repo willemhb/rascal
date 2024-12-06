@@ -35,4 +35,6 @@ void*  rl_iter(void* x);
 bool   rl_done(void* x);    // synonym for rl_empty
 void*  rl_next(void* s);
 
+Seq*   mk_seq(void* x, bool s);
+
 #endif

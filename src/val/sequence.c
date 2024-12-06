@@ -81,7 +81,7 @@ void init_seq(Seq* s, void* x, VTable* vt) {
   }
 }
 
-Seq* mk_seq(void* x, VTable* vt, bool s) {
+Seq* new_seq(void* x, VTable* vt, bool s) {
   Seq* out = new_obj(&Vm, T_SEQ, s); init_seq(out, x, vt);
 
   return out;
@@ -106,7 +106,7 @@ void* rl_seq(void* x) {
       r = o;
 
     else
-      r = mk_seq(o, vt, true);
+      r = new_seq(o, vt, true);
   }
 
   return r;
@@ -154,7 +154,7 @@ Val rl_first(void* x) {
         r = ff(o);
 
       else { // unlikely case of first being called on an ISeq object directly
-        Seq* s = mk_seq(o, vt, true);
+        Seq* s = new_seq(o, vt, true);
         r      = seq_first(s);
       }
     }
@@ -189,7 +189,7 @@ void* rl_rest(void* x) {
         r = rf(o);
 
       else { // unlikely case of rest being called on an ISeq object directly
-        Seq* s = mk_seq(o, vt, true);
+        Seq* s = new_seq(o, vt, true);
         r      = seq_rest(s);
       }
     }
@@ -215,7 +215,7 @@ void* rl_iter(void* x) {
       r = o;
 
     else
-      r = mk_seq(o, vt, false);
+      r = new_seq(o, vt, false);
   }
 
   return r;
@@ -251,7 +251,7 @@ void* rl_next(void* x) {
         r = rf(o);
 
       else { // unlikely case of rest being called on an ISeq object directly
-        Seq* s = mk_seq(o, vt, false);
+        Seq* s = new_seq(o, vt, false);
         s->r_fn(s);
 
         if ( !s->done )
@@ -261,6 +261,10 @@ void* rl_next(void* x) {
   }
 
   return r;
+}
+
+Seq* mk_seq(void* x, bool s) {
+  return new_seq(x, vtbl(x), s);
 }
 
 #undef assert_seq

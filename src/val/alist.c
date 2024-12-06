@@ -25,6 +25,82 @@ Vec EmptyVec = {
   .nofree  = true,
   .sealed  = true,
   .gray    = true,
+  .cnt     = 0,
+  .rt      = NULL,
+  .tl      = NULL,
+};
+
+// VTable objects and interface declarations
+// Alist
+void trace_alist(State* vm, void* x);
+void free_alist(State* vm, void* x);
+void clone_alist(State* vm, void* x);
+
+VTable AlistVt = {
+  .code   =T_ALIST,
+  .name   ="Alist",
+  .obsize =sizeof(Alist),
+  .tracefn=trace_alist,
+  .freefn =free_alist,
+  .clonefn=clone_alist,
+};
+
+// Vec
+void   trace_vec(State* vm, void* x);
+void   free_vec(State* vm, void* x);
+void   clone_vec(State* vm, void* x);
+void   seal_vec(State* vm, void* x, bool d);
+size64 pr_vec(State* vm, Port* p, Val x);
+hash64 hash_vec(Val x);
+bool   egal_vecs(Val x, Val y);
+int    order_vecs(Val x, Val y);
+bool   vec_empty(void* x);
+Val    vec_first(void* x);
+void   vec_sinit(Seq* s);
+Val    vec_sfirst(Seq* s);
+void   vec_srest(Seq* s);
+
+VTable VecVt = {
+  .code    =T_VEC,
+  .name    ="Vec",
+  .obsize  =sizeof(Vec),
+  .is_iseq =true,
+  .tracefn =trace_vec,
+  .freefn  =free_vec,
+  .clonefn =clone_vec,
+  .sealfn  =seal_vec,
+  .prfn    =pr_vec,
+  .hashfn  =hash_vec,
+  .egalfn  =egal_vecs,
+  .orderfn =order_vecs,
+  .emptyfn =vec_empty,
+  .firstfn =vec_first,
+  .sinitfn =vec_sinit,
+  .sfirstfn=vec_sfirst,
+  .srestfn =vec_srest,
+};
+
+// VNode
+void trace_vnode(State* vm, void* x);
+void free_vnode(State* vm, void* x);
+void clone_vnode(State* vm, void* x);
+void seal_vnode(State* vm, void* x, bool d);
+void vnode_sinit(Seq* s);
+Val  vnode_sfirst(Seq* s);
+void vnode_srest(Seq* s);
+
+VTable VNodeVt = {
+  .code    =T_VNODE,
+  .name    ="VNode",
+  .obsize  =sizeof(VNode),
+  .is_iseq =true,
+  .tracefn =trace_vnode,
+  .freefn  =free_vnode,
+  .clonefn =clone_vnode,
+  .sealfn  =seal_vnode,
+  .sinitfn =vnode_sinit,
+  .sfirstfn=vnode_sfirst,
+  .srestfn =vnode_srest,
 };
 
 /* Internal APIs */
@@ -386,10 +462,97 @@ Seq* vec_srest(Seq* s) {
 }
 
 // comparison interface
-  /* Probably don't actually need to use sequences for egal or hash */
-hash64 hash_vec(Val x);
+hash64 hash_vec(Val x) {
+  Vec* v = as_vec(x);
 
-bool egal_vecs(Val x, Val y);
+  assert(v->cnt != 0); // should never be called on empty vector
+
+  Seq* s   = rl_iter(v); preserve(&Vm, 1, tag(s));
+  hash64 h = 0;
+
+  while ( !rl_done(s) ) {
+    Val x     = rl_first(s);
+    hash64 xh = rl_hash(x);
+    h         = mix_hashes(h, xh);
+  }
+
+  return h;
+}
+
+static bool egal_vnodes(VNode* x, VNode* y) {
+  /* only called when two vectors are known to have the same length, so the vnodes
+     are assumed to have the same structure. */
+  bool r = true;
+
+  if ( x->shft > 0 ) {
+    for ( size64 i=0; r && i < TL_CNT; i++ )
+      r = rl_egal(x->vs[i], y->vs[i]);
+  } else {
+    for ( size64 i=0; r && i < x->cnt; i++ )
+      r = egal_vnodes(x->cn[i], y->cn[i]);
+  }
+
+  return r;
+}
+
+static bool egal_vtails(Vec* vx, Vec* vy) {
+  size64 ts = tl_size(vx);
+  bool r = true;
+
+  for ( size64 i=0; r && i < ts; i++ )
+    r = rl_egal(vx->tl[i], vy->tl[i]);
+
+  return r;
+}
+
+bool egal_vecs(Val x, Val y) {
+  Vec* vx = as_vec(x), * vy = as_vec(y);
+
+  bool r  = vx->cnt == vy->cnt;
+
+  if ( r && vx->cnt > 0 ) {
+    if ( vx->rt ) {
+      r = egal_vnodes(vx->rt, vy->rt);
+
+      if ( r )
+        r = egal_vtails(vx, vy);
+
+    } else {
+      r = egal_vtails(vx, vy);
+    }
+  }
+
+  return r;
+}
+
+int order_vecs(Val x, Val y) {
+  Vec* vx = as_vec(x), * vy = as_vec(y);
+  int o = 0;
+
+  // reserve space to save sequence objects
+  preserve(&Vm, 2, NUL, NUL);
+  Seq* sx = rl_iter(vx); add_to_preserved(tag(sx), 0);
+  Seq* sy = rl_iter(vy); add_to_preserved(tag(sy), 1);
+
+  while ( !rl_done(sx) && !rl_done(sy) ) {
+    Val x = rl_first(sx);
+    Val y = rl_first(sy);
+    o     = rl_order(x, y);
+
+    if ( o != 0 )
+      break;
+
+    else {
+      rl_next(sx);
+      rl_next(sy);
+    }
+  }
+
+  if ( o == 0 && vx->cnt != vy->cnt )
+    o = 0 - (vx->cnt < vy->cnt) + (vy->cnt > vx->cnt);
+
+  return o;
+}
 
 // print
 size64 pr_vnode_vals(State* vm, Port* p, VNode* n) {

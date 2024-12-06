@@ -1,0 +1,37 @@
+#!/usr/bin/bash
+
+# echo "arguments: $#"
+
+if [ $# -e 2 ]; then
+    oldname=$1
+    newname=$2
+
+    # change file names
+    mv "include/${oldname}.h" "include/${newname}.h"
+    mv "src/${oldname}.c"     "src/${newname}.c"
+
+    # update include guards
+    sed -i "s/rl_${oldname}_h/rl_${newname}_h" "include/${newname}.h"
+
+    # update includes
+    find -name "*.[ch]" | xargs sed -i "s/include ${oldname}.h/include ${newname}.h/" 
+    
+elif [ $# -e 3 ]; then
+    subdir=$1
+    oldname=$2
+    newname=$3
+
+    # change file names
+    mv "include/${subdir}/${oldname}.h" "include/${subdir}/${newname}.h"
+    mv "src/${subdir}/${oldname}.c"     "src/${subdir}/${newname}.c"
+
+    # update include guards
+    sed -i "s/rl_${subdir}_${oldname}_h/rl_${subdir}_${newname}_h" "include/${subdir}/${newname}.h"
+
+    # update includes
+    find -name "*.[ch]" | xargs sed -i "s/include ${oldname}.h/include ${newname}.h/"
+
+else    
+    echo "usage: change-file-name <subdirectory> <old-file-name> <new-file-name>"
+    exit 1
+fi
