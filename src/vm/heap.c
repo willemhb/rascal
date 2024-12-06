@@ -3,7 +3,7 @@
 
 #include "vm/heap.h"
 
-#include "val/array.h"
+#include "val/alist.h"
 
 #include "util/memory.h"
 

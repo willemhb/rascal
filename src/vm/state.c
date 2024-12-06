@@ -7,7 +7,7 @@
 #include "vm/type.h"
 
 #include "val/function.h"
-#include "val/array.h"
+#include "val/alist.h"
 #include "val/table.h"
 
 /* Globals */

@@ -7,7 +7,7 @@
 #include "lang/exec.h"
 
 #include "val/list.h"
-#include "val/array.h"
+#include "val/alist.h"
 #include "val/text.h"
 #include "val/table.h"
 

@@ -3,7 +3,7 @@
 #include "lang/exec.h"
 #include "lang/compare.h"
 
-#include "val/array.h"
+#include "val/alist.h"
 #include "val/function.h"
 #include "val/environ.h"
 #include "val/text.h"

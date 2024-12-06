@@ -1,5 +1,5 @@
-#ifndef rl_val_array_h
-#define rl_val_array_h
+#ifndef rl_val_alist_h
+#define rl_val_alist_h
 
 #include "val/object.h"
 
@@ -13,31 +13,9 @@ struct Alist {
   Val* data;
 };
 
-struct Vec {
-  HEADER;
-
-  size64 cnt;
-  VNode* rt;
-  Val*   tl;
-};
-
-struct VNode {
-  HEADER;
-
-  bool full;         // indicates whether the node is full
-  size16 cnt, shft;
-
-  union {
-    VNode** cn;
-    Val*    vs;
-  };
-};
-
 /* Globals */
-extern Vec EmptyVec;
 
-/* APIs */
-// Alist API
+/* External APIs */
 #define is_alist(x) has_type(x, T_ALIST)
 #define as_alist(x) ((Alist*)as_obj(x))
 
@@ -58,18 +36,6 @@ Val    alist_pop(Alist* a);
 Val    alist_popn(Alist* a, size64 n, bool e);
 void   alist_cat(Alist* x, Alist* y);
 
-// Vec API
-#define is_vec(x) has_type(x, T_VEC)
-#define as_vec(x) ((Vec*)as_obj(x))
-
-Vec* mk_vec(size64 n, Val* vs);
-Val  vec_ref(Vec* v, size64 n);
-Vec* vec_add(Vec* v, Val x);
-Vec* vec_set(Vec* v, size64 i, Val x);
-Vec* vec_pop(Vec* v, Val* r);
-Vec* vec_cat(Vec* vx, Vec* vy);
-
-// initialization
-void rl_toplevel_init_array(void);
+/* Initialization */
 
 #endif

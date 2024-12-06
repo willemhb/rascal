@@ -1,0 +1,27 @@
+#!/usr/bin/bash
+
+# echo "arguments: $#"
+
+if [ $# -eq 1 ]; then
+    name=$1
+
+    # create header file
+    sed "s;FILENAME;${name};g" "bin/header.t" > "include/${name}.h"
+
+    # create object file
+    sed "s;FILENAME;${name};g" "bin/object.t" > "src/${name}.h"
+
+elif [ $# -eq 2 ]; then
+    sdir=$1
+    name=$2
+
+    # create header file
+    sed "s;FILENAME;${sdir}_${name};g" "bin/header.t" > "include/${sdir}/${name}.h"
+
+    # create object file
+    sed "s;FILENAME;${sdir}/${name};g" "bin/object.t" > "src/${sdir}/${name}.c"
+
+else    
+    echo "usage: new-file <subdirectory?> <module-name>"
+    exit 1
+fi

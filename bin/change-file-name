@@ -2,7 +2,7 @@
 
 # echo "arguments: $#"
 
-if [ $# -e 2 ]; then
+if [ $# -eq 2 ]; then
     oldname=$1
     newname=$2
 
@@ -11,12 +11,12 @@ if [ $# -e 2 ]; then
     mv "src/${oldname}.c"     "src/${newname}.c"
 
     # update include guards
-    sed -i "s/rl_${oldname}_h/rl_${newname}_h" "include/${newname}.h"
+    sed -i "s/rl_${oldname}_h/rl_${newname}_h/g" "include/${newname}.h"
 
     # update includes
-    find -name "*.[ch]" | xargs sed -i "s/include ${oldname}.h/include ${newname}.h/" 
-    
-elif [ $# -e 3 ]; then
+    find -name "*.[ch]" | xargs sed -i "s;${oldname}\\.h;${newname}\\.h;g"
+
+elif [ $# -eq 3 ]; then
     subdir=$1
     oldname=$2
     newname=$3
@@ -26,10 +26,11 @@ elif [ $# -e 3 ]; then
     mv "src/${subdir}/${oldname}.c"     "src/${subdir}/${newname}.c"
 
     # update include guards
-    sed -i "s/rl_${subdir}_${oldname}_h/rl_${subdir}_${newname}_h" "include/${subdir}/${newname}.h"
+    sed -i "s/rl_${subdir}_${oldname}_h/rl_${subdir}_${newname}_h/g" "include/${subdir}/${newname}.h"
 
     # update includes
-    find -name "*.[ch]" | xargs sed -i "s/include ${oldname}.h/include ${newname}.h/"
+    pattern="s;${dirname}/${oldname}\\.h;${dirname}/${newname}\\.h;g"
+    find -name "*.[ch]" | xargs sed -i $pattern
 
 else    
     echo "usage: change-file-name <subdirectory> <old-file-name> <new-file-name>"
