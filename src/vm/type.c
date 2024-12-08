@@ -1,6 +1,6 @@
-#include "val/environ.h"
+#include "val/env.h"
 #include "val/list.h"
-#include "val/text.h"
+#include "val/str.h"
 #include "val/alist.h"
 #include "val/table.h"
 

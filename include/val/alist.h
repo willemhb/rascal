@@ -14,8 +14,7 @@ struct Alist {
 };
 
 /* Globals */
-
-/* External APIs */
+/* API */
 #define is_alist(x) has_type(x, T_ALIST)
 #define as_alist(x) ((Alist*)as_obj(x))
 

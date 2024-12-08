@@ -11,35 +11,23 @@ typedef struct Proc     Proc;     // running state (IP, SP, etc) lives here
 typedef struct HFrame   HFrame;   // keeps track of  values in the C stack that need to be garbage collected
 typedef struct EFrame   EFrame;   // error frame
 typedef struct StrTable StrTable; // for string interning
-typedef struct VTable   VTable;   // internal methods for values of a given type
+typedef struct VTable   VTable;   // type information object
+typedef struct IObj     IObj;     // implementations for object runtime methods
+typedef struct ICmp     ICmp;     // implementations for value comparison methods
 
-// internal function pointer types
+// signature for C functions that implement primitive functions
 typedef void   (*CPrimFn)(Proc* p, int n);               // handler for PrimFn
 
-// lifetime methods
+// Object interface signatures
 typedef void   (*TraceFn)(State* vm, void* x);           // trace lifetime method
 typedef void   (*FreeFn)(State* vm, void* x);            // free lifetime method
 typedef void   (*CloneFn)(State* vm, void* x);           // clone lifetime method (only responsible for duplicating owned data)
 typedef void   (*SealFn)(State* vm, void* x, bool d);    // seal lifetime method
 
-// comparison interface methods
+// comparison interface signatures
 typedef hash64 (*HashFn)(Val x);                      // hash method
 typedef bool   (*EgalFn)(Val x, Val y);               // egal method
 typedef int    (*OrderFn)(Val x, Val y);              // order method
-
-// sequence interface methods
-// for types that implement the interface directly
-typedef bool   (*EmptyFn)(void* x);                   // empty predicate
-typedef Val    (*FirstFn)(void* x);                   // get the first item in sequence
-typedef void*  (*RestFn)(void* x);                    // get the reset of the sequence
-
-// for types that use a Seq object
-typedef void   (*SInitFn)(Seq* s);
-typedef Val    (*SFirstFn)(Seq* s);
-typedef void   (*SRestFn)(Seq* s);
-
-// miscellaneous interface methods
-typedef size64 (*PrFn)(State* vm, Port* p, Val x); // print method
 
 /* Globals */
 /* Global state objects */

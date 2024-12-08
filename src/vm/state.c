@@ -6,7 +6,7 @@
 #include "vm/error.h"
 #include "vm/type.h"
 
-#include "val/function.h"
+#include "val/func.h"
 #include "val/alist.h"
 #include "val/table.h"
 

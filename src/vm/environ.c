@@ -1,13 +1,13 @@
 #include <math.h>
 
-#include "vm/environ.h"
+#include "vm/env.h"
 #include "vm/heap.h"
 
-#include "val/text.h"
+#include "val/str.h"
 
 #include "util/number.h"
 #include "util/hash.h"
-#include "util/text.h"
+#include "util/str.h"
 
 /* Globals */
 StrTable Strings = {

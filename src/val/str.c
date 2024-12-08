@@ -1,15 +1,15 @@
 #include <string.h>
 
-#include "val/text.h"
+#include "val/str.h"
 #include "val/table.h"
-#include "val/sequence.h"
+#include "val/seq.h"
 
 #include "vm/state.h"
 #include "vm/heap.h"
 #include "vm/type.h"
-#include "vm/environ.h"
+#include "vm/env.h"
 
-#include "util/text.h"
+#include "util/str.h"
 #include "util/hash.h"
 #include "util/number.h"
 

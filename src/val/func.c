@@ -1,6 +1,6 @@
-#include "val/function.h"
-#include "val/environ.h"
-#include "val/text.h"
+#include "val/func.h"
+#include "val/env.h"
+#include "val/str.h"
 
 #include "vm/state.h"
 

@@ -3,19 +3,18 @@
 
 #include "val/value.h"
 
-#include "vm/type.h"
-
 /* Common Obj type and API functions defined here */
 
 /* C types*/
 // common object header macro
 #define HEADER                          \
   Obj*    heap;                         \
-  Table*  meta;                         \
+  Map*    meta;                         \
+  Type*   type;                         \
   union {                               \
     struct {                            \
       word_t hash    : 48;              \
-      word_t tag     :  8;              \
+      word_t vtype   :  8;              \
       word_t sealed  :  1;              \
       word_t nohash  :  1;              \
       word_t notrace :  1;              \
@@ -38,10 +37,15 @@ struct Obj {
   byte data[];
 };
 
-/* External APIs */
-// lifetime APIs
+/* API */
+#define is_obj(x)    (tag_bits(x) == OBJECT)
+#define as_obj(x)    generic2(as_obj, x, x)
 #define mark(vm, x)  generic2(mark, x, vm, x)
 #define trace(vm, x) generic2(trace, x, vm, x)
+
+// as_obj methods
+void* val_as_obj(Val x);
+void* obj_as_obj(void* x);
 
 // mark methods
 void val_mark(State* vm, Val x);

@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "util/text.h"
+#include "util/str.h"
 #include "util/memory.h"
 
 

@@ -5,8 +5,6 @@
 #include "values.h"
 #include "runtime.h"
 
-#include "vm/type.h"
-
 /* tags and masks */
 #define QNAN       0x7ff8000000000000ul
 #define SIGN       0x8000000000000000ul
@@ -26,21 +24,12 @@
 #define OBJECT     0x7ffe000000000000ul
 #define LITTLE     0xffff000000000000ul
 
-#define NUL        0xffff000100000000ul
+#define UNIT       0xffff000100000000ul
 #define BOOL       0xffff000200000000ul
 #define GLYPH      0xffff000300000000ul
 #define SMALL      0xffff000400000000ul
 
-/* not a real value (shouldn't leak), but used to detect absent or uninitialized
-   values where a value is expected. Eg, unused table nodes have both their key and
-   value set to NOTHING, while tombstones have their key set to NOTHING but retain
-   a valid value. */
-#define NOTHING    0xffff001000000001ul // NUL   |  1
-
 // Rascal true and false representation
-#define TRUE       0xffff000200000001ul // BOOL  |  1
-#define FALSE      0xffff000200000000ul // BOOL  |  0
-#define EOS        0xffff0003fffffffful // GLYPH | -1
 
 /* Globals */
 /* APIs */
@@ -62,34 +51,24 @@ static inline Val wdata_bits(Val x) {
 }
 
 // Value accessors and metaccessor shortcuts
-#define as_obj(x)      generic2(as_obj, x, x)
-#define type_of(x)     generic2(type_of, x, x)
-#define has_type(x, t) generic2(has_type, x, x, t)
+#define vtype_of(x)     generic2(vtype_of, x, x)
+#define type_of(x)      generic2(type_of, x, x)
+#define has_type(x, t)  generic2(has_type, x, x, t)
+#define has_vtype(x, t) generic2(has_vtype, x, x, t)
+
 
 #define vtbl(x)                                 \
   generic((x),                                  \
           Val:val_vtbl,                         \
-          Type:type_vtbl,                       \
+          Type*:type_vtbl,                      \
+          VType:vtype_vtbl,                     \
           default:obj_vtbl)(x)
 
 // VTable accessor macros
-#define tname(x)       (vtbl(x)->name)
-#define thash(x)       (vtbl(x)->hash)
-#define obsize(x)      (vtbl(x)->obsize)
-#define tracefn(x)     (vtbl(x)->tracefn)
-#define freefn(x)      (vtbl(x)->freefn)
-#define clonefn(x)     (vtbl(x)->clonefn)
-#define sealfn(x)      (vtbl(x)->sealfn)
-#define prfn(x)        (vtbl(x)->prfn)
-#define hashfn(x)      (vtbl(x)->hashfn)
-#define egalfn(x)      (vtbl(x)->egalfn)
-#define orderfn(x)     (vtbl(x)->orderfn)
-#define emptyfn(x)     (vtbl(x)->emptyfn)
-#define firstfn(x)     (vtbl(x)->firstfn)
-#define restfn(x)      (vtbl(x)->restfn)
-#define sinitfn(x)     (vtbl(x)->sinitfn)
-#define sfirstfn(x)    (vtbl(x)->sfirstfn)
-#define srestfn(x)     (vtbl(x)->srestfn)
+#define t_name(x)      (vtbl(x)->name)
+#define t_hash(x)      (vtbl(x)->hash)
+#define t_iobj(x)      (vtbl(x)->iobj)
+#define t_icmp(x)      (vtbl(x)->icmp)
 
 // lower-level tag macro
 #define tagv(v, t) (((Val)(v)) | (t))
@@ -137,36 +116,26 @@ Val tag_small(Small s);
 Val tag_ptr(Ptr p);
 Val tag_obj(void* p);
 
-// casting methods
-Nul    as_nul(Val x);
-Bool   as_bool(Val x);
-Glyph  as_glyph(Val x);
-Num    as_num(Val x);
-Ptr    as_ptr(Val x);
-Obj*   val_as_obj(Val v);
-Obj*   obj_as_obj(void* p);
-
 // type_of methods
-Type val_type_of(Val v);
-Type obj_type_of(void* p);
+Type* val_type_of(Val v);
+Type* obj_type_of(void* x);
 
 // has_type methods
-bool val_has_type(Val v, Type t);
-bool obj_has_type(void* p, Type t);
+bool val_has_type(Val v, Type* t);
+bool obj_has_type(void* x, Type* t);
+
+// vtype_of methods
+VType val_vtype_of(Val v);
+VType obj_vtype_of(void* p);
+
+// has_vtype methods
+bool val_has_vtype(Val v, VType t);
+bool obj_has_vtype(void* p, VType t);
 
 // VTable accessor methods
 VTable* val_vtbl(Val v);
-VTable* type_vtbl(Type t);
+VTable* vtype_vtbl(VType t);
+VTable* type_vtbl(Type* t);
 VTable* obj_vtbl(void* p);
-
-// value predicates
-bool  is_nul(Val x);
-bool  is_bool(Val x);
-bool  is_glyph(Val x);
-bool  is_num(Val x);
-bool  is_big(Val x);
-bool  is_small(Val x);
-bool  is_ptr(Val x);
-bool  is_obj(Val x);
 
 #endif

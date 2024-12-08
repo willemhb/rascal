@@ -1,4 +1,4 @@
-#include "val/sequence.h"
+#include "val/seq.h"
 
 #include "vm/state.h"
 #include "vm/heap.h"

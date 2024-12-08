@@ -1,6 +1,6 @@
 #include "lang/read.h"
 
-#include "val/text.h"
+#include "val/str.h"
 
 #include "vm/reader.h"
 

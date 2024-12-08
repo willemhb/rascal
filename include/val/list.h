@@ -3,7 +3,14 @@
 
 #include "val/object.h"
 
-/* Types, APIs, and globals supporting Rascal lists and pairs. */
+/*
+ * Classic lisp list, with caveats:
+ *
+ * 1) Rascal lists are immutable.
+ * 2) Rascal lists are always proper lists.
+ *
+ * For more traditional cons cells, see val/pair.h.
+ */
 
 /* C types */
 struct List {
@@ -14,18 +21,11 @@ struct List {
   List*  tail;
 };
 
-struct Pair {
-  HEADER;
-
-  Val car;
-  Val cdr;
-};
-
 /* Globals */
-extern List EmptyList;
+extern VTable ListVt;
+extern List   EmptyList;
 
-/* External APIs */
-// List API
+/* API */
 #define is_list(x) has_type(x, T_LIST)
 #define as_list(x) ((List*)as_obj(x))
 
@@ -39,13 +39,7 @@ List* mk_listn(size32 n, Val* d);
 Val   list_ref(List* xs, size64 n);
 Val*  push_list(Proc* p, List* xs);
 
-// Pair API
-#define is_pair(x) has_type(x, T_PAIR)
-#define as_pair(x) ((Pair*)as_obj(x))
-
-Pair* mk_pair(Val a, Val d);
-
-// initialization
+/* Initialization */
 void rl_toplevel_init_list(void);
 
 #endif

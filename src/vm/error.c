@@ -5,7 +5,7 @@
 
 #include "vm/state.h"
 #include "vm/error.h"
-#include "vm/environ.h"
+#include "vm/env.h"
 #include "vm/heap.h"
 
 /* C types */

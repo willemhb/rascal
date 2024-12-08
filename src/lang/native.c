@@ -3,8 +3,8 @@
 #include "lang/native.h"
 #include "lang/compare.h"
 
-#include "val/environ.h"
-#include "val/function.h"
+#include "val/env.h"
+#include "val/func.h"
 #include "val/list.h"
 
 #include "vm/state.h"

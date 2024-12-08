@@ -1,11 +1,11 @@
-#include "val/environ.h"
-#include "val/text.h"
+#include "val/env.h"
+#include "val/str.h"
 
 #include "vm/state.h"
 #include "vm/heap.h"
 #include "vm/type.h"
 
-#include "util/text.h"
+#include "util/str.h"
 #include "util/number.h"
 #include "util/hash.h"
 

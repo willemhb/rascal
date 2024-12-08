@@ -8,7 +8,7 @@
 
 #include "val/list.h"
 #include "val/alist.h"
-#include "val/text.h"
+#include "val/str.h"
 #include "val/table.h"
 
 #include "vm/state.h"

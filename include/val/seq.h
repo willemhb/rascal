@@ -1,5 +1,5 @@
-#ifndef rl_val_sequence_h
-#define rl_val_sequence_h
+#ifndef rl_val_seq_h
+#define rl_val_seq_h
 
 #include "val/object.h"
 

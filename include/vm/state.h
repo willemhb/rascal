@@ -5,17 +5,19 @@
 
 /* Stores all globals used by the Rascal virtual machine. */
 struct State {
+  /* Miscellaneous state */
+  bool     ini, gc;
+
   /* Heap state */
   HFrame*  hfs;
-  Alist*   grays;
+  MVec*    grays;
   Obj*     heap;
   size64   alloc, limit;
 
   /* Environment state */
   Ns*       globals;  // global namespace
-  Table*    meta;     // metadata for immediate values
   StrTable* strs;     // table of interned strings
-  VTable**  vts;      // type information needed by runtime
+  Type**    types;    // builtin types
 
   /* execution state */
   Proc*     main;     // execution state
@@ -39,7 +41,7 @@ struct Proc {
    * label before returning. Most of the time this should be `OP_NOOP`.
    */
   Opcode  next;
-  UserFn* code;
+  Chunk*  code;
   sint16* ip;
   Val*    bp;
 

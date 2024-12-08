@@ -7,7 +7,7 @@
 // general types
 typedef word_t      Val;    // tagged word. May be immediate or an object
 typedef struct Obj  Obj;    // Compound or large values are stored in a boxed object
-typedef struct Fn   Fn;     // Common function header type
+typedef struct Box  Box;    // type to represent boxed immediates
 
 // immediate types
 typedef nullptr_t Nul;
@@ -18,34 +18,41 @@ typedef sint32    Small;
 typedef void*     Ptr;
 
 // callable types
-typedef struct PrimFn PrimFn;
-typedef struct UserFn UserFn;
+typedef struct Func   Func;   // generic function object
+typedef struct Chunk  Chunk;  // compiled user code
+typedef struct Prim   Prim;   // container for primitive C function
+typedef struct MTRoot MTRoot; // method table root element
+typedef struct MTNode MTNode; // method table internal element
+typedef struct MTLeaf MTLeaf; // method table leaf element (contains actual thing to be called)
 
-// reference types
-typedef struct Sym Sym;
-
-// IO types
+// miscellaneous user types
+typedef struct Sym  Sym;
+typedef struct Type Type;
 typedef struct Port Port;
-typedef struct Str  Str;
 
 // persistent collection types
+typedef struct Str  Str;
+typedef struct Bin  Bin;
 typedef struct List List;
 typedef struct Vec  Vec;
 typedef struct Map  Map;
 
 // mutable collection types
-typedef struct Pair   Pair;
-typedef struct Buffer Buffer;
-typedef struct Alist  Alist;
-typedef struct Table  Table;
+typedef struct MStr   MStr;
+typedef struct MBin   MBin;
+typedef struct MVec   MVec;
+typedef struct MMap   MMap;
 
 // internal node types
-typedef struct VNode VNode;
-typedef struct MNode MNode;
+typedef struct VNode   VNode;
+typedef struct VLeaf   VLeaf;
+typedef struct MNode   MNode;
+typedef struct MLeaf   MLeaf;
+typedef struct MLeafs  MLeafs;
 
 // miscellaneous internal types
-typedef struct Seq Seq;
-typedef struct Rt Rt;
+typedef struct Rt   Rt;
+typedef struct Cntl Cntl;
 
 // internal environment types
 typedef struct Ns  Ns;

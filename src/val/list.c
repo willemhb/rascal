@@ -1,6 +1,7 @@
 #include "val/list.h"
+#include "val/unit.h"
 #include "val/alist.h"
-#include "val/text.h"
+#include "val/str.h"
 
 #include "lang/compare.h"
 #include "lang/print.h"
@@ -9,18 +10,10 @@
 
 #include "util/hash.h"
 
-/* Globals */
-List EmptyList = {
-  .tag        = T_LIST,
-  .nosweep    = true,
-  .gray       = true,
-  .sealed     = true,
-  .head       = NUL,
-  .cnt        = 0,
-  .tail       = &EmptyList,
-};
-
-// VTables
+/* C types */
+/* Forward declarations */
+// Helpers
+// Interface
 void   trace_list(State* vm, void* x);
 size64 pr_list(State* vm, Port* p, Val x);
 hash64 hash_list(Val x);
@@ -30,10 +23,34 @@ bool   list_empty(void* x);
 Val    list_first(void* x);
 void*  list_rest(void* x);
 
+// External
+
+/* Globals */
+List EmptyList = {
+  .vtable     = &ListVt,
+  .tag        = T_LIST,
+  .nosweep    = true,
+  .gray       = true,
+  .sealed     = true,
+  .head       = NUL,
+  .cnt        = 0,
+  .tail       = &EmptyList,
+};
+
+IObj ListIObj = {
+  .trace = trace_list
+};
+
+ICmp ListICmp = {
+  .hash  = hash_list,
+  .egal  = egal_lists,
+  .order = order_lists,
+  .
+};
 
 VTable ListVt = {
   .code    = T_LIST,
-  .name    = "List",
+  .name    = "list",
   .obsize  = sizeof(List),
   .is_seq  = true,
   .tracefn = trace_list,
