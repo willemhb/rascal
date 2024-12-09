@@ -12,7 +12,7 @@ struct EFrame {
   HFrame* hfs;
 
   /* Saved execution state */
-  UserFn* code;
+  Chunk*  code;
   sint16* ip;
   Val*    bp, * sp;
 
@@ -45,13 +45,9 @@ int    rl_require(Proc* p, bool c, Error e, char* f, char* t, ...);
 size32 rl_argco(Proc* p, char* f, size32 g, bool v, size32 e);
 size32 rl_argcos(Proc* p, char* f, size32 g, bool v, size32 n, ...);
 size64 rl_bounds(Proc* p, char* f, size64 o, size64 l, size64 u);
-Type   rl_argtype(Proc* p, char* f, Type g, Type e);
-Type   rl_argtypes(Proc* p, char* f, Type g, size64 n, ...);
+Type   rl_argtype(Proc* p, char* f, Type* g, Type* e);
+Type   rl_argtypes(Proc* p, char* f, Type* g, size64 n, ...);
 
 // safecast helpers
-#define as_fn_s(p, n, x) generic2(as_fn_s, x, p, n, x)
-
-Fn* val_as_fn_s(Proc* p, char* n, Val x);
-Fn* obj_as_fn_s(Proc* p, char* n, void* x);
 
 #endif

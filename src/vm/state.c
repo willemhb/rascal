@@ -8,7 +8,7 @@
 
 #include "val/func.h"
 #include "val/alist.h"
-#include "val/table.h"
+#include "val/collection.h"
 
 /* Globals */
 /* Stacks */

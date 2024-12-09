@@ -5,8 +5,6 @@
 
 /*
  * First-class type representation. And supporting types.
- * 
- * 
  */
 
 /* C types */
@@ -26,7 +24,7 @@ struct Type {
 
 struct VTable {
   VType   vtype;
-  size16  dsize, obsize;
+  size16  dsize, osize;
   Val     tag;
   TraceFn trace;
   FreeFn  free;

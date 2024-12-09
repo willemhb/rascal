@@ -7,12 +7,11 @@
 #include "util/number.h"
 
 /* C types */
-
 /* Forward declarations */
 // Helpers
-static void* mbin_offset(MBin* b, size64 n);
-static byte* alloc_mbin_bin(MBin* b, size64 n);
-static byte* realloc_mbin_bin(MBin* b, size64 n);
+static byte* bytes_offset(byte* d, size64 n, size64 es);
+static byte* alloc_bytes(size64 n, size64 es);
+static byte* realloc_bytes(byte* b, size64 o, size64 n, size64 es);
 
 // Interfaces
 // Bin
@@ -32,14 +31,19 @@ void clone_mbin(State* s, void* x);
 Func BinCtor = {
   .type    = &FuncType,
   .vtype   = T_FUNC,
-  .nosweep = true, 
-  ._name  = "Bin"
+  ._name   = "Bin"
+};
+
+Func MBinCtor = {
+  .type    = &FuncType,
+  .vtype   = T_FUNC,
+  ._name   = "MBin"
 };
 
 VTable BinVTable = {
   .vtype  = T_BIN,
   .dsize  = sizeof(Bin*),
-  .obsize = sizeof(Bin),
+  .osize  = sizeof(Bin),
   .tag    = OBJECT,
   .free   = free_bin,
   .clone  = clone_bin,
@@ -48,29 +52,41 @@ VTable BinVTable = {
   .order  = order_bins
 };
 
+VTable MBinVTable = {
+  .vtype  = T_MBIN,
+  .dsize  = sizeof(MBin*),
+  .osize  = sizeof(MBin),
+  .tag    = OBJECT,
+  .free   = free_mbin,
+  .clone  = clone_mbin
+};
+
 Type BinType = {
   .type    = &TypeType,
   .vtype   = T_TYPE,
-  .nosweep = true,
   ._name   = "Bin",
   .vtable  = &BinVTable,
-  .ctor    = &BinCtor,
+  .ctor    = &BinCtor
 };
 
 Type MBinType = {
-
+  .type    = &TypeType,
+  .vtype   = T_TYPE,
+  ._name   = "MBin",
+  .vtable  = &MBinVTable,
+  .ctor    = &MBinCtor
 };
 
 /* Helpers */
-static void* mbin_offset(MBin* b, size64 n) {
-  return (void*)&b->bytes[n*b->elsize];
+static byte* bytes_offset(byte* b, size64 n, size64 es) {
+  return b + n * es;
 }
 
-static byte* alloc_mbin_bin(MBin* b, size64 n) {
-  return rl_alloc(NULL, n*b->elsize);
+static byte* alloc_bytes(size64 n, size64 es) {
+  return rl_alloc(NULL, n*es);
 }
 
-static byte* realloc_mbin_bin(MBin* b, size64 on, size64 nn, size64 es) {
+static byte* realloc_bytes(byte* b, size64 on, size64 nn, size64 es) {
   return rl_realloc(NULL, b, on*es, nn*es);
 }
 

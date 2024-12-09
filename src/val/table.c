@@ -1,7 +1,7 @@
 #include <math.h>
 #include <string.h>
 
-#include "val/table.h"
+#include "val/collection.h"
 #include "val/list.h"
 
 #include "lang/compare.h"
@@ -14,9 +14,6 @@
 
 /* Globals */
 // table parameters
-#define LF      0.625
-#define LF_I    1.6
-#define MIN_CAP 8ul
 
 // map parameters
 #define MN_MAXC  64ul

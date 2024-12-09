@@ -1,7 +1,7 @@
 #include <string.h>
 
 #include "val/str.h"
-#include "val/table.h"
+#include "val/collection.h"
 #include "val/seq.h"
 
 #include "vm/state.h"
