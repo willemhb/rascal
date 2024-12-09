@@ -56,7 +56,7 @@ void val_trace(State* vm, Val x);
 void obj_trace(State* vm, void* x);
 
 // other lifetime methods
-void* new_obj(State* vm, Type t, flags32 f);
+void* new_obj(State* vm, Type* t, flags32 f);
 void  init_obj(State* vm, Obj* o, Type t, flags32 f);
 void  free_obj(State* vm, void* x);
 void  sweep_obj(State* vm, void* x);

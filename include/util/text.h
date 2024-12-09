@@ -8,7 +8,7 @@
 
 /* Encodes a value's machine type. Mostly maps to C scalar types, with a few extras. */
 
-typedef enum CType : uint8 {
+typedef enum CType {
   VOID     =0x00,
   SINT8    =0x01,
   UINT8    =0x02,

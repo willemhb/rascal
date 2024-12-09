@@ -12,8 +12,6 @@ typedef struct HFrame   HFrame;   // keeps track of  values in the C stack that 
 typedef struct EFrame   EFrame;   // error frame
 typedef struct StrTable StrTable; // for string interning
 typedef struct VTable   VTable;   // type information object
-typedef struct IObj     IObj;     // implementations for object runtime methods
-typedef struct ICmp     ICmp;     // implementations for value comparison methods
 
 // signature for C functions that implement primitive functions
 typedef void   (*CPrimFn)(Proc* p, int n);               // handler for PrimFn
@@ -23,21 +21,17 @@ typedef void   (*TraceFn)(State* vm, void* x);           // trace lifetime metho
 typedef void   (*FreeFn)(State* vm, void* x);            // free lifetime method
 typedef void   (*CloneFn)(State* vm, void* x);           // clone lifetime method (only responsible for duplicating owned data)
 typedef void   (*SealFn)(State* vm, void* x, bool d);    // seal lifetime method
+typedef Box*   (*BoxFn)(State* vm, Val d);               // called to box an immediate value
+typedef size64 (*UnboxFn)(Val d, void* b, size64 n);     // called to unbox a value with an immediate representation
 
-// comparison interface signatures
+// Comparison interface signatures
 typedef hash64 (*HashFn)(Val x);                      // hash method
 typedef bool   (*EgalFn)(Val x, Val y);               // egal method
 typedef int    (*OrderFn)(Val x, Val y);              // order method
 
 /* Globals */
-/* Global state objects */
+// Global state objects
 extern State Vm;
 extern Proc  Main;
-
-/* VTables */
-extern VTable NulVt, BoolVt, GlyphVt, NumVt, PtrVt,
-  PrimFnVt, UserFnVt, SymVt, PortVt, StrVt, ListVt, VecVt, MapVt,
-  PairVt, BufferVt, AlistVt, TableVt, VNodeVt, MNodeVt,
-  SeqVt, RtVt, NsVt, EnvVt, RefVt, UpvVt;
 
 #endif

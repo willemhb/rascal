@@ -18,26 +18,22 @@ struct Type {
     Sym*  name;
   };
 
-  size64  id;  // for builtin types this is the same as the vtype
-  VTable* vt;  // runtime information and methods
-  Map*    tpl; // for record types this is the map object to clone when creating a new instance
+  size64  id;     // for builtin types this is the same as the vtype
+  VTable* vtable; // runtime information and methods
+  Map*    proto;  // for record types this is the map object to clone when creating a new instance
+  Func*   ctor;
 };
 
 struct VTable {
-  VType  vtype;
-  IObj*  iobj;
-  ICmp*  icmp;
-};
-
-struct IObj {
-  size64  obsize;
+  VType   vtype;
+  size16  dsize, obsize;
+  Val     tag;
   TraceFn trace;
   FreeFn  free;
   CloneFn clone;
   SealFn  seal;
-};
-
-struct ICmp {
+  BoxFn   box;
+  UnboxFn unbox;
   HashFn  hash;
   EgalFn  egal;
   OrderFn order;
@@ -50,7 +46,9 @@ extern Type TypeType, AnyType, NoneType;
 #define is_type(x) has_vtype(x, T_TYPE)
 #define as_type(x) ((Type*)as_obj(x))
 
-/* Initialization */
+void init_builtin_type(State* vm, Type* t);
 
+/* Initialization */
+void rl_init_val_type(void);
 
 #endif

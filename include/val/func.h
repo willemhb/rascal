@@ -78,6 +78,9 @@ struct MTLeaf {
   };
 };
 
+/* Globals */
+extern Type FuncType, ChunkType;
+
 /* APIs */
 #define as_func(x) ((Func*)as_obj(x))
 #define is_func(x) has_vtype(x, T_FUNC)
