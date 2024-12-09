@@ -10,10 +10,6 @@
 /* Globals */
 
 /* API */
-#define is_mnode(x) has_type(x, T_MNODE)
-#define as_mnode(x) ((MNode*)as_obj(x))
-
-MNode* new_mnode(size64 shft);
 
 /* Initialization */
 

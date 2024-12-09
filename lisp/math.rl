@@ -1,9 +1,9 @@
 ;; Rascal builtin math module.
-(require "base.rl")
+(ns math "Rascal math standard library module.")
 
 ;; Common mathematical constants.
-(val pi 3.14159)
-(val e  2.71828)
+(val (Num pi) 3.14159)
+(val (Num e)  2.71828)
 
 ;; Basic extension functions.
 (fun abs

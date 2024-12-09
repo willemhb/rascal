@@ -44,8 +44,11 @@ struct ICmp {
 };
 
 /* Globals */
+extern Type TypeType, AnyType, NoneType;
 
 /* API */
+#define is_type(x) has_vtype(x, T_TYPE)
+#define as_type(x) ((Type*)as_obj(x))
 
 /* Initialization */
 

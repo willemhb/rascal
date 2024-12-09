@@ -70,9 +70,8 @@ struct Table {
 /* Globals */
 extern Type MapType, MNodeType, MLeafType, MLeafsType, MMapType;
 
-extern Map EmptyMap;
-
 /* APIs */
+// Map and supporting types
 #define is_map(x)   has_type(x, T_MAP)
 #define as_map(x)   ((Map*)as_obj(x))
 
@@ -82,8 +81,21 @@ bool map_has(Map* m, Val k);
 Map* map_set(Map* m, Val k, Val v);
 Map* map_pop(Map* m, Val k);
 
-#define is_table(x) has_type(x, T_TABLE)
-#define as_table(x) ((MMap*)as_obj(x))
+MLeaf* map_iter(Map* m, MapIter* i);
+MLeaf* map_iter_next(MapIter* i);
+
+#define is_mnode(x) has_vtype(x, T_MNODE)
+#define as_mnode(x) ((MNode*)as_obj(x))
+
+MNode* mk_mnode(size64 shft);
+
+#define is_mleaf(x) has_vtype(x, T_MLEAF)
+#define as_mleaf(x) ((MLeaf*)as_obj(x))
+
+MLeaf* mk_mleaf(hash64 h, Val k, Val v);
+
+#define is_mmap(x) has_vtype(x, T_TABLE)
+#define as_mmap(x) ((MMap*)as_obj(x))
 
 MMap*  mk_mmap(State* vm);
 void   free_mmap(State* vm, void* x);
