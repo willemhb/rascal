@@ -4,7 +4,7 @@
 #include "val/object.h"
 
 /*
- * First-class type representation. And supporting types.
+ * First-class type representation and supporting types.
  */
 
 /* C types */
@@ -17,9 +17,10 @@ struct Type {
   };
 
   size64  id;     // for builtin types this is the same as the vtype
+  Kind    kind;   // indicates how membership in this type is determined
   VTable* vtable; // runtime information and methods
   Map*    proto;  // for record types this is the map object to clone when creating a new instance
-  Func*   ctor;
+  Func*   ctor;   // constructor
 };
 
 struct VTable {
@@ -46,6 +47,7 @@ extern Type TypeType, AnyType, NoneType;
 #define as_type(x) ((Type*)as_obj(x))
 
 void init_builtin_type(State* vm, Type* t);
+void define_builtin_type(State* vm, Type* t);
 
 /* Initialization */
 void rl_init_val_type(void);

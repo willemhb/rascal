@@ -40,11 +40,18 @@ typedef enum VType {
   T_ENV    = 32,
   T_REF    = 33,
   T_UPV    = 34,
-
-  // fucked up types
-  T_BOTTOM = 35,
-  T_TOP    = 36,
 } VType;
+
+// Not VTypes but the ID needs to be known
+#define T_NONE 35
+#define T_ANY  36
+
+
+typedef enum Kind {
+  K_BOTTOM =  0,
+  K_VALUE  =  1,
+  K_TOP    =  2,
+} Kind;
 
 typedef enum Error {
   E_OKAY    = 0,
@@ -112,8 +119,11 @@ typedef enum RefType {
   R_NAMESPACE = 3, // namespace variable reference
 } RefType;
 
-#define N_TYPES   (T_TOP+1)
-#define N_OPCODES (O_RTN+1)
-#define N_ERRORS  (E_SYSTEM+1)
+#define N_VTYPES   (T_UPV+1)
+#define N_TYPES    (T_ANY+1)
+#define N_KINDS    (K_TOP+1)
+#define N_OPCODES  (O_RTN+1)
+#define N_ERRORS   (E_SYSTEM+1)
+#define N_REFTYPES (R_NAMESPACE+1)
 
 #endif

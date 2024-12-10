@@ -70,7 +70,13 @@ Sym* get_sym(char* n, char* ns, bool gs);
 Ns*  new_ns(void);
 Ref* ns_lookup(Ns* ns, Sym* n);
 Ns*  mk_ns(State* vm, void* n, bool tl);
+Ref* def_global(Ns* ns, void* n);
 
+// Ref API
+#define is_ref(x) has_vtype(x, T_REF)
+#define as_ref(x) ((Ref*)as_obj(x))
+
+Ref* init_ref(Ref* r, Val x);
 
 // Upv API
 #define is_upv(x) has_vtype(x, T_UPV)

@@ -40,10 +40,13 @@ struct Obj {
 /* API */
 #define is_obj(x)    (tag_bits(x) == OBJECT)
 #define as_obj(x)    generic2(as_obj, x, x)
+#define obhead(x)    ((Obj*)as_obj(x))
+#define obtype(x)    (obhead(x)->type)
+
 #define mark(vm, x)  generic2(mark, x, vm, x)
 #define trace(vm, x) generic2(trace, x, vm, x)
 
-// as_obj methods
+// cast methods
 void* val_as_obj(Val x);
 void* obj_as_obj(void* x);
 
@@ -56,12 +59,11 @@ void val_trace(State* vm, Val x);
 void obj_trace(State* vm, void* x);
 
 // other lifetime methods
-void* new_obj(State* vm, Type* t, flags32 f);
-void  init_obj(State* vm, Obj* o, Type t, flags32 f);
+void* mk_obj(State* vm, Type* t, flags32 f);
 void  free_obj(State* vm, void* x);
 void  sweep_obj(State* vm, void* x);
 void* clone_obj(State* vm, void* x, bool d);
-void* seal_obj(State* vm, void* x, bool d); // permanently mark an object as read-only
-void* unseal_obj(State* vm, void* x);       // return the unsealed object or an editable copy
+void* seal_obj(State* vm, void* x, bool d);  // permanently mark an object as read-only
+void* unseal_obj(State* vm, void* x);        // return the unsealed object or an editable copy
 
 #endif

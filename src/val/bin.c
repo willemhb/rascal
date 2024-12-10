@@ -79,6 +79,7 @@ Type BinType = {
   .type    = &TypeType,
   .vtype   = T_TYPE,
   ._name   = "Bin",
+  .id      = T_BIN,
   .vtable  = &BinVTable,
   .ctor    = &BinCtor
 };
@@ -87,6 +88,7 @@ Type MBinType = {
   .type    = &TypeType,
   .vtype   = T_TYPE,
   ._name   = "MBin",
+  .id      = T_MBIN,
   .vtable  = &MBinVTable,
   .ctor    = &MBinCtor
 };

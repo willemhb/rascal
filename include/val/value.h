@@ -29,6 +29,13 @@
 #define GLYPH      0xffff000300000000ul
 #define SMALL      0xffff000400000000ul
 
+// common singletons
+#define NUL        0xffff000100000000ul // UNIT  |  0
+#define NOTHING    0xffff000100000001ul // UNIT  |  1 (sentinel, not a proper value, shouldn't leak)
+#define TRUE       0xffff000200000001ul // BOOL  |  1
+#define FALSE      0xffff000200000000ul // BOOL  |  0
+#define EOS        0xffff0003fffffffful // GLYPH | -1
+
 // Rascal true and false representation
 
 /* Globals */
@@ -56,19 +63,12 @@ static inline Val wdata_bits(Val x) {
 #define has_type(x, t)  generic2(has_type, x, x, t)
 #define has_vtype(x, t) generic2(has_vtype, x, x, t)
 
-
 #define vtbl(x)                                 \
   generic((x),                                  \
           Val:val_vtbl,                         \
           Type*:type_vtbl,                      \
           VType:vtype_vtbl,                     \
           default:obj_vtbl)(x)
-
-// VTable accessor macros
-#define t_name(x)      (vtbl(x)->name)
-#define t_hash(x)      (vtbl(x)->hash)
-#define t_iobj(x)      (vtbl(x)->iobj)
-#define t_icmp(x)      (vtbl(x)->icmp)
 
 // lower-level tag macro
 #define tagv(v, t) (((Val)(v)) | (t))
@@ -89,23 +89,36 @@ static inline Val wdata_bits(Val x) {
           char*:tag_ptr,                         \
           Val*:tag_ptr,                          \
           Obj*:tag_obj,                          \
-          PrimFn*:tag_obj,                       \
-          UserFn*:tag_obj,                       \
+          Box*:tag_obj,                          \
+          Func*:tag_obj,                         \
+          Chunk*:tag_obj,                        \
+          Prim*:tag_obj,                         \
+          MTRoot*:tag_obj,                       \
+          MTNode*:tag_obj,                       \
+          MTLeaf*:tag_obj,                       \
           Sym*:tag_obj,                          \
+          Type*:tag_obj,                         \
           Port*:tag_obj,                         \
           Str*:tag_obj,                          \
+          Bin*:tag_obj,                          \
           List*:tag_obj,                         \
           Vec*:tag_obj,                          \
           Map*:tag_obj,                          \
-          Pair*:tag_obj,                         \
-          Buffer*:tag_obj,                       \
-          Alist*:tag_obj,                        \
-          Table*:tag_obj,                        \
-          Seq*:tag_obj,                          \
+          MStr*:tag_obj,                         \
+          MBin*:tag_obj,                         \
+          MVec*:tag_obj,                         \
+          MMap*:tag_obj,                         \
+          VNode*:tag_obj,                        \
+          VLeaf*:tag_obj,                        \
+          MNode*:tag_obj,                        \
+          MLeaf*:tag_obj,                        \
+          MLeafs*:tag_obj,                       \
+          Rt*:tag_obj,                           \
+          Cntl*:tag_obj,                         \
+          Ns*:tag_obj,                           \
           Env*:tag_obj,                          \
           Ref*:tag_obj,                          \
-          VNode*:tag_obj,                        \
-          MNode*:tag_obj )(x)
+          Upv*:tag_obj )(x)
 
 // tagging methods
 Val tag_nul(Nul n);

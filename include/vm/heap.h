@@ -36,7 +36,7 @@ void* rl_realloc(State* vm, void* s, size64 o, size64 n);
 void* rl_dup(State* vm, void* s, size64 n);
 void  rl_dealloc(State* vm, void* s, size64 n);
 void  rl_gc(State* vm, size64 n);
-void  add_to_heap(State* vm, void* o);
+void  add_to_heap(State* vm, void* x);
 void  push_gray(State* vm, void* o);
 void* pop_gray(State* vm);
 
