@@ -16,7 +16,7 @@
     "def*" "put*" "fn*" "fun" "mac" "val" "var" "put" "type"
 
     ;; module system
-    "ns*" "use*" "ns" "use"
+    "ns" "use"
 
     ;; closures and blocks
     "let" "label"
@@ -28,7 +28,7 @@
     "if*" "if" "cond" "case" "and" "or"
 
     ;; non-local control syntax
-    "hndl" "raise*" "hndl" "raise" "catch" "throw"
+    "hndl*" "raise*" "hndl" "raise" "catch" "throw"
 
     ;; miscellaneous syntax
     "c-call" "quote" "do" "bq*" "uq*" "splc*"
