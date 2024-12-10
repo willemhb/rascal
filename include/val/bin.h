@@ -34,18 +34,19 @@ extern Type BinType, MBinType;
 Bin*    mk_bin(CType ctype, byte* d, size64 n);
 void*   bin_ref(Bin* b, size64 n);
 Bin*    bin_set(Bin* b, size64 n, void* d);
-Bin*    bin_add(Bin* b, word_t d);
+Bin*    bin_add(Bin* b, void* d);
 size64  bin_cpy(Bin* b, void* d, size64 n);
 
 #define is_mbin(x) has_vtype(x, T_MBIN)
 #define as_mbin(x) ((MBin*)as_obj(x))
 
 MBin*   mk_mbin(CType ct);
+void    reset_mbin(MBin* b);
 void*   mbin_ref(MBin* b, size64 n);
-size64  mbin_add(MBin* b, word_t d);
+size64  mbin_add(MBin* b, void* d);
 size64  mbin_write(MBin* b, size64 n, byte* d);
-void    mbin_set(MBin* b, size64 n, word_t d);
-size64  mbin_buf(MBin* b, void* d, size64 n);
+void    mbin_set(MBin* b, size64 n, void* d);
+size64  mbin_cpy(MBin* b, void* d, size64 n);
 
 /* Initialization */
 void rl_init_val_bin(void);

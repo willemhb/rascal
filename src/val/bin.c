@@ -17,21 +17,25 @@
 /* C types */
 /* Forward declarations */
 // Helpers
-static byte* bytes_at(byte* d, size64 n, size64 es);
-static Bin*  new_bin(CType ctype);
-static void  init_bin(Bin* b, CType ctype);
+static byte*  bytes_at(byte* d, size64 n, size64 es);
+static Bin*   new_bin(CType ctype);
+static void   init_bin(Bin* b, CType ctype);
+static MBin*  new_mbin(CType ctype);
+static void   init_mbin(MBin* b, CType ctype);
+static size64 grow_mbin(MBin* b, size64 n);
+static size64 shrink_mbin(MBin* b, size64 n);
 
 // Interfaces
 // Bin
 void   free_bin(State* s, void* x);
-void   clone_bin(State* s, void* x);
+void   clone_bin(State* s, void* x, bool d);
 hash64 hash_bin(Val x);
 bool   egal_bins(Val x, Val y);
 int    order_bins(Val x, Val y);
 
 // MBin
 void free_mbin(State* s, void* x);
-void clone_mbin(State* s, void* x);
+void clone_mbin(State* s, void* x, bool d);
 void seal_mbin(State* s, void* x, bool d);
 
 // External
@@ -64,7 +68,6 @@ VTable BinVTable = {
 
 VTable MBinVTable = {
   .vtype  = T_MBIN,
-  .flags  = 0,
   .dsize  = sizeof(MBin*),
   .osize  = sizeof(MBin),
   .tag    = OBJECT,
@@ -106,6 +109,45 @@ static void init_bin(Bin* bin, CType ctype) {
   bin->bytes  = NULL;
 }
 
+static MBin* new_mbin(CType type) {
+  MBin* b = new_obj(&Vm, &MBinType, 0);
+
+  init_mbin(b, type);
+
+  return b;
+}
+
+static void init_mbin(MBin* m, CType ctype) {
+  // initialize array info
+  m->ctype   = ctype;
+  m->elsize  = ct_size(ctype);
+  m->cnt     = 0;
+  m->max     = 0;
+  m->bytes   = NULL;
+}
+
+// TODO: maybe need some additional alist helpers?
+static size64 grow_mbin(MBin* m, size64 n) {
+  size64 o = m->cnt;
+
+  if ( m->bytes == NULL )
+    m->bytes = alloc_alist("rt/grow-mbin", NULL, n, m->elsize, &m->max);
+
+  else
+    m->bytes = realloc_alist("rt/grow-mbin", m->bytes, m->cnt, n, m->elsize, &m->max);
+
+  m->cnt = n;
+
+  return o;
+}
+
+static size64 shrink_mbin(MBin* m, size64 n) {
+  m->bytes = realloc_alist("rt/shrink-mbin", m->bytes, m->cnt, n, m->elsize, &m->max);
+  m->cnt   = n;
+
+  return n;
+}
+
 /* Interfaces */
 // Bin interfaces
 void free_bin(State* s, void* x) {
@@ -116,8 +158,9 @@ void free_bin(State* s, void* x) {
   s_free("rt/free", b->bytes);
 }
 
-void clone_bin(State* s, void* x) {
+void clone_bin(State* s, void* x, bool d) {
   (void)s;
+  (void)d;
   
   Bin* b = x;
 
@@ -167,8 +210,9 @@ void free_mbin(State* s, void* x) {
   s_free("rt/free", m->bytes);
 }
 
-void clone_mbin(State* s, void* x) {
+void clone_mbin(State* s, void* x, bool d) {
   (void)s;
+  (void)d;
 
   MBin* m = x;
 
@@ -180,9 +224,9 @@ void seal_mbin(State* vm, void* x, bool d) {
   (void)d;
 
   MBin* m   = x;
-  m->nohash = true;
-  m->bytes  = trim_array("rt/seal", m->bytes, m->cnt, m->elsize);
+  m->bytes  = trim_array("rt/seal", m->bytes, m->cnt, m->elsize, false);
   m->max    = m->cnt;
+  m->nohash = true;
 }
 
 /* APIs */
@@ -205,114 +249,94 @@ void* bin_ref(Bin* b, size64 n) {
 
 Bin* bin_set(Bin* b, size64 n, void* d) {
   assert(n < b->cnt);
+  assert(d);
 
-  
+  Bin* c   = clone_obj(&Vm, b, true);
+  byte* l  = bytes_at(c->bytes, n, c->elsize);
+
+  memcpy(l, d, c->elsize);
+
+  return c;
+}
+
+Bin* bin_add(Bin* b, void* d) {
+  assert(d);
+
+  Bin* c    = clone_obj(&Vm, b, false);
+  c->bytes  = pad_array("rt/bin-add", c->bytes, c->cnt, 1, c->elsize, true);
+  byte* l   = bytes_at(c->bytes, c->cnt, c->elsize);
+  c->cnt   += 1;
+  c->hash   = 0; // invalidate hash
+
+  memcpy(l, d, c->elsize);
+
+  return c;
+}
+
+size64 bin_cpy(Bin* b, void* d, size64 n) {
+  return copy_array(d, b->bytes, min(n, b->cnt), b->elsize);
 }
 
 // MBin API
-MBin* new_mbin(CType type) {
-  MBin* b = new_obj(&Vm, &MBinType, 0);
-
-  init_mbin(&Vm, b, type);
-
-  return b;
+MBin* mk_mbin(CType ctype) {
+  return new_mbin(ctype);
 }
 
-void init_mbin(State* vm, MBin* b, CType type) {
-  (void)vm;
+void reset_mbin(MBin* b) {
+  free_mbin(&Vm, b);
 
-  // initialize Ctype info (pass VOID to indicate that this field doesn't need to be set)
-  if ( type ) {
-    b->type    = type;
-    b->elsize  = ct_size(type);
-    b->encoded = ct_is_encoded(type);
-  }
-
-  // initialize array info
-  b->cnt     = 0;
-  b->cap     = 0;
-  b->data     = NULL;
+  b->cnt   = 0;
+  b->max   = 0;
+  b->bytes = NULL;
 }
 
-void grow_mbin(MBin* b, size64 n) {
-  size64 newc = calc_mbin_size(n, b->encoded);
-  size64 oldc = b->cap;
-  byte*  newd = realloc_mbin_bin(b->data, oldc, newc, b->encoded);
-  b->cap      = newc;
-  b->data     = newd;
-}
-
-void shrink_mbin(MBin* b, size64 n) {
-  if ( n == 0 )
-    free_mbin(&Vm, b);
-
-  else {
-    size64 newc = calc_mbin_size(n, b->encoded);
-    byte*  newb = realloc_mbin_bin(b->data, b->cap, newc, b->encoded);
-    b->cap      = newc;
-    b->data     = newb;
-  }
-}
-
-void resize_mbin(MBin* b, size64 n) {
-  if ( check_mbin_shrink(n, b->cap, b->encoded) )
-    shrink_mbin(b, n);
-
-  else if ( check_mbin_grow(n, b->cap, b->encoded) )
-    grow_mbin(b, n);
-}
-
-// external methods
-void* MBin_ref(MBin* b, size64 n) {
+void* mbin_ref(MBin* b, size64 n) {
   assert(n < b->cnt);
 
-  return MBin_offset(b, n);
+  return bytes_at(b->bytes, n, b->elsize);
 }
 
-size64 MBin_add(MBin* b, word_t d) {
-  if ( check_mbin_grow(b->cnt+1, b->cap, b->encoded) )
+size64 mbin_add(MBin* b, void* d) {
+  size64 off = b->cnt;
+
+  if ( check_alist_grow(b->max, b->cnt+1) )
     grow_mbin(b, b->cnt+1);
 
-  void* spc = MBin_offset(b, b->cnt);
+  void* spc = bytes_at(b->bytes, off, b->elsize);
 
-  switch ( b->elsize ) {
-    case 1: *(uint8*)spc  = (uint8)d;  break;
-    case 2: *(uint16*)spc = (uint16)d; break;
-    case 4: *(uint32*)spc = (uint32)d; break;
-    case 8: *(uint64*)spc = (uint64)d; break;
-  }
+  memcpy(spc, d, b->elsize);
 
-  return b->cnt++;
+  return off;
 }
 
-size64 MBin_wrt(MBin* b, size64 n, byte* d) {
-  if ( check_mbin_grow(b->cnt+n, b->cap, b->encoded) )
+size64 mbin_write(MBin* b, size64 n, byte* d) {
+  size64 off = b->cnt;
+
+  if ( check_alist_grow(b->max, b->cnt+n) )
     grow_mbin(b, b->cnt+n);
 
-
-  size64 o = b->cnt;
-  
   if ( d ) {
-    void* spc = mbin_offset(b, o);
+    void* spc = bytes_at(b->bytes, off, b->elsize);
     memcpy(spc, d, n*b->elsize);
   }
 
-  b->cnt += n;
-
-  return o;
+  return off;
 }
 
-void MBin_set(MBin* b, size64 n, word_t d) {
+void mbin_set(MBin* b, size64 n, void* d) {
   assert(n < b->cnt);
 
-  void* spc = mbin_offset(b, n);
+  void* spc = bytes_at(b->bytes, n, b->elsize);
 
-  switch ( b->elsize ) {
-    case 1: *(uint8*)spc  = (uint8)d;  break;
-    case 2: *(uint16*)spc = (uint16)d; break;
-    case 4: *(uint32*)spc = (uint32)d; break;
-    case 8: *(uint64*)spc = (uint64)d; break;
-  }
+  memcpy(spc, d, b->elsize);
+}
+
+size64 mbin_cpy(MBin* b, void* d, size64 n) {
+  return copy_array(d, b->bytes, min(n, b->cnt), b->elsize);
 }
 
 /* Initialization */
+void rl_init_val_bin(void) {
+  init_builtin_type(&Vm, &BinType);
+  init_builtin_type(&Vm, &MBinType);
+}
