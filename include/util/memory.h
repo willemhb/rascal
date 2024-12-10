@@ -6,12 +6,15 @@
 /* tools and utilities for interacting with C heap (Rascal heap defined in runtime.h/c). */
 
 /* external API */
-void* s_malloc(size_t n, byte i);
-void* s_calloc(size_t n, size_t o, byte i);
-void* s_mdup(void* s, size_t n);
-char* s_sdup(char* s, size_t n);
-void* s_realloc(void* s, size_t p, size_t n, byte i);
-void* s_crealloc(void* s, size_t p, size_t n, size_t o, byte i);
-void  s_free(void* b);
+void* s_malloc(char* f, size64 n, byte i);
+void* s_calloc(char* f, size64 n, size64 o, byte i);
+void* s_salloc(char* f, size64 n, size64 o, byte i, bool ae);
+void* s_mdup(char* f, void* s, size64 n);
+void* s_cdup(char* f, void* s, size64 n, size64 o);
+char* s_sdup(char* f, char* s, size64 n);
+void* s_realloc(char* f, void* s, size64 p, size64 n, byte i);
+void* s_crealloc(char* f, void* s, size64 p, size64 n, size64 o, byte i);
+void* s_srealloc(char* f, void* s, size64 p, size64 n, size64 o, byte i, bool ae);
+void  s_free(char* f, void* b);
 
 #endif

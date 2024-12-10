@@ -4,43 +4,66 @@
 #include "vm/error.h"
 
 #include "util/memory.h"
+#include "util/number.h"
 
 /* external API */
-void* s_malloc(size_t n, byte i) {
+static char* aerr_fmt = "couldn't allocate %zu bytes";
+
+#define alloc_err(f, n) rl_sys_err(&Main, f, aerr_fmt, n)
+
+void* s_malloc(char* f, size64 n, byte i) {
   void* b = NULL;
   
   if ( n > 0 ) {
-    b = malloc(n);
+    b = calloc(n, 1);
 
     if ( unlikely(b == NULL) )
-      rl_sys_err(&Main, "malloc", "couldn't allocate %zu bytes", n);
-    
-    memset(b, i, n);
+      alloc_err(f, n);
+
+    if ( i != 0 )
+      memset(b, i, n);
   }
   
   return b;
 }
 
-void* s_calloc(size_t n, size_t o, byte i) {
+void* s_calloc(char* f, size64 n, size64 o, byte i) {
   void* b = NULL;
 
   if ( n > 0 && o > 0 ) {
     b = calloc(n, o);
 
     if ( unlikely(b == NULL) )
-      rl_sys_err(&Main, "calloc", "couldn't allocate %zu bytes", n*o);
+      alloc_err(f, n*o);
 
-    memset(b, i, n*o);
+    if ( i != 0 )
+      memset(b, i, n*o);
   }
 
   return b;
 }
 
-void* s_mdup(void* s, size_t n) {
+void* s_salloc(char* f, size64 n, size64 o, byte i, bool ae) {
+  void* b = NULL;
+
+  if ( (n > 0 || ae) && o > 0 ) {
+    b = calloc(n, o);
+
+    if ( unlikely(b == NULL) )
+      alloc_err(f, (n+1)*o);
+
+    if ( i != 0 )
+      memset(b, i, n*o);
+  }
+
+  return b;
+}
+
+void* s_mdup(char* f, void* s, size64 n) {
   void* b = NULL;
 
   if ( s != NULL ) {
-    b = s_malloc(n, 0);
+    b = s_malloc(f, n, 0);
 
     memcpy(b, s, n);
   }
@@ -48,11 +71,11 @@ void* s_mdup(void* s, size_t n) {
   return b;
 }
 
-char* s_sdup(char* s, size_t n) {
+char* s_sdup(char* f, char* s, size64 n) {
   char* b = NULL;
 
   if ( s != NULL ) {
-    b = s_malloc(n+1, 0);
+    b = s_malloc(f, n+1, 0);
 
     memcpy(b, s, n);
   }
@@ -60,7 +83,7 @@ char* s_sdup(char* s, size_t n) {
   return b;
 }
 
-void* s_realloc(void* s, size_t p, size_t n, byte i) {
+void* s_realloc(char* f, void* s, size64 p, size64 n, byte i) {
   void* o = NULL;
 
   if ( n == 0 ) {
@@ -70,7 +93,7 @@ void* s_realloc(void* s, size_t p, size_t n, byte i) {
     o = realloc(s, n);
 
     if ( unlikely(o == NULL) )
-      rl_sys_err(&Main, "realloc", "couldn't allocate %zu bytes", n);
+      alloc_err(f, n);
 
     if ( n > p )
       memset(o+p, i, n-p);
@@ -79,16 +102,16 @@ void* s_realloc(void* s, size_t p, size_t n, byte i) {
   return o;
 }
 
-void* s_crealloc(void* s, size_t p, size_t n, size_t o, byte i) {
+void* s_crealloc(char* f, void* s, size64 p, size64 n, size64 o, byte i) {
   void* b = NULL;
 
   if ( n == 0 || o == 0 ) {
-    free(s);
+    s_free(f, s);
   } else {
     b = realloc(s, n*o);
 
     if ( unlikely(b == NULL) )
-      rl_sys_err(&Main, "realloc", "couldn't allocate %zu bytes", n*o);
+      alloc_err(f, n*o);
 
     if ( n > p )
       memset(b+p*o, i, (n-p)*o);
@@ -97,6 +120,31 @@ void* s_crealloc(void* s, size_t p, size_t n, size_t o, byte i) {
   return b;
 }
 
-void s_free(void* b) {
+void* s_srealloc(char* f, void* s, size64 p, size64 n, size64 o, byte i, bool ae) {
+  (void)i;
+
+  void* b = NULL;
+
+  if ( (n == 0 && !ae) || o == 0 ) {
+    s_free(f, s);
+  } else {
+    b = calloc(n+1, o);
+
+    if ( unlikely(b == NULL) )
+      alloc_err(f, (n+1)*o);
+
+    size64 nc = min(n, p);
+
+    memcpy(b, s, nc);
+    s_free(f, s);
+  }
+
+  return b;
+}
+
+void s_free(char* f, void* b) {
+  (void)f;
   free(b);
 }
+
+#undef alloc_err

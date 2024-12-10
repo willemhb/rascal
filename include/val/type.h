@@ -24,7 +24,8 @@ struct Type {
 
 struct VTable {
   VType   vtype;
-  size16  dsize, osize;
+  flags32 flags;        // default flags
+  size32  dsize, osize;
   Val     tag;
   TraceFn trace;
   FreeFn  free;
