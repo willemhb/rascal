@@ -43,6 +43,8 @@ Expr   pop(void);
 Expr   popn(int n);
 void   run_gc(void);
 void*  allocate(bool h, size_t n);
+void*  reallocate(bool h, size_t n, size_t o, void* spc);
+void   release(void* d, size_t n);
 
 // convenience macros
 #define safepoint() setjmp(Toplevel)

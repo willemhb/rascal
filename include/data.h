@@ -1,6 +1,8 @@
 #ifndef rl_data_h
 #define rl_data_h
 
+#include <stdio.h>
+
 #include "common.h"
 
 // Types
@@ -28,10 +30,18 @@ typedef union {
   Nul  nul;
 } Val;
 
+// Internal types
+typedef void (*PrintFn)(FILE* ios, Expr x);
+typedef void (*TraceFn)(void* ob);
+typedef void (*FreeFn)(void* ob);
+
 typedef struct {
   ExpType type;
   char*   name;
   size_t  obsize;
+  PrintFn print_fn;
+  TraceFn trace_fn;
+  FreeFn  free_fn;
 } ExpTypeInfo;
 
 extern ExpTypeInfo Types[];
@@ -39,7 +49,9 @@ extern ExpTypeInfo Types[];
 #define HEAD                                    \
   Obj* heap;                                    \
   ExpType type;                                 \
-  bool marked
+  byte black;                                   \
+  byte gray;                                    \
+  short flags
 
 struct Obj {
   HEAD;
@@ -65,27 +77,37 @@ struct List {
 #define XTMSK 0xffff000000000000ul
 #define XVMSK 0x0000fffffffffffful
 
-#define OBJ     0xfffc000000000000ul
-#define NUL     0xffff000000000000ul
-#define EOS_T   0x7ffd000000000000ul
-#define EOS     0x7ffd0000fffffffful
+#define OBJ    0xfffc000000000000ul
+#define NUL    0xffff000000000000ul
+#define EOS_T  0x7ffd000000000000ul
+#define EOS    0x7ffd0000fffffffful
 
 // forward declarations
 // expression APIs
-ExpType expr_type(Expr x);
+ExpType exp_type(Expr x);
+ExpTypeInfo* exp_info(Expr x);
 
 // object API
-void   free_object(void *obj);
+void* as_obj(Expr x);
+Expr  tag_obj(void* obj);
+void* mk_obj(ExpType type);
+void  free_obj(void *obj);
 
 // symbol API
-Sym*   mk_sym(char* chars);
+Sym* mk_sym(char* chars);
+bool sym_val_eql(Sym* s, char* v);
 
 // list API
+List*  empty_list(void);
 List*  mk_list(size_t n, Expr* xs);
+List*  cons(Expr hd, List* tl);
 
-// 
+// number API
+Num  as_num(Expr x);
+Expr tag_num(Num n);
 
 // convenience macros
+#define head(x)    ((Obj*)as_obj(x))
 #define as_sym(x)  ((Sym*)as_obj(x))
 #define as_list(x) ((List*)as_obj(x))
 

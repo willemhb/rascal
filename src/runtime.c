@@ -5,7 +5,6 @@
 
 #include "runtime.h"
 
-
 // Global declarations
 char* ErrorNames[] = {
   [OKAY]          = "okay",
@@ -15,7 +14,7 @@ char* ErrorNames[] = {
 };
 
 char Token[BUFFER_SIZE];
-size_t TBOffset = 0;
+size_t TOff = 0;
 Status VmStatus = OKAY;
 jmp_buf Toplevel;
 Obj* Heap = NULL;
@@ -23,12 +22,10 @@ size_t HeapUsed = 0, HeapCap = INIT_HEAP;
 Expr Stack[STACK_SIZE];
 int Sp = 0;
 
-
 // internal helpers
 static bool check_gc(size_t n) {
   return HeapUsed + n >= HeapCap;
 }
-
 
 // error helpers
 void panic(Status etype) {
@@ -60,17 +57,17 @@ void rascal_error(Status etype, char* fmt, ...) {
 // token API
 void reset_token(void) {
   memset(Token, 0, BUFFER_SIZE);
-  TBOffset = 0;
+  TOff = 0;
 }
 
 size_t add_to_token(char c) {
-  if ( TBOffset < BUFFER_MAX )
-    Token[TBOffset++] = c;
+  if ( TOff < BUFFER_MAX )
+    Token[TOff++] = c;
 
   else
     runtime_error("maximum token length exceeded");
 
-  return TBOffset;
+  return TOff;
 }
 
 // stack API
@@ -81,7 +78,7 @@ void reset_stack(void) {
 
 Expr* stack_ref(int i) {
   int j = i;
-  
+
   if ( j < 0 )
     j += Sp;
 
@@ -146,4 +143,57 @@ void* allocate(bool h, size_t n) {
     system_error("out of memory");
 
   return out;
+}
+
+void* reallocate(bool h, size_t n, size_t o, void* spc) {
+  void* out;
+  
+  if ( n == 0 ) {
+    out = NULL;
+
+    release(spc, o * h);
+  } else if ( o == 0 ) {
+    out = allocate(h, n);
+  } else {
+    if ( h ) {
+      if ( o > n ) {
+        size_t diff = o - n;
+        out         = realloc(spc, n);
+
+        if ( out == NULL )
+          system_error("out of memory");
+        
+        HeapUsed   -= diff;
+      } else if ( o < n ) {
+        size_t diff = n - o;
+
+        if ( check_gc(diff) )
+          run_gc();
+
+        out = realloc(spc, n);
+
+        if ( out == NULL )
+          system_error("out of memory");
+
+        memset(out+o, 0, diff);
+
+        HeapUsed += diff;
+      }
+    } else {
+      out = realloc(spc, n);
+
+      if ( out == NULL )
+        system_error("out of memory");
+
+      if ( o < n )
+        memset(out+o, 0, n-o);
+    }
+  }
+
+  return out;
+}
+
+void release(void* spc, size_t n) {
+  free(spc);
+  HeapUsed -= n;
 }
