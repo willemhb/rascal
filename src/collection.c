@@ -76,6 +76,10 @@ void free_table(Table* t) {
   init_table(t);
 }
 
+bool check_grow(Table* t) {
+  return t->count + 1 >= t->max_count * LOADF;
+}
+
 #define TABLE_IMPL(K, V, T, type, NK, NV, hashf, rehashf, cmpf)         \
   void   init_##type##_kvs(KV* kvs, size_t max_count) {                 \
     for ( size_t i=0; i < max_count; i++ ) {                            \
@@ -84,12 +88,11 @@ void free_table(Table* t) {
     }                                                                   \
   }                                                                     \
                                                                         \
-  KV* type##_find(Table* t, K k) {                                      \
+  KV* type##_find(Table* t, K k, hash_t h) {                            \
     assert(t->kvs != NULL);                                             \
     KV* kvs = t->kvs, * kv, * ts = NULL;                                \
     size_t msk = t->max_count-1;                                        \
-    hash_t hash = hashf(k);                                             \
-    size_t idx = hash & msk;                                            \
+    size_t idx = h & msk;                                               \
                                                                         \
     for (;;) {                                                          \
       kv = &kvs[idx];                                                   \
@@ -106,7 +109,7 @@ void free_table(Table* t) {
     return ts ? : kv;                                                   \
   }                                                                     \
                                                                         \
-  size_t rehash_##type(KV* old, size_t omc, KV* new, size_t nmc ) {     \
+  size_t rehash_##type( KV* old, size_t omc, KV* new, size_t nmc ) {    \
     size_t cnt = 0;                                                     \
                                                                         \
     for ( size_t i=0; i < omc; i++ ) {                                  \
@@ -146,9 +149,40 @@ void free_table(Table* t) {
   }                                                                     \
                                                                         \
   bool type##_get(Table* t, K k, V* v) {                                \
+    bool out;                                                           \
                                                                         \
+    if ( t->kvs == NULL )                                               \
+      out = false;                                                      \
+    else {                                                              \
+      KV* kv = type##_find(t, k, hashf(k));                             \
+      out    = kv->key != NK;                                           \
+                                                                        \
+      if ( out && v )                                                   \
+        *v = kv->val;                                                   \
+    }                                                                   \
+                                                                        \
+    return out;                                                         \
   }                                                                     \
-    
+                                                                        \
+  bool type##_set(Table* t, K k, V v) {                                 \
+    if ( check_grow(t) )                                                \
+      grow_##type(t);                                                   \
+                                                                        \
+    KV* kv   = type##_find(t, k, hashf(k));                             \
+    bool out = kv->key == NK;                                           \
+                                                                        \
+    if ( out )                                                          \
+      kv->key = k;                                                      \
+    kv->val = v;                                                        \
+    return out;                                                         \
+  }                                                                     \
+                                                                        \
+  bool type##_del(Table* t, K k, V* v) {                                \
+    bool out;                                                           \
+                                                                        \
+    if ( )                                                              \
+  }                                                                     \
+
 bool cmp_strings( char * sx, char* sy ) {
   return strcmp(sx, sy) == 0;
 }

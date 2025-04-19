@@ -33,14 +33,15 @@ typedef void (*InternFn)(void** spc, void* k, hash_t h);
 
 void init_table(Table* t);
 void free_table(Table* t);
+bool check_grow(Table* t);
 
 #define TABLE_API(K, V, T, type)                    \
   typedef Table T;                                  \
   bool type##_get(Table* t, K k, V* v);             \
   bool type##_set(Table* t, K k, V v);              \
   bool type##_del(Table* t, K k, V* v);             \
-  bool type##_intern(Table* t, K k, InternFn ifn);  \
-  bool joine_##type##s(Table* tx, Table* ty)
+  V type##_intern(Table* t, K k, InternFn ifn);     \
+  bool join_##type##s(Table* tx, Table* ty)
 
 TABLE_API(char*, Obj*, Strings, strings);
 
