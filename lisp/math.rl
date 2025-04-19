@@ -6,42 +6,63 @@
 (val (Num e)  2.71828)
 
 ;; Basic extension functions.
+(fun neg?
+  "Predicate returns true if `x` is a negative number."
+  (Num x) (< x 0))
+
 (fun abs
   "Returns the absolute value of its argument."
-  [x]
-  (if (>= x 0) x (- x)))
+  (Num x) (if (neg? x) x (- x)))
 
 (fun sqr
   "x^2."
-  [x] (* x x))
+  (Num x) (* x x))
 
 (fun cub
   "x^3."
-  [x] (* x x x))
+  (Num x) (* x x x))
 
 (fun hlv
   "x / 2."
-  [x] (/ x 2))
+  (Num x) (/ x 2))
 
 (fun dbl
   "x * 2."
-  [x] (* x 2))
+  (Num x) (* x 2))
 
 (fun pow
   "Fast exponentiation."
   [x n]
-  (label loop [x x n n a 1]
-    (cond
-      (zero? n) a
-      (even? n) (loop (sqr x) (hlv n) a)
-      otherwise (loop x (1- n) (* x a)))))
+  (label loop [x n 1]
+    [x 1 a]
+      a
+    [x n a] @when (even? n)
+      (loop (dbl x) (hlv n) a)
+    [x n a]
+      (loop x (1- n) (* a x))))
+
+(fun len
+  "Implementation for lists."
+  ()
+    0
+  (List _ t)
+    (1+ (len t)))
+
+(fun nth
+  "Implementation for lists."
+  [() n]
+    (throw :value-error "Index ${n} out of range")
+  [(List h _) 1]
+    h
+  [(List _ t) n]
+   (nth t (1- n)))
 
 (fun sqrt
   "Compute square root using Newton's method."
   [x]
   (val epsilon 0.0001)
   (fun finished?
-    [x0 x1] (<= epsilon (- (abs (sqr x1)) x0)))
+    [x0 x1] (<= epsilon (- x1.sqr.abs x0)))
   (label loop [x x g x]
     (if (finished? x g)
       g
