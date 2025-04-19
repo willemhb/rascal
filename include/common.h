@@ -5,5 +5,6 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <assert.h>
+#include <setjmp.h>
 
 #endif
