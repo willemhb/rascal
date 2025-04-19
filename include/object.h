@@ -77,6 +77,7 @@ struct Fun {
 struct Chunk {
   HEAD;
 
+  Map* vars;
   Vec* vals;
   Bin* instr;
 };
@@ -84,7 +85,23 @@ struct Chunk {
 struct Env {
   HEAD;
 
-  
+  bool bound;
+  bool open;
+
+  Env* parent;
+  Map* mapping;
+
+  union {
+    Expr* space;
+    Vec*  vals;
+  };
+};
+
+struct Bin {
+  HEAD;
+
+  void* val;
+  size_t count, max_count;
 };
 
 struct Str {
@@ -108,6 +125,25 @@ struct List {
   Expr   head;
   List*  tail;
   size_t count;
+};
+
+struct Vec {
+  HEAD;
+
+  Expr* vals;
+  size_t count, max_count;
+};
+
+typedef struct {
+  Expr key;
+  Expr val;
+} Bucket;
+
+struct Map {
+  HEAD;
+
+  Bucket* kvs;
+  size_t count, max_count, ts_count;
 };
 
 #endif

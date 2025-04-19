@@ -1,5 +1,7 @@
 #include "common.h"
 
+#include <stdarg.h>
+#include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,20 +9,20 @@
 
 // Magic numbers
 #define BUFFER_SIZE 2048
-#define STACK_SIZE  8192
+#define STACK_SIZE  65536
 #define BUFFER_MAX  2046
 #define INIT_HEAP   (4096 * sizeof(uintptr_t))
 
-// Types
-// Token types
-typedef enum {
-  TOKEN_READY,
-  TOKEN_SYM,
-  TOKEN_NUL,
-  TOKEN_NUM,
-  TOKEN_EOS
-} Token;
+// Prompt/messages
+#define PROMPT  "rl>"
+#define VERSION "%d.%d.%d.%s"
+#define WELCOME "Welcome to rascal version "VERSION"!"
+#define MAJOR   0
+#define MINOR   1
+#define PATCH   0
+#define RELEASE "a"
 
+// Types
 // Expression types
 typedef enum {
     EXP_NUL=1,
@@ -32,7 +34,9 @@ typedef enum {
 
 typedef enum {
   OKAY,
-  PROBLEM
+  USER_ERROR,
+  RUNTIME_ERROR,
+  SYSTEM_ERROR
 } Status;
 
 typedef uintptr_t Expr;
@@ -73,7 +77,7 @@ struct List {
 };
 
 // Globals
-const char* ExpTypeName[] = {
+char* ExpTypeName[] = {
   [EXP_NUL]  = "nul",
   [EXP_EOS]  = "eos",
   [EXP_SYM]  = "sym",
@@ -81,7 +85,7 @@ const char* ExpTypeName[] = {
   [EXP_NUM]  = "num"
 };
 
-const size_t ExpTypeObjSize[] = {
+size_t ExpTypeObjSize[] = {
   [EXP_NUL]  = 0,
   [EXP_EOS]  = 0,
   [EXP_SYM]  = sizeof(Sym),
@@ -89,23 +93,21 @@ const size_t ExpTypeObjSize[] = {
   [EXP_NUM]  = 0
 };
 
-char TokenBuffer[BUFFER_SIZE];
+char* ErrorNames[] = {
+  [OKAY]          = "okay",
+  [USER_ERROR]    = "user",
+  [RUNTIME_ERROR] = "runtime",
+  [SYSTEM_ERROR]  = "sytem"
+};
+
+char Token[BUFFER_SIZE];
 size_t TBOffset = 0;
 Status VmStatus = OKAY;
+jmp_buf Toplevel;
 Obj* Heap = NULL;
 size_t HeapUsed = 0, HeapCap = INIT_HEAP;
-
-static void reset_tbuf(void) {
-  memset(TokenBuffer, 0, BUFFER_SIZE);
-  TBOffset = 0;
-}
-
-static size_t add_to_tbuf(char c) {
-  if ( TBOffset < BUFFER_MAX )
-    TokenBuffer[TBOffset++] = c;
-
-  return TBOffset;
-}
+Expr Stack[STACK_SIZE];
+int Sp = 0;
 
 // Expression tags
 #define QNAN  0x7ffc000000000000ul
@@ -113,26 +115,138 @@ static size_t add_to_tbuf(char c) {
 #define XTMSK 0xffff000000000000ul
 #define XVMSK 0x0000fffffffffffful
 
-#define OBJ   0xfffc000000000000ul
-#define NUL   0xffff000000000000ul
-#define EOS   0x7ffd0000fffffffful
+#define OBJ     0xfffc000000000000ul
+#define NUL     0xffff000000000000ul
+#define EOS_T   0x7ffd000000000000ul
+#define EOS     0x7ffd0000fffffffful
 
-// miscellaneous helpers
-#define error_message(fmt, ...) fprintf(stderr, fmt".\n" __VA_OPT__(,) __VA_ARGS__)
+// forward declarations
 
-#define fatal_error(args...)                    \
-  do {                                          \
-    error_message(args);                        \
-    exit(1);                                    \
-  } while (false)
+void   panic(Status etype);
+void   recover(void);
+void   rascal_error(Status etype, char* fmt, ...);
+void   reset_token(void);
+size_t add_to_token(char c);
+void   reset_stack(void);
+Expr*  stack_ref(int i);
+Expr*  push(Expr x);
+Expr*  pushn(int n);
+Expr   pop(void);
+Expr   popn(int n);
+
+
+#define safepoint() setjmp(Toplevel)
+
+#define user_error(args...)    rascal_error(USER_ERROR, args)
+#define runtime_error(args...) rascal_error(RUNTIME_ERROR, args)
+#define system_error(args...)  rascal_error(SYSTEM_ERROR, args)
+
+#define tos()  stack_ref(-1)
+
+// error helpers
+void panic(Status etype) {
+  if ( etype == SYSTEM_ERROR )
+    exit(1);
+
+  longjmp(Toplevel, 1);
+}
+
+void recover(void) {
+  if ( VmStatus ) {
+    VmStatus = OKAY;
+    reset_token();
+    reset_stack();
+    fseek(stdin, SEEK_SET, SEEK_END); // clear out invalid characters
+  }
+}
+
+void rascal_error(Status etype, char* fmt, ...) {
+  va_list va;
+  va_start(va, fmt);
+  fprintf(stderr, "%s error: ", ErrorNames[etype]);
+  vfprintf(stderr, fmt, va);
+  fprintf(stderr, ".\n");
+  va_end(va);
+  panic(etype);
+}
+
+// token API
+void reset_token(void) {
+  memset(Token, 0, BUFFER_SIZE);
+  TBOffset = 0;
+}
+
+size_t add_to_token(char c) {
+  if ( TBOffset < BUFFER_MAX )
+    Token[TBOffset++] = c;
+
+  else
+    runtime_error("maximum token length exceeded");
+
+  return TBOffset;
+}
+
+// stack API
+void reset_stack(void) {
+  memset(Stack, 0, STACK_SIZE * sizeof(Expr));
+  Sp = 0;
+}
+
+Expr* stack_ref(int i) {
+  int j = i;
+  
+  if ( j < 0 )
+    j += Sp;
+
+  if ( j < 0 || j > Sp ) {
+    runtime_error("stack reference %d out of bounds", i);
+  }
+
+  return &Stack[j];
+}
+
+Expr* push( Expr x ) {
+  if ( Sp == STACK_SIZE )
+    runtime_error("stack overflow");
+
+  Stack[Sp] = x;
+
+  return &Stack[Sp++];
+}
+
+Expr* pushn( int n ) {
+  if ( Sp + n >= STACK_SIZE )
+    runtime_error("stack overflow");
+
+  Expr* base = &Stack[Sp]; Sp += n;
+
+  return base;
+}
+
+Expr pop( void ) {
+  if ( Sp == 0 )
+    runtime_error("stack underflow");
+
+  return Stack[--Sp];
+}
+
+Expr popn( int n ) {
+  if ( n > Sp )
+    runtime_error("stack underflow");
+
+  Expr out = Stack[Sp-1]; Sp -= n;
+
+  return out;
+}
 
 // forward declarations
 void    run_gc(void);
+void    free_object(Obj *obj);
 ExpType expr_type(Expr x);
-Status  read_expr(Expr* r);
-Status  eval_expr(Expr* r, Expr x);
-void    print_expr(Expr x);
-void    rl_repl(void);
+Status  read_expr(FILE* in, Expr* out);
+Status  eval_expr(Expr x, Expr* out);
+void    print_expr(FILE* out, Expr x);
+void    repl(void);
 
 // internal helpers
 static bool check_gc(size_t n) {
@@ -156,7 +270,7 @@ void* allocate(bool h, size_t n) {
     out = calloc(n, 1);
 
   if ( out == NULL )
-    fatal_error("out of memory");
+    system_error("out of memory");
 
   return out;
 }
@@ -196,11 +310,11 @@ void* mk_obj(ExpType type) {
   return out;
 }
 
-Expr mk_sym(char* val) {
+Sym* mk_sym(char* val) {
   Sym* s = mk_obj(EXP_SYM);
   s->val = strdup(val);
 
-  return tag_obj(s);
+  return s;
 }
 
 static List* empty_list(void) {
@@ -221,25 +335,25 @@ static List* new_lists(size_t n) {
 
   // initialize terminal empty list
   for ( size_t i=0; i < n; i++ ) {
-    List cell = xs[i];
+    List* cell = &xs[i];
 
     // initialize the list object
-    cell.heap   = (Obj*)(&cell+1);
-    cell.type   = EXP_LIST;
-    cell.marked = false;
-    cell.head   = NUL;
-    cell.tail   = &cell + 1;
-    cell.count  = n - i;
+    cell->heap   = (Obj*)(&cell+1);
+    cell->type   = EXP_LIST;
+    cell->marked = false;
+    cell->head   = NUL;
+    cell->tail   = cell + 1;
+    cell->count  = n - i;
   }
 
   // handle the terminal empty list specially
-  List cell   = xs[n];
-  cell.heap   = Heap;
-  cell.type   = EXP_LIST;
-  cell.marked = false;
-  cell.head   = NUL;
-  cell.tail   = NULL;
-  cell.count  = 0;
+  List* cell  = &xs[n];
+  cell->heap   = Heap;
+  cell->type   = EXP_LIST;
+  cell->marked = false;
+  cell->head   = NUL;
+  cell->tail   = NULL;
+  cell->count  = 0;
 
   // add it all to the heap
   Heap = (Obj*)xs;
@@ -247,9 +361,9 @@ static List* new_lists(size_t n) {
   return xs;
 }
 
-Expr mk_list(size_t n, Expr* xs) {
+List* mk_list(size_t n, Expr* xs) {
   List* l;
-  
+
   if ( n == 0 )
     l = empty_list();
 
@@ -260,160 +374,42 @@ Expr mk_list(size_t n, Expr* xs) {
       l[i].head = xs[i];
   }
 
-  return tag_obj(l);
+  return l;
 }
 
 // implmentations
-
-// constructors
-
 ExpType expr_type(Expr x) {
   ExpType t;
 
   switch ( x & XTMSK ) {
-    case NUL: t = EXP_NUL;         break;
-    case EOS: t = EXP_EOS;         break;
-    case OBJ: t = as_obj(x)->type; break;
-    default:  t = EXP_NUM;         break;
+    case NUL  : t = EXP_NUL;         break;
+    case EOS_T: t = EXP_EOS;         break;
+    case OBJ  : t = as_obj(x)->type; break;
+    default   : t = EXP_NUM;         break;
   }
 
   return t;
 }
 
-// read helpers
-void skip_space(FILE* f) {
-  while ( !feof(f) ) {
-    int c = fgetc(f);
-
-    if ( isspace(c) )
-      continue;
-
-    else if ( c == EOF )
-      break;
-
-    else {
-      ungetc(c, f);
-      break;
-    }
-  }
-}
-
-Status eval_expr(Expr* r, Expr x) {
-  Expr v;
-  Status s = OKAY;
-
-  switch ( expr_type(x) ) {
-    default: v = x; break;
-  }
-
-  *r = v;
-
-  return s;
-}
-
-void print_expr(Expr x) {
-  switch ( expr_type(x) ) {
-    case EXP_LIST: {
-      printf("(");
-
-      List* xs = as_list(x);
-
-      while ( xs->count > 0 ) {
-        print_expr(xs->head);
-
-        if ( xs->count > 1 )
-          printf(" ");
-
-        xs = xs->tail;
-      }
-
-      printf(")");
-
-      break;
-    }
-
-    case EXP_NUL: printf("nul");                             break;
-    case EXP_SYM: printf("%s", as_sym(x)->val);              break;
-    case EXP_NUM: printf("%.2g", as_num(x));                 break;
-    default:      printf("<%s>", ExpTypeName[expr_type(x)]); break;
-  }
-}
-
 // Function prototypes
-Expr read(FILE *in);
-Expr read_list(FILE *in);
-void skip_whitespace(FILE *in);
+bool is_sym_char(int c);
+bool is_num_char(int c);
 int peek(FILE *in);
 char read_char(FILE *in);
+void skip_space(FILE* in);
+Expr read_list(FILE *in);
 Expr read_atom(FILE* in);
-Expr read_symbol(FILE *in);
-Expr read_number(FILE *in);
-void print_object(Obj *obj);
-void free_object(Obj *obj);
+Status read_expr(FILE *in, Expr* out);
 
 // Global symbol table could be added here
-Expr read(FILE *in) {
-    skip_whitespace(in);
-    Expr x;
-    int c = peek(in);
-    
-    if ( c == EOF )
-      x = EOS;
-    
-    else if ( c == '(' ) {
-      read_char(in); // consume the '('
-      x = read_list(in);
-    } else {
-      x = read_atom(in);
-    }
 
-    return x;
+// read helpers
+bool is_sym_char(int c) {
+  return !isspace(c) && !strchr("(){}[];", c);
 }
 
-Expr read_list(FILE *in) {
-    skip_whitespace(in);
-
-    
-    
-    if (peek(in) == ')') {
-        read_char(in); // consume the ')'
-        return NULL; // empty list
-    }
-    
-    Obj *car = read(in);
-    skip_whitespace(in);
-    
-    if (peek(in) == '.') {
-        // Handle dotted pairs if needed
-        read_char(in);
-        Obj *cdr = read(in);
-        skip_whitespace(in);
-        if (read_char(in) != ')') {
-            fprintf(stderr, "Expected ')' after dotted pair\n");
-            exit(EXIT_FAILURE);
-        }
-        
-        Obj *obj = malloc(sizeof(Obj));
-        obj->type = TYPE_LIST;
-        obj->data.list.car = car;
-        obj->data.list.cdr = cdr;
-        return obj;
-    }
-    
-    Obj *cdr = read_list(in);
-    
-    Obj *obj = malloc(sizeof(Obj));
-    obj->type = TYPE_LIST;
-    obj->data.list.car = car;
-    obj->data.list.cdr = cdr;
-    return obj;
-}
-
-void skip_whitespace(FILE *in) {
-    int c;
-    while ((c = peek(in)) != EOF && isspace(c)) {
-        read_char(in);
-    }
+bool is_num_char(int c) {
+  return isdigit(c) || strchr(".+-", c);
 }
 
 int peek(FILE *in) {
@@ -426,50 +422,190 @@ char read_char(FILE *in) {
     return fgetc(in);
 }
 
-Obj *read_symbol(FILE *in) {
-    char *symbol = malloc(256); // Fixed buffer for simplicity
-    int i = 0;
-    
-    int c = peek(in);
-    while (!isspace(c) && c != EOF && c != '(' && c != ')') {
-        symbol[i++] = read_char(in);
-        c = peek(in);
+// read helpers
+void skip_space(FILE* f) {
+  int c;
+  
+  while ( !feof(f) ) {
+    c = fgetc(f);
+
+    if ( !isspace(c) ) {
+      ungetc(c, f);
+      break;
     }
-    symbol[i] = '\0';
-    
-    Obj *obj = malloc(sizeof(Obj));
-    obj->type = TYPE_SYMBOL;
-    obj->data.symbol = symbol;
-    return obj;
+  }
 }
 
-Obj *read_number(FILE *in) {
-    int sign = 1;
-    int value = 0;
-    
-    if (peek(in) == '-') {
-        sign = -1;
-        read_char(in);
+Status read_expr(FILE *in, Expr* out) {
+  Status s = OKAY;
+  reset_token();
+  skip_space(in);
+  Expr x;
+  int c = peek(in);
+  
+  if ( c == EOF )
+    x = EOS;
+  else if ( c == '(' )
+    x = read_list(in);
+  else if ( is_sym_char(c) )
+    x = read_atom(in);
+  else if ( c == ')' )
+    runtime_error("dangling ')'");
+  else
+    runtime_error("unrecognized character %c", c);
+
+  *out = x;
+
+  return s;
+}
+
+Expr read_list(FILE *in) {
+  List* out;
+  skip_space(in);
+  read_char(in); // consume the '('
+  Expr* base = &Stack[Sp], x;
+  int n = 0, c;
+  
+  while ( (c=peek(in)) != ')' ) {
+    if ( feof(in) )
+      runtime_error("unterminated list");
+
+    read_expr(in, &x);
+    push(x);
+    n++;
+    skip_space(in);
+  }
+
+  read_char(in); // consume ')'
+
+  out = mk_list(n, base);
+
+  if ( n > 0 )
+    popn(n);
+
+  return tag_obj(out);
+}
+
+Expr read_atom(FILE* in) {
+  int c;
+  Expr x;
+  
+  while ( !feof(in) && is_sym_char(c=peek(in)) ) {
+    add_to_token(c); // accumulate
+    read_char(in);   // consume character
+  }
+
+  assert(TBOffset > 0);
+
+  if ( is_num_char(Token[0])) {
+    char* end;
+
+    Num n = strtod(Token, &end);
+
+    if ( end[0] != '\0' ) {   // Symbol that starts with numeric character like +, -, or digit
+      Sym* s = mk_sym(Token);
+      x      = tag_obj(s);
+    } else {
+      x      = tag_num(n);
     }
-    
-    while (isdigit(peek(in))) {
-        value = value * 10 + (read_char(in) - '0');
+  } else {
+    if ( strcmp(Token, "nul") == 0 )
+      x = NUL;
+
+    else if ( strcmp(Token, "<eos>" ) == 0 )
+      x = EOS;
+
+    else {
+      Sym* s = mk_sym(Token);
+      x      = tag_obj(s);
+    }
+  }
+
+  return x;
+}
+
+// eval
+Status eval_expr(Expr x, Expr* out) {
+  Expr v;
+  Status s = OKAY;
+
+  switch ( expr_type(x) ) {
+    default: v = x; break;
+  }
+
+  *out = v;
+
+  return s;
+}
+
+// print
+void print_num(FILE* out, Expr x) {
+  
+}
+
+void print_expr(FILE* out, Expr x) {
+  switch ( expr_type(x) ) {
+    case EXP_LIST: {
+      fprintf(out, "(");
+
+      List* xs = as_list(x);
+
+      while ( xs->count > 0 ) {
+        print_expr(out, xs->head);
+
+        if ( xs->count > 1 )
+          fprintf(out, " ");
+
+        xs = xs->tail;
+      }
+
+      fprintf(out, ")");
+
+      break;
     }
 
-    value *= sign;
-    
-    Obj *obj = malloc(sizeof(Obj));
-    obj->type = TYPE_NUMBER;
-    obj->data.number = value;
-    return obj;
+    case EXP_NUL: fprintf(out, "nul");                             break;
+    case EXP_SYM: fprintf(out, "%s", as_sym(x)->val);              break;
+    case EXP_NUM: fprintf(out, "%g", as_num(x));                   break;
+    default:      fprintf(out, "<%s>", ExpTypeName[expr_type(x)]); break;
+  }
 }
+
+// void
+void repl(void) {
+  Expr x, v;
+
+  for (;;) {
+    if ( safepoint() )
+      recover();
+
+    else {
+      fprintf(stdout, PROMPT" ");
+      read_expr(stdin, &x);
+      eval_expr(x, &v);
+      fprintf(stdout, "\n>>> ");
+      print_expr(stdout, x);
+      fprintf(stdout, "\n\n");
+    }
+  }
+}
+
+// setup/teardown
+void setup(void) {
+  fprintf(stdout, WELCOME, MAJOR, MINOR, PATCH, RELEASE);
+  fprintf(stdout, "\n\n");
+}
+
+void teardown(void) {}
 
 // entry point
 int main(int argc, const char* argv[argc]) {
   (void)argv;
   (void)argc;
 
-  rl_repl();
+  setup();
+  repl();
+  teardown();
 
   return 0;
 }
