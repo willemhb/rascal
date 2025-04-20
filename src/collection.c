@@ -10,20 +10,23 @@
 #define MIN_CAP 8
 #define LOADF   0.625
 
-// Alist APIs
-void init_alist(Alist* a) {
+// Stack APIs
+void init_stack(Stack* a) {
   a->vals      = NULL;
   a->count     = 0;
   a->max_count = 0;
 }
 
-void free_alist(Alist* a) {
+void free_stack(Stack* a) {
   release(a->vals, 0);
-  init_alist(a);
+  init_stack(a);
 }
 
-void grow_alist(Alist* a) {
-  size_t new_maxc = a->max_count ? a->max_count << 1 : MIN_CAP;
+void grow_stack(Stack* a) {
+  if ( a->max_count == MAX_ARITY )
+    runtime_error("maximum stack size exceeded");
+  
+  int   new_maxc  = a->max_count ? a->max_count << 1 : MIN_CAP;
   void** new_spc  = reallocate(false,
                                a->max_count * sizeof(void*),
                                new_maxc * sizeof(void*),
@@ -33,7 +36,7 @@ void grow_alist(Alist* a) {
   a->max_count = new_maxc;
 }
 
-void shrink_alist(Alist* a) {
+void shrink_stack(Stack* a) {
   assert(a->max_count > MIN_CAP);
 
   size_t new_maxc = a->max_count >> 1;
@@ -46,38 +49,101 @@ void shrink_alist(Alist* a) {
   a->max_count = new_maxc;
 }
 
-void alist_push(Alist* a, void* v) {
+void stack_push(Stack* a, void* v) {
   if ( a->count == a->max_count )
-    grow_alist(a);
+    grow_stack(a);
 
   a->vals[a->count++] = v;
 }
 
-void* alist_pop(Alist* a) {
+void* stack_pop(Stack* a) {
   void* out = a->vals[--a->count];
 
   if ( a->count == 0 )
-    free_alist(a);
+    free_stack(a);
 
   else if ( a->max_count > MIN_CAP && a->count < (a->max_count >> 1) )
-    shrink_alist(a);
+    shrink_stack(a);
 
   return out;
 }
 
-void trace_objs(Alist* a) {
+void trace_objs(Stack* a) {
   if ( a->vals )
     for ( int i=0; i < a->count; i++ )
       mark_obj(a->vals[i]);
 }
 
-void trace_exps(Alist* a) {
+void trace_exps(Stack* a) {
   if ( a->vals )
     for ( int i=0; i < a->count; i++ ) {
       Expr x = (Expr)a->vals[i];
 
       mark_exp(x);
     }
+}
+
+// Binary API
+// object for storing binary data
+void init_binary(Binary* b) {
+  b->vals      = NULL;
+  b->count     = 0;
+  b->max_count = 0;
+}
+
+void free_binary(Binary* b) {
+  release(b->vals, 0);
+  init_binary(b);
+}
+
+void grow_binary(Binary* b) {
+  if ( b->max_count == MAX_ARITY )
+    runtime_error("maximum buffer size exceeded");
+  
+  int     new_maxc = b->max_count ? b->max_count << 1 : MIN_CAP;
+  byte_t* new_spc  = reallocate(false, b->max_count, new_maxc, b->vals);
+
+  b->vals = new_spc;
+  b->max_count = new_maxc;
+}
+
+void shrink_binary(Binary* b) {
+  assert(b->max_count > MIN_CAP);
+
+  int     new_maxc = b->max_count >> 1;
+  byte_t* new_spc  = reallocate(false, b->max_count, new_maxc, b->vals);
+
+  b->vals      = new_spc;
+  b->max_count = new_maxc;
+}
+
+void resize_binary(Binary* b, int n) {
+  if ( n > MAX_ARITY )
+    runtime_error("maximum buffer size exceeded");
+
+  int new_maxc = cpow2(n);
+
+  if ( new_maxc < MIN_CAP )
+    new_maxc = MIN_CAP;
+
+  byte_t* new_spc = reallocate(false, b->max_count, new_maxc, b->vals);
+  b->vals         = new_spc;
+  b->max_count    = new_maxc;
+}
+
+void binary_write(Binary* b, byte_t c) {
+  if ( b->count == b->max_count )
+    grow_binary(b);
+
+  b->vals[b->count++] = c;
+}
+
+void binary_write_n(Binary* b, byte_t* cs, int n) {
+  if ( b->count + n > b->max_count )
+    resize_binary(b, b->count+n);
+
+  memcpy(b->vals+b->count, cs, n);
+  b->count += n;
 }
 
 // Table implementation macro

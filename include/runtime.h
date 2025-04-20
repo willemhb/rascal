@@ -4,10 +4,18 @@
 #include "common.h"
 #include "data.h"
 
+
+// Magic numbers
+#define BUFFER_SIZE 2048
+#define STACK_SIZE  65536
+#define BUFFER_MAX  2046
+#define INIT_HEAP   (4096 * sizeof(uintptr_t))
+
 // Internal types
 typedef enum {
   OKAY,
   USER_ERROR,
+  EVAL_ERROR,
   RUNTIME_ERROR,
   SYSTEM_ERROR
 } Status;
@@ -18,11 +26,12 @@ typedef struct GcFrame {
   Expr* exprs;
 } GcFrame;
 
-// Magic numbers
-#define BUFFER_SIZE 2048
-#define STACK_SIZE  65536
-#define BUFFER_MAX  2046
-#define INIT_HEAP   (4096 * sizeof(uintptr_t))
+typedef struct {
+  Fun*     fn;
+  instr_t* pc;
+  int      sp;
+  Expr     stack[STACK_SIZE];
+} VM;
 
 // forward declarations for global variables
 extern char Token[BUFFER_SIZE];
@@ -33,9 +42,8 @@ extern jmp_buf Toplevel;
 extern Obj* Heap;
 extern size_t HeapUsed, HeapCap;
 extern GcFrame* GcFrames;
-extern Expr Stack[STACK_SIZE];
-extern int Sp;
 extern Env Globals;
+extern VM Vm;
 
 // function prototypes
 void   panic(Status etype);
@@ -49,6 +57,8 @@ Expr*  push(Expr x);
 Expr*  pushn(int n);
 Expr   pop(void);
 Expr   popn(int n);
+void   install_code(Fun* fun);
+void   reset_vm(void);
 void   gc_save(void* ob);
 void   run_gc(void);
 void*  allocate(bool h, size_t n);
@@ -62,9 +72,12 @@ void   next_gc_frame(GcFrame* gcf);
 
 #define user_error(args...)    rascal_error(USER_ERROR, args)
 #define runtime_error(args...) rascal_error(RUNTIME_ERROR, args)
+#define eval_error(args...)    rascal_error(EVAL_ERROR, args)
 #define system_error(args...)  rascal_error(SYSTEM_ERROR, args)
 
 #define tos()  stack_ref(-1)
+
+#define next_op() *(Vm.pc++)
 
 #define preserve(n, vals...)                                            \
   Expr __gc_frame_vals__[(n)] = { vals };                               \
@@ -75,10 +88,13 @@ void   next_gc_frame(GcFrame* gcf);
   };                                                                    \
     GcFrames = &__gc_frame__
 
+#define add_to_preserved(n, x)                  \
+  __gc_frame_vals__[(n)] = (x)
+
 #define require(test, args...)                  \
   do {                                          \
     if ( !(test) )                              \
-      rascal_error(RUNTIME_ERROR, args);        \
+      rascal_error(EVAL_ERROR, args);           \
   } while (false)
 
 #endif

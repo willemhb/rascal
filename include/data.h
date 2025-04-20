@@ -12,6 +12,9 @@ typedef enum {
   EXP_NONE,
   EXP_NUL,
   EXP_EOS,
+  EXP_CHUNK,
+  EXP_ALIST,
+  EXP_BUFFER,
   EXP_ENV,
   EXP_FUN,
   EXP_SYM,
@@ -24,12 +27,15 @@ typedef enum {
 typedef uintptr_t Expr;
 typedef nullptr_t Nul;
 typedef double    Num;
-typedef struct    Obj  Obj;
-typedef struct    Env  Env;
-typedef struct    Fun  Fun;
-typedef struct    Str  Str;
-typedef struct    Sym  Sym;
-typedef struct    List List;
+typedef struct    Obj    Obj;
+typedef struct    Chunk  Chunk;
+typedef struct    Alist  Alist;
+typedef struct    Buffer Buffer;
+typedef struct    Env    Env;
+typedef struct    Fun    Fun;
+typedef struct    Str    Str;
+typedef struct    Sym    Sym;
+typedef struct    List   List;
 
 typedef union {
   Expr expr;
@@ -64,9 +70,9 @@ extern ExpTypeInfo Types[];
   union {                                        \
     flags_t bfields;                             \
     struct {                                     \
-      flags_t black   :   1;                      \
-      flags_t gray    :   1;                      \
-      flags_t nosweep :   1;                      \
+      flags_t black   :   1;                     \
+      flags_t gray    :   1;                     \
+      flags_t nosweep :   1;                     \
       flags_t flags    : 29;                     \
     };                                           \
   }
@@ -78,11 +84,22 @@ typedef enum {
 } ExpFlags;
 
 typedef enum {
+  // miscellaneous instructions
   OP_NOOP,
+
+  // variable lookups
+  OP_GET_VALUE,
+  OP_GET_GLOBAL,
+
+  // arithmetic instructions
   OP_ADD,
   OP_SUB,
   OP_MUL,
   OP_DIV,
+
+  // function calls/returns
+  OP_CALL,
+  OP_RETURN
 } OpCode;
 
 struct Obj {
@@ -93,11 +110,32 @@ struct Obj {
 TABLE_API(Strings, char*, Str*, strings);
 TABLE_API(EMap, Sym*, int, emap);
 
+struct Chunk {
+  HEAD;
+
+  Alist*  vals;
+  Buffer* code;
+};
+
+// wrapper around a Stack object
+struct Alist {
+  HEAD;
+
+  Stack stack;
+};
+
+// wrapper around a binary object
+struct Buffer {
+  HEAD;
+
+  Binary binary;
+};
+
 struct Env {
   HEAD;
 
   EMap  map;
-  Alist vals;
+  Stack vals;
 };
 
 struct Fun {
@@ -105,6 +143,7 @@ struct Fun {
 
   Sym*   name;
   OpCode label;
+  Chunk* chunk;
 };
 
 struct Sym {
@@ -158,14 +197,34 @@ void* mk_obj(ExpType type, flags_t flags);
 void  mark_obj(void* ptr);
 void  free_obj(void *ptr);
 
+// chunk API
+Chunk* mk_chunk(Alist* vals, Buffer* code);
+
+// alist API
+Alist* mk_alist(void);
+void   free_alist(void* ptr);
+int    alist_push(Alist* a, Expr x);
+Expr   alist_pop(Alist* a);
+Expr   alist_get(Alist* a, int n);
+
+// buffer API
+Buffer* mk_buffer(void);
+void    free_buffer(void* ptr);
+int     buffer_write(Buffer* b, byte_t c);
+int     buffer_write_n(Buffer* b, byte_t *cs, int n);
+
 // function API
-Fun* mk_fun(Sym* name, OpCode op);
+Fun* as_fun_s(Expr x);
+Fun* mk_fun(Sym* name, OpCode op, Chunk* code);
+Fun* mk_builtin_fun(Sym* name, OpCode op);
+Fun* mk_user_fun(Chunk* code);
 void def_builtin_fun(char* name, OpCode op);
 
 // environment API
 Env* mk_env(void);
 Expr env_get(Env* e, Sym* n);
-int  env_def(Env* e, Sym* n);
+Expr env_ref(Env* e, int n);
+int  env_put(Env* e, Sym* n);
 void env_set(Env* e, Sym* n, Expr x);
 void def_builtin(Env* e, Sym* n, Expr x);
 
@@ -183,6 +242,7 @@ List*  cons(Expr hd, List* tl);
 Expr   list_ref(List* xs, int n);
 
 // number API
+Num  as_num_s(Expr x);
 Num  as_num(Expr x);
 Expr tag_num(Num n);
 
@@ -196,6 +256,7 @@ Expr tag_num(Num n);
 #define as_list(x)     ((List*)as_obj(x))
 
 #define is_interned(s) ((s)->flags == true)
+#define is_keyword(s)  (*(s)->val->val == ':')
 #define is_sym(x)      has_type(x, EXP_SYM)
 #define is_fun(x)      has_type(x, EXP_FUN)
 #define is_list(x)     has_type(x, EXP_LIST)

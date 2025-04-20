@@ -22,10 +22,14 @@ bool   egal_syms(Expr x, Expr y);
 bool   egal_strs(Expr x, Expr y);
 bool   egal_lists(Expr x, Expr y);
 
+void trace_chunk(void* ptr);
+void trace_alist(void* ptr);
 void trace_fun(void* ptr);
 void trace_env(void* ptr);
 void trace_list(void* ptr);
 
+void free_alist(void* ptr);
+void free_buffer(void* ptr);
 void free_env(void* ptr);
 void free_str(void* ptr);
 
@@ -49,6 +53,28 @@ ExpTypeInfo Types[] = {
     .type   = EXP_EOS,
     .name   = "eos",
     .obsize = 0
+  },
+
+  [EXP_CHUNK] = {
+    .type     = EXP_CHUNK,
+    .name     = "chunk",
+    .obsize   = sizeof(Chunk),
+    .trace_fn = trace_chunk
+  },
+
+  [EXP_ALIST] = {
+    .type     = EXP_ALIST,
+    .name     = "alist",
+    .obsize   = sizeof(Alist),
+    .trace_fn = trace_alist,
+    .free_fn  = free_alist
+  },
+
+  [EXP_BUFFER] = {
+    .type     = EXP_BUFFER,
+    .name     = "buffer",
+    .obsize   = sizeof(Buffer),
+    .free_fn  = free_buffer
   },
 
   [EXP_FUN] = {
@@ -223,18 +249,116 @@ void print_none(FILE* ios, Expr x) {
   fprintf(ios, "none");
 }
 
+
+// chunk API
+Chunk* mk_chunk(Alist* vals, Buffer* code) {
+  Chunk* out = mk_obj(EXP_CHUNK, 0);
+
+  out->vals = vals;
+  out->code = code;
+
+  return out;
+}
+
+void trace_chunk(void* ptr) {
+  Chunk* chunk = ptr;
+
+  mark_obj(chunk->vals);
+  mark_obj(chunk->code);
+}
+
+// alist API
+Alist* mk_alist(void) {
+  Alist* out = mk_obj(EXP_ALIST, 0); init_stack(&out->stack);
+
+  return out;
+}
+
+int alist_push(Alist* a, Expr x) {
+  stack_push(&a->stack, (void*)x);
+
+  return a->stack.count;
+}
+
+Expr alist_pop(Alist* a) {
+  return (Expr)stack_pop(&a->stack);
+}
+
+Expr alist_get(Alist* a, int n) {
+  assert(n >= 0 && n < a->stack.count);
+
+  return (Expr)a->stack.vals[n];
+}
+
+void trace_alist(void* ptr) {
+  Alist* a = ptr;
+
+  trace_exps(&a->stack);
+}
+
+void free_alist(void* ptr) {
+  Alist* a = ptr;
+  
+  free_stack(&a->stack);
+}
+
+// buffer API
+Buffer* mk_buffer(void) {
+  Buffer* b = mk_obj(EXP_BUFFER, 0); init_binary(&b->binary);
+
+  return b;
+}
+
+int buffer_write(Buffer* b, byte_t c) {
+  binary_write(&b->binary, c);
+
+  return b->binary.count;
+}
+
+int buffer_write_n(Buffer* b, byte_t *cs, int n) {
+  binary_write_n(&b->binary, cs, n);
+
+  return b->binary.count;
+}
+
+void free_buffer(void* ptr) {
+  Buffer* b = ptr;
+
+  free_binary(&b->binary);
+}
+
 // function API
-Fun* mk_fun(Sym* name, OpCode op) {
+Fun* as_fun_s(Expr x) {
+  ExpType t = exp_type(x);
+  require(t == EXP_FUN, "expected type fun, got %s", Types[t].name);
+
+  return as_fun(x);
+}
+
+Fun* mk_fun(Sym* name, OpCode op, Chunk* code) {
   Fun* f   = mk_obj(EXP_FUN, 0);
   f->name  = name;
   f->label = op;
+  f->chunk = code;
+  
+  return f;
+}
+
+Fun* mk_builtin_fun(Sym* name, OpCode op) {
+  return mk_fun(name, op, NULL);
+}
+
+Fun* mk_user_fun(Chunk* code) {
+  Sym* n = mk_sym("fn"); preserve(1, tag_obj(n));
+  Fun* f = mk_fun(n, OP_NOOP, code);
 
   return f;
 }
 
+
 void def_builtin_fun(char* name, OpCode op) {
   Sym* sym = mk_sym(name); preserve(1, tag_obj(sym));
-  Fun* fun = mk_fun(sym, op);
+  Fun* fun = mk_builtin_fun(sym, op);
 
   return def_builtin(&Globals, sym, tag_obj(fun));
 }
@@ -243,6 +367,7 @@ void trace_fun(void* ptr) {
   Fun* fun = ptr;
 
   mark_obj(fun->name);
+  mark_obj(fun->chunk);
 }
 
 // environment API
@@ -257,7 +382,7 @@ Env* mk_env(void) {
   Env* out = mk_obj(EXP_ENV, 0);
 
   init_emap(&out->map);
-  init_alist(&out->vals);
+  init_stack(&out->vals);
 
   return out;
 }
@@ -272,17 +397,26 @@ Expr env_get(Env* e, Sym* n) {
   return o;
 }
 
-int  env_def(Env* e, Sym* n) {
+Expr env_ref(Env* e, int n) {
+  Expr o = NONE;
+
+  if ( n > 0 && n < e->vals.count )
+    o = (Expr)e->vals.vals[n];
+
+  return o;
+}
+
+int  env_put(Env* e, Sym* n) {
   int off = emap_intern(&e->map, n, intern_in_env);
 
   if ( off == e->map.count-1)
-    alist_push(&e->vals, (void*)NONE);
+    stack_push(&e->vals, (void*)NONE);
 
   return off;
 }
 
 void env_set(Env* e, Sym* n, Expr x) {
-  int off = env_def(e, n);
+  int off = env_put(e, n);
 
   e->vals.vals[off] = (void*)x;
 }
@@ -523,7 +657,22 @@ void print_list(FILE* ios, Expr x) {
 }
 
 bool egal_lists(Expr x, Expr y) {
-  
+  List* xs = as_list(x), * ys = as_list(y);
+
+  bool out = xs->count == ys->count;
+
+  while ( out && xs->count > 0 ) {
+    x   = xs->head;
+    y   = ys->head;
+    out = egal_exps(x, y);
+
+    if ( out ) {
+      xs = xs->tail;
+      ys = ys->tail;
+    }
+  }
+
+  return out;
 }
 
 void trace_list(void* ptr) {
@@ -536,6 +685,12 @@ void trace_list(void* ptr) {
 }
 
 // number APIs
+Num as_num_s(Expr x) {
+  ExpType t = exp_type(x);
+  require(t == EXP_NUM, "expected type num, got %s", Types[t].name);
+  return as_num(x);
+}
+
 Num as_num(Expr x) {
   Val v = { .expr = x };
 

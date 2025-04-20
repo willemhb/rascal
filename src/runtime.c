@@ -13,6 +13,7 @@
 char* ErrorNames[] = {
   [OKAY]          = "okay",
   [USER_ERROR]    = "user",
+  [EVAL_ERROR]    = "eval",
   [RUNTIME_ERROR] = "runtime",
   [SYSTEM_ERROR]  = "sytem"
 };
@@ -24,10 +25,33 @@ jmp_buf Toplevel;
 Obj* Heap = NULL;
 size_t HeapUsed = 0, HeapCap = INIT_HEAP;
 GcFrame* GcFrames = NULL;
-Expr Stack[STACK_SIZE];
-int Sp = 0;
 
-Alist GrayStack = {
+VM Vm = {
+  .fn = NULL,
+  .pc = NULL,
+  .sp = 0
+};
+
+Env Globals = {
+  .type    = EXP_ENV,
+  .black   = false,
+  .gray    = true,
+  .nosweep = true,
+
+  .map = {
+    .kvs       = NULL,
+    .count     = 0,
+    .max_count = 0
+  },
+
+  .vals = {
+    .vals      = NULL,
+    .count     = 0,
+    .max_count = 0
+  }
+};
+
+Stack GrayStack = {
   .vals      = NULL,
   .count     = 0,
   .max_count = 0
@@ -35,7 +59,8 @@ Alist GrayStack = {
 
 // internal helpers
 static bool check_gc(size_t n);
-static void mark_stack(void);
+static void mark_vm(void);
+static void mark_globals(void);
 static void mark_gc_frames(void);
 static void mark_phase(void);
 static void trace_phase(void);
@@ -88,55 +113,66 @@ size_t add_to_token(char c) {
 
 // stack API
 void reset_stack(void) {
-  memset(Stack, 0, STACK_SIZE * sizeof(Expr));
-  Sp = 0;
+  memset(Vm.stack, 0, STACK_SIZE * sizeof(Expr));
+  Vm.sp = 0;
 }
 
 Expr* stack_ref(int i) {
   int j = i;
 
   if ( j < 0 )
-    j += Sp;
+    j += Vm.sp;
 
-  if ( j < 0 || j > Sp ) {
+  if ( j < 0 || j > Vm.sp ) {
     runtime_error("stack reference %d out of bounds", i);
   }
 
-  return &Stack[j];
+  return &Vm.stack[j];
 }
 
 Expr* push( Expr x ) {
-  if ( Sp == STACK_SIZE )
+  if ( Vm.sp == STACK_SIZE )
     runtime_error("stack overflow");
 
-  Stack[Sp] = x;
+  Vm.stack[Vm.sp] = x;
 
-  return &Stack[Sp++];
+  return &Vm.stack[Vm.sp++];
 }
 
 Expr* pushn( int n ) {
-  if ( Sp + n >= STACK_SIZE )
+  if ( Vm.sp + n >= STACK_SIZE )
     runtime_error("stack overflow");
 
-  Expr* base = &Stack[Sp]; Sp += n;
+  Expr* base = &Vm.stack[Vm.sp]; Vm.sp += n;
 
   return base;
 }
 
 Expr pop( void ) {
-  if ( Sp == 0 )
+  if ( Vm.sp == 0 )
     runtime_error("stack underflow");
 
-  return Stack[--Sp];
+  return Vm.stack[--Vm.sp];
 }
 
 Expr popn( int n ) {
-  if ( n > Sp )
+  if ( n > Vm.sp )
     runtime_error("stack underflow");
 
-  Expr out = Stack[Sp-1]; Sp -= n;
+  Expr out = Vm.stack[Vm.sp-1]; Vm.sp -= n;
 
   return out;
+}
+
+void install_code(Fun* fun) {
+  Vm.fn = fun;
+  Vm.pc = (instr_t*)fun->chunk->code->binary.vals;
+}
+
+void reset_vm(void) {
+  Vm.pc  = NULL;
+  Vm.fn  = NULL;
+  Vm.sp  = 0;
 }
 
 // garbage collector
@@ -148,9 +184,15 @@ static bool check_heap_grow(void) {
   return HeapCap * HEAPLOAD < HeapUsed;
 }
 
-static void mark_stack(void) {
-  for ( int i=0; i < Sp; i++ )
-    mark_exp(Stack[i]);
+static void mark_vm(void) {
+  mark_obj(Vm.fn);
+
+  for ( int i=0; i < Vm.sp; i++ )
+    mark_exp(Vm.stack[i]);
+}
+
+static void mark_globals(void) {
+  mark_obj(&Globals);
 }
 
 static void mark_gc_frames(void) {
@@ -165,14 +207,15 @@ static void mark_gc_frames(void) {
 }
 
 static void mark_phase(void) {
-  mark_stack();
+  mark_vm();
+  mark_globals();
   mark_gc_frames();
 }
 
 static void trace_phase(void) {
 
   while ( GrayStack.count > 0 ) {
-    Obj* obj          = alist_pop(&GrayStack);
+    Obj* obj          = stack_pop(&GrayStack);
     ExpTypeInfo* info = &Types[obj->type];
     obj->gray         = false;
     
@@ -204,7 +247,7 @@ static void cleanup_phase(void) {
 }
 
 void gc_save(void* ob) {
-  alist_push(&GrayStack, ob);
+  stack_push(&GrayStack, ob);
 }
 
 void run_gc(void) {

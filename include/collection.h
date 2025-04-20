@@ -8,17 +8,31 @@
 typedef struct {
   void** vals;
   int count, max_count;
-} Alist;
+} Stack;
 
-// Alist APIs
-void init_alist(Alist* a);
-void free_alist(Alist* a);
-void grow_alist(Alist* a);
-void shrink_alist(Alist* a);
-void alist_push(Alist* a, void* v);
-void* alist_pop(Alist* a);
-void trace_objs(Alist* a);
-void trace_exps(Alist* a);
+// Stack APIs
+void init_stack(Stack* a);
+void free_stack(Stack* a);
+void grow_stack(Stack* a);
+void shrink_stack(Stack* a);
+void stack_push(Stack* a, void* v);
+void* stack_pop(Stack* a);
+void trace_objs(Stack* a);
+void trace_exps(Stack* a);
+
+// object for storing binary data
+typedef struct {
+  byte_t* vals;
+  int count, max_count;
+} Binary;
+
+void init_binary(Binary* b);
+void free_binary(Binary* b);
+void grow_binary(Binary* b);
+void shrink_binary(Binary* b);
+void resize_binary(Binary* b, int n);
+void binary_write(Binary* b, byte_t c);
+void binary_write_n(Binary* b, byte_t* cs, int n);
 
 // table template
 #define TABLE_API(T, K, V, t)                                    \

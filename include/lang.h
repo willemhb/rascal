@@ -8,9 +8,9 @@
 #include "data.h"
 
 // forward declarations
-Status  read_exp(FILE* in, Expr* out);
-Status  eval_exp(Expr x, Expr* out);
-void    print_exp(FILE* out, Expr x);
-void    repl(void);
+Expr read_exp(FILE* in);
+Expr eval_exp(Expr x);
+void print_exp(FILE* out, Expr x);
+void repl(void);
 
 #endif

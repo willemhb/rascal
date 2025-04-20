@@ -12,11 +12,8 @@ uintptr_t cpow2(uintptr_t i)
     if ( i &TOP_BIT )
       return TOP_BIT;
 
-    // repeatedly clear bottom bit
-    while (i&(i-1))
-        i = i&(i-1);
-
-    return i<<1;
+    // bit twiddling (changed from busted version using while loop)
+    return i << (64 - clz(i) + 1);
 }
 
 // hashing constants
@@ -37,7 +34,7 @@ hash_t hash_string(char* chars) {
 }
 
 hash_t hash_word(uintptr_t word) {
-  // copied directly from femtolisp
+  // copied directly from femtolisp repo
     word = (~word) + (word << 21);             // word = (word << 21) - word - 1;
     word =   word  ^ (word >> 24);
     word = (word + (word << 3)) + (word << 8); // word * 265
