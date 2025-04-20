@@ -57,7 +57,7 @@ Expr read_exp(FILE *in) {
   skip_space(in);
   Expr x;
   int c = peek(in);
-  
+
   if ( c == EOF )
     x = EOS;
   else if ( c == '(' )
@@ -218,7 +218,7 @@ void emit_instr(Buffer* code, OpCode op, ...) {
 void compile_literal(Expr x, Alist* vals, Buffer* code) {
   int n = alist_push(vals, x);
 
-  emit_instr(code, OP_GET_VALUE, n);
+  emit_instr(code, OP_GET_VALUE, n-1);
 }
 
 void compile_global(Sym* s, Buffer* code) {
@@ -267,18 +267,17 @@ void compile_expr(Expr x, Alist* vals, Buffer* code) {
 Fun* toplevel_compile(List* form) {
   preserve(3, tag_obj(form), NUL, NUL);
 
-  Alist* vals  = mk_alist();  add_to_preserved(tag_obj(vals), 1);
-  Buffer* code = mk_buffer(); add_to_preserved(tag_obj(code), 2);
+  Alist* vals  = mk_alist();  add_to_preserved(1, tag_obj(vals));
+  Buffer* code = mk_buffer(); add_to_preserved(2, tag_obj(code));
 
   compile_funcall(form, vals, code);
   emit_instr(code, OP_RETURN);
 
-  Chunk* chunk = mk_chunk(vals, code); add_to_preserved(tag_obj(chunk), 1);
+  Chunk* chunk = mk_chunk(vals, code); add_to_preserved(1, tag_obj(chunk));
   Fun* out     = mk_user_fun(chunk);
 
   return out;
 }
-
 
 // exec
 Expr exec_code(Fun* fun) {
@@ -370,7 +369,7 @@ Expr exec_code(Fun* fun) {
   z      = tag_num(nz);
   *tos() = z;           // combine push/pop
 
-  goto fetch;  
+  goto fetch;
 
  op_call:
   argc = next_op();
@@ -382,10 +381,10 @@ Expr exec_code(Fun* fun) {
   op = fun->label;
 
   goto *labels[op];
-  
+
  op_return:
   x = pop(); reset_vm();
-  
+
   return x;
 }
 

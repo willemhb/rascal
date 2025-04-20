@@ -355,12 +355,11 @@ Fun* mk_user_fun(Chunk* code) {
   return f;
 }
 
-
 void def_builtin_fun(char* name, OpCode op) {
   Sym* sym = mk_sym(name); preserve(1, tag_obj(sym));
   Fun* fun = mk_builtin_fun(sym, op);
 
-  return def_builtin(&Globals, sym, tag_obj(fun));
+  env_set(&Globals, sym, tag_obj(fun));
 }
 
 void trace_fun(void* ptr) {
@@ -400,7 +399,7 @@ Expr env_get(Env* e, Sym* n) {
 Expr env_ref(Env* e, int n) {
   Expr o = NONE;
 
-  if ( n > 0 && n < e->vals.count )
+  if ( n >= 0 && n < e->vals.count )
     o = (Expr)e->vals.vals[n];
 
   return o;

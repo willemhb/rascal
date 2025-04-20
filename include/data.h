@@ -199,6 +199,7 @@ void  free_obj(void *ptr);
 
 // chunk API
 Chunk* mk_chunk(Alist* vals, Buffer* code);
+void   dis_chunk(Chunk* chunk);
 
 // alist API
 Alist* mk_alist(void);

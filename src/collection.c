@@ -28,8 +28,8 @@ void grow_stack(Stack* a) {
   
   int   new_maxc  = a->max_count ? a->max_count << 1 : MIN_CAP;
   void** new_spc  = reallocate(false,
-                               a->max_count * sizeof(void*),
                                new_maxc * sizeof(void*),
+                               a->max_count * sizeof(void*),
                                a->vals);
 
   a->vals = new_spc;
@@ -41,8 +41,8 @@ void shrink_stack(Stack* a) {
 
   size_t new_maxc = a->max_count >> 1;
   void*  new_spc  = reallocate(false,
-                               a->max_count*sizeof(void*),
                                new_maxc*sizeof(void*),
+                               a->max_count*sizeof(void*),
                                a->vals);
 
   a->vals      = new_spc;
@@ -101,7 +101,7 @@ void grow_binary(Binary* b) {
     runtime_error("maximum buffer size exceeded");
   
   int     new_maxc = b->max_count ? b->max_count << 1 : MIN_CAP;
-  byte_t* new_spc  = reallocate(false, b->max_count, new_maxc, b->vals);
+  byte_t* new_spc  = reallocate(false, new_maxc, b->max_count, b->vals);
 
   b->vals = new_spc;
   b->max_count = new_maxc;
@@ -111,7 +111,7 @@ void shrink_binary(Binary* b) {
   assert(b->max_count > MIN_CAP);
 
   int     new_maxc = b->max_count >> 1;
-  byte_t* new_spc  = reallocate(false, b->max_count, new_maxc, b->vals);
+  byte_t* new_spc  = reallocate(false, new_maxc, b->max_count, b->vals);
 
   b->vals      = new_spc;
   b->max_count = new_maxc;
@@ -126,7 +126,7 @@ void resize_binary(Binary* b, int n) {
   if ( new_maxc < MIN_CAP )
     new_maxc = MIN_CAP;
 
-  byte_t* new_spc = reallocate(false, b->max_count, new_maxc, b->vals);
+  byte_t* new_spc = reallocate(false, new_maxc, b->max_count, b->vals);
   b->vals         = new_spc;
   b->max_count    = new_maxc;
 }
@@ -139,6 +139,7 @@ void binary_write(Binary* b, byte_t c) {
 }
 
 void binary_write_n(Binary* b, byte_t* cs, int n) {
+  
   if ( b->count + n > b->max_count )
     resize_binary(b, b->count+n);
 
@@ -147,7 +148,7 @@ void binary_write_n(Binary* b, byte_t* cs, int n) {
 }
 
 // Table implementation macro
-#define check_grow(t) ((t)->count > ((t)->max_count * LOADF))
+#define check_grow(t) ((t)->count >= ((t)->max_count * LOADF))
 
 #define TABLE_IMPL(T, K, V, t, NK, NV, hashf, rehashf, cmpf)            \
   void   init_##t(T* t) {                                               \

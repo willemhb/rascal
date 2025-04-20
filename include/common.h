@@ -26,6 +26,9 @@ typedef uintptr_t      hash_t;
 #define PATCH   0
 #define RELEASE "a"
 
+// miscellaneous
+#define RASCAL_DEBUG
+
 // redefining annoyingly named builtins
 #define clz  __builtin_clzl
 #define popc __builtin_popcount
