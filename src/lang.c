@@ -12,13 +12,14 @@ int  peek(FILE *in);
 char read_char(FILE *in);
 void skip_space(FILE* in);
 Expr read_list(FILE *in);
+Expr read_string(FILE* in);
 Expr read_atom(FILE* in);
 
 // Global symbol table could be added here
 
 // read helpers
 bool is_sym_char(int c) {
-  return !isspace(c) && !strchr("(){}[];", c);
+  return !isspace(c) && !strchr("(){}[];\"", c);
 }
 
 bool is_num_char(int c) {
@@ -60,6 +61,8 @@ Status read_exp(FILE *in, Expr* out) {
     x = EOS;
   else if ( c == '(' )
     x = read_list(in);
+  else if ( c == '"')
+    x = read_string(in);
   else if ( is_sym_char(c) )
     x = read_atom(in);
   else if ( c == ')' )
@@ -74,8 +77,8 @@ Status read_exp(FILE *in, Expr* out) {
 
 Expr read_list(FILE *in) {
   List* out;
-  skip_space(in);
   read_char(in); // consume the '('
+  skip_space(in);
   Expr* base = &Stack[Sp], x;
   int n = 0, c;
 
@@ -99,6 +102,28 @@ Expr read_list(FILE *in) {
   return tag_obj(out);
 }
 
+Expr read_string(FILE* in) {
+  Str* out;
+
+  int c;
+
+  read_char(in); // consume opening '"'
+
+  while ( (c=peek(in)) != '"' ) {
+    if ( feof(in) )
+      runtime_error("unterminated string");
+
+    add_to_token(c); // accumulate
+    read_char(in);   // advance
+  }
+
+  read_char(in); // consume terminal '"'
+
+  out = mk_str(Token);
+
+  return tag_obj(out);
+}
+
 Expr read_atom(FILE* in) {
   int c;
   Expr x;
@@ -116,6 +141,9 @@ Expr read_atom(FILE* in) {
     Num n = strtod(Token, &end);
 
     if ( end[0] != '\0' ) {   // Symbol that starts with numeric character like +, -, or digit
+      if ( TOff > MAX_INTERN )
+        runtime_error("symbol name '%s' too long", Token);
+      
       Sym* s = mk_sym(Token);
       x      = tag_obj(s);
     } else {
@@ -125,10 +153,16 @@ Expr read_atom(FILE* in) {
     if ( strcmp(Token, "nul") == 0 )
       x = NUL;
 
+    else if ( strcmp(Token, "none" ) == 0 )
+      x = NONE;
+    
     else if ( strcmp(Token, "<eos>" ) == 0 )
       x = EOS;
 
     else {
+      if ( TOff > MAX_INTERN )
+        runtime_error("symbol name '%s' too long", Token);
+
       Sym* s = mk_sym(Token);
       x      = tag_obj(s);
     }

@@ -12,6 +12,12 @@ typedef enum {
   SYSTEM_ERROR
 } Status;
 
+typedef struct GcFrame {
+  struct GcFrame* next;
+  int count;
+  Expr* exprs;
+} GcFrame;
+
 // Magic numbers
 #define BUFFER_SIZE 2048
 #define STACK_SIZE  65536
@@ -26,6 +32,7 @@ extern char* ErrorNames[];
 extern jmp_buf Toplevel;
 extern Obj* Heap;
 extern size_t HeapUsed, HeapCap;
+extern GcFrame* GcFrames;
 extern Expr Stack[STACK_SIZE];
 extern int Sp;
 
@@ -41,10 +48,13 @@ Expr*  push(Expr x);
 Expr*  pushn(int n);
 Expr   pop(void);
 Expr   popn(int n);
+void   gc_save(void* ob);
 void   run_gc(void);
 void*  allocate(bool h, size_t n);
+char*  duplicates(char* cs);
 void*  reallocate(bool h, size_t n, size_t o, void* spc);
 void   release(void* d, size_t n);
+void   next_gc_frame(GcFrame* gcf);
 
 // convenience macros
 #define safepoint() setjmp(Toplevel)
@@ -55,5 +65,13 @@ void   release(void* d, size_t n);
 
 #define tos()  stack_ref(-1)
 
+#define preserve(n, vals...)                                            \
+  Expr __gc_frame_vals__[(n)] = { vals };                               \
+  GcFrame __gc_frame__ __attribute__((__cleanup__(next_gc_frame))) = {  \
+    .next  = GcFrames,                                                  \
+    .count =  (n),                                                      \
+    .exprs = __gc_frame_vals__                                          \
+  };                                                                    \
+    GcFrames = &__gc_frame__
 
 #endif

@@ -2,7 +2,6 @@
 #define rl_collection_h
 
 #include "common.h"
-#include "data.h"
 
 // utility collection types
 
@@ -19,30 +18,25 @@ void shrink_alist(Alist* a);
 void alist_push(Alist* a, void* v);
 void* alist_pop(Alist* a);
 
-typedef struct {
-  void* key;
-  void* val;
-} KV;
-
-typedef struct {
-  KV* kvs;
-  size_t count, max_count;
-} Table;
-
-typedef void (*InternFn)(void** spc, void* k, hash_t h);
-
-void init_table(Table* t);
-void free_table(Table* t);
-bool check_grow(Table* t);
-
-#define TABLE_API(K, V, T, type)                    \
-  typedef Table T;                                  \
-  bool type##_get(Table* t, K k, V* v);             \
-  bool type##_set(Table* t, K k, V v);              \
-  bool type##_del(Table* t, K k, V* v);             \
-  V type##_intern(Table* t, K k, InternFn ifn);     \
-  bool join_##type##s(Table* tx, Table* ty)
-
-TABLE_API(char*, Obj*, Strings, strings);
+// table template
+#define TABLE_API(T, K, V, t)                                    \
+  typedef struct {                                               \
+    K key;                                                       \
+    V val;                                                       \
+  } T##KV;                                                       \
+                                                                 \
+  typedef struct {                                               \
+    T##KV* kvs;                                                  \
+    size_t count, max_count;                                     \
+  } T;                                                           \
+                                                                 \
+  typedef void (*T##InternFn)(T* t, T##KV* kv, K k, hash_t h);   \
+                                                                 \
+  void init_##t(T* t);                                           \
+  void free_##t(T* t);                                           \
+  bool t##_get(T* t, K k, V* v);                                 \
+  bool t##_set(T* t, K k, V v);                                  \
+  bool t##_del(T* t, K k, V* v);                                 \
+  V    t##_intern(T* t, K k, T##InternFn ifn)
 
 #endif

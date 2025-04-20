@@ -3,6 +3,7 @@
 #include "collection.h"
 #include "runtime.h"
 #include "util.h"
+#include "data.h"
 
 
 // magic numbers
@@ -64,33 +65,31 @@ void* alist_pop(Alist* a) {
   return out;
 }
 
-// Table implementation
-void init_table(Table* t) {
-  t->kvs       = NULL;
-  t->count     = 0;
-  t->max_count = 0;
-}
+// Table implementation macro
+#define check_grow(t) ((t)->count > ((t)->max_count * LOADF))
 
-void free_table(Table* t) {
-  release(t->kvs, 0);
-  init_table(t);
-}
-
-bool check_grow(Table* t) {
-  return t->count + 1 >= t->max_count * LOADF;
-}
-
-#define TABLE_IMPL(K, V, T, type, NK, NV, hashf, rehashf, cmpf)         \
-  void   init_##type##_kvs(KV* kvs, size_t max_count) {                 \
+#define TABLE_IMPL(T, K, V, t, NK, NV, hashf, rehashf, cmpf)            \
+  void   init_##t(T* t) {                                               \
+    t->kvs       = NULL;                                                \
+    t->count     = 0;                                                   \
+    t->max_count = 0;                                                   \
+  }                                                                     \
+                                                                        \
+  void free_##t(T* t) {                                                 \
+    release(t->kvs, 0);                                                 \
+    init_##t(t);                                                        \
+  }                                                                     \
+                                                                        \
+  void init_##t##_kvs(T##KV* kvs, size_t max_count) {                   \
     for ( size_t i=0; i < max_count; i++ ) {                            \
-      kvs[i].key = (void*)NK;                                           \
-      kvs[i].val = (void*)NV;                                           \
+      kvs[i].key = NK;                                                  \
+      kvs[i].val = NV;                                                  \
     }                                                                   \
   }                                                                     \
                                                                         \
-  KV* type##_find(Table* t, K k, hash_t h) {                            \
+  T##KV* t##_find(T* t, K k, hash_t h) {                                \
     assert(t->kvs != NULL);                                             \
-    KV* kvs = t->kvs, * kv, * ts = NULL;                                \
+    T##KV* kvs = t->kvs, * kv, * ts = NULL;                             \
     size_t msk = t->max_count-1;                                        \
     size_t idx = h & msk;                                               \
                                                                         \
@@ -104,16 +103,16 @@ bool check_grow(Table* t) {
       } else if ( cmpf(kv->key, k) )                                    \
         break;                                                          \
       idx = (idx + 1) & msk;                                            \
-    }                                                                   \
+      }                                                                 \
                                                                         \
     return ts ? : kv;                                                   \
-  }                                                                     \
+    }                                                                   \
                                                                         \
-  size_t rehash_##type( KV* old, size_t omc, KV* new, size_t nmc ) {    \
-    size_t cnt = 0;                                                     \
+    size_t rehash_##t( T##KV* old, size_t omc, T##KV* new, size_t nmc ) { \
+      size_t cnt = 0;                                                   \
                                                                         \
     for ( size_t i=0; i < omc; i++ ) {                                  \
-      KV* kv = &old[i];                                                 \
+      T##KV* kv = &old[i];                                              \
       if ( kv->key == NK )                                              \
         continue;                                                       \
                                                                         \
@@ -130,16 +129,16 @@ bool check_grow(Table* t) {
     return cnt;                                                         \
   }                                                                     \
                                                                         \
-  void grow_##type(Table* t) {                                          \
-    size_t nmc = t->max_count < MIN_CAP ? MIN_CAP : t->max_count << 1;  \
-    KV*    nkv = allocate(false, nmc*sizeof(KV));                       \
+    void grow_##t(T* t) {                                               \
+      size_t nmc    = t->max_count < MIN_CAP ? MIN_CAP : t->max_count << 1; \
+      T##KV*    nkv = allocate(false, nmc*sizeof(T##KV));               \
                                                                         \
-    init_##type##_kvs(nkv, nmc);                                        \
+    init_##t##_kvs(nkv, nmc);                                        \
                                                                         \
     if ( t->kvs != NULL ) {                                             \
       size_t omc = t->max_count;                                        \
-      KV*    okv = t->kvs;                                              \
-      size_t nc  = rehash_##type(okv, omc, nkv, nmc);                   \
+      T##KV*    okv = t->kvs;                                           \
+      size_t nc  = rehash_##t(okv, omc, nkv, nmc);                   \
       t->count   = nc;                                                  \
       release(okv, 0);                                                  \
     }                                                                   \
@@ -148,14 +147,14 @@ bool check_grow(Table* t) {
     t->max_count = nmc;                                                 \
   }                                                                     \
                                                                         \
-  bool type##_get(Table* t, K k, V* v) {                                \
+  bool t##_get(T* t, K k, V* v) {                                \
     bool out;                                                           \
                                                                         \
     if ( t->kvs == NULL )                                               \
       out = false;                                                      \
     else {                                                              \
-      KV* kv = type##_find(t, k, hashf(k));                             \
-      out    = kv->key != NK;                                           \
+      T##KV* kv = t##_find(t, k, hashf(k));                             \
+      out       = kv->key != NK;                                        \
                                                                         \
       if ( out && v )                                                   \
         *v = kv->val;                                                   \
@@ -164,31 +163,72 @@ bool check_grow(Table* t) {
     return out;                                                         \
   }                                                                     \
                                                                         \
-  bool type##_set(Table* t, K k, V v) {                                 \
+  bool t##_set(T* t, K k, V v) {                                        \
     if ( check_grow(t) )                                                \
-      grow_##type(t);                                                   \
+      grow_##t(t);                                                      \
                                                                         \
-    KV* kv   = type##_find(t, k, hashf(k));                             \
-    bool out = kv->key == NK;                                           \
+    T##KV* kv = t##_find(t, k, hashf(k));                               \
+    bool out  = kv->key == NK;                                          \
                                                                         \
     if ( out )                                                          \
       kv->key = k;                                                      \
-    kv->val = v;                                                        \
+    *(V*)(&kv->val) = v;                                                \
     return out;                                                         \
   }                                                                     \
                                                                         \
-  bool type##_del(Table* t, K k, V* v) {                                \
+  bool t##_del( T* t, K k, V* v ) {                                     \
     bool out;                                                           \
                                                                         \
-    if ( )                                                              \
+    if ( t->kvs == NULL )                                               \
+      out = false;                                                      \
+    else {                                                              \
+      T##KV* kv = t##_find(t, k, hashf(k));                             \
+      out    = kv->key != NK;                                           \
+                                                                        \
+      if ( out ) {                                                      \
+        kv->key = NK;                                                   \
+        if ( v )                                                        \
+          *v = kv->val;                                                 \
+      }                                                                 \
+    }                                                                   \
+    return out;                                                         \
   }                                                                     \
+                                                                        \
+  V t##_intern(T* t, K k, T##InternFn ifn) {                            \
+    if ( check_grow(t) )                                                \
+      grow_##t(t);                                                      \
+    hash_t h = hashf(k);                                                \
+    T##KV* kv = t##_find(t, k, h);                                      \
+                                                                        \
+    if ( kv->key == NK )                                                \
+      ifn(t, kv, (void*)k, h);                                          \
+                                                                        \
+    return kv->val;                                                     \
+  }
 
 bool cmp_strings( char * sx, char* sy ) {
   return strcmp(sx, sy) == 0;
 }
 
-hash_t rehash_string(KV* kv) {
-  return hash_string(kv->key);
+hash_t rehash_string(StringsKV* kv) {
+  Str* s = kv->val;
+  return s->hash;
 }
 
-TABLE_IMPL(char*, Obj*, Strings, strings, NULL, NULL, hash_string, rehash_string, cmp_strings);
+TABLE_IMPL(Strings, char*, Str*, strings, NULL, NULL, hash_string, rehash_string, cmp_strings);
+
+bool cmp_symbols( Sym* sx, Sym* sy ) {
+  return sx->val == sy->val;
+}
+
+hash_t hash_symbol( Sym* sx ) {
+  return sx->hash;
+}
+
+hash_t rehash_symbol( EMapKV* kv ) {
+  Sym* s = kv->key;
+
+  return s->hash;
+}
+
+TABLE_IMPL(EMap, Sym*, int, emap, NULL, -1, hash_symbol, rehash_symbol, cmp_symbols );

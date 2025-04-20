@@ -4,6 +4,10 @@
 #include <string.h>
 
 #include "runtime.h"
+#include "collection.h"
+
+// magic numbers
+#define HEAPLOAD 0.75
 
 // Global declarations
 char* ErrorNames[] = {
@@ -19,13 +23,24 @@ Status VmStatus = OKAY;
 jmp_buf Toplevel;
 Obj* Heap = NULL;
 size_t HeapUsed = 0, HeapCap = INIT_HEAP;
+GcFrame* GcFrames = NULL;
 Expr Stack[STACK_SIZE];
 int Sp = 0;
 
+Alist GrayStack = {
+  .vals      = NULL,
+  .count     = 0,
+  .max_count = 0
+};
+
 // internal helpers
-static bool check_gc(size_t n) {
-  return HeapUsed + n >= HeapCap;
-}
+static bool check_gc(size_t n);
+static void mark_stack(void);
+static void mark_gc_frames(void);
+static void mark_phase(void);
+static void trace_phase(void);
+static void sweep_phase(void);
+static void cleanup_phase(void);
 
 // error helpers
 void panic(Status etype) {
@@ -38,6 +53,7 @@ void panic(Status etype) {
 void recover(void) {
   if ( VmStatus ) {
     VmStatus = OKAY;
+    GcFrames = NULL;
     reset_token();
     reset_stack();
     fseek(stdin, SEEK_SET, SEEK_END); // clear out invalid characters
@@ -123,8 +139,79 @@ Expr popn( int n ) {
   return out;
 }
 
+// garbage collector
+static bool check_gc(size_t n) {
+  return HeapUsed + n >= HeapCap;
+}
+
+static bool check_heap_grow(void) {
+  return HeapCap * HEAPLOAD < HeapUsed;
+}
+
+static void mark_stack(void) {
+  for ( int i=0; i < Sp; i++ )
+    mark_exp(Stack[i]);
+}
+
+static void mark_gc_frames(void) {
+  GcFrame* frame = GcFrames;
+
+  while ( frame != NULL ) {
+    for ( int i=0; i < frame->count; i++ )
+      mark_exp(frame->exprs[i]);
+
+    frame = frame->next;
+  }
+}
+
+static void mark_phase(void) {
+  mark_stack();
+  mark_gc_frames();
+}
+
+static void trace_phase(void) {
+
+  while ( GrayStack.count > 0 ) {
+    Obj* obj          = alist_pop(&GrayStack);
+    ExpTypeInfo* info = &Types[obj->type];
+    obj->gray         = false;
+    
+    info->trace_fn(obj);
+  }
+}
+
+static void sweep_phase(void) {
+  Obj** spc = &Heap;
+
+  while ( *spc != NULL ) {
+    Obj* obj = *spc;
+
+    if ( obj->black ) {         // prserve
+      obj->black = false;
+      obj->gray  = true;
+      spc        = &obj->heap;
+    } else {                    // reclaim
+      *spc = obj->heap;
+
+      free_obj(obj);
+    }
+  }
+}
+
+static void cleanup_phase(void) {
+  if ( check_heap_grow() )
+    HeapCap <<= 1;
+}
+
+void gc_save(void* ob) {
+  alist_push(&GrayStack, ob);
+}
+
 void run_gc(void) {
-  HeapCap <<= 1;
+  mark_phase();
+  trace_phase();
+  sweep_phase();
+  cleanup_phase();
 }
 
 void* allocate(bool h, size_t n) {
@@ -145,9 +232,19 @@ void* allocate(bool h, size_t n) {
   return out;
 }
 
+char* duplicates(char* cs) {
+  char* out = strdup(cs);
+
+  if ( out == NULL )
+    system_error("out of memory");
+
+  return out;
+}
+
+
 void* reallocate(bool h, size_t n, size_t o, void* spc) {
   void* out;
-  
+
   if ( n == 0 ) {
     out = NULL;
 
@@ -196,4 +293,10 @@ void* reallocate(bool h, size_t n, size_t o, void* spc) {
 void release(void* spc, size_t n) {
   free(spc);
   HeapUsed -= n;
+}
+
+void next_gc_frame(GcFrame* gcf) {
+  assert(gcf != NULL);
+
+  GcFrames = gcf->next;
 }
