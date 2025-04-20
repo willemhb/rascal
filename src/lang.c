@@ -172,21 +172,48 @@ Expr read_atom(FILE* in) {
 }
 
 // eval
+bool is_literal(Expr x) {
+  ExpType t = exp_type(x);
+  bool out;
+
+  if ( t == EXP_SYM )
+    out = as_sym(x)->val->val[0] == ':';
+
+  else if ( t == EXP_LIST )
+    out = false;
+
+  else
+    out = true;
+
+  return out;
+}
+
 Expr eval_literal(Expr x) {
   return x;
 }
 
-Status eval_exp(Expr x, Expr* out) {
+Status eval_sexp(Expr x, Expr* out) {
+  void* labels[] = {
+    [OP_ADD] = &&op_add,
+    [OP_SUB] = &&op_sub,
+    [OP_MUL] = &&op_mul,
+    [OP_DIV] = &&op_div,
+  };
+
   Expr v;
   Status s = OKAY;
 
-  switch ( exp_type(x) ) {
-    // case EXP_LIST: v = eval_list(x);    break;
-    default:       v = eval_literal(x); break;
-  }
+  if ( is_literal(x) )
+    v = x;
 
+  else if ( is_sym(x) )
+
+ op_add:
+
+ op_sub:
+
+ end:
   *out = v;
-
   return s;
 }
 

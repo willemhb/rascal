@@ -35,6 +35,7 @@ extern size_t HeapUsed, HeapCap;
 extern GcFrame* GcFrames;
 extern Expr Stack[STACK_SIZE];
 extern int Sp;
+extern Env Globals;
 
 // function prototypes
 void   panic(Status etype);
@@ -73,5 +74,11 @@ void   next_gc_frame(GcFrame* gcf);
     .exprs = __gc_frame_vals__                                          \
   };                                                                    \
     GcFrames = &__gc_frame__
+
+#define require(test, args...)                  \
+  do {                                          \
+    if ( !(test) )                              \
+      rascal_error(RUNTIME_ERROR, args);        \
+  } while (false)
 
 #endif

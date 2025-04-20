@@ -7,7 +7,7 @@
 
 typedef struct {
   void** vals;
-  size_t count, max_count;
+  int count, max_count;
 } Alist;
 
 // Alist APIs
@@ -17,6 +17,8 @@ void grow_alist(Alist* a);
 void shrink_alist(Alist* a);
 void alist_push(Alist* a, void* v);
 void* alist_pop(Alist* a);
+void trace_objs(Alist* a);
+void trace_exps(Alist* a);
 
 // table template
 #define TABLE_API(T, K, V, t)                                    \
@@ -27,7 +29,7 @@ void* alist_pop(Alist* a);
                                                                  \
   typedef struct {                                               \
     T##KV* kvs;                                                  \
-    size_t count, max_count;                                     \
+    int count, max_count;                                        \
   } T;                                                           \
                                                                  \
   typedef void (*T##InternFn)(T* t, T##KV* kv, K k, hash_t h);   \

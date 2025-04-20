@@ -8,8 +8,9 @@
 #include <setjmp.h>
 
 // utility typedefs
-typedef unsigned  char byte;
-typedef uintptr_t hash_t;
+typedef unsigned char byte_t;
+typedef unsigned int  flags_t;
+typedef uintptr_t     hash_t;
 
 // limits
 #define MAX_INTERN 512

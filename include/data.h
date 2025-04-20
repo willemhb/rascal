@@ -41,6 +41,7 @@ typedef union {
 // Internal types
 typedef void   (*PrintFn)(FILE* ios, Expr x);
 typedef hash_t (*HashFn)(Expr x);
+typedef bool   (*EgalFn)(Expr x, Expr y);
 typedef void   (*TraceFn)(void* ob);
 typedef void   (*FreeFn)(void* ob);
 
@@ -50,18 +51,39 @@ typedef struct {
   size_t  obsize;
   PrintFn print_fn;
   HashFn  hash_fn;
+  EgalFn  egal_fn;
   TraceFn trace_fn;
   FreeFn  free_fn;
 } ExpTypeInfo;
 
 extern ExpTypeInfo Types[];
 
-#define HEAD                                    \
-  Obj* heap;                                    \
-  ExpType type;                                 \
-  byte black;                                   \
-  byte gray;                                    \
-  short flags
+#define HEAD                                     \
+  Obj* heap;                                     \
+  ExpType type;                                  \
+  union {                                        \
+    flags_t bfields;                             \
+    struct {                                     \
+      flags_t black   :   1;                      \
+      flags_t gray    :   1;                      \
+      flags_t nosweep :   1;                      \
+      flags_t flags    : 29;                     \
+    };                                           \
+  }
+
+typedef enum {
+  FL_BLACK   = 0x80000000,
+  FL_GRAY    = 0x40000000,
+  FL_NOSWEEP = 0x20000000
+} ExpFlags;
+
+typedef enum {
+  OP_NOOP,
+  OP_ADD,
+  OP_SUB,
+  OP_MUL,
+  OP_DIV,
+} OpCode;
 
 struct Obj {
   HEAD;
@@ -78,12 +100,11 @@ struct Env {
   Alist vals;
 };
 
-typedef int (*NativeFn)(int n, Expr* args);
-
 struct Fun {
   HEAD;
 
-  NativeFn fn;
+  Sym*   name;
+  OpCode label;
 };
 
 struct Sym {
@@ -124,22 +145,29 @@ struct List {
 // forward declarations
 // expression APIs
 ExpType exp_type(Expr x);
+bool    has_type(Expr x, ExpType t);
 ExpTypeInfo* exp_info(Expr x);
 hash_t hash_exp(Expr x);
+bool   egal_exps(Expr x, Expr y);
 void   mark_exp(Expr x);
 
 // object API
 void* as_obj(Expr x);
 Expr  tag_obj(void* obj);
-void* mk_obj(ExpType type);
+void* mk_obj(ExpType type, flags_t flags);
 void  mark_obj(void* ptr);
 void  free_obj(void *ptr);
+
+// function API
+Fun* mk_fun(Sym* name, OpCode op);
+void def_builtin_fun(char* name, OpCode op);
 
 // environment API
 Env* mk_env(void);
 Expr env_get(Env* e, Sym* n);
 int  env_def(Env* e, Sym* n);
-Expr env_set(Env* e, Sym* n, Expr x);
+void env_set(Env* e, Sym* n, Expr x);
+void def_builtin(Env* e, Sym* n, Expr x);
 
 // symbol API
 Sym* mk_sym(char* cs);
@@ -152,6 +180,7 @@ Str* mk_str(char* cs);
 List*  empty_list(void);
 List*  mk_list(size_t n, Expr* xs);
 List*  cons(Expr hd, List* tl);
+Expr   list_ref(List* xs, int n);
 
 // number API
 Num  as_num(Expr x);
@@ -160,11 +189,15 @@ Expr tag_num(Num n);
 // convenience macros
 #define exp_tag(x)     ((x) & XTMSK)
 #define head(x)        ((Obj*)as_obj(x))
+#define as_fun(x)      ((Fun*)as_obj(x))
 #define as_env(x)      ((Env*)as_obj(x))
 #define as_sym(x)      ((Sym*)as_obj(x))
 #define as_str(x)      ((Str*)as_obj(x))
 #define as_list(x)     ((List*)as_obj(x))
 
 #define is_interned(s) ((s)->flags == true)
+#define is_sym(x)      has_type(x, EXP_SYM)
+#define is_fun(x)      has_type(x, EXP_FUN)
+#define is_list(x)     has_type(x, EXP_LIST)
 
 #endif

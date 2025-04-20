@@ -65,6 +65,21 @@ void* alist_pop(Alist* a) {
   return out;
 }
 
+void trace_objs(Alist* a) {
+  if ( a->vals )
+    for ( int i=0; i < a->count; i++ )
+      mark_obj(a->vals[i]);
+}
+
+void trace_exps(Alist* a) {
+  if ( a->vals )
+    for ( int i=0; i < a->count; i++ ) {
+      Expr x = (Expr)a->vals[i];
+
+      mark_exp(x);
+    }
+}
+
 // Table implementation macro
 #define check_grow(t) ((t)->count > ((t)->max_count * LOADF))
 
@@ -80,8 +95,8 @@ void* alist_pop(Alist* a) {
     init_##t(t);                                                        \
   }                                                                     \
                                                                         \
-  void init_##t##_kvs(T##KV* kvs, size_t max_count) {                   \
-    for ( size_t i=0; i < max_count; i++ ) {                            \
+  void init_##t##_kvs(T##KV* kvs, int max_count) {                      \
+    for ( int i=0; i < max_count; i++ ) {                               \
       kvs[i].key = NK;                                                  \
       kvs[i].val = NV;                                                  \
     }                                                                   \
@@ -90,8 +105,8 @@ void* alist_pop(Alist* a) {
   T##KV* t##_find(T* t, K k, hash_t h) {                                \
     assert(t->kvs != NULL);                                             \
     T##KV* kvs = t->kvs, * kv, * ts = NULL;                             \
-    size_t msk = t->max_count-1;                                        \
-    size_t idx = h & msk;                                               \
+    int msk = t->max_count-1;                                           \
+    int idx = h & msk;                                                  \
                                                                         \
     for (;;) {                                                          \
       kv = &kvs[idx];                                                   \
@@ -108,10 +123,10 @@ void* alist_pop(Alist* a) {
     return ts ? : kv;                                                   \
     }                                                                   \
                                                                         \
-    size_t rehash_##t( T##KV* old, size_t omc, T##KV* new, size_t nmc ) { \
-      size_t cnt = 0;                                                   \
+  int rehash_##t( T##KV* old, int omc, T##KV* new, int nmc ) {          \
+    int cnt = 0;                                                        \
                                                                         \
-    for ( size_t i=0; i < omc; i++ ) {                                  \
+    for ( int i=0; i < omc; i++ ) {                                     \
       T##KV* kv = &old[i];                                              \
       if ( kv->key == NK )                                              \
         continue;                                                       \
@@ -119,8 +134,8 @@ void* alist_pop(Alist* a) {
       cnt++;                                                            \
                                                                         \
       hash_t hash = rehashf(kv);                                        \
-      size_t msk  = nmc - 1;                                            \
-      size_t idx  = hash & msk;                                         \
+      int msk  = nmc - 1;                                            \
+      int idx  = hash & msk;                                         \
       while ( new[idx].key != NK )                                      \
         idx = (idx+1) & msk;                                            \
                                                                         \
@@ -130,15 +145,15 @@ void* alist_pop(Alist* a) {
   }                                                                     \
                                                                         \
     void grow_##t(T* t) {                                               \
-      size_t nmc    = t->max_count < MIN_CAP ? MIN_CAP : t->max_count << 1; \
+      int nmc    = t->max_count < MIN_CAP ? MIN_CAP : t->max_count << 1; \
       T##KV*    nkv = allocate(false, nmc*sizeof(T##KV));               \
                                                                         \
-    init_##t##_kvs(nkv, nmc);                                        \
+      init_##t##_kvs(nkv, nmc);                                         \
                                                                         \
     if ( t->kvs != NULL ) {                                             \
-      size_t omc = t->max_count;                                        \
+      int omc = t->max_count;                                           \
       T##KV*    okv = t->kvs;                                           \
-      size_t nc  = rehash_##t(okv, omc, nkv, nmc);                   \
+      int nc  = rehash_##t(okv, omc, nkv, nmc);                         \
       t->count   = nc;                                                  \
       release(okv, 0);                                                  \
     }                                                                   \
@@ -147,7 +162,7 @@ void* alist_pop(Alist* a) {
     t->max_count = nmc;                                                 \
   }                                                                     \
                                                                         \
-  bool t##_get(T* t, K k, V* v) {                                \
+    bool t##_get(T* t, K k, V* v) {                                     \
     bool out;                                                           \
                                                                         \
     if ( t->kvs == NULL )                                               \
@@ -172,7 +187,9 @@ void* alist_pop(Alist* a) {
                                                                         \
     if ( out )                                                          \
       kv->key = k;                                                      \
-    *(V*)(&kv->val) = v;                                                \
+    if ( kv->val == NV )                                                \
+      t->count++;                                                       \
+    kv->val = v;                                                        \
     return out;                                                         \
   }                                                                     \
                                                                         \
@@ -200,8 +217,11 @@ void* alist_pop(Alist* a) {
     hash_t h = hashf(k);                                                \
     T##KV* kv = t##_find(t, k, h);                                      \
                                                                         \
-    if ( kv->key == NK )                                                \
+    if ( kv->key == NK ) {                                              \
+      if ( kv->val == NV )                                              \
+        t->count++;                                                     \
       ifn(t, kv, (void*)k, h);                                          \
+    }                                                                   \
                                                                         \
     return kv->val;                                                     \
   }
