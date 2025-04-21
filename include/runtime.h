@@ -26,6 +26,7 @@ typedef struct GcFrame {
 } GcFrame;
 
 typedef struct {
+  UpVal*   upvs;
   Fun*     fn;
   instr_t* pc;
   int      sp;
@@ -50,22 +51,31 @@ extern VM Vm;
 void   panic(Status etype);
 void   recover(void);
 void   rascal_error(Status etype, char* fmt, ...);
+
 void   reset_token(void);
 size_t add_to_token(char c);
+
 void   reset_stack(void);
 Expr*  stack_ref(int i);
 Expr*  push(Expr x);
 Expr*  pushn(int n);
 Expr   pop(void);
 Expr   popn(int n);
+
+UpVal* get_upv(Expr* loc);
+void   close_upvs(Expr* base);
+
 void   install_fun(Fun* fun, int bp, int fp);
 void   save_frame(void);
 void   restore_frame(void);
 void   reset_vm(void);
+
 void   gc_save(void* ob);
 void   run_gc(void);
+
 void*  allocate(bool h, size_t n);
 char*  duplicates(char* cs);
+void*  duplicate(bool h, size_t n, void* ptr);
 void*  reallocate(bool h, size_t n, size_t o, void* spc);
 void   release(void* d, size_t n);
 void   next_gc_frame(GcFrame* gcf);

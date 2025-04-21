@@ -171,19 +171,18 @@ struct Env {
 
   Env*   parent;
 
-  byte_t local;
-  byte_t bound;
   int    arity;
 
   EMap  vars; // personal namespace
-  EMap  upvs; // names captured from/by nested context
-  Exprs vals; // variable values (global only)
+
+  union {
+    EMap  upvs;
+    Exprs vals;
+  };
 };
 
 struct Fun {
   HEAD;
-
-  bool   closure;
 
   Sym*   name;
   OpCode label;
@@ -285,12 +284,13 @@ Expr*  deref(UpVal* upv);
 
 // environment API
 Env* mk_env(Env* parent);
+Ref* env_capture(Env* e, Ref* r);
 Ref* env_resolve(Env* e, Sym* n, bool capture);
-Expr env_get(Env* e, Sym* n);
-Expr env_ref(Env* e, int n);
-Ref* env_put(Env* e, Sym* n);
-void env_set(Env* e, Sym* n, Expr x);
-void env_refset(Env* e, int n, Expr x);
+Ref* env_define(Env* e, Sym* n);
+void toplevel_env_def(Env* e, Sym* n, Expr x);
+void toplevel_env_set(Env* e, Sym* n, Expr x);
+Ref* toplevel_env_ref(Env* e, Sym* n);
+Expr toplevel_env_get(Env* e, Sym* n);
 
 // symbol API
 Sym* as_sym_s(char* f, Expr x);
@@ -332,7 +332,8 @@ Expr tag_bool(Bool b);
 
 #define is_interned(s)    ((s)->flags == true)
 #define is_keyword(s)     (*(s)->val->val == ':')
-#define is_local_env(e)   ((e)->local == true)
+#define is_local_env(e)   ((e)->parent != NULL)
+#define is_global_env(e)  ((e)->parent == NULL)
 #define is_user_fn(f)     ((f)->label == OP_NOOP)
 #define is_toplevel_fn(f) (!(f)->chunk->vars->local)
 #define user_fn_argc(f)   ((f)->chunk->vars->arity)

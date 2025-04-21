@@ -40,10 +40,10 @@ Env Globals = {
   .gray    = true,
   .nosweep = true,
 
-  .local = false,
-  .arity = 0,
+  .parent = NULL,
+  .arity  = 0,
 
-  .map = {
+  .vars = {
     .kvs       = NULL,
     .count     = 0,
     .max_count = 0
@@ -66,6 +66,7 @@ Objs GrayStack = {
 static bool check_gc(size_t n);
 static void mark_vm(void);
 static void mark_globals(void);
+static void mark_upvals(void);
 static void mark_types(void);
 static void mark_gc_frames(void);
 static void mark_phase(void);
@@ -170,6 +171,41 @@ Expr popn( int n ) {
   return out;
 }
 
+// return an UpVal object corresponding to the given stack location
+UpVal* get_upv(Expr* loc) {
+  UpVal** spc = &Vm.upvs;
+  UpVal* out = NULL;
+
+  while ( out == NULL ) {
+    UpVal* upv = *spc;
+
+    if ( upv == NULL || loc < upv->loc )
+      *spc = out = mk_upval(upv, loc);
+
+    else if ( upv->loc == loc )
+      out = upv;
+
+    else
+      spc = &upv->next;
+  }
+
+  return out;
+}
+
+void close_upvs(Expr* base) {
+  UpVal* upv = Vm.upvs;
+
+  while ( upv != NULL && upv->loc > base ) {
+    UpVal* tmpu = upv->next;
+    Expr tmpv   = *upv->loc;
+    upv->next   = NULL;
+    upv->closed = true;
+    upv->val    = tmpv;
+    upv         = tmpu;
+  }
+}
+
+// frame manipulation
 void install_fun(Fun* fun, int bp, int fp) {
   Vm.fn = fun;
   Vm.pc = fun->chunk->code->binary.vals;
@@ -195,11 +231,12 @@ void restore_frame(void) {
 }
 
 void reset_vm(void) {
-  Vm.pc  = NULL;
-  Vm.fn  = NULL;
-  Vm.fp  =  0;
-  Vm.bp  =  0;
-  Vm.sp  =  0;
+  Vm.upvs = NULL;
+  Vm.pc   = NULL;
+  Vm.fn   = NULL;
+  Vm.fp   =  0;
+  Vm.bp   =  0;
+  Vm.sp   =  0;
 }
 
 // garbage collector
@@ -230,6 +267,15 @@ static void mark_globals(void) {
   mark_obj(FnStr);
 }
 
+static void mark_upvals(void) {
+  UpVal* upv = Vm.upvs;
+
+  while ( upv != NULL ) {
+    mark_obj(upv);
+    upv = upv->next;
+  }
+}
+
 static void mark_types(void) {
   for ( int i=0; i < NUM_TYPES; i++ )
     mark_obj(Types[i].repr);
@@ -249,6 +295,7 @@ static void mark_gc_frames(void) {
 static void mark_phase(void) {
   mark_vm();
   mark_globals();
+  mark_upvals();
   mark_types();
   mark_gc_frames();
 }
@@ -338,6 +385,13 @@ char* duplicates(char* cs) {
   return out;
 }
 
+void* duplicate(bool h, size_t n, void* ptr) {
+  void* spc = allocate(h, n);
+
+  memcpy(spc, ptr, n);
+
+  return spc;
+}
 
 void* reallocate(bool h, size_t n, size_t o, void* spc) {
   void* out;

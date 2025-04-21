@@ -20,9 +20,9 @@ void print_none(FILE* ios, Expr x);
 hash_t hash_sym(Expr x);
 hash_t hash_str(Expr x);
 
-bool   egal_syms(Expr x, Expr y);
-bool   egal_strs(Expr x, Expr y);
-bool   egal_lists(Expr x, Expr y);
+bool egal_syms(Expr x, Expr y);
+bool egal_strs(Expr x, Expr y);
+bool egal_lists(Expr x, Expr y);
 
 void trace_chunk(void* ptr);
 void trace_alist(void* ptr);
@@ -245,6 +245,19 @@ void* mk_obj(ExpType type, flags_t flags) {
   return out;
 }
 
+void* clone_obj(void* ptr) {
+  assert(ptr != NULL);
+
+  Obj* obj = ptr;
+  ExpTypeInfo* info = &Types[obj->type];
+  Obj* out = duplicate(true, info->obsize, obj);
+
+  if ( info->clone_fn )
+    info->clone_fn(out);
+
+  return out;
+}
+
 void mark_obj(void* ptr) {
   Obj* obj = ptr;
 
@@ -395,7 +408,9 @@ Fun* mk_fun(Sym* name, OpCode op, Chunk* code) {
   f->name  = name;
   f->label = op;
   f->chunk = code;
-  
+
+  init_objs(&f->upvs);
+
   return f;
 }
 
@@ -414,7 +429,7 @@ void def_builtin_fun(char* name, OpCode op) {
   Sym* sym = mk_sym(name); preserve(1, tag_obj(sym));
   Fun* fun = mk_builtin_fun(sym, op);
 
-  env_set(&Globals, sym, tag_obj(fun));
+  toplevel_env_def(&Globals, sym, tag_obj(fun));
 }
 
 void disassemble(Fun* fun) {
@@ -486,103 +501,151 @@ Env* mk_env(Env* parent) {
   Env* env = mk_obj(EXP_ENV, 0);
 
   env->parent = parent;
-  env->local  = parent != NULL;
   env->arity  = 0;
   init_emap(&env->vars);
   init_emap(&env->upvs);
-  init_exprs(&env->vals);
 
   return env;
+}
+
+Ref* env_capture(Env* e, Ref* r) {
+  assert(is_local_env(e));
+
+  Ref* c = emap_intern(&e->upvs, r->name, intern_in_env);
+
+  if ( c->ref_type == REF_UNDEF ) {
+    c->ref_type = r->ref_type == REF_LOCAL ? REF_LOCAL_UPVAL : REF_CAPTURED_UPVAL;
+    c->captures = r;
+  }
+
+  return c;
 }
 
 Ref* env_resolve(Env* e, Sym* n, bool capture) {
   Ref* r = NULL;
 
-  if ( !e->local ) {
-    
-  }
-
-  if ( e->local ) {
-    // check locals first
+  if ( is_global_env(e) )
     emap_get(&e->vars, n, &r);
 
-    if ( r != NULL ) { 
-      if ( capture ) { // variable referenced from enclosed scope, register as upvalue
-        
-      }
+  else {
+    bool found;
+
+    found = emap_get(&e->vars, n, &r); // check locals first
+
+    if ( found ) {
+      if ( capture ) // resolved from enclosed context
+        r = env_capture(e, r);
+
     } else {
-      
+      // check already captured upvalues
+      found = emap_get(&e->upvs, n, &r);
+
+      if ( !found ) {
+        r = env_resolve(e->parent, n, true);
+
+        if ( r != NULL && r->ref_type != REF_GLOBAL )
+          r = env_capture(e, r);
+      }
     }
   }
 
   return r;
 }
 
-Expr env_get(Env* e, Sym* n) {
-  int i;
-  Expr o = NONE;
+Ref* env_define(Env* e, Sym* n) {
+  Ref* ref = emap_intern(&e->vars, n, intern_in_env);
 
-  if ( emap_get(&e->map, n, &i) )
-    o = (Expr)e->vals.vals[i];
+  if ( ref->ref_type == REF_UNDEF ) {
+    if ( is_local_env(e) )
+      ref->ref_type = REF_LOCAL;
 
-  return o;
+    else {
+      ref->ref_type = REF_GLOBAL;
+      exprs_push(&e->vals, NONE); // reserve space for value
+    }
+  }
+
+  return ref;
 }
 
-Expr env_ref(Env* e, int n) {
-  assert(!e->local);
+// helpers for working with the global environment
+void toplevel_env_def(Env* e, Sym* n, Expr x) {
+  assert(is_global_env(e));
+  assert(!is_keyword(n));
 
-  Expr o = NONE;
+  Ref* r = env_define(e, n);
 
-  if ( n >= 0 && n < e->vals.count )
-    o = e->vals.vals[n];
-
-  return o;
+  e->vals.vals[r->offset] = x;
 }
 
-int  env_put(Env* e, Sym* n) {
-  int off = emap_intern(&e->map, n, intern_in_env);
+void toplevel_env_set(Env* e, Sym* n, Expr x) {
+  assert(is_global_env(e));
+  assert(!is_keyword(n));
 
-  if ( !e->local && off == e->map.count-1 )
-    exprs_push(&e->vals, NONE);
+  Ref* r = toplevel_env_ref(e, n);
 
-  return off;
+  assert(r != NULL);
+
+  e->vals.vals[r->offset] = x;
 }
 
-void env_set(Env* e, Sym* n, Expr x) {
-  assert(!e->local);
-  int off = env_put(e, n);
+Ref* toplevel_env_ref(Env* e, Sym* n) {
+  assert(is_global_env(e));
 
-  e->vals.vals[off] = x;
+  Ref* ref = NULL;
+
+  emap_get(&e->vars, n, &ref);
+
+  return ref;
 }
 
-void env_refset(Env* e, int n, Expr x) {
-  assert(!e->local);
-  assert(n >= 0 && n < e->vals.count);
+Expr toplevel_env_get(Env* e, Sym* n) {
+  assert(is_global_env(e));
+  Expr x = NONE;
+  Ref* ref = toplevel_env_ref(e, n);
 
-  e->vals.vals[n] = x;
+  if ( ref !=  NULL )
+    x = e->vals.vals[ref->offset];
+
+  return x;
+}
+
+static void trace_emap(EMap* m) {
+  for ( int i=0, j=0; i < m->max_count && j < m->count; i++ ) {
+    EMapKV* kv = &m->kvs[i];
+
+    if ( kv->key != NULL ) {
+      j++;
+      mark_obj(kv->key);
+      mark_obj(kv->val);
+    }
+  }
 }
 
 void trace_env(void* ptr) {
   Env* e = ptr;
 
-  if ( e->map.kvs )
-    for ( int i=0, j=0; i < e->map.max_count && j < e->map.count; i++ ) {
-      EMapKV* kv = &e->map.kvs[i];
+  mark_obj(e->parent);
 
-      if ( kv->key != NULL ) {
-        j++;
-        mark_obj(kv->key);
-      }
-    }
+  trace_emap(&e->vars);
 
-  trace_exprs(&e->vals);
+  if ( is_local_env(e) )
+    trace_emap(&e->upvs);
+
+  else
+    trace_exprs(&e->vals);
 }
 
 void free_env(void* ptr) {
   Env* e = ptr;
 
-  free_emap(&e->map);
-  free_alist(&e->vals);
+  free_emap(&e->vars);
+
+  if ( is_local_env(e) )
+    free_emap(&e->upvs);
+
+  else
+    free_exprs(&e->vals);
 }
 
 // symbol API

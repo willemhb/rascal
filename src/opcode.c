@@ -5,11 +5,18 @@ int op_arity(OpCode op) {
   int n;
 
   switch ( op ) {
+    // special case of variable length instruction
+    case OP_CAPTURE: 
+      n = -1;
+      break;
+
     case OP_GET_VALUE:
     case OP_GET_GLOBAL:
     case OP_SET_GLOBAL:
     case OP_GET_LOCAL:
     case OP_SET_LOCAL:
+    case OP_GET_UPVAL:
+    case OP_SET_UPVAL:
     case OP_JUMP:
     case OP_JUMP_F:
     case OP_CALL:
@@ -35,6 +42,7 @@ char* op_name(OpCode op) {
     case OP_SET_GLOBAL: out = "SET-GLOBAL"; break;
     case OP_GET_LOCAL:  out = "GET-LOCAL";  break;
     case OP_SET_LOCAL:  out = "SET-LOCAL";  break;
+    case OP_GET_UPVAL:  out = "GET-UPVAL";  break;
     case OP_ADD:        out = "ADD";        break;
     case OP_SUB:        out = "SUB";        break;
     case OP_MUL:        out = "MUL";        break;
@@ -47,6 +55,8 @@ char* op_name(OpCode op) {
     case OP_NTH:        out = "NTH";        break;
     case OP_JUMP:       out = "JUMP";       break;
     case OP_JUMP_F:     out = "JUMP-FALSE"; break;
+    case OP_CLOSURE:    out = "CLOSURE";    break;
+    case OP_CAPTURE:    out = "CAPTURE";    break;
     case OP_CALL:       out = "CALL";       break;
     case OP_RETURN:     out = "RETURN";     break;
     default:            out = "????";       break;

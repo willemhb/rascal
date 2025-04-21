@@ -34,7 +34,7 @@ hash_t hash_string(char* chars) {
 }
 
 hash_t hash_word(uintptr_t word) {
-  // copied directly from femtolisp repo
+  // copied directly from femtolisp repo, no idea how this works
     word = (~word) + (word << 21);             // word = (word << 21) - word - 1;
     word =   word  ^ (word >> 24);
     word = (word + (word << 3)) + (word << 8); // word * 265
