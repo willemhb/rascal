@@ -360,9 +360,9 @@ void free_buffer(void* ptr) {
 }
 
 // function API
-Fun* as_fun_s(Expr x) {
+Fun* as_fun_s(char* f, Expr x) {
   ExpType t = exp_type(x);
-  require(t == EXP_FUN, "expected type fun, got %s", Types[t].name);
+  require(t == EXP_FUN, "%s wanted a fun, got %s", f, Types[t].name);
 
   return as_fun(x);
 }
@@ -493,6 +493,10 @@ void free_env(void* ptr) {
 }
 
 // symbol API
+Sym* as_sym_s(char* f, Expr x) {
+  
+}
+
 Sym* mk_sym(char* val) {
   Sym* s  = mk_obj(EXP_SYM, 0); preserve(1, tag_obj(s));
   s->val  = mk_str(val);
@@ -686,7 +690,6 @@ Expr list_ref(List* xs, int n) {
   return xs->head;
 }
 
-
 void print_list(FILE* ios, Expr x) {
         fprintf(ios, "(");
 
@@ -733,9 +736,9 @@ void trace_list(void* ptr) {
 }
 
 // number APIs
-Num as_num_s(Expr x) {
+Num as_num_s(char* f, Expr x) {
   ExpType t = exp_type(x);
-  require(t == EXP_NUM, "expected type num, got %s", Types[t].name);
+  require(t == EXP_NUM, "%s wanted type num, got %s", f, Types[t].name);
   return as_num(x);
 }
 

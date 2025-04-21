@@ -18,4 +18,4 @@ if __name__ == "__main__":
     parser.add_argument('-c', '--cloneable', action='store_true')
     parser.add_argument('-p', '--printable', action='store_true')
 
-    args = parser.parse_aargs()
+    args = parser.parse_args()

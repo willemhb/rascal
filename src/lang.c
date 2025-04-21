@@ -337,7 +337,9 @@ bool is_fn_form(List* form) {
   return is_sym(hd) && as_sym(hd)->val == FnStr;
 }
 
-void prepare_
+void prepare_env(List* argl, Env* vars) {
+  
+}
 
 void compile_fn_form(List* form, Env* vars, Alist* vals, Buffer* code) {
   
@@ -410,7 +412,7 @@ void compile_expr(Expr x, Env* vars, Alist* vals, Buffer* code) {
       compile_literal(x, vars, vals, code);
 
     else
-      compile_global(s, code);
+      compile_reference(s, vars, vals, code);
 
   } else if ( t == EXP_LIST ) {
     List* l = as_list(x);
@@ -451,18 +453,41 @@ bool is_falsey(Expr x) {
 
 Expr exec_code(Fun* fun) {
   void* labels[] = {
+    [OP_NOOP]       = &&op_noop,
+
+    // stack manipulation
     [OP_POP]        = &&op_pop,
+
+    // environment instructions
     [OP_GET_VALUE]  = &&op_get_value,
     [OP_GET_GLOBAL] = &&op_get_global,
     [OP_SET_GLOBAL] = &&op_set_global,
+    [OP_GET_ARG]    = &&op_get_arg,
+    [OP_SET_ARG]    = &&op_set_arg,
+    [OP_GET_LOCAL]  = &&op_get_local,
+    [OP_SET_LOCAL]  = &&op_set_local,
+
+    // arithmetic instructions
     [OP_ADD]        = &&op_add,
     [OP_SUB]        = &&op_sub,
     [OP_MUL]        = &&op_mul,
     [OP_DIV]        = &&op_div,
+
+    // miscellaneous builtins
     [OP_EGAL]       = &&op_egal,
     [OP_TYPE]       = &&op_type,
+
+    // sequence operations
+    [OP_CONS]       = &&op_cons,
+    [OP_HEAD]       = &&op_head,
+    [OP_TAIL]       = &&op_tail,
+    [OP_NTH]        = &&op_nth,
+ 
+    // jump instructions
     [OP_JUMP]       = &&op_jump,
     [OP_JUMP_F]     = &&op_jump_f,
+
+    // function call instructions
     [OP_CALL]       = &&op_call,
     [OP_RETURN]     = &&op_return
   };
@@ -471,14 +496,18 @@ Expr exec_code(Fun* fun) {
   OpCode op;
   Expr x, y, z;
   Num nx, ny, nz;
+  List* lx, * ly;
 
-  install_code(fun);
+  install_code(fun, -1);
 
  fetch:
   op = next_op();
 
   goto *labels[op];
 
+ op_noop:
+  goto fetch;
+  
  op_pop: // remove TOS
   pop();
 
@@ -494,6 +523,7 @@ Expr exec_code(Fun* fun) {
  op_get_global:
   argx = next_op(); // previously resolved index in global environment
   x = env_ref(&Globals, argx);
+
   require(x != NONE, "undefined reference");
   push(x);
 
@@ -506,29 +536,57 @@ Expr exec_code(Fun* fun) {
 
   goto fetch;
 
+ op_get_arg:
+  argx = next_op();
+  x    = Vm.stack[Vm.bp+argx];
+
+  push(x);
+
+  goto fetch;
+
+ op_set_arg:
+  argx = next_op();
+  x    = pop();
+  Vm.stack[Vm.bp+argx] = x;
+
+  goto fetch;
+
+ op_get_local:
+  argx = next_op();
+  x    = Vm.stack[Vm.fp+argx];
+
+  goto fetch;
+
+ op_set_local:
+  argx = next_op();
+  x    = pop();
+  Vm.stack[Vm.bp+argx] = x;
+
+  goto fetch;
+  
  op_add:
   require_argco("+", 2, argc);
 
   y      = pop();
   x      = pop();
-  nx     = as_num_s(x);
-  ny     = as_num_s(y);
+  nx     = as_num_s("+", x);
+  ny     = as_num_s("+", y);
   nz     = nx + ny;
   z      = tag_num(nz);
-  *tos() = z;           // combine push/pop
+  tos()  = z;           // combine push/pop
 
   goto fetch;
 
  op_sub:
-  require_argco("+", 2, argc);
+  require_argco("-", 2, argc);
 
   y      = pop();
   x      = pop();
-  nx     = as_num_s(x);
-  ny     = as_num_s(y);
+  nx     = as_num_s("-", x);
+  ny     = as_num_s("-", y);
   nz     = nx - ny;
   z      = tag_num(nz);
-  *tos() = z;           // combine push/pop
+  tos()  = z;           // combine push/pop
 
   goto fetch;
 
@@ -537,11 +595,11 @@ Expr exec_code(Fun* fun) {
 
   y      = pop();
   x      = pop();
-  nx     = as_num_s(x);
-  ny     = as_num_s(y);
+  nx     = as_num_s("*", x);
+  ny     = as_num_s("*", y);
   nz     = nx * ny;
   z      = tag_num(nz);
-  *tos() = z;           // combine push/pop
+  tos()  = z;           // combine push/pop
 
   goto fetch;
 
@@ -550,11 +608,11 @@ Expr exec_code(Fun* fun) {
 
   y      = pop();
   x      = pop();
-  nx     = as_num_s(x);
-  ny     = as_num_s(y); require(ny != 0, "division by zero");
+  nx     = as_num_s("/", x);
+  ny     = as_num_s("/", y); require(ny != 0, "division by zero");
   nz     = nx / ny;
   z      = tag_num(nz);
-  *tos() = z;           // combine push/pop
+  tos()  = z;           // combine push/pop
 
   goto fetch;
 
@@ -564,7 +622,7 @@ Expr exec_code(Fun* fun) {
   y      = pop();
   x      = pop();
   z      = egal_exps(x, y) ? TRUE : FALSE;
-  *tos() = z;
+  tos()  = z;
 
   goto fetch;
 
@@ -573,7 +631,37 @@ Expr exec_code(Fun* fun) {
 
   x      = pop();
   y      = tag_obj(exp_info(x)->repr);
-  *tos() = y;
+  tos()  = y;
+
+  goto fetch;
+
+ op_cons:
+  require_argco("cons", 2, argc);
+  lx = as_list_s("cons", Vm.stack[Vm.sp-1]);
+  ly = cons(Vm.stack[Vm.sp-2], lx);
+  z  = tag_obj(ly);
+  popn(2);
+  tos() = z;
+
+  goto fetch;
+
+ op_head:
+  require_argco("head", 1, argc);
+  x  = pop();
+  lx = as_list_s("head", x);
+  require(lx->count > 0, "can't call head on empty list");
+  y  = lx->head;
+  push(y);
+
+  goto fetch;
+
+ op_tail:
+  require_argco("tail", 1, argc);
+  x  = pop();
+  lx = as_list_s("tail", x);
+  require(lx->count > 0, "can't call tail on empty list");
+  ly = lx->tail;
+  push(tag_obj(ly));
 
   goto fetch;
 
@@ -595,7 +683,7 @@ Expr exec_code(Fun* fun) {
  op_call:
   argc = next_op();
   x = *stack_ref(-argc-1);
-  fun = as_fun_s(x);
+  fun = as_fun_s(Vm.fn->name->val->val, x);
 
   assert(fun->label != OP_NOOP); // user functions not yet supported
 
@@ -619,7 +707,7 @@ bool is_literal(Expr x) {
 
 Expr eval_exp(Expr x) {
   Expr v;
-  
+
   if ( is_literal(x) )
     v = x;
 

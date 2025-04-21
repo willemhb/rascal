@@ -165,6 +165,14 @@ Expr popn( int n ) {
   return out;
 }
 
+void install_code(Fun* fn, int bp) {
+  Vm.fn = fn;
+  Vm.pc = (instr_t*)fn->chunk->code->binary.vals;
+
+  if ( bp > -1 )
+    Vm.bp = bp;
+}
+
 void save_frame(void) {
   if ( Vm.fn != NULL ) {
     Expr* frame = pushn(4);
@@ -172,15 +180,18 @@ void save_frame(void) {
     frame[1]    = tag_obj(Vm.fn);
     frame[2]    = tag_fix(Vm.fp);
     frame[3]    = tag_fix(Vm.bp);
-    Vm.fp       = Vm.sp - 4;
+    Vm.fp       = Vm.sp;
   }
 }
 
 void restore_frame(void) {
-  assert(Vm.fp > 0);
+  assert(Vm.fp > 4);
 
-  Expr* frame = &Vm.stack[Vm.fp];
-  Vm.pc       = 
+  Expr* frame = stack_ref(Vm.fp-4);
+  Vm.pc       = as_ptr(frame[0]);
+  Vm.fn       = as_obj(frame[1]);
+  Vm.fp       = as_fix(frame[2]);
+  Vm.bp       = as_fix(frame[3]);
 }
 
 void reset_vm(void) {

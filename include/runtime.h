@@ -58,6 +58,8 @@ Expr*  push(Expr x);
 Expr*  pushn(int n);
 Expr   pop(void);
 Expr   popn(int n);
+void   install_code(Fun* fun, int bp);
+void   save_frame(void);
 void   reset_vm(void);
 void   gc_save(void* ob);
 void   run_gc(void);
@@ -75,7 +77,7 @@ void   next_gc_frame(GcFrame* gcf);
 #define eval_error(args...)    rascal_error(EVAL_ERROR, args)
 #define system_error(args...)  rascal_error(SYSTEM_ERROR, args)
 
-#define tos()  stack_ref(-1)
+#define tos()  (stack_ref(-1)[0])
 
 #define next_op() *(Vm.pc++)
 

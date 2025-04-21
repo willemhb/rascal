@@ -213,7 +213,7 @@ int     buffer_write(Buffer* b, byte_t c);
 int     buffer_write_n(Buffer* b, byte_t *cs, int n);
 
 // function API
-Fun* as_fun_s(Expr x);
+Fun* as_fun_s(char* f, Expr x);
 Fun* mk_fun(Sym* name, OpCode op, Chunk* code);
 Fun* mk_builtin_fun(Sym* name, OpCode op);
 Fun* mk_user_fun(Chunk* code);
@@ -230,6 +230,7 @@ void env_set(Env* e, Sym* n, Expr x);
 void env_refset(Env* e, int n, Expr x);
 
 // symbol API
+Sym* as_sym_s(char* f, Expr x);
 Sym* mk_sym(char* cs);
 bool sym_val_eql(Sym* s, char* v);
 
@@ -237,13 +238,14 @@ bool sym_val_eql(Sym* s, char* v);
 Str* mk_str(char* cs);
 
 // list API
+List*  as_list_s(char* f, Expr x);
 List*  empty_list(void);
 List*  mk_list(size_t n, Expr* xs);
 List*  cons(Expr hd, List* tl);
 Expr   list_ref(List* xs, int n);
 
 // number API
-Num       as_num_s(Expr x);
+Num       as_num_s(char* f, Expr x);
 Num       as_num(Expr x);
 Expr      tag_num(Num n);
 uintptr_t as_fix(Expr x);
