@@ -5,68 +5,9 @@
 #include "util.h"
 #include "data.h"
 
-
 // magic numbers
 #define MIN_CAP 8
 #define LOADF   0.625
-
-// Stack APIs
-void init_stack(Stack* a) {
-  a->vals      = NULL;
-  a->count     = 0;
-  a->max_count = 0;
-}
-
-void free_stack(Stack* a) {
-  release(a->vals, 0);
-  init_stack(a);
-}
-
-void grow_stack(Stack* a) {
-  if ( a->max_count == MAX_ARITY )
-    runtime_error("maximum stack size exceeded");
-  
-  int   new_maxc  = a->max_count ? a->max_count << 1 : MIN_CAP;
-  void** new_spc  = reallocate(false,
-                               new_maxc * sizeof(void*),
-                               a->max_count * sizeof(void*),
-                               a->vals);
-
-  a->vals = new_spc;
-  a->max_count = new_maxc;
-}
-
-void shrink_stack(Stack* a) {
-  assert(a->max_count > MIN_CAP);
-
-  size_t new_maxc = a->max_count >> 1;
-  void*  new_spc  = reallocate(false,
-                               new_maxc*sizeof(void*),
-                               a->max_count*sizeof(void*),
-                               a->vals);
-
-  a->vals      = new_spc;
-  a->max_count = new_maxc;
-}
-
-void stack_push(Stack* a, void* v) {
-  if ( a->count == a->max_count )
-    grow_stack(a);
-
-  a->vals[a->count++] = v;
-}
-
-void* stack_pop(Stack* a) {
-  void* out = a->vals[--a->count];
-
-  if ( a->count == 0 )
-    free_stack(a);
-
-  else if ( a->max_count > MIN_CAP && a->count < (a->max_count >> 1) )
-    shrink_stack(a);
-
-  return out;
-}
 
 void trace_objs(Stack* a) {
   if ( a->vals )
@@ -139,13 +80,71 @@ void binary_write(Binary* b, byte_t c) {
 }
 
 void binary_write_n(Binary* b, byte_t* cs, int n) {
-  
   if ( b->count + n > b->max_count )
     resize_binary(b, b->count+n);
 
   memcpy(b->vals+b->count, cs, n);
   b->count += n;
 }
+
+// alist implementation macro
+#define ALIST_IMPL(T, X, t)                     \
+  void init_##t(T* t) {                         \
+    t->vals      = NULL;                        \
+    t->count     = 0;                           \
+    t->max_count = 0;                           \
+  }                                             \
+                                                \
+  void free_##t(T* t) {                         \
+    release(t->vals, 0);                                            \
+    init_##t(t);                                                    \
+  }                                                                 \
+                                                                    \
+  void grow_##t(T* t) {                                             \
+    if ( t->max_count == MAX_ARITY )                                \
+      runtime_error("maximum "#t" size exceeded");                  \
+    int new_maxc  = t->max_count ? t->max_count << 1 : MIN_CAP;   \
+    X*  new_spc  = reallocate(false,                              \
+      new_maxc * sizeof(void*),                                   \
+      t->max_count * sizeof(void*),                               \
+      t->vals);                                                   \
+                                                                  \
+               a->vals = new_spc;                                 \
+               a->max_count = new_maxc;                           \
+               }                                                  \
+                
+void shrink_stack(Stack* a) {
+  assert(a->max_count > MIN_CAP);
+
+  size_t new_maxc = a->max_count >> 1;
+  void*  new_spc  = reallocate(false,
+                               new_maxc*sizeof(void*),
+                               a->max_count*sizeof(void*),
+                               a->vals);
+
+  a->vals      = new_spc;
+  a->max_count = new_maxc;
+}
+
+void stack_push(Stack* a, void* v) {
+  if ( a->count == a->max_count )
+    grow_stack(a);
+
+  a->vals[a->count++] = v;
+}
+
+void* stack_pop(Stack* a) {
+  void* out = a->vals[--a->count];
+
+  if ( a->count == 0 )
+    free_stack(a);
+
+  else if ( a->max_count > MIN_CAP && a->count < (a->max_count >> 1) )
+    shrink_stack(a);
+
+  return out;
+}
+
 
 // Table implementation macro
 #define check_grow(t) ((t)->count >= ((t)->max_count * LOADF))

@@ -34,6 +34,22 @@ void resize_binary(Binary* b, int n);
 void binary_write(Binary* b, byte_t c);
 void binary_write_n(Binary* b, byte_t* cs, int n);
 
+// array template
+#define ALIST_API(T, X, t)                      \
+  typedef struct {                              \
+    X* vals;                                    \
+    int count, max_count;                       \
+  };                                            \
+                                                \
+  void init_##t(T* t);                          \
+  void free_##t(T* t);                          \
+  void grow_##t(T* t);                          \
+  void shrink_##t(T* t);                        \
+  void resize_##t(T* t, int n);                 \
+  void t##_push(T* t, X x);                     \
+  X    t##_pop(T* t);                           \
+  void t##_write(T* t, X* xs, int n)
+
 // table template
 #define TABLE_API(T, K, V, t)                                    \
   typedef struct {                                               \

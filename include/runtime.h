@@ -119,8 +119,9 @@ void   next_gc_frame(GcFrame* gcf);
 
 #define require_vargco(f, e, g)                                         \
   do {                                                                  \
-    if ( (g) < (e) )                                                      \
-      eval_error( "%s wants at least %d inputs, got %d", (f), (e), (g) ); \
+    if ( (g) < (e) )                                                    \
+      eval_error( "%s wants at least %d inputs, got %d",                \
+                  (f), (e), (g) );                                      \
   } while ( false )
 
 #define require_argtype(f, e, x)                                        \
