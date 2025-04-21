@@ -5,6 +5,7 @@
 
 #include "common.h"
 #include "collection.h"
+#include "opcode.h"
 
 // Types
 // Expression type codes
@@ -12,6 +13,7 @@ typedef enum {
   EXP_NONE,
   EXP_NUL,
   EXP_EOS,
+  EXP_BOOL,
   EXP_CHUNK,
   EXP_ALIST,
   EXP_BUFFER,
@@ -23,10 +25,13 @@ typedef enum {
   EXP_NUM
 } ExpType;
 
+#define NUM_TYPES (EXP_NUM+1)
+
 // Expression types
 typedef uintptr_t Expr;
 typedef nullptr_t Nul;
 typedef double    Num;
+typedef bool      Bool;
 typedef struct    Obj    Obj;
 typedef struct    Chunk  Chunk;
 typedef struct    Alist  Alist;
@@ -54,6 +59,7 @@ typedef void   (*FreeFn)(void* ob);
 typedef struct {
   ExpType type;
   char*   name;
+  Sym*    repr;       // rascal representation of the type (for now just a keyword)
   size_t  obsize;
   PrintFn print_fn;
   HashFn  hash_fn;
@@ -83,25 +89,6 @@ typedef enum {
   FL_NOSWEEP = 0x20000000
 } ExpFlags;
 
-typedef enum {
-  // miscellaneous instructions
-  OP_NOOP,
-
-  // variable lookups
-  OP_GET_VALUE,
-  OP_GET_GLOBAL,
-
-  // arithmetic instructions
-  OP_ADD,
-  OP_SUB,
-  OP_MUL,
-  OP_DIV,
-
-  // function calls/returns
-  OP_CALL,
-  OP_RETURN
-} OpCode;
-
 struct Obj {
   HEAD;
 };
@@ -113,6 +100,7 @@ TABLE_API(EMap, Sym*, int, emap);
 struct Chunk {
   HEAD;
 
+  Env*    vars;
   Alist*  vals;
   Buffer* code;
 };
@@ -175,11 +163,18 @@ struct List {
 #define XTMSK  0xffff000000000000ul
 #define XVMSK  0x0000fffffffffffful
 
-#define OBJ    0xfffc000000000000ul
-#define NUL    0xffff000000000000ul
-#define NONE   0x7ffe000000000000ul
-#define EOS_T  0x7ffd000000000000ul
-#define EOS    0x7ffd0000fffffffful
+#define NONE_T 0x7ffd000000000000ul
+#define NUL_T  0x7ffe000000000000ul
+#define EOS_T  0x7fff000000000000ul
+#define BOOL_T 0xfffc000000000000ul
+#define OBJ_T  0xffff000000000000ul
+
+// special values
+#define NONE   0x7ffd000000000000ul
+#define NUL    0x7ffe000000000000ul
+#define EOS    0x7fff0000fffffffful
+#define TRUE   0xfffc000000000001ul
+#define FALSE  0xfffc000000000000ul
 
 // forward declarations
 // expression APIs
@@ -198,7 +193,7 @@ void  mark_obj(void* ptr);
 void  free_obj(void *ptr);
 
 // chunk API
-Chunk* mk_chunk(Alist* vals, Buffer* code);
+Chunk* mk_chunk(Env* vars, Alist* vals, Buffer* code);
 void   dis_chunk(Chunk* chunk);
 
 // alist API
@@ -220,6 +215,7 @@ Fun* mk_fun(Sym* name, OpCode op, Chunk* code);
 Fun* mk_builtin_fun(Sym* name, OpCode op);
 Fun* mk_user_fun(Chunk* code);
 void def_builtin_fun(char* name, OpCode op);
+void disassemble(Fun* fun);
 
 // environment API
 Env* mk_env(void);
@@ -227,7 +223,7 @@ Expr env_get(Env* e, Sym* n);
 Expr env_ref(Env* e, int n);
 int  env_put(Env* e, Sym* n);
 void env_set(Env* e, Sym* n, Expr x);
-void def_builtin(Env* e, Sym* n, Expr x);
+void env_refset(Env* e, int n, Expr x);
 
 // symbol API
 Sym* mk_sym(char* cs);
@@ -246,6 +242,10 @@ Expr   list_ref(List* xs, int n);
 Num  as_num_s(Expr x);
 Num  as_num(Expr x);
 Expr tag_num(Num n);
+
+// boolean API
+Bool as_bool(Expr x);
+Expr tag_bool(Bool b);
 
 // convenience macros
 #define exp_tag(x)     ((x) & XTMSK)

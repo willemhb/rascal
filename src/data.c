@@ -12,6 +12,7 @@ void print_list(FILE* ios, Expr x);
 void print_sym(FILE* ios, Expr x);
 void print_str(FILE* ios, Expr x);
 void print_num(FILE* ios, Expr x);
+void print_bool(FILE* ios, Expr x);
 void print_nul(FILE* ios, Expr x);
 void print_none(FILE* ios, Expr x);
 
@@ -53,6 +54,13 @@ ExpTypeInfo Types[] = {
     .type   = EXP_EOS,
     .name   = "eos",
     .obsize = 0
+  },
+
+  [EXP_BOOL] = {
+    .type     = EXP_BOOL,
+    .name     = "bool",
+    .obsize   = 0,
+    .print_fn = print_bool
   },
 
   [EXP_CHUNK] = {
@@ -130,11 +138,12 @@ ExpType exp_type(Expr x) {
   ExpType t;
 
   switch ( x & XTMSK ) {
-    case NONE : t = EXP_NONE;        break;
-    case NUL  : t = EXP_NUL;         break;
-    case EOS_T: t = EXP_EOS;         break;
-    case OBJ  : t = head(x)->type;   break;
-    default   : t = EXP_NUM;         break;
+    case NONE_T : t = EXP_NONE;      break;
+    case NUL_T  : t = EXP_NUL;       break;
+    case EOS_T  : t = EXP_EOS;       break;
+    case BOOL_T : t = EXP_BOOL;      break;
+    case OBJ_T  : t = head(x)->type; break;
+    default     : t = EXP_NUM;       break;
   }
 
   return t;
@@ -164,8 +173,8 @@ hash_t hash_exp(Expr x) {
 bool egal_exps(Expr x, Expr y) {
   bool out;
   
-  if ( x != y )
-    out = false;
+  if ( x == y )
+    out = true;
 
   else {
     ExpType tx = exp_type(x), ty = exp_type(y);
@@ -183,7 +192,7 @@ bool egal_exps(Expr x, Expr y) {
 }
 
 void mark_exp(Expr x) {
-  if ( exp_tag(x) == OBJ )
+  if ( exp_tag(x) == OBJ_T )
     mark_obj(as_obj(x));
 }
 
@@ -193,7 +202,7 @@ void* as_obj(Expr x) {
 }
 
 Expr tag_obj(void* o) {
-  return ((Expr)o) | OBJ;
+  return ((Expr)o) | OBJ_T;
 }
 
 void* mk_obj(ExpType type, flags_t flags) {
@@ -249,7 +258,6 @@ void print_none(FILE* ios, Expr x) {
   fprintf(ios, "none");
 }
 
-
 // chunk API
 Chunk* mk_chunk(Alist* vals, Buffer* code) {
   Chunk* out = mk_obj(EXP_CHUNK, 0);
@@ -258,6 +266,28 @@ Chunk* mk_chunk(Alist* vals, Buffer* code) {
   out->code = code;
 
   return out;
+}
+
+void dis_chunk(Chunk* chunk) {
+  instr_t* instr = (instr_t*)chunk->code->binary.vals;
+  int offset     = 0, max_offset = chunk->code->binary.count / 2;
+
+  printf("%-8s %-16s %-5s\n\n", "line", "instruction", "input");
+
+  while ( offset < max_offset ) {
+    OpCode op  = instr[offset];
+    int argc   = op_arity(op);
+    char* name = op_name(op);
+
+    if ( argc == 1 ) {
+      instr_t arg = instr[offset+1];
+      printf("%.8d %-16s %.5d\n", offset, name, arg);
+      offset++;                                     // advance past argument
+    } else
+      printf("%.8d %-16s -----\n", offset, name);
+
+    offset++;
+  }
 }
 
 void trace_chunk(void* ptr) {
@@ -362,6 +392,12 @@ void def_builtin_fun(char* name, OpCode op) {
   env_set(&Globals, sym, tag_obj(fun));
 }
 
+void disassemble(Fun* fun) {
+  printf("\n\n=== %s ===\n\n", fun->name->val->val);
+  dis_chunk(fun->chunk);
+  printf("\n\n");
+}
+
 void trace_fun(void* ptr) {
   Fun* fun = ptr;
 
@@ -418,6 +454,12 @@ void env_set(Env* e, Sym* n, Expr x) {
   int off = env_put(e, n);
 
   e->vals.vals[off] = (void*)x;
+}
+
+void env_refset(Env* e, int n, Expr x) {
+  assert(n >= 0 && n < e->vals.count);
+
+  e->vals.vals[n] = (void*)x;
 }
 
 void trace_env(void* ptr) {
@@ -704,4 +746,17 @@ Expr tag_num(Num n) {
 
 void print_num(FILE* ios, Expr x) {
   fprintf(ios, "%g", as_num(x));
+}
+
+// boolean APIs
+Bool as_bool(Expr x) {
+  return x == TRUE;
+}
+
+Expr tag_bool(Bool b) {
+  return b ? TRUE : FALSE;
+}
+
+void print_bool(FILE* ios, Expr x) {
+  fprintf(ios, x == TRUE ? "true" : "false");
 }

@@ -4,7 +4,11 @@
 #include <stdlib.h>
 
 #include "runtime.h"
+#include "opcode.h"
 #include "lang.h"
+
+// globals
+Str* QuoteStr, * SetStr, * IfStr, * DoStr;
 
 // Function prototypes
 // read helpers
@@ -13,11 +17,10 @@ bool is_num_char(int c);
 int  peek(FILE *in);
 char read_char(FILE *in);
 void skip_space(FILE* in);
+Expr read_quote(FILE* in);
 Expr read_list(FILE *in);
 Expr read_string(FILE* in);
 Expr read_atom(FILE* in);
-
-// Global symbol table could be added here
 
 // read helpers
 bool is_sym_char(int c) {
@@ -60,6 +63,8 @@ Expr read_exp(FILE *in) {
 
   if ( c == EOF )
     x = EOS;
+  else if ( c == '\'' )
+    x = read_quote(in);
   else if ( c == '(' )
     x = read_list(in);
   else if ( c == '"')
@@ -67,11 +72,24 @@ Expr read_exp(FILE *in) {
   else if ( is_sym_char(c) )
     x = read_atom(in);
   else if ( c == ')' )
-    runtime_error("dangling ')'");
+    eval_error("dangling ')'");
   else
-    runtime_error("unrecognized character %c", c);
+    eval_error("unrecognized character %c", c);
 
   return x;
+}
+
+Expr read_quote(FILE* in) {
+  read_char(in);
+
+  if ( feof(in) || isspace(peek(in)) )
+    eval_error("invalid syntax: quoted nothing");
+
+  Sym* hd  = mk_sym("quote"); preserve(2, tag_obj(hd), NUL);
+  Expr x   = read_exp(in);    add_to_preserved(1, x);
+  List* qd = mk_list(2, preserved());
+
+  return tag_obj(qd);
 }
 
 Expr read_list(FILE *in) {
@@ -154,6 +172,12 @@ Expr read_atom(FILE* in) {
 
     else if ( strcmp(Token, "none" ) == 0 )
       x = NONE;
+
+    else if ( strcmp(Token, "true") == 0 )
+      x = TRUE;
+
+    else if ( strcmp(Token, "false") == 0 )
+      x = FALSE;
     
     else if ( strcmp(Token, "<eos>" ) == 0 )
       x = EOS;
@@ -172,31 +196,23 @@ Expr read_atom(FILE* in) {
 
 // compile
 // compile helpers
-int  op_arity(OpCode op);
 void emit_instr(Buffer* code, OpCode op, ...);
+void fill_instr(Buffer* code, int offset, int val);
+
+bool is_quote_form(List* form);
+void compile_quote(List* form, Alist* vals, Buffer* code);
+bool is_set_form(List* form);
+void compile_set(List* form, Alist* vals, Buffer* code);
+bool is_if_form(List* form);
+void compile_if(List* form, Alist* vals, Buffer* code);
+bool is_do_form(List* form);
+void compile_do(List* form, Alist* vals, Buffer* code);
+
 void compile_literal(Expr x, Alist* vals, Buffer* code);
 void compile_global(Sym* s, Buffer* code);
 void compile_funcall(List* form, Alist* vals, Buffer* code);
 void compile_expr(Expr x, Alist* vals, Buffer* code);
 Fun* toplevel_compile(List* form);
-
-int op_arity(OpCode op) {
-  int n;
-  
-  switch ( op ) {
-    case OP_GET_VALUE:
-    case OP_GET_GLOBAL:
-    case OP_CALL:
-      n = 1;
-      break;
-
-    default:
-      n = 0;
-      break;
-  }
-
-  return n;
-}
 
 void emit_instr(Buffer* code, OpCode op, ...) {
   // probably not very efficient, but easy to use
@@ -215,6 +231,93 @@ void emit_instr(Buffer* code, OpCode op, ...) {
   buffer_write_n(code, (byte_t*)buffer, b);
 }
 
+void fill_instr(Buffer* code, int offset, int val) {
+  ((instr_t*)code->binary.vals)[offset] = val;
+}
+
+bool is_quote_form(List* form) {
+  Expr hd = form->head;
+
+  return is_sym(hd) && as_sym(hd)->val == QuoteStr;
+}
+
+void compile_quote(List* form, Alist* vals, Buffer* code) {
+  require_argco("quote", 1, form->count-1);
+
+  Expr x = form->tail->head;
+
+  compile_literal(x, vals, code);
+}
+
+bool is_set_form(List* form) {
+  Expr hd = form->head;
+
+  return is_sym(hd) && as_sym(hd)->val == SetStr;
+}
+
+void compile_set(List* form, Alist* vals, Buffer* code) {
+  require_argco("set", 2, form->count-1);
+  require_argtype("set", EXP_SYM, form->tail->head);
+
+  Sym* n = as_sym(form->tail->head);
+
+  require(!is_keyword(n), "can't assign to keyword %s", n->val->val);
+
+  int i = env_put(&Globals, n);
+
+  compile_expr(form->tail->tail->head, vals, code);
+  emit_instr(code, OP_SET_GLOBAL, i);
+}
+
+bool is_if_form(List* form) {
+  Expr hd = form->head;
+
+  return is_sym(hd) && as_sym(hd)->val == IfStr;
+}
+
+void compile_if(List* form, Alist* vals, Buffer* code) {
+    require_argco2("if", 2, 3, form->count-1);
+
+    Expr test = form->tail->head;
+    Expr then = form->tail->tail->head;
+    Expr alt  = form->count == 3 ? NUL : form->tail->tail->tail->head;
+
+    // compile different parts of the form, saving offsets to fill in later
+    compile_expr(test, vals, code);
+    emit_instr(code, OP_JUMP_F, 0);
+    int off1 = (code->binary.count >> 1);
+    compile_expr(then, vals, code);
+    emit_instr(code, OP_JUMP, 0);
+    int off2 = (code->binary.count >> 1);
+    compile_expr(alt, vals, code);
+    int off3 = code->binary.count >> 1;
+
+    fill_instr(code, off1-1, off2-off1);
+    fill_instr(code, off2-1, off3-off2);
+}
+
+bool is_do_form(List* form) {
+  Expr hd = form->head;
+
+  return is_sym(hd) && as_sym(hd)->val == DoStr;
+}
+
+void compile_do(List* form, Alist* vals, Buffer* code) {
+  require_vargco("do", 2, form->count-1);
+
+  List* xprs = form->tail;
+
+  while ( xprs->count > 0 ) {
+    Expr x = xprs->head;
+    compile_expr(x, vals, code);
+    
+    if ( xprs->count > 1 )
+      emit_instr(code, OP_POP);
+
+    xprs = xprs->tail;
+  }
+}
+
 void compile_literal(Expr x, Alist* vals, Buffer* code) {
   int n = alist_push(vals, x);
 
@@ -229,16 +332,30 @@ void compile_global(Sym* s, Buffer* code) {
 
 void compile_funcall(List* form, Alist* vals, Buffer* code) {
   assert(form->count > 0);
-  
-  int argc = form->count-1;
 
-  while ( form->count > 0 ) {
-    Expr arg = form->head;
-    compile_expr(arg, vals, code);
-    form = form->tail;
+  if ( is_quote_form(form) )
+    compile_quote(form, vals, code);
+
+  else if ( is_set_form(form) )
+    compile_set(form, vals, code);
+
+  else if ( is_if_form(form) )
+    compile_if(form, vals, code);
+
+  else if ( is_do_form(form) )
+    compile_do(form, vals, code);
+
+  else {
+    int argc = form->count-1;
+
+    while ( form->count > 0 ) {
+      Expr arg = form->head;
+      compile_expr(arg, vals, code);
+      form = form->tail;
+    }
+
+    emit_instr(code, OP_CALL, argc);
   }
-
-  emit_instr(code, OP_CALL, argc);
 }
 
 void compile_expr(Expr x, Alist* vals, Buffer* code) {
@@ -275,19 +392,33 @@ Fun* toplevel_compile(List* form) {
 
   Chunk* chunk = mk_chunk(vals, code); add_to_preserved(1, tag_obj(chunk));
   Fun* out     = mk_user_fun(chunk);
+  
+#ifdef RASCAL_DEBUG
+  disassemble(out);
+#endif
 
   return out;
 }
 
 // exec
+bool is_falsey(Expr x) {
+  return x == NONE || x == NUL || x == FALSE;
+}
+
 Expr exec_code(Fun* fun) {
   void* labels[] = {
+    [OP_POP]        = &&op_pop,
     [OP_GET_VALUE]  = &&op_get_value,
     [OP_GET_GLOBAL] = &&op_get_global,
+    [OP_SET_GLOBAL] = &&op_set_global,
     [OP_ADD]        = &&op_add,
     [OP_SUB]        = &&op_sub,
     [OP_MUL]        = &&op_mul,
     [OP_DIV]        = &&op_div,
+    [OP_EGAL]       = &&op_egal,
+    [OP_TYPE]       = &&op_type,
+    [OP_JUMP]       = &&op_jump,
+    [OP_JUMP_F]     = &&op_jump_f,
     [OP_CALL]       = &&op_call,
     [OP_RETURN]     = &&op_return
   };
@@ -304,6 +435,11 @@ Expr exec_code(Fun* fun) {
 
   goto *labels[op];
 
+ op_pop: // remove TOS
+  pop();
+
+  goto fetch;
+
  op_get_value: // load a value from the constant store
   argx = next_op();
   x = alist_get(Vm.fn->chunk->vals, argx);
@@ -318,9 +454,16 @@ Expr exec_code(Fun* fun) {
   push(x);
 
   goto fetch;
-  
+
+ op_set_global:
+  argx = next_op();
+  x    = pop();
+  env_refset(&Globals, argx, x);
+
+  goto fetch;
+
  op_add:
-  require(argc == 2, "expected 2 arguments to +, got %d", argc);
+  require_argco("+", 2, argc);
 
   y      = pop();
   x      = pop();
@@ -333,7 +476,7 @@ Expr exec_code(Fun* fun) {
   goto fetch;
 
  op_sub:
-  require(argc == 2, "expected 2 arguments to -, got %d", argc);
+  require_argco("+", 2, argc);
 
   y      = pop();
   x      = pop();
@@ -346,7 +489,7 @@ Expr exec_code(Fun* fun) {
   goto fetch;
 
  op_mul:
-  require(argc == 2, "expected 2 arguments to *, got %d", argc);
+  require_argco("*", 2, argc);
 
   y      = pop();
   x      = pop();
@@ -359,7 +502,7 @@ Expr exec_code(Fun* fun) {
   goto fetch;
 
  op_div:
-  require(argc == 2, "expected 2 arguments to /, got %d", argc);
+  require_argco("/", 2, argc);
 
   y      = pop();
   x      = pop();
@@ -368,6 +511,40 @@ Expr exec_code(Fun* fun) {
   nz     = nx / ny;
   z      = tag_num(nz);
   *tos() = z;           // combine push/pop
+
+  goto fetch;
+
+ op_egal:
+  require_argco("=", 2, argc);
+
+  y      = pop();
+  x      = pop();
+  z      = egal_exps(x, y) ? TRUE : FALSE;
+  *tos() = z;
+
+  goto fetch;
+
+ op_type:
+  require_argco("type", 1, argc);
+
+  x      = pop();
+  y      = tag_obj(exp_info(x)->repr);
+  *tos() = y;
+
+  goto fetch;
+
+ op_jump: // unconditional jumping
+  argx   = next_op();
+  Vm.pc += argx;
+
+  goto fetch;
+
+ op_jump_f: // jump if TOS is falsey
+  argx   = next_op();
+  x      = pop();
+
+  if ( is_falsey(x) )
+    Vm.pc += argx;
 
   goto fetch;
 
@@ -383,7 +560,8 @@ Expr exec_code(Fun* fun) {
   goto *labels[op];
 
  op_return:
-  x = pop(); reset_vm();
+  x = Vm.sp ? pop() : NONE;
+  reset_vm();
 
   return x;
 }

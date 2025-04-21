@@ -4,12 +4,11 @@
 #include "common.h"
 #include "data.h"
 
-
 // Magic numbers
 #define BUFFER_SIZE 2048
 #define STACK_SIZE  65536
 #define BUFFER_MAX  2046
-#define INIT_HEAP   (4096 * sizeof(uintptr_t))
+#define INIT_HEAP   (2048 * sizeof(uintptr_t))
 
 // Internal types
 typedef enum {
@@ -91,10 +90,42 @@ void   next_gc_frame(GcFrame* gcf);
 #define add_to_preserved(n, x)                  \
   __gc_frame_vals__[(n)] = (x)
 
+#define preserved() __gc_frame_vals__
+
 #define require(test, args...)                  \
   do {                                          \
     if ( !(test) )                              \
-      rascal_error(EVAL_ERROR, args);           \
-  } while (false)
+      eval_error(args);                         \
+  } while ( false )
+
+#define require_argco(f, e, g)                                          \
+  do {                                                                  \
+    if ( (e) != (g) )                                                   \
+      eval_error( "%s wants %d inputs, got %d", (f), (e), (g) );        \
+  } while ( false )
+
+#define require_argco2(f, e1, e2, g)                                    \
+  do {                                                                  \
+    if ( (e1) != (g) && (e2) != (g) )                                   \
+      eval_error( "%s wants %d or %d inputs, got %d",                   \
+                  (f),                                                  \
+                  (e1),                                                 \
+                  (e2),                                                 \
+                  (g));                                                 \
+  } while ( false )
+
+#define require_vargco(f, e, g)                                         \
+  do {                                                                  \
+    if ( (g) < (e) )                                                      \
+      eval_error( "%s wants at least %d inputs, got %d", (f), (e), (g) ); \
+  } while ( false )
+
+#define require_argtype(f, e, x)                                        \
+  do {                                                                  \
+    ExpType _t = exp_type(x);                                           \
+    if ( (e) != _t )                                                    \
+      eval_error("%s wanted a %s, got a %s",                            \
+                 (f), Types[e].name, Types[_t].name);                   \
+  } while ( false )
 
 #endif

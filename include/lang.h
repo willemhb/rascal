@@ -7,6 +7,9 @@
 #include "runtime.h"
 #include "data.h"
 
+// globals
+extern Str* QuoteStr, * SetStr, * IfStr, * DoStr;
+
 // forward declarations
 Expr read_exp(FILE* in);
 Expr eval_exp(Expr x);

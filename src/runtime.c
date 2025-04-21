@@ -61,6 +61,7 @@ Stack GrayStack = {
 static bool check_gc(size_t n);
 static void mark_vm(void);
 static void mark_globals(void);
+static void mark_types(void);
 static void mark_gc_frames(void);
 static void mark_phase(void);
 static void trace_phase(void);
@@ -192,7 +193,17 @@ static void mark_vm(void) {
 }
 
 static void mark_globals(void) {
+  extern Str* QuoteStr, * SetStr, * IfStr;
+
   mark_obj(&Globals);
+  mark_obj(QuoteStr);
+  mark_obj(SetStr);
+  mark_obj(IfStr);
+}
+
+static void mark_types(void) {
+  for ( int i=0; i < NUM_TYPES; i++ )
+    mark_obj(Types[i].repr);
 }
 
 static void mark_gc_frames(void) {
@@ -209,6 +220,7 @@ static void mark_gc_frames(void) {
 static void mark_phase(void) {
   mark_vm();
   mark_globals();
+  mark_types();
   mark_gc_frames();
 }
 
@@ -251,10 +263,23 @@ void gc_save(void* ob) {
 }
 
 void run_gc(void) {
+#ifdef RASCAL_DEBUG
+  printf("\n\nINFO: entering gc.\nallocated: %zu\nused: %zu\n\n",
+         HeapUsed,
+         HeapCap);
+#endif
+
   mark_phase();
   trace_phase();
   sweep_phase();
   cleanup_phase();
+
+#ifdef RASCAL_DEBUG
+  printf("\n\nINFO: exiting gc.\nallocated: %zu\nused: %zu\n\n",
+         HeapUsed,
+         HeapCap);
+#endif
+
 }
 
 void* allocate(bool h, size_t n) {

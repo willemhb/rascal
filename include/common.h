@@ -19,10 +19,10 @@ typedef uintptr_t      hash_t;
 
 // Prompt/messages
 #define PROMPT  "rl>"
-#define VERSION "%d.%d.%d.%s"
+#define VERSION "%.2d.%.2d.%.2d.%s"
 #define WELCOME "Welcome to rascal version "VERSION"!"
 #define MAJOR   0
-#define MINOR   3
+#define MINOR   6
 #define PATCH   0
 #define RELEASE "a"
 

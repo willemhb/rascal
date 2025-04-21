@@ -1,0 +1,42 @@
+#ifndef rl_opcode_h
+#define rl_opcode_h
+
+#include "common.h"
+
+// vm labels and a few utilities
+typedef enum {
+  // miscellaneous instructions
+  OP_NOOP,
+
+  // stack manipulation
+  OP_POP,
+
+  // variable lookups
+  OP_GET_VALUE,
+  OP_GET_GLOBAL,
+  OP_SET_GLOBAL,
+
+  // arithmetic instructions
+  OP_ADD,
+  OP_SUB,
+  OP_MUL,
+  OP_DIV,
+
+  // miscellaneous comparison instructions
+  OP_EGAL,
+  OP_TYPE,
+  OP_VM_REPORT,
+
+  // branching instructions
+  OP_JUMP,
+  OP_JUMP_F,
+
+  // function calls/returns
+  OP_CALL,
+  OP_RETURN
+} OpCode;
+
+int   op_arity(OpCode op);
+char* op_name(OpCode op);
+
+#endif
