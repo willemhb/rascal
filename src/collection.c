@@ -271,4 +271,4 @@ hash_t rehash_symbol( EMapKV* kv ) {
   return s->hash;
 }
 
-TABLE_IMPL(EMap, Sym*, int, emap, NULL, -1, hash_symbol, rehash_symbol, cmp_symbols );
+TABLE_IMPL(EMap, Sym*, Ref*, emap, NULL, NULL, hash_symbol, rehash_symbol, cmp_symbols );

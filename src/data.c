@@ -8,6 +8,7 @@
 #include "util.h"
 
 // forward declarations
+void print_ref(FILE* ios, Expr x);
 void print_list(FILE* ios, Expr x);
 void print_sym(FILE* ios, Expr x);
 void print_str(FILE* ios, Expr x);
@@ -25,8 +26,10 @@ bool   egal_lists(Expr x, Expr y);
 
 void trace_chunk(void* ptr);
 void trace_alist(void* ptr);
-void trace_fun(void* ptr);
+void trace_ref(void* ptr);
+void trace_upval(void* ptr);
 void trace_env(void* ptr);
+void trace_fun(void* ptr);
 void trace_list(void* ptr);
 
 void free_alist(void* ptr);
@@ -85,19 +88,34 @@ ExpTypeInfo Types[] = {
     .free_fn  = free_buf16
   },
 
-  [EXP_FUN] = {
-    .type     = EXP_FUN,
-    .name     = "fun",
-    .obsize   = sizeof(Fun),
-    .trace_fn = trace_fun,
-  },
-
   [EXP_ENV] = {
     .type     = EXP_ENV,
     .name     = "env",
     .obsize   = sizeof(Env),
     .trace_fn = trace_env,
     .free_fn  = free_env
+  },
+
+  [EXP_REF] = {
+    .type     = EXP_REF,
+    .name     = "ref",
+    .obsize   = sizeof(Ref),
+    .print_fn = print_ref,
+    .trace_fn = trace_ref
+  },
+
+  [EXP_UPV] = {
+    .type     = EXP_UPV,
+    .name     = "upval",
+    .obsize   = sizeof(UpVal),
+    .trace_fn = trace_upval
+  },
+
+  [EXP_FUN] = {
+    .type     = EXP_FUN,
+    .name     = "fun",
+    .obsize   = sizeof(Fun),
+    .trace_fn = trace_fun,
   },
 
   [EXP_SYM] = {
@@ -143,7 +161,6 @@ void trace_objs(Objs* os) {
   for ( int i=0; i < os->count; i++ )
     mark_obj(os->vals[i]);
 }
-
 
 // expression APIs
 ExpType exp_type(Expr x) {
@@ -413,30 +430,92 @@ void trace_fun(void* ptr) {
   mark_obj(fun->chunk);
 }
 
+// reference API
+Ref* mk_ref(Sym* n, int o) {
+  Ref* ref  = mk_obj(EXP_REF, 0);
+  ref->name = n;
+  ref->ref_type = REF_UNDEF; // filled in by env_put, env_resolve, &c
+  ref->offset = o;
+
+  return ref;
+}
+
+void print_ref(FILE* ios, Expr x) {
+  Ref* r = as_ref(x);
+
+  fprintf(ios, "#'%s", r->name->val->val);
+}
+
+void trace_ref(void* ptr) {
+  Ref* r = ptr;
+
+  mark_obj(r->name);
+}
+
+// upval API
+UpVal* mk_upval(UpVal* next, Expr* loc) {
+  // only open upvalues can be created
+  UpVal* upv  = mk_obj(EXP_UPV, 0);
+  upv->next   = next;
+  upv->closed = false;
+  upv->loc    = loc;
+
+  return upv;
+}
+
+Expr* deref(UpVal* upv) {
+  return upv->closed ? &upv->val : upv->loc;
+}
+
+void trace_upval(void* ptr) {
+  UpVal* upv = ptr;
+
+  if ( upv->closed )
+    mark_exp(upv->val);
+}
+
 // environment API
 void intern_in_env(EMap* m, EMapKV* kv, Sym* k, hash_t h) {
   (void)h;
 
   kv->key = k;
-  kv->val = m->count-1;
+  kv->val = mk_ref(k, m->count-1);
 }
 
-Env* mk_env(bool local) {
-  Env* out = mk_obj(EXP_ENV, 0);
-  out->local = local;
-  out->arity = 0;
-  init_emap(&out->map);
-  init_exprs(&out->vals);
+Env* mk_env(Env* parent) {
+  Env* env = mk_obj(EXP_ENV, 0);
 
-  return out;
+  env->parent = parent;
+  env->local  = parent != NULL;
+  env->arity  = 0;
+  init_emap(&env->vars);
+  init_emap(&env->upvs);
+  init_exprs(&env->vals);
+
+  return env;
 }
 
-int env_resolve(Env* e, Sym* n) {
-  int i = -1;
+Ref* env_resolve(Env* e, Sym* n, bool capture) {
+  Ref* r = NULL;
 
-  emap_get(&e->map, n, &i);
+  if ( !e->local ) {
+    
+  }
 
-  return i;
+  if ( e->local ) {
+    // check locals first
+    emap_get(&e->vars, n, &r);
+
+    if ( r != NULL ) { 
+      if ( capture ) { // variable referenced from enclosed scope, register as upvalue
+        
+      }
+    } else {
+      
+    }
+  }
+
+  return r;
 }
 
 Expr env_get(Env* e, Sym* n) {

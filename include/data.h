@@ -38,6 +38,8 @@ typedef struct    Obj    Obj;
 typedef struct    Chunk  Chunk;
 typedef struct    Alist  Alist;
 typedef struct    Buf16  Buf16;
+typedef struct    Ref    Ref;
+typedef struct    UpVal  UpVal;
 typedef struct    Env    Env;
 typedef struct    Fun    Fun;
 typedef struct    Str    Str;
@@ -55,6 +57,7 @@ typedef union {
 typedef void   (*PrintFn)(FILE* ios, Expr x);
 typedef hash_t (*HashFn)(Expr x);
 typedef bool   (*EgalFn)(Expr x, Expr y);
+typedef void   (*CloneFn)(void* ob);           // called to clone an object's owned space
 typedef void   (*TraceFn)(void* ob);
 typedef void   (*FreeFn)(void* ob);
 
@@ -66,6 +69,7 @@ typedef struct {
   PrintFn print_fn;
   HashFn  hash_fn;
   EgalFn  egal_fn;
+  CloneFn clone_fn;
   TraceFn trace_fn;
   FreeFn  free_fn;
 } ExpTypeInfo;
@@ -105,7 +109,7 @@ void trace_objs(Objs* os);
 
 // Table types
 TABLE_API(Strings, char*, Str*, strings);
-TABLE_API(EMap, Sym*, int, emap);
+TABLE_API(EMap, Sym*, Ref*, emap);
 
 struct Chunk {
   HEAD;
@@ -129,20 +133,62 @@ struct Buf16 {
   Bin16 binary;
 };
 
+// variable reference metadata
+
+typedef enum {
+  REF_UNDEF,
+  REF_GLOBAL,
+  REF_LOCAL,
+  REF_LOCAL_UPVAL,
+  REF_CAPTURED_UPVAL
+} RefType;
+
+struct Ref {
+  HEAD;
+
+  Ref*    captures;
+  Sym*    name;
+  RefType ref_type;
+  int     offset;
+};
+
+// special indirecting containers for closure variables
+struct UpVal {
+  HEAD;
+
+  UpVal* next;
+  bool   closed;
+
+  union {
+    Expr  val;
+    Expr* loc;
+  };
+};
+
+// standard representation for compile-time and run-time environments
 struct Env {
   HEAD;
-  bool  local;
-  int   arity;
-  EMap  map;
-  Exprs vals;
+
+  Env*   parent;
+
+  byte_t local;
+  byte_t bound;
+  int    arity;
+
+  EMap  vars; // personal namespace
+  EMap  upvs; // names captured from/by nested context
+  Exprs vals; // variable values (global only)
 };
 
 struct Fun {
   HEAD;
 
+  bool   closure;
+
   Sym*   name;
   OpCode label;
   Chunk* chunk;
+  Objs   upvs;
 };
 
 struct Sym {
@@ -200,8 +246,9 @@ void   mark_exp(Expr x);
 
 // object API
 void* as_obj(Expr x);
-Expr  tag_obj(void* obj);
+Expr  tag_obj(void* ptr);
 void* mk_obj(ExpType type, flags_t flags);
+void* clone_obj(void* ptr);
 void  mark_obj(void* ptr);
 void  free_obj(void *ptr);
 
@@ -229,12 +276,19 @@ Fun* mk_user_fun(Chunk* code);
 void def_builtin_fun(char* name, OpCode op);
 void disassemble(Fun* fun);
 
+// ref API
+Ref* mk_ref(Sym* n, int o);
+
+// upval APIs
+UpVal* mk_upval(UpVal* next, Expr* loc);
+Expr*  deref(UpVal* upv);
+
 // environment API
-Env* mk_env(bool local);
-int  env_resolve(Env* e, Sym* n);
+Env* mk_env(Env* parent);
+Ref* env_resolve(Env* e, Sym* n, bool capture);
 Expr env_get(Env* e, Sym* n);
 Expr env_ref(Env* e, int n);
-int  env_put(Env* e, Sym* n);
+Ref* env_put(Env* e, Sym* n);
 void env_set(Env* e, Sym* n, Expr x);
 void env_refset(Env* e, int n, Expr x);
 
@@ -270,6 +324,7 @@ Expr tag_bool(Bool b);
 #define exp_tag(x)     ((x) & XTMSK)
 #define head(x)        ((Obj*)as_obj(x))
 #define as_fun(x)      ((Fun*)as_obj(x))
+#define as_ref(x)      ((Ref*)as_obj(x))
 #define as_env(x)      ((Env*)as_obj(x))
 #define as_sym(x)      ((Sym*)as_obj(x))
 #define as_str(x)      ((Str*)as_obj(x))
