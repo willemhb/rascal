@@ -7,3 +7,9 @@ A little lisp with big dreams.
 * Macros
 * `c-call` (basic FFI)
 * Tail calls
+
+# far future
+* Julia style generic functions
+* Algebraic effects or something
+* New syntax
+* Standard library
