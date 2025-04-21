@@ -15,6 +15,10 @@ typedef enum {
   OP_GET_VALUE,
   OP_GET_GLOBAL,
   OP_SET_GLOBAL,
+  OP_GET_ARG,
+  OP_SET_ARG,
+  OP_GET_LOCAL,
+  OP_SET_LOCAL,
 
   // arithmetic instructions
   OP_ADD,
@@ -25,7 +29,12 @@ typedef enum {
   // miscellaneous comparison instructions
   OP_EGAL,
   OP_TYPE,
-  OP_VM_REPORT,
+
+  // basic list operations
+  OP_CONS,
+  OP_HEAD,
+  OP_TAIL,
+  OP_NTH,
 
   // branching instructions
   OP_JUMP,

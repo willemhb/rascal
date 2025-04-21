@@ -121,7 +121,8 @@ struct Buffer {
 
 struct Env {
   HEAD;
-
+  bool  local;
+  int   arity;
   EMap  map;
   Stack vals;
 };
@@ -163,11 +164,13 @@ struct List {
 #define XTMSK  0xffff000000000000ul
 #define XVMSK  0x0000fffffffffffful
 
-#define NONE_T 0x7ffd000000000000ul
-#define NUL_T  0x7ffe000000000000ul
-#define EOS_T  0x7fff000000000000ul
-#define BOOL_T 0xfffc000000000000ul
-#define OBJ_T  0xffff000000000000ul
+#define NONE_T  0x7ffd000000000000ul
+#define NUL_T   0x7ffe000000000000ul
+#define EOS_T   0x7fff000000000000ul
+#define BOOL_T  0xfffc000000000000ul
+#define GLYPH_T 0xfffd000000000000ul
+#define FIX_T   0xfffe000000000000ul
+#define OBJ_T   0xffff000000000000ul
 
 // special values
 #define NONE   0x7ffd000000000000ul
@@ -218,7 +221,8 @@ void def_builtin_fun(char* name, OpCode op);
 void disassemble(Fun* fun);
 
 // environment API
-Env* mk_env(void);
+Env* mk_env(bool local);
+int  env_resolve(Env* e, Sym* n);
 Expr env_get(Env* e, Sym* n);
 Expr env_ref(Env* e, int n);
 int  env_put(Env* e, Sym* n);
@@ -239,9 +243,13 @@ List*  cons(Expr hd, List* tl);
 Expr   list_ref(List* xs, int n);
 
 // number API
-Num  as_num_s(Expr x);
-Num  as_num(Expr x);
-Expr tag_num(Num n);
+Num       as_num_s(Expr x);
+Num       as_num(Expr x);
+Expr      tag_num(Num n);
+uintptr_t as_fix(Expr x);
+Expr      tag_fix(uintptr_t i);
+void*     as_ptr(Expr x);
+Expr      tag_ptr(void* ptr);
 
 // boolean API
 Bool as_bool(Expr x);
@@ -256,10 +264,11 @@ Expr tag_bool(Bool b);
 #define as_str(x)      ((Str*)as_obj(x))
 #define as_list(x)     ((List*)as_obj(x))
 
-#define is_interned(s) ((s)->flags == true)
-#define is_keyword(s)  (*(s)->val->val == ':')
-#define is_sym(x)      has_type(x, EXP_SYM)
-#define is_fun(x)      has_type(x, EXP_FUN)
-#define is_list(x)     has_type(x, EXP_LIST)
+#define is_interned(s)   ((s)->flags == true)
+#define is_keyword(s)    (*(s)->val->val == ':')
+#define is_local_env(e)  ((e)->local == true)
+#define is_sym(x)        has_type(x, EXP_SYM)
+#define is_fun(x)        has_type(x, EXP_FUN)
+#define is_list(x)       has_type(x, EXP_LIST)
 
 #endif

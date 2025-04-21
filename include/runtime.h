@@ -29,6 +29,8 @@ typedef struct {
   Fun*     fn;
   instr_t* pc;
   int      sp;
+  int      fp;
+  int      bp;
   Expr     stack[STACK_SIZE];
 } VM;
 
@@ -56,7 +58,6 @@ Expr*  push(Expr x);
 Expr*  pushn(int n);
 Expr   pop(void);
 Expr   popn(int n);
-void   install_code(Fun* fun);
 void   reset_vm(void);
 void   gc_save(void* ob);
 void   run_gc(void);

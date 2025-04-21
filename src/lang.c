@@ -200,18 +200,20 @@ void emit_instr(Buffer* code, OpCode op, ...);
 void fill_instr(Buffer* code, int offset, int val);
 
 bool is_quote_form(List* form);
-void compile_quote(List* form, Alist* vals, Buffer* code);
+void compile_quote(List* form, Env* vars, Alist* vals, Buffer* code);
 bool is_set_form(List* form);
-void compile_set(List* form, Alist* vals, Buffer* code);
+void compile_set(List* form, Env* vars, Alist* vals, Buffer* code);
 bool is_if_form(List* form);
-void compile_if(List* form, Alist* vals, Buffer* code);
+void compile_if(List* form, Env* vars, Alist* vals, Buffer* code);
 bool is_do_form(List* form);
-void compile_do(List* form, Alist* vals, Buffer* code);
+void compile_do(List* form, Env* vars, Alist* vals, Buffer* code);
+bool is_fn_form(List* form);
+void compile_fn_form(List* form, Env* vars, Alist* vals, Buffer* code);
 
-void compile_literal(Expr x, Alist* vals, Buffer* code);
-void compile_global(Sym* s, Buffer* code);
-void compile_funcall(List* form, Alist* vals, Buffer* code);
-void compile_expr(Expr x, Alist* vals, Buffer* code);
+void compile_literal(Expr x, Env* vars, Alist* vals, Buffer* code);
+void compile_reference(Sym* s, Env* ref, Alist* vals, Buffer* code);
+void compile_funcall(List* form, Env* vars, Alist* vals, Buffer* code);
+void compile_expr(Expr x, Env* vars, Alist* vals, Buffer* code);
 Fun* toplevel_compile(List* form);
 
 void emit_instr(Buffer* code, OpCode op, ...) {
@@ -241,12 +243,12 @@ bool is_quote_form(List* form) {
   return is_sym(hd) && as_sym(hd)->val == QuoteStr;
 }
 
-void compile_quote(List* form, Alist* vals, Buffer* code) {
+void compile_quote(List* form, Env* vars, Alist* vals, Buffer* code) {
   require_argco("quote", 1, form->count-1);
 
   Expr x = form->tail->head;
 
-  compile_literal(x, vals, code);
+  compile_literal(x, vars, vals, code);
 }
 
 bool is_set_form(List* form) {
@@ -255,18 +257,29 @@ bool is_set_form(List* form) {
   return is_sym(hd) && as_sym(hd)->val == SetStr;
 }
 
-void compile_set(List* form, Alist* vals, Buffer* code) {
+void compile_set(List* form, Env* vars, Alist* vals, Buffer* code) {
   require_argco("set", 2, form->count-1);
   require_argtype("set", EXP_SYM, form->tail->head);
 
   Sym* n = as_sym(form->tail->head);
 
   require(!is_keyword(n), "can't assign to keyword %s", n->val->val);
+  
+  int i = env_put(vars, n);
 
-  int i = env_put(&Globals, n);
+  OpCode op;
 
-  compile_expr(form->tail->tail->head, vals, code);
-  emit_instr(code, OP_SET_GLOBAL, i);
+  if ( !is_local_env(vars) )
+    op = OP_SET_GLOBAL;
+
+  else if ( i < vars->arity )
+    op = OP_SET_ARG;
+
+  else
+    op = OP_SET_LOCAL;
+  
+  compile_expr(form->tail->tail->head, vars, vals, code);
+  emit_instr(code, op, i);
 }
 
 bool is_if_form(List* form) {
@@ -275,7 +288,7 @@ bool is_if_form(List* form) {
   return is_sym(hd) && as_sym(hd)->val == IfStr;
 }
 
-void compile_if(List* form, Alist* vals, Buffer* code) {
+void compile_if(List* form, Env* vars, Alist* vals, Buffer* code) {
     require_argco2("if", 2, 3, form->count-1);
 
     Expr test = form->tail->head;
@@ -283,13 +296,13 @@ void compile_if(List* form, Alist* vals, Buffer* code) {
     Expr alt  = form->count == 3 ? NUL : form->tail->tail->tail->head;
 
     // compile different parts of the form, saving offsets to fill in later
-    compile_expr(test, vals, code);
+    compile_expr(test, vars, vals, code);
     emit_instr(code, OP_JUMP_F, 0);
     int off1 = (code->binary.count >> 1);
-    compile_expr(then, vals, code);
+    compile_expr(then, vars, vals, code);
     emit_instr(code, OP_JUMP, 0);
     int off2 = (code->binary.count >> 1);
-    compile_expr(alt, vals, code);
+    compile_expr(alt, vars, vals, code);
     int off3 = code->binary.count >> 1;
 
     fill_instr(code, off1-1, off2-off1);
@@ -302,14 +315,14 @@ bool is_do_form(List* form) {
   return is_sym(hd) && as_sym(hd)->val == DoStr;
 }
 
-void compile_do(List* form, Alist* vals, Buffer* code) {
+void compile_do(List* form, Env* vars, Alist* vals, Buffer* code) {
   require_vargco("do", 2, form->count-1);
 
   List* xprs = form->tail;
 
   while ( xprs->count > 0 ) {
     Expr x = xprs->head;
-    compile_expr(x, vals, code);
+    compile_expr(x, vars, vals, code);
     
     if ( xprs->count > 1 )
       emit_instr(code, OP_POP);
@@ -318,39 +331,68 @@ void compile_do(List* form, Alist* vals, Buffer* code) {
   }
 }
 
-void compile_literal(Expr x, Alist* vals, Buffer* code) {
+bool is_fn_form(List* form) {
+  Expr hd = form->head;
+
+  return is_sym(hd) && as_sym(hd)->val == FnStr;
+}
+
+void prepare_
+
+void compile_fn_form(List* form, Env* vars, Alist* vals, Buffer* code) {
+  
+}
+
+void compile_literal(Expr x, Env* vars, Alist* vals, Buffer* code) {
+  (void)vars;
   int n = alist_push(vals, x);
 
   emit_instr(code, OP_GET_VALUE, n-1);
 }
 
-void compile_global(Sym* s, Buffer* code) {
-  int n = env_put(&Globals, s);
+void compile_reference(Sym* s, Env* vars, Alist* vals, Buffer* code) {
+  (void)vals;
 
-  emit_instr(code, OP_GET_GLOBAL, n);
+  int n = -1;
+  
+  if ( is_local_env(vars) )
+    n = env_resolve(vars, s);
+
+  // either vars is global or name wasn't found
+  if ( n == -1 ) {
+    n = env_put(&Globals, s);
+    emit_instr(code, OP_GET_GLOBAL, n);
+
+  } else {
+    if ( n < vars->arity )
+      emit_instr(code, OP_GET_ARG, n);
+
+    else
+      emit_instr(code, OP_GET_LOCAL, n);
+  }
 }
 
-void compile_funcall(List* form, Alist* vals, Buffer* code) {
+void compile_funcall(List* form, Env* vars, Alist* vals, Buffer* code) {
   assert(form->count > 0);
 
   if ( is_quote_form(form) )
-    compile_quote(form, vals, code);
+    compile_quote(form, vars, vals, code);
 
   else if ( is_set_form(form) )
-    compile_set(form, vals, code);
+    compile_set(form, vars, vals, code);
 
   else if ( is_if_form(form) )
-    compile_if(form, vals, code);
+    compile_if(form, vars, vals, code);
 
   else if ( is_do_form(form) )
-    compile_do(form, vals, code);
+    compile_do(form, vars, vals, code);
 
   else {
     int argc = form->count-1;
 
     while ( form->count > 0 ) {
       Expr arg = form->head;
-      compile_expr(arg, vals, code);
+      compile_expr(arg, vars, vals, code);
       form = form->tail;
     }
 
@@ -358,27 +400,29 @@ void compile_funcall(List* form, Alist* vals, Buffer* code) {
   }
 }
 
-void compile_expr(Expr x, Alist* vals, Buffer* code) {
+void compile_expr(Expr x, Env* vars, Alist* vals, Buffer* code) {
   ExpType t = exp_type(x);
-
+  
   if ( t == EXP_SYM ) {
     Sym* s = as_sym(x);
 
     if ( is_keyword(s) ) // keywords (symbols whose names begin with ':') are treated as literals
-      compile_literal(x, vals, code);
+      compile_literal(x, vars, vals, code);
 
     else
       compile_global(s, code);
+
   } else if ( t == EXP_LIST ) {
     List* l = as_list(x);
 
     if ( l->count == 0 ) // empty list is treated as a literal
-      compile_literal(x, vals, code);
+      compile_literal(x, vars, vals, code);
 
     else
-      compile_funcall(l, vals, code);
+      compile_funcall(l, vars, vals, code);
+
   } else
-    compile_literal(x, vals, code);
+    compile_literal(x, vars, vals, code);
 }
 
 Fun* toplevel_compile(List* form) {
@@ -387,12 +431,12 @@ Fun* toplevel_compile(List* form) {
   Alist* vals  = mk_alist();  add_to_preserved(1, tag_obj(vals));
   Buffer* code = mk_buffer(); add_to_preserved(2, tag_obj(code));
 
-  compile_funcall(form, vals, code);
+  compile_funcall(form, &Globals, vals, code);
   emit_instr(code, OP_RETURN);
 
-  Chunk* chunk = mk_chunk(vals, code); add_to_preserved(1, tag_obj(chunk));
+  Chunk* chunk = mk_chunk(&Globals, vals, code); add_to_preserved(1, tag_obj(chunk));
   Fun* out     = mk_user_fun(chunk);
-  
+
 #ifdef RASCAL_DEBUG
   disassemble(out);
 #endif

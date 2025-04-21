@@ -259,9 +259,10 @@ void print_none(FILE* ios, Expr x) {
 }
 
 // chunk API
-Chunk* mk_chunk(Alist* vals, Buffer* code) {
+Chunk* mk_chunk(Env* vars, Alist* vals, Buffer* code) {
   Chunk* out = mk_obj(EXP_CHUNK, 0);
 
+  out->vars = vars;
   out->vals = vals;
   out->code = code;
 
@@ -293,6 +294,7 @@ void dis_chunk(Chunk* chunk) {
 void trace_chunk(void* ptr) {
   Chunk* chunk = ptr;
 
+  mark_obj(chunk->vars);
   mark_obj(chunk->vals);
   mark_obj(chunk->code);
 }
@@ -393,7 +395,7 @@ void def_builtin_fun(char* name, OpCode op) {
 }
 
 void disassemble(Fun* fun) {
-  printf("\n\n=== %s ===\n\n", fun->name->val->val);
+  printf("\n\n==== %s ====\n\n", fun->name->val->val);
   dis_chunk(fun->chunk);
   printf("\n\n");
 }
@@ -413,9 +415,10 @@ void intern_in_env(EMap* m, EMapKV* kv, Sym* k, hash_t h) {
   kv->val = m->count-1;
 }
 
-Env* mk_env(void) {
+Env* mk_env(bool local) {
   Env* out = mk_obj(EXP_ENV, 0);
-
+  out->local = local;
+  out->arity = 0;
   init_emap(&out->map);
   init_stack(&out->vals);
 
@@ -433,6 +436,8 @@ Expr env_get(Env* e, Sym* n) {
 }
 
 Expr env_ref(Env* e, int n) {
+  assert(!e->local);
+
   Expr o = NONE;
 
   if ( n >= 0 && n < e->vals.count )
@@ -444,19 +449,21 @@ Expr env_ref(Env* e, int n) {
 int  env_put(Env* e, Sym* n) {
   int off = emap_intern(&e->map, n, intern_in_env);
 
-  if ( off == e->map.count-1)
+  if ( !e->local && off == e->map.count-1 )
     stack_push(&e->vals, (void*)NONE);
 
   return off;
 }
 
 void env_set(Env* e, Sym* n, Expr x) {
+  assert(!e->local);
   int off = env_put(e, n);
 
   e->vals.vals[off] = (void*)x;
 }
 
 void env_refset(Env* e, int n, Expr x) {
+  assert(!e->local);
   assert(n >= 0 && n < e->vals.count);
 
   e->vals.vals[n] = (void*)x;
@@ -742,6 +749,23 @@ Expr tag_num(Num n) {
   Val v = { .num = n };
 
   return v.expr;
+}
+
+// shortcut for tagging pointers and small integers safely
+uintptr_t as_fix(Expr x) {
+  return x & XVMSK;
+}
+
+Expr tag_fix(uintptr_t i) {
+  return ( i & XVMSK) | FIX_T;
+}
+
+void* as_ptr(Expr x) {
+  return (void*)(x & XVMSK);
+}
+
+Expr tag_ptr(void* ptr) {
+  return ((uintptr_t)ptr) | FIX_T;
 }
 
 void print_num(FILE* ios, Expr x) {

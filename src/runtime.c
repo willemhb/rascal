@@ -165,15 +165,30 @@ Expr popn( int n ) {
   return out;
 }
 
-void install_code(Fun* fun) {
-  Vm.fn = fun;
-  Vm.pc = (instr_t*)fun->chunk->code->binary.vals;
+void save_frame(void) {
+  if ( Vm.fn != NULL ) {
+    Expr* frame = pushn(4);
+    frame[0]    = tag_ptr(Vm.pc);
+    frame[1]    = tag_obj(Vm.fn);
+    frame[2]    = tag_fix(Vm.fp);
+    frame[3]    = tag_fix(Vm.bp);
+    Vm.fp       = Vm.sp - 4;
+  }
+}
+
+void restore_frame(void) {
+  assert(Vm.fp > 0);
+
+  Expr* frame = &Vm.stack[Vm.fp];
+  Vm.pc       = 
 }
 
 void reset_vm(void) {
   Vm.pc  = NULL;
   Vm.fn  = NULL;
   Vm.sp  = 0;
+  Vm.fp  = 0;
+  Vm.bp  = 0;
 }
 
 // garbage collector
