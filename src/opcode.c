@@ -8,8 +8,6 @@ int op_arity(OpCode op) {
     case OP_GET_VALUE:
     case OP_GET_GLOBAL:
     case OP_SET_GLOBAL:
-    case OP_GET_ARG:
-    case OP_SET_ARG:
     case OP_GET_LOCAL:
     case OP_SET_LOCAL:
     case OP_JUMP:
@@ -35,8 +33,6 @@ char* op_name(OpCode op) {
     case OP_GET_VALUE:  out = "GET-VALUE";  break;
     case OP_GET_GLOBAL: out = "GET-GLOBAL"; break;
     case OP_SET_GLOBAL: out = "SET-GLOBAL"; break;
-    case OP_GET_ARG:    out = "GET-ARG";    break;
-    case OP_SET_ARG:    out = "SET-ARG";    break;
     case OP_GET_LOCAL:  out = "GET-LOCAL";  break;
     case OP_SET_LOCAL:  out = "SET-LOCAL";  break;
     case OP_ADD:        out = "ADD";        break;

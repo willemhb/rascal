@@ -16,7 +16,9 @@ typedef enum {
   EXP_BOOL,
   EXP_CHUNK,
   EXP_ALIST,
-  EXP_BUFFER,
+  EXP_BUF16,
+  EXP_REF,
+  EXP_UPV,
   EXP_ENV,
   EXP_FUN,
   EXP_SYM,
@@ -35,7 +37,7 @@ typedef bool      Bool;
 typedef struct    Obj    Obj;
 typedef struct    Chunk  Chunk;
 typedef struct    Alist  Alist;
-typedef struct    Buffer Buffer;
+typedef struct    Buf16  Buf16;
 typedef struct    Env    Env;
 typedef struct    Fun    Fun;
 typedef struct    Str    Str;
@@ -93,6 +95,14 @@ struct Obj {
   HEAD;
 };
 
+// Array types
+ALIST_API(Exprs, Expr, exprs);
+ALIST_API(Objs, void*, objs);
+ALIST_API(Bin16, ushort_t, bin16);
+
+void trace_exprs(Exprs* xs);
+void trace_objs(Objs* os);
+
 // Table types
 TABLE_API(Strings, char*, Str*, strings);
 TABLE_API(EMap, Sym*, int, emap);
@@ -102,21 +112,21 @@ struct Chunk {
 
   Env*    vars;
   Alist*  vals;
-  Buffer* code;
+  Buf16*  code;
 };
 
 // wrapper around a Stack object
 struct Alist {
   HEAD;
 
-  Stack stack;
+  Exprs exprs;
 };
 
 // wrapper around a binary object
-struct Buffer {
+struct Buf16 {
   HEAD;
 
-  Binary binary;
+  Bin16 binary;
 };
 
 struct Env {
@@ -124,7 +134,7 @@ struct Env {
   bool  local;
   int   arity;
   EMap  map;
-  Stack vals;
+  Exprs vals;
 };
 
 struct Fun {
@@ -196,7 +206,7 @@ void  mark_obj(void* ptr);
 void  free_obj(void *ptr);
 
 // chunk API
-Chunk* mk_chunk(Env* vars, Alist* vals, Buffer* code);
+Chunk* mk_chunk(Env* vars, Alist* vals, Buf16* code);
 void   dis_chunk(Chunk* chunk);
 
 // alist API
@@ -206,11 +216,10 @@ int    alist_push(Alist* a, Expr x);
 Expr   alist_pop(Alist* a);
 Expr   alist_get(Alist* a, int n);
 
-// buffer API
-Buffer* mk_buffer(void);
-void    free_buffer(void* ptr);
-int     buffer_write(Buffer* b, byte_t c);
-int     buffer_write_n(Buffer* b, byte_t *cs, int n);
+// buf16 API
+Buf16*  mk_buf16(void);
+void    free_buf16(void* ptr);
+int     buf16_write(Buf16* b, ushort_t *xs, int n);
 
 // function API
 Fun* as_fun_s(char* f, Expr x);
@@ -266,11 +275,14 @@ Expr tag_bool(Bool b);
 #define as_str(x)      ((Str*)as_obj(x))
 #define as_list(x)     ((List*)as_obj(x))
 
-#define is_interned(s)   ((s)->flags == true)
-#define is_keyword(s)    (*(s)->val->val == ':')
-#define is_local_env(e)  ((e)->local == true)
-#define is_sym(x)        has_type(x, EXP_SYM)
-#define is_fun(x)        has_type(x, EXP_FUN)
-#define is_list(x)       has_type(x, EXP_LIST)
+#define is_interned(s)    ((s)->flags == true)
+#define is_keyword(s)     (*(s)->val->val == ':')
+#define is_local_env(e)   ((e)->local == true)
+#define is_user_fn(f)     ((f)->label == OP_NOOP)
+#define is_toplevel_fn(f) (!(f)->chunk->vars->local)
+#define user_fn_argc(f)   ((f)->chunk->vars->arity)
+#define is_sym(x)         has_type(x, EXP_SYM)
+#define is_fun(x)         has_type(x, EXP_FUN)
+#define is_list(x)        has_type(x, EXP_LIST)
 
 #endif

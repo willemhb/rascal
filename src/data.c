@@ -30,7 +30,7 @@ void trace_env(void* ptr);
 void trace_list(void* ptr);
 
 void free_alist(void* ptr);
-void free_buffer(void* ptr);
+void free_buf16(void* ptr);
 void free_env(void* ptr);
 void free_str(void* ptr);
 
@@ -78,11 +78,11 @@ ExpTypeInfo Types[] = {
     .free_fn  = free_alist
   },
 
-  [EXP_BUFFER] = {
-    .type     = EXP_BUFFER,
-    .name     = "buffer",
-    .obsize   = sizeof(Buffer),
-    .free_fn  = free_buffer
+  [EXP_BUF16] = {
+    .type     = EXP_BUF16,
+    .name     = "buf16",
+    .obsize   = sizeof(Buf16),
+    .free_fn  = free_buf16
   },
 
   [EXP_FUN] = {
@@ -132,6 +132,18 @@ ExpTypeInfo Types[] = {
     .print_fn = print_num
   }
 };
+
+// utility array APIs
+void trace_exprs(Exprs* xs) {
+  for ( int i=0; i < xs->count; i++ )
+    mark_exp(xs->vals[i]);
+}
+
+void trace_objs(Objs* os) {
+  for ( int i=0; i < os->count; i++ )
+    mark_obj(os->vals[i]);
+}
+
 
 // expression APIs
 ExpType exp_type(Expr x) {
@@ -259,7 +271,7 @@ void print_none(FILE* ios, Expr x) {
 }
 
 // chunk API
-Chunk* mk_chunk(Env* vars, Alist* vals, Buffer* code) {
+Chunk* mk_chunk(Env* vars, Alist* vals, Buf16* code) {
   Chunk* out = mk_obj(EXP_CHUNK, 0);
 
   out->vars = vars;
@@ -270,8 +282,8 @@ Chunk* mk_chunk(Env* vars, Alist* vals, Buffer* code) {
 }
 
 void dis_chunk(Chunk* chunk) {
-  instr_t* instr = (instr_t*)chunk->code->binary.vals;
-  int offset     = 0, max_offset = chunk->code->binary.count / 2;
+  instr_t* instr = chunk->code->binary.vals;
+  int offset     = 0, max_offset = chunk->code->binary.count;
 
   printf("%-8s %-16s %-5s\n\n", "line", "instruction", "input");
 
@@ -301,62 +313,56 @@ void trace_chunk(void* ptr) {
 
 // alist API
 Alist* mk_alist(void) {
-  Alist* out = mk_obj(EXP_ALIST, 0); init_stack(&out->stack);
+  Alist* out = mk_obj(EXP_ALIST, 0); init_exprs(&out->exprs);
 
   return out;
 }
 
 int alist_push(Alist* a, Expr x) {
-  stack_push(&a->stack, (void*)x);
+  exprs_push(&a->exprs, x);
 
-  return a->stack.count;
+  return a->exprs.count;
 }
 
 Expr alist_pop(Alist* a) {
-  return (Expr)stack_pop(&a->stack);
+  return exprs_pop(&a->exprs);
 }
 
 Expr alist_get(Alist* a, int n) {
-  assert(n >= 0 && n < a->stack.count);
+  assert(n >= 0 && n < a->exprs.count);
 
-  return (Expr)a->stack.vals[n];
+  return a->exprs.vals[n];
 }
 
 void trace_alist(void* ptr) {
   Alist* a = ptr;
 
-  trace_exps(&a->stack);
+  trace_exprs(&a->exprs);
 }
 
 void free_alist(void* ptr) {
   Alist* a = ptr;
   
-  free_stack(&a->stack);
+  free_exprs(&a->exprs);
 }
 
-// buffer API
-Buffer* mk_buffer(void) {
-  Buffer* b = mk_obj(EXP_BUFFER, 0); init_binary(&b->binary);
+// buf16 API
+Buf16* mk_buf16(void) {
+  Buf16* b = mk_obj(EXP_BUF16, 0); init_bin16(&b->binary);
 
   return b;
 }
 
-int buffer_write(Buffer* b, byte_t c) {
-  binary_write(&b->binary, c);
+int buf16_write(Buf16* b, ushort_t *xs, int n) {
+  bin16_write(&b->binary, xs, n);
 
   return b->binary.count;
 }
 
-int buffer_write_n(Buffer* b, byte_t *cs, int n) {
-  binary_write_n(&b->binary, cs, n);
+void free_buf16(void* ptr) {
+  Buf16* b = ptr;
 
-  return b->binary.count;
-}
-
-void free_buffer(void* ptr) {
-  Buffer* b = ptr;
-
-  free_binary(&b->binary);
+  free_bin16(&b->binary);
 }
 
 // function API
@@ -420,9 +426,17 @@ Env* mk_env(bool local) {
   out->local = local;
   out->arity = 0;
   init_emap(&out->map);
-  init_stack(&out->vals);
+  init_exprs(&out->vals);
 
   return out;
+}
+
+int env_resolve(Env* e, Sym* n) {
+  int i = -1;
+
+  emap_get(&e->map, n, &i);
+
+  return i;
 }
 
 Expr env_get(Env* e, Sym* n) {
@@ -441,7 +455,7 @@ Expr env_ref(Env* e, int n) {
   Expr o = NONE;
 
   if ( n >= 0 && n < e->vals.count )
-    o = (Expr)e->vals.vals[n];
+    o = e->vals.vals[n];
 
   return o;
 }
@@ -450,7 +464,7 @@ int  env_put(Env* e, Sym* n) {
   int off = emap_intern(&e->map, n, intern_in_env);
 
   if ( !e->local && off == e->map.count-1 )
-    stack_push(&e->vals, (void*)NONE);
+    exprs_push(&e->vals, NONE);
 
   return off;
 }
@@ -459,14 +473,14 @@ void env_set(Env* e, Sym* n, Expr x) {
   assert(!e->local);
   int off = env_put(e, n);
 
-  e->vals.vals[off] = (void*)x;
+  e->vals.vals[off] = x;
 }
 
 void env_refset(Env* e, int n, Expr x) {
   assert(!e->local);
   assert(n >= 0 && n < e->vals.count);
 
-  e->vals.vals[n] = (void*)x;
+  e->vals.vals[n] = x;
 }
 
 void trace_env(void* ptr) {
@@ -482,7 +496,7 @@ void trace_env(void* ptr) {
       }
     }
 
-  trace_exps(&e->vals);
+  trace_exprs(&e->vals);
 }
 
 void free_env(void* ptr) {
@@ -494,7 +508,10 @@ void free_env(void* ptr) {
 
 // symbol API
 Sym* as_sym_s(char* f, Expr x) {
-  
+  ExpType t = exp_type(x);
+  require(t == EXP_SYM, "%s wanted a sym, got %s", f, Types[t].name);
+
+  return as_sym(x);
 }
 
 Sym* mk_sym(char* val) {
@@ -640,6 +657,12 @@ static List* new_lists(size_t n) {
   Heap = (Obj*)xs;
 
   return xs;
+}
+
+List* as_list_s(char* f, Expr x) {
+  require_argtype(f, EXP_LIST, x);
+
+  return as_list(x);
 }
 
 List* empty_list(void) {

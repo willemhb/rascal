@@ -8,7 +8,7 @@
 #include "data.h"
 
 // globals
-extern Str* QuoteStr, * SetStr, * IfStr, * DoStr, * FnStr;
+extern Str* QuoteStr, * DefStr, * SetStr, * IfStr, * DoStr, * FnStr;
 
 // forward declarations
 Expr read_exp(FILE* in);

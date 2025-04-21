@@ -29,7 +29,9 @@ GcFrame* GcFrames = NULL;
 VM Vm = {
   .fn = NULL,
   .pc = NULL,
-  .sp = 0
+  .sp = 0,
+  .fp = 0,
+  .bp = 0
 };
 
 Env Globals = {
@@ -37,6 +39,9 @@ Env Globals = {
   .black   = false,
   .gray    = true,
   .nosweep = true,
+
+  .local = false,
+  .arity = 0,
 
   .map = {
     .kvs       = NULL,
@@ -51,7 +56,7 @@ Env Globals = {
   }
 };
 
-Stack GrayStack = {
+Objs GrayStack = {
   .vals      = NULL,
   .count     = 0,
   .max_count = 0
@@ -165,41 +170,36 @@ Expr popn( int n ) {
   return out;
 }
 
-void install_code(Fun* fn, int bp) {
-  Vm.fn = fn;
-  Vm.pc = (instr_t*)fn->chunk->code->binary.vals;
-
-  if ( bp > -1 )
-    Vm.bp = bp;
+void install_fun(Fun* fun, int bp, int fp) {
+  Vm.fn = fun;
+  Vm.pc = fun->chunk->code->binary.vals;
+  Vm.bp = bp;
+  Vm.fp = fp;
 }
 
 void save_frame(void) {
-  if ( Vm.fn != NULL ) {
-    Expr* frame = pushn(4);
-    frame[0]    = tag_ptr(Vm.pc);
-    frame[1]    = tag_obj(Vm.fn);
-    frame[2]    = tag_fix(Vm.fp);
-    frame[3]    = tag_fix(Vm.bp);
-    Vm.fp       = Vm.sp;
-  }
+  Expr* frame = pushn(FRAME_SIZE);
+  frame[0]    = tag_ptr(Vm.pc);
+  frame[1]    = Vm.fn == NULL ? tag_ptr(Vm.pc) : tag_obj(Vm.fn); // prevents gc of dummy frame
+  frame[2]    = tag_fix(Vm.bp);
+  frame[3]    = tag_fix(Vm.fp);
 }
 
 void restore_frame(void) {
-  assert(Vm.fp > 4);
-
-  Expr* frame = stack_ref(Vm.fp-4);
+  assert(Vm.fp >= 4);
+  Expr* frame = stack_ref(Vm.fp-FRAME_SIZE);
   Vm.pc       = as_ptr(frame[0]);
-  Vm.fn       = as_obj(frame[1]);
-  Vm.fp       = as_fix(frame[2]);
-  Vm.bp       = as_fix(frame[3]);
+  Vm.fn       = as_fun(frame[1]);
+  Vm.bp       = as_fix(frame[2]);
+  Vm.fp       = as_fix(frame[3]);
 }
 
 void reset_vm(void) {
   Vm.pc  = NULL;
   Vm.fn  = NULL;
-  Vm.sp  = 0;
-  Vm.fp  = 0;
-  Vm.bp  = 0;
+  Vm.fp  =  0;
+  Vm.bp  =  0;
+  Vm.sp  =  0;
 }
 
 // garbage collector
@@ -219,12 +219,15 @@ static void mark_vm(void) {
 }
 
 static void mark_globals(void) {
-  extern Str* QuoteStr, * SetStr, * IfStr;
+  extern Str* QuoteStr, * DefStr, * SetStr, * IfStr, * DoStr, * FnStr;
 
   mark_obj(&Globals);
   mark_obj(QuoteStr);
+  mark_obj(DefStr);
   mark_obj(SetStr);
   mark_obj(IfStr);
+  mark_obj(DoStr);
+  mark_obj(FnStr);
 }
 
 static void mark_types(void) {
@@ -253,7 +256,7 @@ static void mark_phase(void) {
 static void trace_phase(void) {
 
   while ( GrayStack.count > 0 ) {
-    Obj* obj          = stack_pop(&GrayStack);
+    Obj* obj          = objs_pop(&GrayStack);
     ExpTypeInfo* info = &Types[obj->type];
     obj->gray         = false;
     
@@ -285,7 +288,7 @@ static void cleanup_phase(void) {
 }
 
 void gc_save(void* ob) {
-  stack_push(&GrayStack, ob);
+  objs_push(&GrayStack, ob);
 }
 
 void run_gc(void) {

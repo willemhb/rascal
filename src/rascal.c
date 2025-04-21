@@ -25,6 +25,7 @@ void define_builtins(void) {
 
   // special forms and other syntactic markers
   QuoteStr = mk_str("quote");
+  DefStr   = mk_str("def");
   SetStr   = mk_str("set");
   IfStr    = mk_str("if");
   DoStr    = mk_str("do");

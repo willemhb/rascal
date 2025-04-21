@@ -9,142 +9,96 @@
 #define MIN_CAP 8
 #define LOADF   0.625
 
-void trace_objs(Stack* a) {
-  if ( a->vals )
-    for ( int i=0; i < a->count; i++ )
-      mark_obj(a->vals[i]);
-}
-
-void trace_exps(Stack* a) {
-  if ( a->vals )
-    for ( int i=0; i < a->count; i++ ) {
-      Expr x = (Expr)a->vals[i];
-
-      mark_exp(x);
-    }
-}
-
 // Binary API
 // object for storing binary data
-void init_binary(Binary* b) {
-  b->vals      = NULL;
-  b->count     = 0;
-  b->max_count = 0;
-}
-
-void free_binary(Binary* b) {
-  release(b->vals, 0);
-  init_binary(b);
-}
-
-void grow_binary(Binary* b) {
-  if ( b->max_count == MAX_ARITY )
-    runtime_error("maximum buffer size exceeded");
-  
-  int     new_maxc = b->max_count ? b->max_count << 1 : MIN_CAP;
-  byte_t* new_spc  = reallocate(false, new_maxc, b->max_count, b->vals);
-
-  b->vals = new_spc;
-  b->max_count = new_maxc;
-}
-
-void shrink_binary(Binary* b) {
-  assert(b->max_count > MIN_CAP);
-
-  int     new_maxc = b->max_count >> 1;
-  byte_t* new_spc  = reallocate(false, new_maxc, b->max_count, b->vals);
-
-  b->vals      = new_spc;
-  b->max_count = new_maxc;
-}
-
-void resize_binary(Binary* b, int n) {
-  if ( n > MAX_ARITY )
-    runtime_error("maximum buffer size exceeded");
-
-  int new_maxc = cpow2(n);
-
-  if ( new_maxc < MIN_CAP )
-    new_maxc = MIN_CAP;
-
-  byte_t* new_spc = reallocate(false, new_maxc, b->max_count, b->vals);
-  b->vals         = new_spc;
-  b->max_count    = new_maxc;
-}
-
-void binary_write(Binary* b, byte_t c) {
-  if ( b->count == b->max_count )
-    grow_binary(b);
-
-  b->vals[b->count++] = c;
-}
-
-void binary_write_n(Binary* b, byte_t* cs, int n) {
-  if ( b->count + n > b->max_count )
-    resize_binary(b, b->count+n);
-
-  memcpy(b->vals+b->count, cs, n);
-  b->count += n;
-}
-
 // alist implementation macro
-#define ALIST_IMPL(T, X, t)                     \
-  void init_##t(T* t) {                         \
-    t->vals      = NULL;                        \
-    t->count     = 0;                           \
-    t->max_count = 0;                           \
-  }                                             \
-                                                \
-  void free_##t(T* t) {                         \
-    release(t->vals, 0);                                            \
-    init_##t(t);                                                    \
+#define ALIST_IMPL(A, X, a)                                         \
+  void init_##a(A* a) {                                             \
+    a->vals      = NULL;                                            \
+    a->count     = 0;                                               \
+    a->max_count = 0;                                               \
   }                                                                 \
                                                                     \
-  void grow_##t(T* t) {                                             \
-    if ( t->max_count == MAX_ARITY )                                \
-      runtime_error("maximum "#t" size exceeded");                  \
-    int new_maxc  = t->max_count ? t->max_count << 1 : MIN_CAP;   \
+  void free_##a(A* a) {                                             \
+    release(a->vals, 0);                                            \
+    init_##a(a);                                                    \
+  }                                                                 \
+                                                                    \
+  void grow_##a(A* a) {                                             \
+    if ( a->max_count == MAX_ARITY )                                \
+      runtime_error("maximum "#a" size exceeded");                  \
+    int new_maxc  = a->max_count ? a->max_count << 1 : MIN_CAP;   \
     X*  new_spc  = reallocate(false,                              \
-      new_maxc * sizeof(void*),                                   \
-      t->max_count * sizeof(void*),                               \
-      t->vals);                                                   \
+                              new_maxc * sizeof(X),               \
+                              a->max_count * sizeof(X),           \
+                              a->vals);                           \
                                                                   \
-               a->vals = new_spc;                                 \
-               a->max_count = new_maxc;                           \
-               }                                                  \
-                
-void shrink_stack(Stack* a) {
-  assert(a->max_count > MIN_CAP);
+    a->vals = new_spc;                                            \
+    a->max_count = new_maxc;                                      \
+  }                                                               \
+                                                                  \
+  void shrink_##a(A* a) {                                         \
+    assert(a->max_count > MIN_CAP);                               \
+                                                                  \
+    size_t new_maxc = a->max_count >> 1;                          \
+    X*  new_spc     = reallocate(false,                           \
+                                 new_maxc*sizeof(X),              \
+                                 a->max_count*sizeof(X),          \
+                                 a->vals);                        \
+                                                                  \
+    a->vals      = new_spc;                                       \
+    a->max_count = new_maxc;                                      \
+  }                                                               \
+                                                                  \
+  void resize_##a(A* a, int n) {                                  \
+    if ( n > MAX_ARITY )                                          \
+      runtime_error("maximum"#a"size exceeded");                  \
+                                                                        \
+    int new_maxc = cpow2(n);                                            \
+                                                                        \
+    if ( new_maxc < MIN_CAP )                                           \
+      new_maxc = MIN_CAP;                                               \
+                                                                        \
+    X* new_spc = reallocate(false,                                      \
+                            new_maxc*sizeof(X),                         \
+                            a->max_count*sizeof(X),                     \
+                            a->vals);                                   \
+    a->vals         = new_spc;                                          \
+    a->max_count    = new_maxc;                                         \
+  }                                                                     \
+                                                                        \
+                                                                        \
+  void a##_push(A* a, X x) {                                            \
+    if ( a->count == a->max_count )                                     \
+      grow_##a(a);                                                      \
+                                                                        \
+    a->vals[a->count++] = x;                                            \
+  }                                                                     \
+                                                                        \
+  X a##_pop(A* a) {                                                     \
+    X out = a->vals[--a->count];                                        \
+                                                                        \
+    if ( a->count == 0 )                                                \
+      free_##a(a);                                                      \
+                                                                        \
+    else if ( a->max_count > MIN_CAP && a->count < (a->max_count >> 1) ) \
+      shrink_##a(a);                                                    \
+                                                                        \
+    return out;                                                         \
+  }                                                                     \
+                                                                        \
+                                                                        \
+  void a##_write(A* a, X* xs, int n) {                                  \
+    if ( a->count + n > a->max_count )                                  \
+      resize_##a(a, a->count+n);                                        \
+                                                                        \
+    memcpy(a->vals+a->count, xs, n*sizeof(X));                          \
+    a->count += n;                                                      \
+  }
 
-  size_t new_maxc = a->max_count >> 1;
-  void*  new_spc  = reallocate(false,
-                               new_maxc*sizeof(void*),
-                               a->max_count*sizeof(void*),
-                               a->vals);
-
-  a->vals      = new_spc;
-  a->max_count = new_maxc;
-}
-
-void stack_push(Stack* a, void* v) {
-  if ( a->count == a->max_count )
-    grow_stack(a);
-
-  a->vals[a->count++] = v;
-}
-
-void* stack_pop(Stack* a) {
-  void* out = a->vals[--a->count];
-
-  if ( a->count == 0 )
-    free_stack(a);
-
-  else if ( a->max_count > MIN_CAP && a->count < (a->max_count >> 1) )
-    shrink_stack(a);
-
-  return out;
-}
-
+ALIST_IMPL(Exprs, Expr, exprs);
+ALIST_IMPL(Objs, void*, objs);
+ALIST_IMPL(Bin16, ushort_t, bin16);
 
 // Table implementation macro
 #define check_grow(t) ((t)->count >= ((t)->max_count * LOADF))
@@ -200,8 +154,8 @@ void* stack_pop(Stack* a) {
       cnt++;                                                            \
                                                                         \
       hash_t hash = rehashf(kv);                                        \
-      int msk  = nmc - 1;                                            \
-      int idx  = hash & msk;                                         \
+      int msk  = nmc - 1;                                               \
+      int idx  = hash & msk;                                            \
       while ( new[idx].key != NK )                                      \
         idx = (idx+1) & msk;                                            \
                                                                         \

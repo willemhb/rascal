@@ -3,52 +3,25 @@
 
 #include "common.h"
 
-// utility collection types
-
-typedef struct {
-  void** vals;
-  int count, max_count;
-} Stack;
-
-// Stack APIs
-void init_stack(Stack* a);
-void free_stack(Stack* a);
-void grow_stack(Stack* a);
-void shrink_stack(Stack* a);
-void stack_push(Stack* a, void* v);
-void* stack_pop(Stack* a);
-void trace_objs(Stack* a);
-void trace_exps(Stack* a);
-
-// object for storing binary data
-typedef struct {
-  byte_t* vals;
-  int count, max_count;
-} Binary;
-
-void init_binary(Binary* b);
-void free_binary(Binary* b);
-void grow_binary(Binary* b);
-void shrink_binary(Binary* b);
-void resize_binary(Binary* b, int n);
-void binary_write(Binary* b, byte_t c);
-void binary_write_n(Binary* b, byte_t* cs, int n);
+// macros for defining array and table types
+// API declarations go wherever they make sense, but implementations
+// go in collection.c because otherwise the macros are a pain in the ass to debug
 
 // array template
-#define ALIST_API(T, X, t)                      \
+#define ALIST_API(A, X, a)                      \
   typedef struct {                              \
     X* vals;                                    \
     int count, max_count;                       \
-  };                                            \
+  } A;                                          \
                                                 \
-  void init_##t(T* t);                          \
-  void free_##t(T* t);                          \
-  void grow_##t(T* t);                          \
-  void shrink_##t(T* t);                        \
-  void resize_##t(T* t, int n);                 \
-  void t##_push(T* t, X x);                     \
-  X    t##_pop(T* t);                           \
-  void t##_write(T* t, X* xs, int n)
+  void init_##a(A* a);                          \
+  void free_##a(A* a);                          \
+  void grow_##a(A* a);                          \
+  void shrink_##a(A* a);                        \
+  void resize_##a(A* a, int n);                 \
+  void a##_push(A* a, X x);                     \
+  X    a##_pop(A* a);                           \
+  void a##_write(A* a, X* xs, int n)
 
 // table template
 #define TABLE_API(T, K, V, t)                                    \

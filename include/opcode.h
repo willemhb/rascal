@@ -15,8 +15,6 @@ typedef enum {
   OP_GET_VALUE,
   OP_GET_GLOBAL,
   OP_SET_GLOBAL,
-  OP_GET_ARG,
-  OP_SET_ARG,
   OP_GET_LOCAL,
   OP_SET_LOCAL,
 

@@ -8,7 +8,7 @@
 #include "lang.h"
 
 // globals
-Str* QuoteStr, * SetStr, * IfStr, * DoStr;
+Str* QuoteStr, *DefStr, * SetStr, * IfStr, * DoStr, * FnStr;
 
 // Function prototypes
 // read helpers
@@ -196,44 +196,47 @@ Expr read_atom(FILE* in) {
 
 // compile
 // compile helpers
-void emit_instr(Buffer* code, OpCode op, ...);
-void fill_instr(Buffer* code, int offset, int val);
+void emit_instr(Buf16* code, OpCode op, ...);
+void fill_instr(Buf16* code, int offset, int val);
 
 bool is_quote_form(List* form);
-void compile_quote(List* form, Env* vars, Alist* vals, Buffer* code);
+void compile_quote(List* form, Env* vars, Alist* vals, Buf16* code);
+bool is_def_form(List* form);
+void compile_def(List* form, Env* vars, Alist* vals, Buf16* code);
 bool is_set_form(List* form);
-void compile_set(List* form, Env* vars, Alist* vals, Buffer* code);
+void compile_set(List* form, Env* vars, Alist* vals, Buf16* code);
 bool is_if_form(List* form);
-void compile_if(List* form, Env* vars, Alist* vals, Buffer* code);
+void compile_if(List* form, Env* vars, Alist* vals, Buf16* code);
 bool is_do_form(List* form);
-void compile_do(List* form, Env* vars, Alist* vals, Buffer* code);
+void compile_do(List* form, Env* vars, Alist* vals, Buf16* code);
 bool is_fn_form(List* form);
-void compile_fn_form(List* form, Env* vars, Alist* vals, Buffer* code);
+void compile_fn(List* form, Env* vars, Alist* vals, Buf16* code);
 
-void compile_literal(Expr x, Env* vars, Alist* vals, Buffer* code);
-void compile_reference(Sym* s, Env* ref, Alist* vals, Buffer* code);
-void compile_funcall(List* form, Env* vars, Alist* vals, Buffer* code);
-void compile_expr(Expr x, Env* vars, Alist* vals, Buffer* code);
+void compile_sequence(List* exprs, Env* vars, Alist* vals, Buf16* code);
+void compile_literal(Expr x, Env* vars, Alist* vals, Buf16* code);
+void compile_reference(Sym* s, Env* ref, Alist* vals, Buf16* code);
+void compile_funcall(List* form, Env* vars, Alist* vals, Buf16* code);
+void compile_expr(Expr x, Env* vars, Alist* vals, Buf16* code);
 Fun* toplevel_compile(List* form);
 
-void emit_instr(Buffer* code, OpCode op, ...) {
+void emit_instr(Buf16* code, OpCode op, ...) {
   // probably not very efficient, but easy to use
   instr_t buffer[3] = { op, 0, 0 };
   va_list va;
   va_start(va, op);
-  int b = 2, n = op_arity(op);
+  int b = 1, n = op_arity(op);
 
   for ( int i=0; i < n; i++ ) {
     buffer[i+1]  = va_arg(va, int);
-    b           += 2;
+    b++;
   }
 
   va_end(va);
 
-  buffer_write_n(code, (byte_t*)buffer, b);
+  buf16_write(code, buffer, b);
 }
 
-void fill_instr(Buffer* code, int offset, int val) {
+void fill_instr(Buf16* code, int offset, int val) {
   ((instr_t*)code->binary.vals)[offset] = val;
 }
 
@@ -243,12 +246,43 @@ bool is_quote_form(List* form) {
   return is_sym(hd) && as_sym(hd)->val == QuoteStr;
 }
 
-void compile_quote(List* form, Env* vars, Alist* vals, Buffer* code) {
+void compile_quote(List* form, Env* vars, Alist* vals, Buf16* code) {
   require_argco("quote", 1, form->count-1);
 
   Expr x = form->tail->head;
 
   compile_literal(x, vars, vals, code);
+}
+
+bool is_def_form(List* form) {
+  Expr hd = form->head;
+
+  return is_sym(hd) && as_sym(hd)->val == DefStr;
+}
+
+void compile_def(List* form, Env* vars, Alist* vals, Buf16* code) {
+  require_argco("def", 2, form->count-1);
+
+  Sym* n = as_sym_s("def", form->tail->head);
+
+  require(!is_keyword(n), "can't assign to keyword %s", n->val->val);
+
+  int i = env_put(vars, n);
+
+  OpCode op;
+
+  if ( !is_local_env(vars) )
+    op = OP_SET_GLOBAL;
+
+  else {
+    op = OP_SET_LOCAL;
+
+    if ( i >= vars->arity ) // account for call frame
+      i += FRAME_SIZE;
+  }
+  
+  compile_expr(form->tail->tail->head, vars, vals, code);
+  emit_instr(code, op, i);
 }
 
 bool is_set_form(List* form) {
@@ -257,26 +291,28 @@ bool is_set_form(List* form) {
   return is_sym(hd) && as_sym(hd)->val == SetStr;
 }
 
-void compile_set(List* form, Env* vars, Alist* vals, Buffer* code) {
+void compile_set(List* form, Env* vars, Alist* vals, Buf16* code) {
   require_argco("set", 2, form->count-1);
-  require_argtype("set", EXP_SYM, form->tail->head);
 
-  Sym* n = as_sym(form->tail->head);
+  Sym* n = as_sym_s("set", form->tail->head);
 
   require(!is_keyword(n), "can't assign to keyword %s", n->val->val);
-  
-  int i = env_put(vars, n);
+
+  int i = env_resolve(vars, n);
+
+  require(i > -1, "can't assign to %s before it's defined", n->val->val);
 
   OpCode op;
 
   if ( !is_local_env(vars) )
     op = OP_SET_GLOBAL;
 
-  else if ( i < vars->arity )
-    op = OP_SET_ARG;
-
-  else
+  else {
     op = OP_SET_LOCAL;
+
+    if ( i >= vars->arity ) // account for call frame
+      i += FRAME_SIZE;
+  }
   
   compile_expr(form->tail->tail->head, vars, vals, code);
   emit_instr(code, op, i);
@@ -288,7 +324,7 @@ bool is_if_form(List* form) {
   return is_sym(hd) && as_sym(hd)->val == IfStr;
 }
 
-void compile_if(List* form, Env* vars, Alist* vals, Buffer* code) {
+void compile_if(List* form, Env* vars, Alist* vals, Buf16* code) {
     require_argco2("if", 2, 3, form->count-1);
 
     Expr test = form->tail->head;
@@ -298,12 +334,12 @@ void compile_if(List* form, Env* vars, Alist* vals, Buffer* code) {
     // compile different parts of the form, saving offsets to fill in later
     compile_expr(test, vars, vals, code);
     emit_instr(code, OP_JUMP_F, 0);
-    int off1 = (code->binary.count >> 1);
+    int off1 = code->binary.count;
     compile_expr(then, vars, vals, code);
     emit_instr(code, OP_JUMP, 0);
-    int off2 = (code->binary.count >> 1);
+    int off2 = code->binary.count;
     compile_expr(alt, vars, vals, code);
-    int off3 = code->binary.count >> 1;
+    int off3 = code->binary.count;
 
     fill_instr(code, off1-1, off2-off1);
     fill_instr(code, off2-1, off3-off2);
@@ -315,20 +351,12 @@ bool is_do_form(List* form) {
   return is_sym(hd) && as_sym(hd)->val == DoStr;
 }
 
-void compile_do(List* form, Env* vars, Alist* vals, Buffer* code) {
+void compile_do(List* form, Env* vars, Alist* vals, Buf16* code) {
   require_vargco("do", 2, form->count-1);
 
   List* xprs = form->tail;
 
-  while ( xprs->count > 0 ) {
-    Expr x = xprs->head;
-    compile_expr(x, vars, vals, code);
-    
-    if ( xprs->count > 1 )
-      emit_instr(code, OP_POP);
-
-    xprs = xprs->tail;
-  }
+  compile_sequence(xprs, vars, vals, code);
 }
 
 bool is_fn_form(List* form) {
@@ -338,21 +366,83 @@ bool is_fn_form(List* form) {
 }
 
 void prepare_env(List* argl, Env* vars) {
-  
+  while ( argl->count > 0 ) {
+    Expr x = argl->head;
+    Sym* n = as_sym_s("fn", x);
+    int  o = env_put(vars, n);
+
+    // ensure uniqueness
+    require(o == vars->map.count-1, "duplicate parameter name %s", n->val->val);
+    vars->arity++;
+    argl = argl->tail;
+  }
 }
 
-void compile_fn_form(List* form, Env* vars, Alist* vals, Buffer* code) {
-  
+void compile_fn(List* form, Env* vars, Alist* vals, Buf16* code) {
+  require_vargco("fn", 1, form->count-1);
+
+  List* argl  = as_list_s("fn", form->tail->head);
+  List* body  = form->tail->tail;
+  Env*  lvars = mk_env(true);
+
+  preserve(3, tag_obj(lvars), NUL, NUL);
+  prepare_env(argl, lvars);
+
+  Alist* lvals = mk_alist(); add_to_preserved(1, tag_obj(lvals));
+  Buf16* lcode = mk_buf16(); add_to_preserved(2, tag_obj(lcode));
+
+  // compile internal definitions first (otherwise their values will get lost in the stack)
+  while ( body->count > 0 ) {
+    Expr hd = body->head;
+
+    if ( !is_list(hd) )
+      break;
+
+    List* fxpr = as_list(hd);
+
+    if ( !is_def_form(fxpr) )
+      break;
+
+    compile_def(fxpr, lvars, lvals, lcode);
+    body = body->tail;
+  }
+
+  // compile remaining expressions like body of a 'do' form
+  compile_sequence(body, lvars, lvals, lcode);
+  emit_instr(lcode, OP_RETURN);
+
+  // create chunk object
+  Chunk* chunk = mk_chunk(lvars, lvals, lcode); add_to_preserved(0, tag_obj(chunk));
+  Fun* fun     = mk_user_fun(chunk);
+
+#ifdef RASCAL_DEBUG
+  disassemble(fun);
+#endif
+
+  // add instructions in caller to load resulting function object
+  compile_literal(tag_obj(fun), vars, vals, code);
 }
 
-void compile_literal(Expr x, Env* vars, Alist* vals, Buffer* code) {
+void compile_sequence(List* xprs, Env* vars, Alist* vals, Buf16* code) {
+  while ( xprs->count > 0 ) {
+    Expr x = xprs->head;
+    compile_expr(x, vars, vals, code);
+
+    if ( xprs->count > 1 )
+      emit_instr(code, OP_POP);
+
+    xprs = xprs->tail;
+  }
+}
+
+void compile_literal(Expr x, Env* vars, Alist* vals, Buf16* code) {
   (void)vars;
   int n = alist_push(vals, x);
 
   emit_instr(code, OP_GET_VALUE, n-1);
 }
 
-void compile_reference(Sym* s, Env* vars, Alist* vals, Buffer* code) {
+void compile_reference(Sym* s, Env* vars, Alist* vals, Buf16* code) {
   (void)vals;
 
   int n = -1;
@@ -367,18 +457,23 @@ void compile_reference(Sym* s, Env* vars, Alist* vals, Buffer* code) {
 
   } else {
     if ( n < vars->arity )
-      emit_instr(code, OP_GET_ARG, n);
-
-    else
       emit_instr(code, OP_GET_LOCAL, n);
+
+    else // local variable defined inside a function, account for stack frame
+      emit_instr(code, OP_GET_LOCAL, n+FRAME_SIZE);
   }
 }
 
-void compile_funcall(List* form, Env* vars, Alist* vals, Buffer* code) {
+void compile_funcall(List* form, Env* vars, Alist* vals, Buf16* code) {
   assert(form->count > 0);
 
   if ( is_quote_form(form) )
     compile_quote(form, vars, vals, code);
+
+  else if ( is_def_form(form) ) {
+    require(!vars->local, "syntax error: local def in fn body");
+    compile_def(form, vars, vals, code);
+  }
 
   else if ( is_set_form(form) )
     compile_set(form, vars, vals, code);
@@ -388,6 +483,9 @@ void compile_funcall(List* form, Env* vars, Alist* vals, Buffer* code) {
 
   else if ( is_do_form(form) )
     compile_do(form, vars, vals, code);
+
+  else if ( is_fn_form(form) )
+    compile_fn(form, vars, vals, code);
 
   else {
     int argc = form->count-1;
@@ -402,7 +500,7 @@ void compile_funcall(List* form, Env* vars, Alist* vals, Buffer* code) {
   }
 }
 
-void compile_expr(Expr x, Env* vars, Alist* vals, Buffer* code) {
+void compile_expr(Expr x, Env* vars, Alist* vals, Buf16* code) {
   ExpType t = exp_type(x);
   
   if ( t == EXP_SYM ) {
@@ -431,7 +529,7 @@ Fun* toplevel_compile(List* form) {
   preserve(3, tag_obj(form), NUL, NUL);
 
   Alist* vals  = mk_alist();  add_to_preserved(1, tag_obj(vals));
-  Buffer* code = mk_buffer(); add_to_preserved(2, tag_obj(code));
+  Buf16* code = mk_buf16(); add_to_preserved(2, tag_obj(code));
 
   compile_funcall(form, &Globals, vals, code);
   emit_instr(code, OP_RETURN);
@@ -462,8 +560,6 @@ Expr exec_code(Fun* fun) {
     [OP_GET_VALUE]  = &&op_get_value,
     [OP_GET_GLOBAL] = &&op_get_global,
     [OP_SET_GLOBAL] = &&op_set_global,
-    [OP_GET_ARG]    = &&op_get_arg,
-    [OP_SET_ARG]    = &&op_set_arg,
     [OP_GET_LOCAL]  = &&op_get_local,
     [OP_SET_LOCAL]  = &&op_set_local,
 
@@ -498,7 +594,7 @@ Expr exec_code(Fun* fun) {
   Num nx, ny, nz;
   List* lx, * ly;
 
-  install_code(fun, -1);
+  install_fun(fun, 0, 0);
 
  fetch:
   op = next_op();
@@ -536,24 +632,11 @@ Expr exec_code(Fun* fun) {
 
   goto fetch;
 
- op_get_arg:
+ op_get_local:
   argx = next_op();
   x    = Vm.stack[Vm.bp+argx];
 
   push(x);
-
-  goto fetch;
-
- op_set_arg:
-  argx = next_op();
-  x    = pop();
-  Vm.stack[Vm.bp+argx] = x;
-
-  goto fetch;
-
- op_get_local:
-  argx = next_op();
-  x    = Vm.stack[Vm.fp+argx];
 
   goto fetch;
 
@@ -563,7 +646,7 @@ Expr exec_code(Fun* fun) {
   Vm.stack[Vm.bp+argx] = x;
 
   goto fetch;
-  
+
  op_add:
   require_argco("+", 2, argc);
 
@@ -665,6 +748,21 @@ Expr exec_code(Fun* fun) {
 
   goto fetch;
 
+ op_nth:
+  require_argco("nth", 2, argc);
+
+  x     = pop();
+  argx  = as_num_s("nth", x);
+  x     = pop();
+  lx    = as_list_s("nth", x);
+
+  require(argx < (int)lx->count, "index out of bounds");
+
+  x     = list_ref(lx, argx);
+  tos() = x;
+
+  goto fetch;
+
  op_jump: // unconditional jumping
   argx   = next_op();
   Vm.pc += argx;
@@ -682,20 +780,37 @@ Expr exec_code(Fun* fun) {
 
  op_call:
   argc = next_op();
-  x = *stack_ref(-argc-1);
-  fun = as_fun_s(Vm.fn->name->val->val, x);
+  x    = *stack_ref(-argc-1);
+  fun  = as_fun_s(Vm.fn->name->val->val, x);
 
-  assert(fun->label != OP_NOOP); // user functions not yet supported
+  if ( is_user_fn(fun) )
+    goto call_user_fn;
 
   op = fun->label;
 
   goto *labels[op];
 
- op_return:
-  x = Vm.sp ? pop() : NONE;
-  reset_vm();
+ call_user_fn:
+  require_argco("fn", user_fn_argc(fun), argc);
+  save_frame();                                 // save caller state
+  install_fun(fun, Vm.sp-argc-FRAME_SIZE, Vm.sp);
 
-  return x;
+  goto fetch;
+
+ op_return:
+  x    = Vm.sp > Vm.fp ? pop() : NUL;
+
+  if ( Vm.fp == 0 ) { // no calling frame, exit
+    reset_vm();
+    return x;    
+  }
+
+  argx  = Vm.bp;       // adjust stack to here after restore
+  restore_frame();
+  Vm.sp = argx;
+  tos() = x;
+
+  goto fetch;
 }
 
 // eval
