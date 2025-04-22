@@ -10,7 +10,7 @@
   'rascal-mode
   '(";" ("#|" . "|#"))
   '( ;; special forms
-    "quote" "set" "if" "do" "fn"
+    "quote" "put" "if" "do" "fn" "stx" "c-call"
     ;; macros
     "fun" "mac" "let"
     "cond" "and" "or"

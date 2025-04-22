@@ -43,6 +43,12 @@ char* op_name(OpCode op) {
     case OP_GET_LOCAL:  out = "GET-LOCAL";  break;
     case OP_SET_LOCAL:  out = "SET-LOCAL";  break;
     case OP_GET_UPVAL:  out = "GET-UPVAL";  break;
+    case OP_JUMP:       out = "JUMP";       break;
+    case OP_JUMP_F:     out = "JUMP-FALSE"; break;
+    case OP_CLOSURE:    out = "CLOSURE";    break;
+    case OP_CAPTURE:    out = "CAPTURE";    break;
+    case OP_CALL:       out = "CALL";       break;
+    case OP_RETURN:     out = "RETURN";     break;
     case OP_ADD:        out = "ADD";        break;
     case OP_SUB:        out = "SUB";        break;
     case OP_MUL:        out = "MUL";        break;
@@ -53,12 +59,6 @@ char* op_name(OpCode op) {
     case OP_HEAD:       out = "HEAD";       break;
     case OP_TAIL:       out = "TAIL";       break;
     case OP_NTH:        out = "NTH";        break;
-    case OP_JUMP:       out = "JUMP";       break;
-    case OP_JUMP_F:     out = "JUMP-FALSE"; break;
-    case OP_CLOSURE:    out = "CLOSURE";    break;
-    case OP_CAPTURE:    out = "CAPTURE";    break;
-    case OP_CALL:       out = "CALL";       break;
-    case OP_RETURN:     out = "RETURN";     break;
     default:            out = "????";       break;
   }
 

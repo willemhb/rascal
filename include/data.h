@@ -36,6 +36,7 @@ typedef uintptr_t Expr;
 typedef nullptr_t Nul;
 typedef double    Num;
 typedef bool      Bool;
+typedef char32_t  Glyph;
 typedef struct    Obj    Obj;
 typedef struct    Chunk  Chunk;
 typedef struct    Alist  Alist;
@@ -260,6 +261,7 @@ Expr  tag_obj(void* ptr);
 void* mk_obj(ExpType type, flags_t flags);
 void* clone_obj(void* ptr);
 void  mark_obj(void* ptr);
+void  unmark_obj(void* ptr);
 void  free_obj(void *ptr);
 
 // chunk API
@@ -277,17 +279,6 @@ Expr   alist_get(Alist* a, int n);
 Buf16*  mk_buf16(void);
 void    free_buf16(void* ptr);
 int     buf16_write(Buf16* b, ushort_t *xs, int n);
-
-// function API
-Fun* as_fun_s(char* f, Expr x);
-Fun* mk_fun(Sym* name, OpCode op, Chunk* code);
-Fun* mk_closure(Fun* proto);
-Fun* mk_builtin_fun(Sym* name, OpCode op);
-Fun* mk_user_fun(Chunk* code);
-void def_builtin_fun(char* name, OpCode op);
-void disassemble(Fun* fun);
-Expr upval_ref(Fun* fun, int i);
-void upval_set(Fun* fun, int i, Expr x);
 
 // ref API
 Ref* mk_ref(Sym* n, int o);
@@ -307,6 +298,22 @@ void toplevel_env_refset(Env* e, int n, Expr x);
 Ref* toplevel_env_find(Env* e, Sym* n);
 Expr toplevel_env_ref(Env* e, int n);
 Expr toplevel_env_get(Env* e, Sym* n);
+
+// port API
+Port* mk_port(FILE* ios);
+Port* open_port(char* fname, char* mode);
+void  close_port(Port* port);
+
+// function API
+Fun* as_fun_s(char* f, Expr x);
+Fun* mk_fun(Sym* name, OpCode op, Chunk* code);
+Fun* mk_closure(Fun* proto);
+Fun* mk_builtin_fun(Sym* name, OpCode op);
+Fun* mk_user_fun(Chunk* code);
+void def_builtin_fun(char* name, OpCode op);
+void disassemble(Fun* fun);
+Expr upval_ref(Fun* fun, int i);
+void upval_set(Fun* fun, int i, Expr x);
 
 // symbol API
 Sym* as_sym_s(char* f, Expr x);
@@ -336,8 +343,13 @@ Expr      tag_ptr(void* ptr);
 Bool as_bool(Expr x);
 Expr tag_bool(Bool b);
 
+// glyph API
+Glyph as_glyph(Expr x);
+Expr  tag_glyph(Glyph x);
+
 // convenience macros
 #define exp_tag(x)     ((x) & XTMSK)
+#define exp_val(x)     ((x) & XVMSK)
 #define head(x)        ((Obj*)as_obj(x))
 #define as_fun(x)      ((Fun*)as_obj(x))
 #define as_ref(x)      ((Ref*)as_obj(x))

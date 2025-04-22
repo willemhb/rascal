@@ -14,6 +14,7 @@ void print_sym(FILE* ios, Expr x);
 void print_str(FILE* ios, Expr x);
 void print_num(FILE* ios, Expr x);
 void print_bool(FILE* ios, Expr x);
+void print_glyph(FILE* ios, Expr x);
 void print_nul(FILE* ios, Expr x);
 void print_none(FILE* ios, Expr x);
 
@@ -35,6 +36,7 @@ void trace_list(void* ptr);
 void free_alist(void* ptr);
 void free_buf16(void* ptr);
 void free_env(void* ptr);
+void free_port(void* ptr);
 void free_str(void* ptr);
 
 // Globals
@@ -66,6 +68,13 @@ ExpTypeInfo Types[] = {
     .print_fn = print_bool
   },
 
+  [EXP_GLYPH] = {
+    .type     = EXP_GLYPH,
+    .name     = "glyph",
+    .obsize   = 0,
+    .print_fn = print_glyph
+  },
+
   [EXP_CHUNK] = {
     .type     = EXP_CHUNK,
     .name     = "chunk",
@@ -88,14 +97,6 @@ ExpTypeInfo Types[] = {
     .free_fn  = free_buf16
   },
 
-  [EXP_ENV] = {
-    .type     = EXP_ENV,
-    .name     = "env",
-    .obsize   = sizeof(Env),
-    .trace_fn = trace_env,
-    .free_fn  = free_env
-  },
-
   [EXP_REF] = {
     .type     = EXP_REF,
     .name     = "ref",
@@ -111,6 +112,21 @@ ExpTypeInfo Types[] = {
     .trace_fn = trace_upval
   },
 
+  [EXP_ENV] = {
+    .type     = EXP_ENV,
+    .name     = "env",
+    .obsize   = sizeof(Env),
+    .trace_fn = trace_env,
+    .free_fn  = free_env
+  },
+
+  [EXP_PORT] = {
+    .type     = EXP_PORT,
+    .name     = "port",
+    .obsize   = sizeof(Port),
+    .free_fn  = free_port
+  },
+
   [EXP_FUN] = {
     .type     = EXP_FUN,
     .name     = "fun",
@@ -123,7 +139,8 @@ ExpTypeInfo Types[] = {
     .name     = "sym",
     .obsize   = sizeof(Sym),
     .print_fn = print_sym,
-    .hash_fn  = hash_sym
+    .hash_fn  = hash_sym,
+    .egal_fn  = egal_syms
   },
 
   [EXP_STR] = {
@@ -132,6 +149,7 @@ ExpTypeInfo Types[] = {
     .obsize   = sizeof(Str),
     .print_fn = print_str,
     .hash_fn  = hash_str,
+    .egal_fn  = egal_strs,
     .free_fn  = free_str
   },
 
@@ -140,6 +158,7 @@ ExpTypeInfo Types[] = {
     .name     = "list",
     .obsize   = sizeof(List),
     .print_fn = print_list,
+    .egal_fn  = egal_lists,
     .trace_fn = trace_list
   },
 
@@ -167,12 +186,13 @@ ExpType exp_type(Expr x) {
   ExpType t;
 
   switch ( x & XTMSK ) {
-    case NONE_T : t = EXP_NONE;      break;
-    case NUL_T  : t = EXP_NUL;       break;
-    case EOS_T  : t = EXP_EOS;       break;
-    case BOOL_T : t = EXP_BOOL;      break;
-    case OBJ_T  : t = head(x)->type; break;
-    default     : t = EXP_NUM;       break;
+    case NONE_T  : t = EXP_NONE;      break;
+    case NUL_T   : t = EXP_NUL;       break;
+    case EOS_T   : t = EXP_EOS;       break;
+    case BOOL_T  : t = EXP_BOOL;      break;
+    case GLYPH_T : t = EXP_GLYPH;     break;
+    case OBJ_T   : t = head(x)->type; break;
+    default      : t = EXP_NUM;       break;
   }
 
   return t;
@@ -274,6 +294,14 @@ void mark_obj(void* ptr) {
         obj->gray = false;
     }
   }
+}
+
+// used mostly to manually unmark global objects so they're collected correctly
+// on subsequent GC cycles
+void unmark_obj(void* ptr) {
+  Obj* obj   = ptr;
+  obj->black = false;
+  obj->gray  = true;
 }
 
 void free_obj(void* ptr) {
@@ -412,84 +440,6 @@ void free_buf16(void* ptr) {
   Buf16* b = ptr;
 
   free_bin16(&b->binary);
-}
-
-// function API
-Fun* as_fun_s(char* f, Expr x) {
-  ExpType t = exp_type(x);
-  require(t == EXP_FUN, "%s wanted a fun, got %s", f, Types[t].name);
-
-  return as_fun(x);
-}
-
-Fun* mk_fun(Sym* name, OpCode op, Chunk* code) {
-  Fun* f   = mk_obj(EXP_FUN, 0);
-  f->name  = name;
-  f->label = op;
-  f->chunk = code;
-
-  init_objs(&f->upvs);
-
-  return f;
-}
-
-Fun* mk_closure(Fun* proto) {
-  Fun* cls; int count = user_fn_upvalc(proto);
-
-  if ( count == 0 )
-    cls = proto;
-
-  else {
-    cls = clone_obj(proto);
-    objs_write(&cls->upvs, NULL, count);
-  }
-
-  return cls;
-}
-
-Fun* mk_builtin_fun(Sym* name, OpCode op) {
-  return mk_fun(name, op, NULL);
-}
-
-Fun* mk_user_fun(Chunk* code) {
-  Sym* n = mk_sym("fn"); preserve(1, tag_obj(n));
-  Fun* f = mk_fun(n, OP_NOOP, code);
-
-  return f;
-}
-
-void def_builtin_fun(char* name, OpCode op) {
-  Sym* sym = mk_sym(name); preserve(1, tag_obj(sym));
-  Fun* fun = mk_builtin_fun(sym, op);
-
-  toplevel_env_def(&Globals, sym, tag_obj(fun));
-}
-
-void disassemble(Fun* fun) {
-  printf("\n\n==== %s ====\n\n", fun->name->val->val);
-  dis_chunk(fun->chunk);
-  printf("\n\n");
-}
-
-Expr upval_ref(Fun* fun, int i) {
-  assert(i >= 0 && i < fun->upvs.count);
-  UpVal* upv = fun->upvs.vals[i];
-
-  return *deref(upv);
-}
-
-void upval_set(Fun* fun, int i, Expr x) {
-  assert(i >= 0 && i < fun->upvs.count);
-  UpVal* upv = fun->upvs.vals[i];
-
-  *deref(upv) = x;
-}
-
-void trace_fun(void* ptr) {
-  Fun* fun = ptr;
-
-  mark_obj(fun->name);
-  mark_obj(fun->chunk);
 }
 
 // reference API
@@ -711,6 +661,106 @@ void free_env(void* ptr) {
     free_exprs(&e->vals);
 }
 
+// port API
+Port* mk_port(FILE* ios) {
+  Port* p = mk_obj(EXP_PORT, 0);
+  p->ios  = ios;
+
+  return p;
+}
+
+Port* open_port(char* fname, char* mode);
+void  close_port(Port* port) {
+  if ( port->ios != NULL ) {
+    fclose(port->ios);
+    port->ios = NULL;
+  }
+}
+
+void free_port(void* ptr) {
+  Port* p = ptr;
+
+  close_port(p);
+}
+
+// function API
+Fun* as_fun_s(char* f, Expr x) {
+  ExpType t = exp_type(x);
+  require(t == EXP_FUN, "%s wanted a fun, got %s", f, Types[t].name);
+
+  return as_fun(x);
+}
+
+Fun* mk_fun(Sym* name, OpCode op, Chunk* code) {
+  Fun* f   = mk_obj(EXP_FUN, 0);
+  f->name  = name;
+  f->label = op;
+  f->chunk = code;
+
+  init_objs(&f->upvs);
+
+  return f;
+}
+
+Fun* mk_closure(Fun* proto) {
+  Fun* cls; int count = user_fn_upvalc(proto);
+
+  if ( count == 0 )
+    cls = proto;
+
+  else {
+    cls = clone_obj(proto);
+    objs_write(&cls->upvs, NULL, count);
+  }
+
+  return cls;
+}
+
+Fun* mk_builtin_fun(Sym* name, OpCode op) {
+  return mk_fun(name, op, NULL);
+}
+
+Fun* mk_user_fun(Chunk* code) {
+  Sym* n = mk_sym("fn"); preserve(1, tag_obj(n));
+  Fun* f = mk_fun(n, OP_NOOP, code);
+
+  return f;
+}
+
+void def_builtin_fun(char* name, OpCode op) {
+  Sym* sym = mk_sym(name); preserve(1, tag_obj(sym));
+  Fun* fun = mk_builtin_fun(sym, op);
+
+  toplevel_env_def(&Globals, sym, tag_obj(fun));
+}
+
+void disassemble(Fun* fun) {
+  printf("\n\n==== %s ====\n\n", fun->name->val->val);
+  dis_chunk(fun->chunk);
+  printf("\n\n");
+}
+
+Expr upval_ref(Fun* fun, int i) {
+  assert(i >= 0 && i < fun->upvs.count);
+  UpVal* upv = fun->upvs.vals[i];
+
+  return *deref(upv);
+}
+
+void upval_set(Fun* fun, int i, Expr x) {
+  assert(i >= 0 && i < fun->upvs.count);
+  UpVal* upv = fun->upvs.vals[i];
+
+  *deref(upv) = x;
+}
+
+void trace_fun(void* ptr) {
+  Fun* fun = ptr;
+
+  mark_obj(fun->name);
+  mark_obj(fun->chunk);
+}
+
 // symbol API
 Sym* as_sym_s(char* f, Expr x) {
   ExpType t = exp_type(x);
@@ -728,7 +778,7 @@ Sym* mk_sym(char* val) {
 }
 
 bool sym_val_eql(Sym* s, char* v) {
-  return strcmp(s->val->val, v) == 0;
+  return streq(s->val->val, v);
 }
 
 void print_sym(FILE* ios, Expr x) {
@@ -1014,4 +1064,23 @@ Expr tag_bool(Bool b) {
 
 void print_bool(FILE* ios, Expr x) {
   fprintf(ios, x == TRUE ? "true" : "false");
+}
+
+// glyph APIs
+Glyph as_glyph(Expr x) {
+  return x & XVMSK;
+}
+
+Expr tag_glyph(Glyph x) {
+  return ((Expr)x) | GLYPH_T;
+}
+
+void print_glyph(FILE* ios, Expr x) {
+  Glyph g = as_glyph(x);
+
+  if ( g < CHAR_MAX && CharNames[g] )
+    fprintf(ios, "\\%s", CharNames[g]);
+
+  else
+    fprintf(ios, "\\%c", g);
 }

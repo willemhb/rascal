@@ -42,6 +42,7 @@ Env Globals = {
 
   .parent = NULL,
   .arity  = 0,
+  .ncap   = 0,
 
   .vars = {
     .kvs       = NULL,
@@ -60,6 +61,37 @@ Objs GrayStack = {
   .vals      = NULL,
   .count     = 0,
   .max_count = 0
+};
+
+// static wrapper objects for standard streams
+Port Ins = {
+  .type    = EXP_PORT,
+  .black   = false,
+  .gray    = true,
+  .nosweep = true
+};
+
+Port Outs = {
+  .type    = EXP_PORT,
+  .black   = false,
+  .gray    = true,
+  .nosweep = true  
+};
+
+Port Errs = {
+  .type    = EXP_PORT,
+  .black   = false,
+  .gray    = true,
+  .nosweep = true
+};
+
+// mostly whitespace and control characters
+char* CharNames[128] = {
+  ['\0'] = "nul",      ['\n'] = "newline",
+  [' ']  = "space",    ['\a'] = "bel",
+  ['\t'] = "tab",      ['\r'] = "return",
+  ['\f'] = "formfeed", ['\v'] = "vtab",
+  ['\b'] = "backspace"
 };
 
 // internal helpers
@@ -303,7 +335,6 @@ static void mark_phase(void) {
 }
 
 static void trace_phase(void) {
-
   while ( GrayStack.count > 0 ) {
     Obj* obj          = objs_pop(&GrayStack);
     ExpTypeInfo* info = &Types[obj->type];
@@ -319,7 +350,7 @@ static void sweep_phase(void) {
   while ( *spc != NULL ) {
     Obj* obj = *spc;
 
-    if ( obj->black ) {         // prserve
+    if ( obj->black ) {         // preserve
       obj->black = false;
       obj->gray  = true;
       spc        = &obj->heap;
@@ -336,15 +367,20 @@ static void cleanup_phase(void) {
     HeapCap <<= 1;
 }
 
+void add_to_heap(void* ptr) {
+  Obj* obj  = ptr;
+  obj->heap = Heap;
+  Heap      = obj;
+}
+
 void gc_save(void* ob) {
   objs_push(&GrayStack, ob);
 }
 
 void run_gc(void) {
 #ifdef RASCAL_DEBUG
-  printf("\n\nINFO: entering gc.\nallocated: %zu\nused: %zu\n\n",
-         HeapUsed,
-         HeapCap);
+  printf("\n\nINFO: entering gc.\n\n");
+  heap_report();
 #endif
 
   mark_phase();
@@ -353,11 +389,18 @@ void run_gc(void) {
   cleanup_phase();
 
 #ifdef RASCAL_DEBUG
-  printf("\n\nINFO: exiting gc.\nallocated: %zu\nused: %zu\n\n",
-         HeapUsed,
-         HeapCap);
+  printf("\n\nINFO: exiting gc.\n\n");
+  heap_report();
 #endif
 
+}
+
+void heap_report(void) {
+  printf("\n\n==== heap report ====\n\%-16s %20zu\n%-16s %20zu\n\n",
+         "allocated",
+         HeapUsed,
+         "used",
+         HeapCap);
 }
 
 void* allocate(bool h, size_t n) {
@@ -412,7 +455,7 @@ void* reallocate(bool h, size_t n, size_t o, void* spc) {
 
         if ( out == NULL )
           system_error("out of memory");
-        
+
         HeapUsed   -= diff;
       } else if ( o < n ) {
         size_t diff = n - o;
@@ -453,3 +496,4 @@ void next_gc_frame(GcFrame* gcf) {
 
   GcFrames = gcf->next;
 }
+

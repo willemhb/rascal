@@ -11,8 +11,25 @@
 #include <string.h>
 #include <ctype.h>
 
-// setup/teardown
+// setup/teardown -------------------------------------------------------------
+void init_static_objects(void) {
+  // register static global objects in heap -----------------------------------
+  // so that they get unmarked during the sweep phase -------------------------
+  add_to_heap(&Globals);
+  add_to_heap(&Ins);
+  add_to_heap(&Outs);
+  add_to_heap(&Errs);
+}
+
+void init_standard_streams(void) {
+  // add FILE* objects to corresponding standard ports ------------------------
+  Ins.ios  = stdin;
+  Outs.ios = stdout;
+  Errs.ios = stderr;
+}
+
 void define_builtins(void) {
+  // initialize builtin functions ---------------------------------------------
   def_builtin_fun("+", OP_ADD);
   def_builtin_fun("-", OP_SUB);
   def_builtin_fun("*", OP_MUL);
@@ -23,8 +40,14 @@ void define_builtins(void) {
   def_builtin_fun("head", OP_HEAD);
   def_builtin_fun("tail", OP_TAIL);
   def_builtin_fun("nth", OP_NTH);
+  def_builtin_fun("*heap-report*", OP_HEAP_REPORT);
 
-  // special forms and other syntactic markers
+  // initialize other globals -------------------------------------------------
+  toplevel_env_def(&Globals, mk_sym("&ins"), tag_obj(&Ins));
+  toplevel_env_def(&Globals, mk_sym("&outs"), tag_obj(&Outs));
+  toplevel_env_def(&Globals, mk_sym("&errs"), tag_obj(&Errs));
+  
+  // special forms and other syntactic markers --------------------------------
   QuoteStr = mk_str("quote");
   DefStr   = mk_str("def");
   PutStr   = mk_str("put");
@@ -48,6 +71,8 @@ void print_welcome(void) {
 }
 
 void setup(void) {
+  init_static_objects();
+  init_standard_streams();
   define_builtins();
   initialize_types();
   print_welcome();

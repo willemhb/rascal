@@ -1,6 +1,7 @@
 #ifndef rl_common_h
 #define rl_common_h
 
+#include <limits.h>
 #include <uchar.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -32,7 +33,7 @@ typedef uintptr_t      hash_t;
 #define RELEASE "a"
 
 // miscellaneous
-#define RASCAL_DEBUG
+// #define RASCAL_DEBUG
 
 // redefining annoyingly named builtins
 #define clz         __builtin_clzl

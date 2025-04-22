@@ -3,6 +3,9 @@
 
 #include "common.h"
 
+// miscellaneous string helpers
+bool streq(char* sx, char* sy);
+
 // miscellaneous bit twiddling
 uintptr_t cpow2(uintptr_t i);
 

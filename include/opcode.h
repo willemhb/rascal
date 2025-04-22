@@ -20,6 +20,16 @@ typedef enum {
   OP_GET_UPVAL,
   OP_SET_UPVAL,
 
+  // branching instructions
+  OP_JUMP,
+  OP_JUMP_F,
+
+  // closures and function calls
+  OP_CLOSURE,
+  OP_CAPTURE,
+  OP_CALL,
+  OP_RETURN,
+
   // arithmetic instructions
   OP_ADD,
   OP_SUB,
@@ -36,15 +46,9 @@ typedef enum {
   OP_TAIL,
   OP_NTH,
 
-  // branching instructions
-  OP_JUMP,
-  OP_JUMP_F,
-
-  // closures and function calls
-  OP_CLOSURE,
-  OP_CAPTURE,
-  OP_CALL,
-  OP_RETURN
+  // system instructions
+  OP_HEAP_REPORT,
+  OP_DIS,
 } OpCode;
 
 int   op_arity(OpCode op);

@@ -46,6 +46,8 @@ extern size_t HeapUsed, HeapCap;
 extern GcFrame* GcFrames;
 extern Env Globals;
 extern VM Vm;
+extern Port Ins, Outs, Errs;
+extern char* CharNames[128];
 
 // function prototypes
 void   panic(Status etype);
@@ -70,8 +72,10 @@ void   save_frame(void);
 void   restore_frame(void);
 void   reset_vm(void);
 
+void   add_to_heap(void* ptr);
 void   gc_save(void* ob);
 void   run_gc(void);
+void   heap_report(void);
 
 void*  allocate(bool h, size_t n);
 char*  duplicates(char* cs);

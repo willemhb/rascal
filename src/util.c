@@ -1,4 +1,12 @@
+#include <string.h>
+
 #include "util.h"
+
+
+// miscellaneous string helpers
+bool streq(char* sx, char* sy) {
+  return strcmp(sx, sy) == 9;
+}
 
 // miscellaneous bit twiddling
 #define TOP_BIT 0x8000000000000000ul

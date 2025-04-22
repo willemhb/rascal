@@ -5,6 +5,7 @@
 
 #include "runtime.h"
 #include "opcode.h"
+#include "util.h"
 #include "lang.h"
 
 // globals
@@ -12,17 +13,23 @@ Str* QuoteStr, *DefStr, * PutStr, * IfStr, * DoStr, * FnStr;
 
 // Function prototypes
 // read helpers
+bool is_delim_char(int c);
 bool is_sym_char(int c);
 bool is_num_char(int c);
 int  peek(FILE *in);
 char read_char(FILE *in);
 void skip_space(FILE* in);
+Expr read_glyph(FILE* in);
 Expr read_quote(FILE* in);
 Expr read_list(FILE *in);
 Expr read_string(FILE* in);
 Expr read_atom(FILE* in);
 
 // read helpers
+bool is_delim_char(int c) {
+  return strchr("(){}[]", c);
+}
+
 bool is_sym_char(int c) {
   return !isspace(c) && !strchr("(){}[];\"", c);
 }
@@ -63,6 +70,8 @@ Expr read_exp(FILE *in) {
 
   if ( c == EOF )
     x = EOS;
+  else if ( c == '\\' )
+    x = read_glyph(in);
   else if ( c == '\'' )
     x = read_quote(in);
   else if ( c == '(' )
@@ -79,8 +88,111 @@ Expr read_exp(FILE *in) {
   return x;
 }
 
+Expr read_glyph(FILE* in) {
+  read_char(in); // consume opening slash
+
+  if ( feof(in) || isspace(peek(in)) )
+    eval_error("invalid syntax: empty character");
+
+  Glyph g; int c;
+
+  if ( !isalpha(peek(in)) ) {
+    g = read_char(in);
+    c = peek(in);
+
+    require(isspace(c) || is_delim_char(c), "invalid character literal");
+  }
+
+  else {
+    while (!feof(in) && !isspace(c=peek(in)) && !is_delim_char(c) ) {
+      add_to_token(c);
+      read_char(in);
+    }
+
+    if ( TOff == 1 )
+      g = Token[0];
+
+    else
+      switch ( Token[0] ) {
+        case 'n':
+          if ( streq(Token+1, "ul") )
+            g = '\0';
+          
+          else if ( streq(Token+1, "ewline") )
+            g = '\n';
+          
+          else
+            eval_error("unrecognized character name \\%s", Token);
+          
+          break;
+          
+        case 'b':
+          if ( streq(Token+1, "el") )
+            g = '\a';
+
+          else if ( streq(Token+1, "ackspace") )
+            g = '\b';
+          
+          else
+            eval_error("unrecognized character name \\%s", Token);
+          
+          break;
+          
+        case 's':
+          if ( streq(Token+1, "pace") )
+            g = ' ';
+          
+          else
+            eval_error("unrecognized character name \\%s", Token);
+          
+          break;
+          
+        case 't':
+          if ( streq(Token+1, "ab") )
+            g = '\t';
+          
+          else
+            eval_error("unrecognized character name \\%s", Token);
+          
+          break;
+          
+        case 'r':
+          if ( streq(Token+1, "eturn") )
+            g = '\r';
+          
+          else
+            eval_error("unrecognized character name \\%s", Token);
+          
+          break;
+          
+        case 'f':
+          if ( streq(Token+1, "ormfeed") )
+            g = '\f';
+          
+          else
+            eval_error("unrecognized character name \\%s", Token);
+          
+          break;
+          
+        case 'v':
+          if ( streq(Token+1, "tab") )
+            g = '\v';
+          
+          else
+            eval_error("unrecognized character name \\%s", Token);
+          
+          break;
+          
+        default:
+          eval_error("unrecognized character name \\%s", Token);
+      }
+  }
+
+  return tag_glyph(g);
+}
+
 Expr read_quote(FILE* in) {
-  read_char(in);
+  read_char(in); // consume opening '
 
   if ( feof(in) || isspace(peek(in)) )
     eval_error("invalid syntax: quoted nothing");
@@ -611,45 +723,49 @@ bool is_falsey(Expr x) {
 
 Expr exec_code(Fun* fun) {
   void* labels[] = {
-    [OP_NOOP]       = &&op_noop,
+    [OP_NOOP]        = &&op_noop,
 
     // stack manipulation
-    [OP_POP]        = &&op_pop,
+    [OP_POP]         = &&op_pop,
 
     // environment instructions
-    [OP_GET_VALUE]  = &&op_get_value,
-    [OP_GET_GLOBAL] = &&op_get_global,
-    [OP_SET_GLOBAL] = &&op_set_global,
-    [OP_GET_LOCAL]  = &&op_get_local,
-    [OP_SET_LOCAL]  = &&op_set_local,
-    [OP_GET_UPVAL]  = &&op_get_upval,
-    [OP_SET_UPVAL]  = &&op_set_upval,
+    [OP_GET_VALUE]   = &&op_get_value,
+    [OP_GET_GLOBAL]  = &&op_get_global,
+    [OP_SET_GLOBAL]  = &&op_set_global,
+    [OP_GET_LOCAL]   = &&op_get_local,
+    [OP_SET_LOCAL]   = &&op_set_local,
+    [OP_GET_UPVAL]   = &&op_get_upval,
+    [OP_SET_UPVAL]   = &&op_set_upval,
 
-    // arithmetic instructions
-    [OP_ADD]        = &&op_add,
-    [OP_SUB]        = &&op_sub,
-    [OP_MUL]        = &&op_mul,
-    [OP_DIV]        = &&op_div,
-
-    // miscellaneous builtins
-    [OP_EGAL]       = &&op_egal,
-    [OP_TYPE]       = &&op_type,
-
-    // sequence operations
-    [OP_CONS]       = &&op_cons,
-    [OP_HEAD]       = &&op_head,
-    [OP_TAIL]       = &&op_tail,
-    [OP_NTH]        = &&op_nth,
- 
     // jump instructions
-    [OP_JUMP]       = &&op_jump,
-    [OP_JUMP_F]     = &&op_jump_f,
+    [OP_JUMP]        = &&op_jump,
+    [OP_JUMP_F]      = &&op_jump_f,
 
     // function call instructions
-    [OP_CLOSURE]    = &&op_closure,
-    [OP_CAPTURE]    = &&op_capture,
-    [OP_CALL]       = &&op_call,
-    [OP_RETURN]     = &&op_return
+    [OP_CLOSURE]     = &&op_closure,
+    [OP_CAPTURE]     = &&op_capture,
+    [OP_CALL]        = &&op_call,
+    [OP_RETURN]      = &&op_return,
+
+
+    // arithmetic instructions
+    [OP_ADD]         = &&op_add,
+    [OP_SUB]         = &&op_sub,
+    [OP_MUL]         = &&op_mul,
+    [OP_DIV]         = &&op_div,
+
+    // miscellaneous builtins
+    [OP_EGAL]        = &&op_egal,
+    [OP_TYPE]        = &&op_type,
+
+    // sequence operations
+    [OP_CONS]        = &&op_cons,
+    [OP_HEAD]        = &&op_head,
+    [OP_TAIL]        = &&op_tail,
+    [OP_NTH]         = &&op_nth,
+
+    // system instructions
+    [OP_HEAP_REPORT] = &&op_heap_report,
   };
 
   int argc, argx, argy;
@@ -729,6 +845,85 @@ Expr exec_code(Fun* fun) {
 
   goto fetch;
 
+ op_jump: // unconditional jumping
+  argx   = next_op();
+  Vm.pc += argx;
+
+  goto fetch;
+
+ op_jump_f: // jump if TOS is falsey
+  argx   = next_op();
+  x      = pop();
+
+  if ( is_falsey(x) )
+    Vm.pc += argx;
+
+  goto fetch;
+
+ op_call:
+  argc = next_op();
+  x    = *stack_ref(-argc-1);
+  fun  = as_fun_s(Vm.fn->name->val->val, x);
+
+  if ( is_user_fn(fun) )
+    goto call_user_fn;
+
+  op = fun->label;
+
+  goto *labels[op];
+
+ call_user_fn:
+  require_argco("fn", user_fn_argc(fun), argc);
+  save_frame();                                 // save caller state
+  install_fun(fun, Vm.sp-argc-FRAME_SIZE, Vm.sp);
+
+  goto fetch;
+
+ op_closure:
+  fun   = as_fun(tos());
+  fun   = mk_closure(fun);
+  tos() = tag_obj(fun);     // make sure new closure is visible to GC
+  argc  = next_op();
+
+  for ( int i=0; i < argc; i++ ) {
+    argx = next_op();
+    argy = next_op();
+
+    if ( argx == 0 ) // nonlocal
+      fun->upvs.vals[i] = Vm.fn->upvs.vals[argy];
+
+    else
+      fun->upvs.vals[i] = get_upv(Vm.stack+Vm.bp+argy);
+  }
+
+  goto fetch;
+
+  // emmitted before a frame with local upvalues returns
+ op_capture:
+  close_upvs(Vm.stack+Vm.bp);
+
+  goto fetch;
+
+ op_return:
+  x    = Vm.sp > Vm.fp ? pop() : NUL;
+
+  if ( Vm.fp == 0 ) { // no calling frame, exit
+    reset_vm();
+    return x;    
+  }
+
+  argx  = Vm.bp;       // adjust stack to here after restore
+  
+  restore_frame();
+
+  Vm.sp = argx;
+  tos() = x;
+
+  goto fetch;
+
+  // builtin functions --------------------------------------------------------
+  // at some hypothetical point in --------------------------------------------
+  // the future these will be inlineable --------------------------------------
  op_add:
   require_argco("+", 2, argc);
 
@@ -856,77 +1051,12 @@ Expr exec_code(Fun* fun) {
 
   goto fetch;
 
- op_jump: // unconditional jumping
-  argx   = next_op();
-  Vm.pc += argx;
+ op_heap_report:
+  require_argco("*heap-report*", 0, argc);
 
-  goto fetch;
+  heap_report();
 
- op_jump_f: // jump if TOS is falsey
-  argx   = next_op();
-  x      = pop();
-
-  if ( is_falsey(x) )
-    Vm.pc += argx;
-
-  goto fetch;
-
- op_call:
-  argc = next_op();
-  x    = *stack_ref(-argc-1);
-  fun  = as_fun_s(Vm.fn->name->val->val, x);
-
-  if ( is_user_fn(fun) )
-    goto call_user_fn;
-
-  op = fun->label;
-
-  goto *labels[op];
-
- call_user_fn:
-  require_argco("fn", user_fn_argc(fun), argc);
-  save_frame();                                 // save caller state
-  install_fun(fun, Vm.sp-argc-FRAME_SIZE, Vm.sp);
-
-  goto fetch;
-
- op_closure:
-  fun   = as_fun(tos());
-  fun   = mk_closure(fun);
-  tos() = tag_obj(fun);     // make sure new closure is visible to GC
-  argc  = next_op();
-
-  for ( int i=0; i < argc; i++ ) {
-    argx = next_op();
-    argy = next_op();
-
-    if ( argx == 0 ) // nonlocal
-      fun->upvs.vals[i] = Vm.fn->upvs.vals[argy];
-
-    else
-      fun->upvs.vals[i] = get_upv(Vm.stack+Vm.bp+argy);
-  }
-
-  goto fetch;
-
-  // emmitted before a frame with local upvalues returns
- op_capture:
-  close_upvs(Vm.stack+Vm.bp);
-
-  goto fetch;
-
- op_return:
-  x    = Vm.sp > Vm.fp ? pop() : NUL;
-
-  if ( Vm.fp == 0 ) { // no calling frame, exit
-    reset_vm();
-    return x;    
-  }
-
-  argx  = Vm.bp;       // adjust stack to here after restore
-  restore_frame();
-  Vm.sp = argx;
-  tos() = x;
+  tos() = NUL; // dummy retunr value
 
   goto fetch;
 }
