@@ -12,6 +12,13 @@
 #include <ctype.h>
 
 // setup/teardown -------------------------------------------------------------
+void init_standard_streams(void) {
+  // add FILE* objects to corresponding standard ports ------------------------
+  Ins.ios  = stdin;
+  Outs.ios = stdout;
+  Errs.ios = stderr;
+}
+
 void init_static_objects(void) {
   // register static global objects in heap -----------------------------------
   // so that they get unmarked during the sweep phase -------------------------
@@ -19,13 +26,6 @@ void init_static_objects(void) {
   add_to_heap(&Ins);
   add_to_heap(&Outs);
   add_to_heap(&Errs);
-}
-
-void init_standard_streams(void) {
-  // add FILE* objects to corresponding standard ports ------------------------
-  Ins.ios  = stdin;
-  Outs.ios = stdout;
-  Errs.ios = stderr;
 }
 
 void define_builtins(void) {
@@ -71,8 +71,8 @@ void print_welcome(void) {
 }
 
 void setup(void) {
-  init_static_objects();
   init_standard_streams();
+  init_static_objects();
   define_builtins();
   initialize_types();
   print_welcome();

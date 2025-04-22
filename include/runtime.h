@@ -2,7 +2,6 @@
 #define rl_runtime_h
 
 #include "common.h"
-#include "data.h"
 
 // Magic numbers
 #define BUFFER_SIZE 2048
@@ -10,7 +9,7 @@
 #define BUFFER_MAX  2046
 #define INIT_HEAP   (2048 * sizeof(uintptr_t))
 
-// Internal types
+// Internal types -------------------------------------------------------------
 typedef enum {
   OKAY,
   USER_ERROR,
@@ -34,6 +33,18 @@ typedef struct {
   int      bp;
   Expr     stack[STACK_SIZE];
 } VM;
+
+// everything necessary to 
+typedef struct VmCtx {
+  GcFrame* gcf;
+  UpVal* upvs;
+  Fun* fn;
+  instr_t* pc;
+  int sp;
+  int fp;
+  int bp;
+  jmp_buf Cstate;
+} VmCtx;
 
 // forward declarations for global variables
 extern char Token[BUFFER_SIZE];
@@ -76,6 +87,10 @@ void   add_to_heap(void* ptr);
 void   gc_save(void* ob);
 void   run_gc(void);
 void   heap_report(void);
+
+void   save_ctx(void);    // save execution state
+void   restore_ctx(void); // 
+void   discard_ctx(void); // 
 
 void*  allocate(bool h, size_t n);
 char*  duplicates(char* cs);

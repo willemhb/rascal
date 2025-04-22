@@ -10,10 +10,11 @@
   'rascal-mode
   '(";" ("#|" . "|#"))
   '( ;; special forms
-    "quote" "put" "if" "do" "fn" "stx" "c-call"
+    "quote" "def" "put" "if" "do" "fn" "def-stx" "c-call" "catch" "throw"
     ;; macros
     "fun" "mac" "let"
-    "cond" "and" "or"
+    "cond" "case" "and" "or"
+    "except" "raise"
     "require")
   '(("\\(?:[^-_a-zA-Z?*+0-9/:]:[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ("\\(?:[^~]@[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^@[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)

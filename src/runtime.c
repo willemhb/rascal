@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "runtime.h"
+#include "data.h"
 #include "collection.h"
 
 // magic numbers
@@ -122,16 +123,16 @@ void recover(void) {
     GcFrames = NULL;
     reset_token();
     reset_stack();
-    fseek(stdin, SEEK_SET, SEEK_END); // clear out invalid characters
+    pseek(&Ins, SEEK_SET, SEEK_END); // clear out invalid characters
   }
 }
 
 void rascal_error(Status etype, char* fmt, ...) {
   va_list va;
   va_start(va, fmt);
-  fprintf(stderr, "%s error: ", ErrorNames[etype]);
-  vfprintf(stderr, fmt, va);
-  fprintf(stderr, ".\n");
+  pprintf(&Errs, "%s error: ", ErrorNames[etype]);
+  pvprintf(&Errs, fmt, va);
+  pprintf(&Errs, ".\n");
   va_end(va);
   panic(etype);
 }

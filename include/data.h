@@ -31,40 +31,6 @@ typedef enum {
 
 #define NUM_TYPES (EXP_NUM+1)
 
-// Expression types
-typedef uintptr_t Expr;
-typedef nullptr_t Nul;
-typedef double    Num;
-typedef bool      Bool;
-typedef char32_t  Glyph;
-typedef struct    Obj    Obj;
-typedef struct    Chunk  Chunk;
-typedef struct    Alist  Alist;
-typedef struct    Buf16  Buf16;
-typedef struct    Ref    Ref;
-typedef struct    UpVal  UpVal;
-typedef struct    Env    Env;
-typedef struct    Port   Port;
-typedef struct    Fun    Fun;
-typedef struct    Str    Str;
-typedef struct    Sym    Sym;
-typedef struct    List   List;
-
-typedef union {
-  Expr expr;
-  Num  num;
-  Obj* obj;
-  Nul  nul;
-} Val;
-
-// Internal types
-typedef void   (*PrintFn)(FILE* ios, Expr x);
-typedef hash_t (*HashFn)(Expr x);
-typedef bool   (*EgalFn)(Expr x, Expr y);
-typedef void   (*CloneFn)(void* ob);           // called to clone an object's owned space
-typedef void   (*TraceFn)(void* ob);
-typedef void   (*FreeFn)(void* ob);
-
 typedef struct {
   ExpType type;
   char*   name;
@@ -299,12 +265,19 @@ Ref* toplevel_env_find(Env* e, Sym* n);
 Expr toplevel_env_ref(Env* e, int n);
 Expr toplevel_env_get(Env* e, Sym* n);
 
-// port API
+// port API -------------------------------------------------------------------
 Port* mk_port(FILE* ios);
 Port* open_port(char* fname, char* mode);
 void  close_port(Port* port);
+bool  peof(Port* p);
+int   pseek(Port* p, long off, int orig);
+Glyph pgetc(Port* p);
+Glyph pungetc(Port* p, Glyph g);
+Glyph ppeekc(Port* p);
+int   pprintf(Port* p, char* fmt, ...);
+int   pvprintf(Port* p, char* fmt, va_list va);
 
-// function API
+// function API ---------------------------------------------------------------
 Fun* as_fun_s(char* f, Expr x);
 Fun* mk_fun(Sym* name, OpCode op, Chunk* code);
 Fun* mk_closure(Fun* proto);

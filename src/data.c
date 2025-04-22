@@ -1,5 +1,6 @@
 #include <string.h>
 #include <stdlib.h>
+#include <stdarg.h>
 
 #include "data.h"
 #include "runtime.h"
@@ -8,15 +9,15 @@
 #include "util.h"
 
 // forward declarations
-void print_ref(FILE* ios, Expr x);
-void print_list(FILE* ios, Expr x);
-void print_sym(FILE* ios, Expr x);
-void print_str(FILE* ios, Expr x);
-void print_num(FILE* ios, Expr x);
-void print_bool(FILE* ios, Expr x);
-void print_glyph(FILE* ios, Expr x);
-void print_nul(FILE* ios, Expr x);
-void print_none(FILE* ios, Expr x);
+void print_ref(Port* ios, Expr x);
+void print_list(Port* ios, Expr x);
+void print_sym(Port* ios, Expr x);
+void print_str(Port* ios, Expr x);
+void print_num(Port* ios, Expr x);
+void print_bool(Port* ios, Expr x);
+void print_glyph(Port* ios, Expr x);
+void print_nul(Port* ios, Expr x);
+void print_none(Port* ios, Expr x);
 
 hash_t hash_sym(Expr x);
 hash_t hash_str(Expr x);
@@ -318,14 +319,14 @@ void free_obj(void* ptr) {
 }
 
 // miscellaneous APIs
-void print_nul(FILE* ios, Expr x) {
+void print_nul(Port* ios, Expr x) {
   (void)x;
-  fprintf(ios, "nul");
+  pprintf(ios, "nul");
 }
 
-void print_none(FILE* ios, Expr x) {
+void print_none(Port* ios, Expr x) {
   (void)x;
-  fprintf(ios, "none");
+  pprintf(ios, "none");
 }
 
 // chunk API
@@ -452,10 +453,10 @@ Ref* mk_ref(Sym* n, int o) {
   return ref;
 }
 
-void print_ref(FILE* ios, Expr x) {
+void print_ref(Port* ios, Expr x) {
   Ref* r = as_ref(x);
 
-  fprintf(ios, "#'%s", r->name->val->val);
+  pprintf(ios, "#'%s", r->name->val->val);
 }
 
 void trace_ref(void* ptr) {
@@ -661,7 +662,7 @@ void free_env(void* ptr) {
     free_exprs(&e->vals);
 }
 
-// port API
+// port API -------------------------------------------------------------------
 Port* mk_port(FILE* ios) {
   Port* p = mk_obj(EXP_PORT, 0);
   p->ios  = ios;
@@ -669,7 +670,14 @@ Port* mk_port(FILE* ios) {
   return p;
 }
 
-Port* open_port(char* fname, char* mode);
+Port* open_port(char* fname, char* mode) {
+  FILE* ios = fopen(fname, mode);
+
+  require(ios != NULL, "couldn't open %s: %s", fname, strerror(errno));
+
+  return mk_port(ios);
+}
+
 void  close_port(Port* port) {
   if ( port->ios != NULL ) {
     fclose(port->ios);
@@ -677,6 +685,70 @@ void  close_port(Port* port) {
   }
 }
 
+// stdio.h wrappers -----------------------------------------------------------
+// at some point we hope to create a better  ----------------------------------
+// port implementation using lower-level --------------------------------------
+// C functions, so it makes sense to create -----------------------------------
+// these APIs now -------------------------------------------------------------
+bool peof(Port* p) {
+  // don't call on a closed port
+  assert(p->ios != NULL);
+
+  return feof(p->ios);
+}
+
+int pseek(Port* p, long off, int orig) {
+  // don't call on a closed port
+  assert(p->ios != NULL);
+
+  return fseek(p->ios, off, orig);
+}
+
+Glyph pgetc(Port* p) {
+  // don't call on a closed port
+  assert(p->ios != NULL);
+
+  return fgetc(p->ios);
+}
+
+Glyph pungetc(Port* p, Glyph g) {
+  // don't call on a closed port
+  assert(p->ios != NULL);
+
+  return ungetc(g, p->ios);
+}
+
+Glyph ppeekc(Port* p) {
+  // don't call on a closed port
+  assert(p->ios != NULL);
+
+  int c = fgetc(p->ios);
+
+  if ( c != EOF )
+    ungetc(c, p->ios);
+
+  return c;
+}
+
+int pprintf(Port* p, char* fmt, ...) {
+  // don't call on a closed port
+  assert(p->ios != NULL);
+  va_list va;
+  va_start(va, fmt);
+  int o = vfprintf(p->ios, fmt, va);
+  va_end(va);
+  return o;
+}
+
+int pvprintf(Port* p, char* fmt, va_list va) {
+  // don't call on a closed port
+  assert(p->ios != NULL);
+
+  int o = vfprintf(p->ios, fmt, va);
+  return o;
+}
+
+// lifetime methods -----------------------------------------------------------
 void free_port(void* ptr) {
   Port* p = ptr;
 
@@ -781,10 +853,10 @@ bool sym_val_eql(Sym* s, char* v) {
   return streq(s->val->val, v);
 }
 
-void print_sym(FILE* ios, Expr x) {
+void print_sym(Port* ios, Expr x) {
   Sym* s = as_sym(x);
 
-  fprintf(ios, "%s", s->val->val);
+  pprintf(ios, "%s", s->val->val);
 }
 
 hash_t hash_sym(Expr x) {
@@ -838,10 +910,10 @@ Str* mk_str(char* cs) {
   return s;
 }
 
-void print_str(FILE* ios, Expr x) {
+void print_str(Port* ios, Expr x) {
   Str* s = as_str(x);
 
-  fprintf(ios, "\"%s\"", s->val);
+  pprintf(ios, "\"%s\"", s->val);
 }
 
 hash_t hash_str(Expr x) {
@@ -968,8 +1040,8 @@ Expr list_ref(List* xs, int n) {
   return xs->head;
 }
 
-void print_list(FILE* ios, Expr x) {
-        fprintf(ios, "(");
+void print_list(Port* ios, Expr x) {
+        pprintf(ios, "(");
 
       List* xs = as_list(x);
 
@@ -977,12 +1049,12 @@ void print_list(FILE* ios, Expr x) {
         print_exp(ios, xs->head);
 
         if ( xs->count > 1 )
-          fprintf(ios, " ");
+          pprintf(ios, " ");
 
         xs = xs->tail;
       }
 
-      fprintf(ios, ")");
+      pprintf(ios, ")");
 }
 
 bool egal_lists(Expr x, Expr y) {
@@ -1049,8 +1121,8 @@ Expr tag_ptr(void* ptr) {
   return ((uintptr_t)ptr) | FIX_T;
 }
 
-void print_num(FILE* ios, Expr x) {
-  fprintf(ios, "%g", as_num(x));
+void print_num(Port* ios, Expr x) {
+  pprintf(ios, "%g", as_num(x));
 }
 
 // boolean APIs
@@ -1062,8 +1134,8 @@ Expr tag_bool(Bool b) {
   return b ? TRUE : FALSE;
 }
 
-void print_bool(FILE* ios, Expr x) {
-  fprintf(ios, x == TRUE ? "true" : "false");
+void print_bool(Port* ios, Expr x) {
+  pprintf(ios, x == TRUE ? "true" : "false");
 }
 
 // glyph APIs
@@ -1075,12 +1147,12 @@ Expr tag_glyph(Glyph x) {
   return ((Expr)x) | GLYPH_T;
 }
 
-void print_glyph(FILE* ios, Expr x) {
+void print_glyph(Port* ios, Expr x) {
   Glyph g = as_glyph(x);
 
   if ( g < CHAR_MAX && CharNames[g] )
-    fprintf(ios, "\\%s", CharNames[g]);
+    pprintf(ios, "\\%s", CharNames[g]);
 
   else
-    fprintf(ios, "\\%c", g);
+    pprintf(ios, "\\%c", g);
 }

@@ -4,28 +4,26 @@
 #include <stdlib.h>
 
 #include "runtime.h"
+#include "data.h"
 #include "opcode.h"
 #include "util.h"
 #include "lang.h"
 
-// globals
+// globals --------------------------------------------------------------------
 Str* QuoteStr, *DefStr, * PutStr, * IfStr, * DoStr, * FnStr;
 
-// Function prototypes
-// read helpers
+// Function prototypes --------------------------------------------------------
 bool is_delim_char(int c);
 bool is_sym_char(int c);
 bool is_num_char(int c);
-int  peek(FILE *in);
-char read_char(FILE *in);
-void skip_space(FILE* in);
-Expr read_glyph(FILE* in);
-Expr read_quote(FILE* in);
-Expr read_list(FILE *in);
-Expr read_string(FILE* in);
-Expr read_atom(FILE* in);
+void skip_space(Port* in);
+Expr read_glyph(Port* in);
+Expr read_quote(Port* in);
+Expr read_list(Port *in);
+Expr read_string(Port* in);
+Expr read_atom(Port* in);
 
-// read helpers
+// read helpers ---------------------------------------------------------------
 bool is_delim_char(int c) {
   return strchr("(){}[]", c);
 }
@@ -38,35 +36,25 @@ bool is_num_char(int c) {
   return isdigit(c) || strchr(".+-", c);
 }
 
-int peek(FILE *in) {
-    int c = fgetc(in);
-    ungetc(c, in);
-    return c;
-}
-
-char read_char(FILE *in) {
-    return fgetc(in);
-}
-
-// read helpers
-void skip_space(FILE* f) {
+void skip_space(Port* p) {
   int c;
-  
-  while ( !feof(f) ) {
-    c = fgetc(f);
+
+  while ( !peof(p) ) {
+    c = pgetc(p);
 
     if ( !isspace(c) ) {
-      ungetc(c, f);
+      pungetc(p, c);
       break;
     }
   }
 }
 
-Expr read_exp(FILE *in) {
+// read -----------------------------------------------------------------------
+Expr read_exp(Port *in) {
   reset_token();
   skip_space(in);
   Expr x;
-  int c = peek(in);
+  int c = ppeekc(in);
 
   if ( c == EOF )
     x = EOS;
@@ -88,25 +76,25 @@ Expr read_exp(FILE *in) {
   return x;
 }
 
-Expr read_glyph(FILE* in) {
-  read_char(in); // consume opening slash
+Expr read_glyph(Port* in) {
+  pgetc(in); // consume opening slash
 
-  if ( feof(in) || isspace(peek(in)) )
+  if ( peof(in) || isspace(ppeekc(in)) )
     eval_error("invalid syntax: empty character");
 
   Glyph g; int c;
 
-  if ( !isalpha(peek(in)) ) {
-    g = read_char(in);
-    c = peek(in);
+  if ( !isalpha(ppeekc(in)) ) {
+    g = ppeekc(in);
+    c = ppeekc(in);
 
     require(isspace(c) || is_delim_char(c), "invalid character literal");
   }
 
   else {
-    while (!feof(in) && !isspace(c=peek(in)) && !is_delim_char(c) ) {
+    while (!peof(in) && !isspace(c=ppeekc(in)) && !is_delim_char(c) ) {
       add_to_token(c);
-      read_char(in);
+      ppeekc(in);
     }
 
     if ( TOff == 1 )
@@ -191,10 +179,10 @@ Expr read_glyph(FILE* in) {
   return tag_glyph(g);
 }
 
-Expr read_quote(FILE* in) {
-  read_char(in); // consume opening '
+Expr read_quote(Port* in) {
+  ppeekc(in); // consume opening '
 
-  if ( feof(in) || isspace(peek(in)) )
+  if ( peof(in) || isspace(ppeekc(in)) )
     eval_error("invalid syntax: quoted nothing");
 
   Sym* hd  = mk_sym("quote"); preserve(2, tag_obj(hd), NUL);
@@ -204,15 +192,15 @@ Expr read_quote(FILE* in) {
   return tag_obj(qd);
 }
 
-Expr read_list(FILE *in) {
+Expr read_list(Port* in) {
   List* out;
-  read_char(in); // consume the '('
+  ppeekc(in); // consume the '('
   skip_space(in);
   Expr* base = &Vm.stack[Vm.sp], x;
   int n = 0, c;
 
-  while ( (c=peek(in)) != ')' ) {
-    if ( feof(in) )
+  while ( (c=ppeekc(in)) != ')' ) {
+    if ( peof(in) )
       runtime_error("unterminated list");
 
     x = read_exp(in);
@@ -221,7 +209,7 @@ Expr read_list(FILE *in) {
     skip_space(in);
   }
 
-  read_char(in); // consume ')'
+  ppeekc(in); // consume ')'
 
   out = mk_list(n, base);
 
@@ -231,35 +219,35 @@ Expr read_list(FILE *in) {
   return tag_obj(out);
 }
 
-Expr read_string(FILE* in) {
+Expr read_string(Port* in) {
   Str* out;
 
   int c;
 
-  read_char(in); // consume opening '"'
+  ppeekc(in); // consume opening '"'
 
-  while ( (c=peek(in)) != '"' ) {
-    if ( feof(in) )
+  while ( (c=ppeekc(in)) != '"' ) {
+    if ( peof(in) )
       runtime_error("unterminated string");
 
     add_to_token(c); // accumulate
-    read_char(in);   // advance
+    ppeekc(in);   // advance
   }
 
-  read_char(in); // consume terminal '"'
+  ppeekc(in); // consume terminal '"'
 
   out = mk_str(Token);
 
   return tag_obj(out);
 }
 
-Expr read_atom(FILE* in) {
+Expr read_atom(Port* in) {
   int c;
   Expr x;
   
-  while ( !feof(in) && is_sym_char(c=peek(in)) ) {
+  while ( !peof(in) && is_sym_char(c=ppeekc(in)) ) {
     add_to_token(c); // accumulate
-    read_char(in);   // consume character
+    ppeekc(in);   // consume character
   }
 
   assert(TOff > 0);
@@ -290,7 +278,7 @@ Expr read_atom(FILE* in) {
 
     else if ( strcmp(Token, "false") == 0 )
       x = FALSE;
-    
+
     else if ( strcmp(Token, "<eos>" ) == 0 )
       x = EOS;
 
@@ -306,8 +294,20 @@ Expr read_atom(FILE* in) {
   return x;
 }
 
-// compile
-// compile helpers
+// load -----------------------------------------------------------------------
+List* read_file(char* fname) {
+  Expr* base = &Vm.stack[Vm.sp];
+  Port* in   = open_port(fname, "r");
+
+  if ( safepoint() ) {
+    
+  }
+}
+
+Expr  load_file(char* fname);
+
+// compile --------------------------------------------------------------------
+// compile helpers ------------------------------------------------------------
 void emit_instr(Buf16* code, OpCode op, ...);
 void fill_instr(Buf16* code, int offset, int val);
 
@@ -524,7 +524,8 @@ void compile_fn(List* form, Env* vars, Alist* vals, Buf16* code) {
   Alist* lvals = mk_alist(); add_to_preserved(1, tag_obj(lvals));
   Buf16* lcode = mk_buf16(); add_to_preserved(2, tag_obj(lcode));
 
-  // compile internal definitions first (otherwise their values will get lost in the stack)
+  // compile internal definitions first
+  // otherwise their values will get lost in the stack
   while ( body->count > 0 ) {
     Expr hd = body->head;
 
@@ -579,7 +580,7 @@ void compile_fn(List* form, Env* vars, Alist* vals, Buf16* code) {
       j++;
     }
 
-    // write arguments to closure ocpode at once
+    // write arguments to closure at once
     buf16_write(code, buffer, upvc*2);
   }
 }
@@ -700,13 +701,13 @@ void compile_expr(Expr x, Env* vars, Alist* vals, Buf16* code) {
 Fun* toplevel_compile(List* form) {
   preserve(3, tag_obj(form), NUL, NUL);
 
-  Alist* vals  = mk_alist();  add_to_preserved(1, tag_obj(vals));
+  Alist* vals  = mk_alist(); add_to_preserved(1, tag_obj(vals));
   Buf16* code = mk_buf16(); add_to_preserved(2, tag_obj(code));
 
   compile_funcall(form, &Globals, vals, code);
   emit_instr(code, OP_RETURN);
 
-  Chunk* chunk = mk_chunk(&Globals, vals, code); add_to_preserved(1, tag_obj(chunk));
+  Chunk* chunk = mk_chunk(&Globals, vals, code); add_to_preserved(0, tag_obj(chunk)); // reuse saved slot
   Fun* out     = mk_user_fun(chunk);
 
 #ifdef RASCAL_DEBUG
@@ -725,10 +726,10 @@ Expr exec_code(Fun* fun) {
   void* labels[] = {
     [OP_NOOP]        = &&op_noop,
 
-    // stack manipulation
+    // stack manipulation -----------------------------------------------------
     [OP_POP]         = &&op_pop,
 
-    // environment instructions
+    // environment instructions -----------------------------------------------
     [OP_GET_VALUE]   = &&op_get_value,
     [OP_GET_GLOBAL]  = &&op_get_global,
     [OP_SET_GLOBAL]  = &&op_set_global,
@@ -737,34 +738,33 @@ Expr exec_code(Fun* fun) {
     [OP_GET_UPVAL]   = &&op_get_upval,
     [OP_SET_UPVAL]   = &&op_set_upval,
 
-    // jump instructions
+    // jump instructions ------------------------------------------------------
     [OP_JUMP]        = &&op_jump,
     [OP_JUMP_F]      = &&op_jump_f,
 
-    // function call instructions
+    // function call instructions ---------------------------------------------
     [OP_CLOSURE]     = &&op_closure,
     [OP_CAPTURE]     = &&op_capture,
     [OP_CALL]        = &&op_call,
     [OP_RETURN]      = &&op_return,
 
-
-    // arithmetic instructions
+    // arithmetic instructions ------------------------------------------------
     [OP_ADD]         = &&op_add,
     [OP_SUB]         = &&op_sub,
     [OP_MUL]         = &&op_mul,
     [OP_DIV]         = &&op_div,
 
-    // miscellaneous builtins
+    // miscellaneous builtins -------------------------------------------------
     [OP_EGAL]        = &&op_egal,
     [OP_TYPE]        = &&op_type,
 
-    // sequence operations
+    // sequence operations ----------------------------------------------------
     [OP_CONS]        = &&op_cons,
     [OP_HEAD]        = &&op_head,
     [OP_TAIL]        = &&op_tail,
     [OP_NTH]         = &&op_nth,
 
-    // system instructions
+    // system instructions ----------------------------------------------------
     [OP_HEAP_REPORT] = &&op_heap_report,
   };
 
@@ -1061,7 +1061,7 @@ Expr exec_code(Fun* fun) {
   goto fetch;
 }
 
-// eval
+// eval -----------------------------------------------------------------------
 bool is_literal(Expr x) {
   ExpType t = exp_type(x);
 
@@ -1101,18 +1101,18 @@ Expr eval_exp(Expr x) {
   return v;
 }
 
-// print
-void print_exp(FILE* out, Expr x) {
+// print ----------------------------------------------------------------------
+void print_exp(Port* out, Expr x) {
   ExpTypeInfo* info = exp_info(x);
 
   if ( info->print_fn )
     info->print_fn(out, x);
 
   else
-    fprintf(out, "<%s>", info->name);
+    pprintf(out, "<%s>", info->name);
 }
 
-// repl
+// repl -----------------------------------------------------------------------
 void repl(void) {
   Expr x, v;
 
@@ -1122,10 +1122,10 @@ void repl(void) {
 
     else {
       fprintf(stdout, PROMPT" ");
-      x = read_exp(stdin);
+      x = read_exp(&Ins);
       v = eval_exp(x);
       fprintf(stdout, "\n>>> ");
-      print_exp(stdout, v);
+      print_exp(&Outs, v);
       fprintf(stdout, "\n\n");
     }
   }
