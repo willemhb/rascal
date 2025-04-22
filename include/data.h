@@ -270,10 +270,13 @@ int     buf16_write(Buf16* b, ushort_t *xs, int n);
 // function API
 Fun* as_fun_s(char* f, Expr x);
 Fun* mk_fun(Sym* name, OpCode op, Chunk* code);
+Fun* mk_closure(Fun* proto);
 Fun* mk_builtin_fun(Sym* name, OpCode op);
 Fun* mk_user_fun(Chunk* code);
 void def_builtin_fun(char* name, OpCode op);
 void disassemble(Fun* fun);
+Expr upval_ref(Fun* fun, int i);
+void upval_set(Fun* fun, int i, Expr x);
 
 // ref API
 Ref* mk_ref(Sym* n, int o);
@@ -289,7 +292,9 @@ Ref* env_resolve(Env* e, Sym* n, bool capture);
 Ref* env_define(Env* e, Sym* n);
 void toplevel_env_def(Env* e, Sym* n, Expr x);
 void toplevel_env_set(Env* e, Sym* n, Expr x);
-Ref* toplevel_env_ref(Env* e, Sym* n);
+void toplevel_env_refset(Env* e, int n, Expr x);
+Ref* toplevel_env_find(Env* e, Sym* n);
+Expr toplevel_env_ref(Env* e, int n);
 Expr toplevel_env_get(Env* e, Sym* n);
 
 // symbol API
@@ -337,6 +342,7 @@ Expr tag_bool(Bool b);
 #define is_user_fn(f)     ((f)->label == OP_NOOP)
 #define is_toplevel_fn(f) (!(f)->chunk->vars->local)
 #define user_fn_argc(f)   ((f)->chunk->vars->arity)
+#define user_fn_upvalc(f) ((f)->chunk->vars->upvs.count)
 #define is_sym(x)         has_type(x, EXP_SYM)
 #define is_fun(x)         has_type(x, EXP_FUN)
 #define is_list(x)        has_type(x, EXP_LIST)

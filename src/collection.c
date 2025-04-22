@@ -92,7 +92,9 @@
     if ( a->count + n > a->max_count )                                  \
       resize_##a(a, a->count+n);                                        \
                                                                         \
-    memcpy(a->vals+a->count, xs, n*sizeof(X));                          \
+    if ( xs != NULL )                                                   \
+      memcpy(a->vals+a->count, xs, n*sizeof(X));                        \
+                                                                        \
     a->count += n;                                                      \
   }
 

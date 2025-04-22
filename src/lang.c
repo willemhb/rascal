@@ -8,7 +8,7 @@
 #include "lang.h"
 
 // globals
-Str* QuoteStr, *DefStr, * SetStr, * IfStr, * DoStr, * FnStr;
+Str* QuoteStr, *DefStr, * PutStr, * IfStr, * DoStr, * FnStr;
 
 // Function prototypes
 // read helpers
@@ -203,8 +203,8 @@ bool is_quote_form(List* form);
 void compile_quote(List* form, Env* vars, Alist* vals, Buf16* code);
 bool is_def_form(List* form);
 void compile_def(List* form, Env* vars, Alist* vals, Buf16* code);
-bool is_set_form(List* form);
-void compile_set(List* form, Env* vars, Alist* vals, Buf16* code);
+bool is_put_form(List* form);
+void compile_put(List* form, Env* vars, Alist* vals, Buf16* code);
 bool is_if_form(List* form);
 void compile_if(List* form, Env* vars, Alist* vals, Buf16* code);
 bool is_do_form(List* form);
@@ -267,51 +267,70 @@ void compile_def(List* form, Env* vars, Alist* vals, Buf16* code) {
 
   require(!is_keyword(n), "can't assign to keyword %s", n->val->val);
 
-  int i = env_put(vars, n);
+  Ref* r = env_define(vars, n);
+  int i  = r->offset;
 
   OpCode op;
 
-  if ( !is_local_env(vars) )
-    op = OP_SET_GLOBAL;
+  switch ( r->ref_type ) {
+    case REF_GLOBAL:
+      op = OP_SET_GLOBAL;
+      break;
 
-  else {
-    op = OP_SET_LOCAL;
+    case REF_LOCAL:
+      op = OP_SET_LOCAL;
 
-    if ( i >= vars->arity ) // account for call frame
-      i += FRAME_SIZE;
+      if ( i >= vars->arity ) // account for call frame
+        i += FRAME_SIZE;
+
+      break;
+
+    default:
+      unreachable();
   }
   
   compile_expr(form->tail->tail->head, vars, vals, code);
   emit_instr(code, op, i);
 }
 
-bool is_set_form(List* form) {
+bool is_put_form(List* form) {
   Expr hd = form->head;
 
-  return is_sym(hd) && as_sym(hd)->val == SetStr;
+  return is_sym(hd) && as_sym(hd)->val == PutStr;
 }
 
-void compile_set(List* form, Env* vars, Alist* vals, Buf16* code) {
-  require_argco("set", 2, form->count-1);
+void compile_put(List* form, Env* vars, Alist* vals, Buf16* code) {
+  require_argco("put", 2, form->count-1);
 
-  Sym* n = as_sym_s("set", form->tail->head);
+  Sym* n = as_sym_s("put", form->tail->head);
 
   require(!is_keyword(n), "can't assign to keyword %s", n->val->val);
 
-  int i = env_resolve(vars, n);
+  Ref* r = env_resolve(vars, n, false);
 
-  require(i > -1, "can't assign to %s before it's defined", n->val->val);
+  require(r != NULL, "can't assign to %s before it's defined", n->val->val);
 
-  OpCode op;
+  OpCode op; int i = r->offset;
 
-  if ( !is_local_env(vars) )
-    op = OP_SET_GLOBAL;
+  switch ( r->ref_type ) {
+    case REF_GLOBAL:
+      op = OP_SET_GLOBAL;
+      break;
 
-  else {
-    op = OP_SET_LOCAL;
+    case REF_CAPTURED_UPVAL:
+      op = OP_SET_UPVAL;
+      break;
 
-    if ( i >= vars->arity ) // account for call frame
-      i += FRAME_SIZE;
+    case REF_LOCAL:
+      op = OP_SET_LOCAL;
+
+      if ( i >= vars->arity ) // account for call frame
+        i += FRAME_SIZE;
+
+      break;
+
+    default:
+      unreachable();
   }
   
   compile_expr(form->tail->tail->head, vars, vals, code);
@@ -369,10 +388,11 @@ void prepare_env(List* argl, Env* vars) {
   while ( argl->count > 0 ) {
     Expr x = argl->head;
     Sym* n = as_sym_s("fn", x);
-    int  o = env_put(vars, n);
+    Ref* r = env_define(vars, n);
+    int  o = r->offset;
 
     // ensure uniqueness
-    require(o == vars->map.count-1, "duplicate parameter name %s", n->val->val);
+    require(o == vars->vars.count-1, "duplicate parameter name %s", n->val->val);
     vars->arity++;
     argl = argl->tail;
   }
@@ -383,7 +403,7 @@ void compile_fn(List* form, Env* vars, Alist* vals, Buf16* code) {
 
   List* argl  = as_list_s("fn", form->tail->head);
   List* body  = form->tail->tail;
-  Env*  lvars = mk_env(true);
+  Env*  lvars = mk_env(vars);
 
   preserve(3, tag_obj(lvars), NUL, NUL);
   prepare_env(argl, lvars);
@@ -445,23 +465,34 @@ void compile_literal(Expr x, Env* vars, Alist* vals, Buf16* code) {
 void compile_reference(Sym* s, Env* vars, Alist* vals, Buf16* code) {
   (void)vals;
 
-  int n = -1;
-  
-  if ( is_local_env(vars) )
-    n = env_resolve(vars, s);
+  Ref* r = env_resolve(vars, s, false);
 
-  // either vars is global or name wasn't found
-  if ( n == -1 ) {
-    n = env_put(&Globals, s);
-    emit_instr(code, OP_GET_GLOBAL, n);
+  require(r != NULL, "undefined variable %s", s->val->val);
 
-  } else {
-    if ( n < vars->arity )
-      emit_instr(code, OP_GET_LOCAL, n);
+  OpCode op; int i = r->offset;
 
-    else // local variable defined inside a function, account for stack frame
-      emit_instr(code, OP_GET_LOCAL, n+FRAME_SIZE);
+  switch ( r->ref_type ) {
+    case REF_GLOBAL:
+      op = OP_GET_GLOBAL;
+      break;
+
+    case REF_LOCAL:
+      op = OP_GET_LOCAL;
+
+      if ( i >= vars->arity )
+        i += FRAME_SIZE;
+
+      break;
+
+    case REF_CAPTURED_UPVAL:
+      op = OP_GET_UPVAL;
+      break;
+
+    default:
+      unreachable();
   }
+
+  emit_instr(code, op, i);
 }
 
 void compile_funcall(List* form, Env* vars, Alist* vals, Buf16* code) {
@@ -471,12 +502,12 @@ void compile_funcall(List* form, Env* vars, Alist* vals, Buf16* code) {
     compile_quote(form, vars, vals, code);
 
   else if ( is_def_form(form) ) {
-    require(!vars->local, "syntax error: local def in fn body");
+    require(!is_local_env(vars), "syntax error: local def in fn body");
     compile_def(form, vars, vals, code);
   }
 
-  else if ( is_set_form(form) )
-    compile_set(form, vars, vals, code);
+  else if ( is_put_form(form) )
+    compile_put(form, vars, vals, code);
 
   else if ( is_if_form(form) )
     compile_if(form, vars, vals, code);
@@ -562,6 +593,8 @@ Expr exec_code(Fun* fun) {
     [OP_SET_GLOBAL] = &&op_set_global,
     [OP_GET_LOCAL]  = &&op_get_local,
     [OP_SET_LOCAL]  = &&op_set_local,
+    [OP_GET_UPVAL]  = &&op_get_upval,
+    [OP_SET_UPVAL]  = &&op_set_upval,
 
     // arithmetic instructions
     [OP_ADD]        = &&op_add,
@@ -584,11 +617,13 @@ Expr exec_code(Fun* fun) {
     [OP_JUMP_F]     = &&op_jump_f,
 
     // function call instructions
+    [OP_CLOSURE]    = &&op_closure,
+    [OP_CAPTURE]    = &&op_capture,
     [OP_CALL]       = &&op_call,
     [OP_RETURN]     = &&op_return
   };
 
-  int argc, argx;
+  int argc, argx, argy;
   OpCode op;
   Expr x, y, z;
   Num nx, ny, nz;
@@ -618,7 +653,7 @@ Expr exec_code(Fun* fun) {
 
  op_get_global:
   argx = next_op(); // previously resolved index in global environment
-  x = env_ref(&Globals, argx);
+  x = toplevel_env_ref(&Globals, argx);
 
   require(x != NONE, "undefined reference");
   push(x);
@@ -628,7 +663,7 @@ Expr exec_code(Fun* fun) {
  op_set_global:
   argx = next_op();
   x    = pop();
-  env_refset(&Globals, argx, x);
+  toplevel_env_refset(&Globals, argx, x);
 
   goto fetch;
 
@@ -644,6 +679,21 @@ Expr exec_code(Fun* fun) {
   argx = next_op();
   x    = pop();
   Vm.stack[Vm.bp+argx] = x;
+
+  goto fetch;
+
+ op_get_upval:
+  argx = next_op();
+  x    = upval_ref(Vm.fn, argx);
+
+  push(x);
+
+  goto fetch;
+
+ op_set_upval:
+  argx = next_op();
+  x    = pop();
+  upval_set(Vm.fn, argx, x);
 
   goto fetch;
 
@@ -797,6 +847,31 @@ Expr exec_code(Fun* fun) {
 
   goto fetch;
 
+ op_closure:
+  fun   = as_fun(tos());
+  fun   = mk_closure(fun);
+  tos() = tag_obj(fun);     // make sure new closure is visible to GC
+  argc  = next_op();
+
+  for ( int i=0; i < argc; i++ ) {
+    argx = next_op();
+    argy = next_op();
+
+    if ( argx == 0 ) // nonlocal
+      fun->upvs.vals[i] = Vm.fn->upvs.vals[argy];
+
+    else
+      fun->upvs.vals[i] = get_upv(Vm.stack+Vm.bp+argy);
+  }
+
+  goto fetch;
+
+  // emmitted before a frame with local upvalues returns
+ op_capture:
+  close_upvs(Vm.stack+Vm.bp);
+
+  goto fetch;
+
  op_return:
   x    = Vm.sp > Vm.fp ? pop() : NUL;
 
@@ -833,7 +908,7 @@ Expr eval_exp(Expr x) {
       v = x;
 
     else {
-      v = env_get(&Globals, s);
+      v = toplevel_env_get(&Globals, s);
       require(v != NONE, "unbound symbol '%s'", s->val->val);
     }
   } else {

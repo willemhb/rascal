@@ -79,12 +79,14 @@ void panic(Status etype) {
   if ( etype == SYSTEM_ERROR )
     exit(1);
 
+  VmStatus = etype;
   longjmp(Toplevel, 1);
 }
 
 void recover(void) {
   if ( VmStatus ) {
     VmStatus = OKAY;
+    close_upvs(Vm.stack);
     GcFrames = NULL;
     reset_token();
     reset_stack();

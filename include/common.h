@@ -26,7 +26,7 @@ typedef uintptr_t      hash_t;
 #define VERSION "%.2d.%.2d.%.2d.%s"
 #define WELCOME "Welcome to rascal version "VERSION"!"
 #define MAJOR   0
-#define MINOR   7
+#define MINOR   8
 #define PATCH   0
 #define RELEASE "a"
 
@@ -34,7 +34,8 @@ typedef uintptr_t      hash_t;
 #define RASCAL_DEBUG
 
 // redefining annoyingly named builtins
-#define clz  __builtin_clzl
-#define popc __builtin_popcount
+#define clz         __builtin_clzl
+#define popc        __builtin_popcountl
+#define unreachable __builtin_unreachable
 
 #endif

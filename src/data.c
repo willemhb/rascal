@@ -315,21 +315,40 @@ void dis_chunk(Chunk* chunk) {
   instr_t* instr = chunk->code->binary.vals;
   int offset     = 0, max_offset = chunk->code->binary.count;
 
-  printf("%-8s %-16s %-5s\n\n", "line", "instruction", "input");
+  printf("%-8s %-16s %-5s %-5s\n\n", "line", "instruction", "input", "input");
 
   while ( offset < max_offset ) {
     OpCode op  = instr[offset];
     int argc   = op_arity(op);
     char* name = op_name(op);
 
-    if ( argc == 1 ) {
-      instr_t arg = instr[offset+1];
-      printf("%.8d %-16s %.5d\n", offset, name, arg);
-      offset++;                                     // advance past argument
-    } else
-      printf("%.8d %-16s -----\n", offset, name);
+    switch ( argc ) {
+   
+      case 1: { 
+        instr_t arg = instr[offset+1];
+        printf("%.8d %-16s %.5d -----\n", offset, name, arg);
+        offset += 2;                                           // advance past argument
+        break;
+      }
 
-    offset++;
+      case -2: { // variadic
+        int arg = instr[offset+1];
+        printf("%.8d %-16s %.5d -----\n", offset, name, arg);
+        offset++;
+
+        for ( int i=0; i < arg; i++, offset += 2 ) {
+          int x = instr[offset+1], y = instr[offset+2];
+          printf("%.8d ---------------- %.5d %.5d\n", offset, x, y);
+        }
+
+        break;
+      }
+
+      default:
+        printf("%.8d %-16s ----- -----\n", offset, name);
+        offset++;
+        break;
+    }
   }
 }
 
@@ -414,6 +433,20 @@ Fun* mk_fun(Sym* name, OpCode op, Chunk* code) {
   return f;
 }
 
+Fun* mk_closure(Fun* proto) {
+  Fun* cls; int count = user_fn_upvalc(proto);
+
+  if ( count == 0 )
+    cls = proto;
+
+  else {
+    cls = clone_obj(proto);
+    objs_write(&cls->upvs, NULL, count);
+  }
+
+  return cls;
+}
+
 Fun* mk_builtin_fun(Sym* name, OpCode op) {
   return mk_fun(name, op, NULL);
 }
@@ -436,6 +469,20 @@ void disassemble(Fun* fun) {
   printf("\n\n==== %s ====\n\n", fun->name->val->val);
   dis_chunk(fun->chunk);
   printf("\n\n");
+}
+
+Expr upval_ref(Fun* fun, int i) {
+  assert(i >= 0 && i < fun->upvs.count);
+  UpVal* upv = fun->upvs.vals[i];
+
+  return *deref(upv);
+}
+
+void upval_set(Fun* fun, int i, Expr x) {
+  assert(i >= 0 && i < fun->upvs.count);
+  UpVal* upv = fun->upvs.vals[i];
+
+  *deref(upv) = x;
 }
 
 void trace_fun(void* ptr) {
@@ -582,14 +629,20 @@ void toplevel_env_set(Env* e, Sym* n, Expr x) {
   assert(is_global_env(e));
   assert(!is_keyword(n));
 
-  Ref* r = toplevel_env_ref(e, n);
+  Ref* r = toplevel_env_find(e, n);
 
   assert(r != NULL);
 
   e->vals.vals[r->offset] = x;
 }
 
-Ref* toplevel_env_ref(Env* e, Sym* n) {
+void toplevel_env_refset(Env* e, int n, Expr x) {
+  assert(is_global_env(e));
+  assert(n >= 0 && n < e->vals.count);
+  e->vals.vals[n] = x;
+}
+
+Ref* toplevel_env_find(Env* e, Sym* n) {
   assert(is_global_env(e));
 
   Ref* ref = NULL;
@@ -599,10 +652,17 @@ Ref* toplevel_env_ref(Env* e, Sym* n) {
   return ref;
 }
 
+Expr toplevel_env_ref(Env* e, int n) {
+  assert(is_global_env(e));
+  assert(n >= 0 && n < e->vals.count);
+
+  return e->vals.vals[n];
+}
+
 Expr toplevel_env_get(Env* e, Sym* n) {
   assert(is_global_env(e));
   Expr x = NONE;
-  Ref* ref = toplevel_env_ref(e, n);
+  Ref* ref = toplevel_env_find(e, n);
 
   if ( ref !=  NULL )
     x = e->vals.vals[ref->offset];

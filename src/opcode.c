@@ -7,7 +7,7 @@ int op_arity(OpCode op) {
   switch ( op ) {
     // special case of variable length instruction
     case OP_CAPTURE: 
-      n = -1;
+      n = -2;
       break;
 
     case OP_GET_VALUE:
