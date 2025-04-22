@@ -67,7 +67,6 @@
     a->max_count    = new_maxc;                                         \
   }                                                                     \
                                                                         \
-                                                                        \
   void a##_push(A* a, X x) {                                            \
     if ( a->count == a->max_count )                                     \
       grow_##a(a);                                                      \

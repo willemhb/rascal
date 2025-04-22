@@ -211,6 +211,7 @@ bool is_do_form(List* form);
 void compile_do(List* form, Env* vars, Alist* vals, Buf16* code);
 bool is_fn_form(List* form);
 void compile_fn(List* form, Env* vars, Alist* vals, Buf16* code);
+void compile_closure(Buf16* c_code, Env* vars, Alist* vals, Buf16* code);
 
 void compile_sequence(List* exprs, Env* vars, Alist* vals, Buf16* code);
 void compile_literal(Expr x, Env* vars, Alist* vals, Buf16* code);
@@ -429,6 +430,12 @@ void compile_fn(List* form, Env* vars, Alist* vals, Buf16* code) {
 
   // compile remaining expressions like body of a 'do' form
   compile_sequence(body, lvars, lvals, lcode);
+
+  int ncap = lvars->ncap, upvc = lvars->upvs.count;
+
+  if ( ncap )
+    emit_instr(lcode, OP_CAPTURE);
+
   emit_instr(lcode, OP_RETURN);
 
   // create chunk object
@@ -441,6 +448,28 @@ void compile_fn(List* form, Env* vars, Alist* vals, Buf16* code) {
 
   // add instructions in caller to load resulting function object
   compile_literal(tag_obj(fun), vars, vals, code);
+
+  // add instructions to capture upvalues in calling context
+  if ( upvc > 0 ) {
+    emit_instr(code, OP_CLOSURE, upvc);
+    
+    instr_t buffer[upvc*2];
+
+    for ( int i=0, j=0; i < lvars->upvs.max_count && j < upvc; i++ ) {
+      EMapKV* kv = &lvars->upvs.kvs[i];
+
+      if ( kv->key == NULL )
+        continue;
+
+      Ref* r        = kv->val;
+      buffer[j*2]   = r->ref_type == REF_LOCAL_UPVAL;
+      buffer[j*2+1] = r->captures->offset;
+      j++;
+    }
+
+    // write arguments to closure ocpode at once
+    buf16_write(code, buffer, upvc*2);
+  }
 }
 
 void compile_sequence(List* xprs, Env* vars, Alist* vals, Buf16* code) {
@@ -646,14 +675,15 @@ Expr exec_code(Fun* fun) {
 
  op_get_value: // load a value from the constant store
   argx = next_op();
-  x = alist_get(Vm.fn->chunk->vals, argx);
+  x    = alist_get(Vm.fn->chunk->vals, argx);
+
   push(x);
 
   goto fetch;
 
  op_get_global:
   argx = next_op(); // previously resolved index in global environment
-  x = toplevel_env_ref(&Globals, argx);
+  x    = toplevel_env_ref(&Globals, argx);
 
   require(x != NONE, "undefined reference");
   push(x);
@@ -663,6 +693,7 @@ Expr exec_code(Fun* fun) {
  op_set_global:
   argx = next_op();
   x    = pop();
+
   toplevel_env_refset(&Globals, argx, x);
 
   goto fetch;
@@ -693,6 +724,7 @@ Expr exec_code(Fun* fun) {
  op_set_upval:
   argx = next_op();
   x    = pop();
+
   upval_set(Vm.fn, argx, x);
 
   goto fetch;
@@ -770,30 +802,41 @@ Expr exec_code(Fun* fun) {
 
  op_cons:
   require_argco("cons", 2, argc);
+
   lx = as_list_s("cons", Vm.stack[Vm.sp-1]);
   ly = cons(Vm.stack[Vm.sp-2], lx);
   z  = tag_obj(ly);
+
   popn(2);
+
   tos() = z;
 
   goto fetch;
 
  op_head:
   require_argco("head", 1, argc);
+
   x  = pop();
   lx = as_list_s("head", x);
+
   require(lx->count > 0, "can't call head on empty list");
+
   y  = lx->head;
+
   push(y);
 
   goto fetch;
 
  op_tail:
   require_argco("tail", 1, argc);
+
   x  = pop();
   lx = as_list_s("tail", x);
+
   require(lx->count > 0, "can't call tail on empty list");
+
   ly = lx->tail;
+
   push(tag_obj(ly));
 
   goto fetch;

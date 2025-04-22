@@ -258,12 +258,12 @@ static void mark_vm(void) {
 }
 
 static void mark_globals(void) {
-  extern Str* QuoteStr, * DefStr, * SetStr, * IfStr, * DoStr, * FnStr;
+  extern Str* QuoteStr, * DefStr, * PutStr, * IfStr, * DoStr, * FnStr;
 
   mark_obj(&Globals);
   mark_obj(QuoteStr);
   mark_obj(DefStr);
-  mark_obj(SetStr);
+  mark_obj(PutStr);
   mark_obj(IfStr);
   mark_obj(DoStr);
   mark_obj(FnStr);

@@ -22,11 +22,12 @@ void define_builtins(void) {
   def_builtin_fun("cons", OP_CONS);
   def_builtin_fun("head", OP_HEAD);
   def_builtin_fun("tail", OP_TAIL);
+  def_builtin_fun("nth", OP_NTH);
 
   // special forms and other syntactic markers
   QuoteStr = mk_str("quote");
   DefStr   = mk_str("def");
-  SetStr   = mk_str("set");
+  PutStr   = mk_str("put");
   IfStr    = mk_str("if");
   DoStr    = mk_str("do");
   FnStr    = mk_str("fn");

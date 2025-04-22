@@ -1,6 +1,7 @@
 #ifndef rl_common_h
 #define rl_common_h
 
+#include <uchar.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>

@@ -549,6 +549,7 @@ Env* mk_env(Env* parent) {
 
   env->parent = parent;
   env->arity  = 0;
+  env->ncap   = 0;
   init_emap(&env->vars);
   init_emap(&env->upvs);
 
@@ -580,8 +581,10 @@ Ref* env_resolve(Env* e, Sym* n, bool capture) {
     found = emap_get(&e->vars, n, &r); // check locals first
 
     if ( found ) {
-      if ( capture ) // resolved from enclosed context
+      if ( capture ) {         // resolved from enclosed context
         r = env_capture(e, r);
+        e->ncap++;             // so we know to emit the capture instruction
+      }
 
     } else {
       // check already captured upvalues

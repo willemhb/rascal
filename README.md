@@ -2,7 +2,7 @@
 A little lisp with big dreams.
 
 # next up
-* Closures
+* <strike>Closures</strike>
 * `load` (disk IO)
 * Macros
 * `c-call` (basic FFI)

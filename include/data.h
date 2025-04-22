@@ -14,12 +14,14 @@ typedef enum {
   EXP_NUL,
   EXP_EOS,
   EXP_BOOL,
+  EXP_GLYPH,
   EXP_CHUNK,
   EXP_ALIST,
   EXP_BUF16,
   EXP_REF,
   EXP_UPV,
   EXP_ENV,
+  EXP_PORT,
   EXP_FUN,
   EXP_SYM,
   EXP_STR,
@@ -41,6 +43,7 @@ typedef struct    Buf16  Buf16;
 typedef struct    Ref    Ref;
 typedef struct    UpVal  UpVal;
 typedef struct    Env    Env;
+typedef struct    Port   Port;
 typedef struct    Fun    Fun;
 typedef struct    Str    Str;
 typedef struct    Sym    Sym;
@@ -172,6 +175,7 @@ struct Env {
   Env*   parent;
 
   int    arity;
+  int    ncap; // number of captured *local* upvalues
 
   EMap  vars; // personal namespace
 
@@ -179,6 +183,13 @@ struct Env {
     EMap  upvs;
     Exprs vals;
   };
+};
+
+// simple wrapper around a C file object
+struct Port {
+  HEAD;
+
+  FILE* ios;
 };
 
 struct Fun {
