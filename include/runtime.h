@@ -37,7 +37,6 @@ typedef struct {
 // everything necessary to 
 typedef struct VmCtx {
   GcFrame* gcf;
-  UpVal* upvs;
   Fun* fn;
   instr_t* pc;
   int sp;
@@ -45,6 +44,9 @@ typedef struct VmCtx {
   int bp;
   jmp_buf Cstate;
 } VmCtx;
+
+extern VmCtx SaveStates[MAX_SAVESTATES];
+extern int ep;
 
 // forward declarations for global variables
 extern char Token[BUFFER_SIZE];
@@ -89,8 +91,8 @@ void   run_gc(void);
 void   heap_report(void);
 
 void   save_ctx(void);    // save execution state
-void   restore_ctx(void); // 
-void   discard_ctx(void); // 
+void   restore_ctx(void); // restore saved execution state
+void   discard_ctx(void); // discard saved execution state (presumably because we're exiting normally)
 
 void*  allocate(bool h, size_t n);
 char*  duplicates(char* cs);

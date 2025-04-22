@@ -10,7 +10,7 @@
 // magic numbers
 #define HEAPLOAD 0.75
 
-// Global declarations
+// Global declarations --------------------------------------------------------
 char* ErrorNames[] = {
   [OKAY]          = "okay",
   [USER_ERROR]    = "user",
@@ -18,6 +18,9 @@ char* ErrorNames[] = {
   [RUNTIME_ERROR] = "runtime",
   [SYSTEM_ERROR]  = "sytem"
 };
+
+VmCtx SaveStates[MAX_SAVESTATES];
+int ep = 0;
 
 char Token[BUFFER_SIZE];
 size_t TOff = 0;
@@ -153,7 +156,7 @@ size_t add_to_token(char c) {
   return TOff;
 }
 
-// stack API
+// stack API ------------------------------------------------------------------
 void reset_stack(void) {
   memset(Vm.stack, 0, STACK_SIZE * sizeof(Expr));
   Vm.sp = 0;
@@ -403,6 +406,19 @@ void heap_report(void) {
          "used",
          HeapCap);
 }
+
+void save_ctx(void) {
+  // The Toplevel jmp_buf will probably be 
+  assert(ep < MAX_SAVESTATES);
+
+  VmCtx* ctx = &SaveStates[ep++];
+
+  ctx->
+}
+
+void   restore_ctx(void); // restore saved execution state
+void   discard_ctx(void); // discard saved execution state (presumably because we're exiting normally)
+
 
 void* allocate(bool h, size_t n) {
   void* out;

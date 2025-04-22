@@ -57,8 +57,9 @@ typedef void   (*TraceFn)(void* ob);
 typedef void   (*FreeFn)(void* ob);
 
 // limits ---------------------------------------------------------------------
-#define MAX_INTERN 512
-#define MAX_ARITY  0x40000000 // largest 32-bit power of 2
+#define MAX_INTERN     512
+#define MAX_ARITY      0x40000000 // largest 32-bit power of 2
+#define MAX_SAVESTATES 512        // arbitrary, hard to imagine this many nested catch frames
 
 // magic numbers
 #define FRAME_SIZE 4
