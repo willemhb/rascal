@@ -12,9 +12,10 @@ A little lisp with big dreams.
 # medium term
 * Fancy immutable collection types (Vec, Map, Bin)
 * Arity overloading (baby step toward generic functions)
-* Variable metadata (possibly general metadata idk) & final variables
+* Better variable semantics
+* Metadata maybe??
 * Actual debugging info
-* Types as first class objects
+* First class types
 * User-defined types
 * Union types
 * Module system
@@ -24,7 +25,7 @@ A little lisp with big dreams.
 
 # far future
 * Julia style generic functions
-* Algebraic effects or something (ideally this would replace exception implementation)
+* Algebraic effects or something (ideally exceptions would be rewritten in terms of the whatever general control-flow construct I end up implementing)
 * New syntax
 * Standard library
 * Actually fast GC
