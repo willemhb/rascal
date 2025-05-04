@@ -25,7 +25,6 @@ typedef struct GcFrame {
 } GcFrame;
 
 typedef struct {
-  UpVal*   upvs;
   Fun*     fn;
   instr_t* pc;
   int      sp;
@@ -47,6 +46,8 @@ typedef struct VmCtx {
 
 extern VmCtx SaveStates[MAX_SAVESTATES];
 extern int ep;
+
+#define SaveState (SaveStates[ep-1])
 
 // forward declarations for global variables
 extern char Token[BUFFER_SIZE];

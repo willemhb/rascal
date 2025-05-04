@@ -1,5 +1,10 @@
 ;; right now this file is just for brainstorming desired syntax and whatnot. The code here
 ;; doesn't run and isn't intended to.
+(def-stx mac
+  (fn (&form &env name args & body)
+    `(def-stx ~name
+      (fn (&form &env ~args) ~@body))))
+
 (mac thunk
   (xpr) `(fn () ~thunk))
 

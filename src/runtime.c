@@ -413,12 +413,23 @@ void save_ctx(void) {
 
   VmCtx* ctx = &SaveStates[ep++];
 
-  ctx->
+  ctx->fn = Vm.fn;
+  ctx->pc = Vm.pc;
+  ctx->sp = Vm.sp;
+  ctx->fp = Vm.fp;
+  ctx->bp = Vm.bp;
 }
 
-void   restore_ctx(void); // restore saved execution state
-void   discard_ctx(void); // discard saved execution state (presumably because we're exiting normally)
+void restore_ctx(void) {
+  // close any upvalues whose frames are being abandoned
+  close_upvs(&Vm.stack[SaveState.sp]);
 
+  
+}
+
+void discard_ctx(void) {
+  ep--;
+}
 
 void* allocate(bool h, size_t n) {
   void* out;

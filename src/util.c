@@ -29,10 +29,10 @@ uintptr_t cpow2(uintptr_t i)
 #define FNV64_OFFSET 0xcbf29ce484222325ul
 
 // hashing functions
-hash_t hash_string(char* chars) {
+hash_t hash_string(const char* chars) {
   hash_t hash = FNV64_OFFSET;
 
-  while ( (*chars) != '\0' ) {
+  while ( *chars != '\0' ) {
     hash = hash ^ *chars;
     hash = hash * FNV64_PRIME;
     chars++;
@@ -50,6 +50,7 @@ hash_t hash_word(uintptr_t word) {
     word = (word + (word << 2)) + (word << 4); // word * 21
     word =  word ^ (word >> 28);
     word =  word + (word << 31);
+
     return word;
 }
 

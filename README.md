@@ -6,6 +6,9 @@ A little lisp with big dreams.
 * `load` (disk IO)
 * Exceptions
 * Macros
+    - gensyms
+    - quasiquote
+    - `stx-def`
 * `c-call` (basic FFI)
 * Tail calls
 
