@@ -25,6 +25,7 @@ typedef struct GcFrame {
 } GcFrame;
 
 typedef struct {
+  UpVal*   upvs;
   Fun*     fn;
   instr_t* pc;
   int      sp;

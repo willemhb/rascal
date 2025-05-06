@@ -260,7 +260,7 @@ Expr read_atom(Port* in) {
     if ( end[0] != '\0' ) {   // Symbol that starts with numeric character like +, -, or digit
       if ( TOff > MAX_INTERN )
         runtime_error("symbol name '%s' too long", Token);
-      
+
       Sym* s = mk_sym(Token);
       x      = tag_obj(s);
     } else {

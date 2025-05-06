@@ -31,11 +31,12 @@ size_t HeapUsed = 0, HeapCap = INIT_HEAP;
 GcFrame* GcFrames = NULL;
 
 VM Vm = {
-  .fn = NULL,
-  .pc = NULL,
-  .sp = 0,
-  .fp = 0,
-  .bp = 0
+  .upvs = NULL,
+  .fn   = NULL,
+  .pc   = NULL,
+  .sp   = 0,
+  .fp   = 0,
+  .bp   = 0
 };
 
 Env Globals = {
@@ -408,7 +409,7 @@ void heap_report(void) {
 }
 
 void save_ctx(void) {
-  // The Toplevel jmp_buf will probably be 
+  // The Toplevel jmp_buf will probably be preserved and used for something 
   assert(ep < MAX_SAVESTATES);
 
   VmCtx* ctx = &SaveStates[ep++];
