@@ -24,8 +24,6 @@ int ep = 0;
 
 char Token[BUFFER_SIZE];
 size_t TOff = 0;
-Status VmStatus = OKAY;
-jmp_buf Toplevel;
 Obj* Heap = NULL;
 size_t HeapUsed = 0, HeapCap = INIT_HEAP;
 GcFrame* GcFrames = NULL;
@@ -116,19 +114,17 @@ void panic(Status etype) {
   if ( etype == SYSTEM_ERROR )
     exit(1);
 
-  VmStatus = etype;
-  longjmp(Toplevel, 1);
+  else if ( ep == 0 ) {
+    fprintf(stderr, "Exiting because control reached toplevel.\n");
+    exit(1);
+  }
+
+  longjmp(SaveState.Cstate, 1);
 }
 
 void recover(void) {
-  if ( VmStatus ) {
-    VmStatus = OKAY;
-    close_upvs(Vm.stack);
-    GcFrames = NULL;
-    reset_token();
-    reset_stack();
-    pseek(&Ins, SEEK_SET, SEEK_END); // clear out invalid characters
-  }
+  restore_ctx();
+  pseek(&Ins, SEEK_SET, SEEK_END); // clear out invalid characters
 }
 
 void rascal_error(Status etype, char* fmt, ...) {
@@ -199,6 +195,18 @@ Expr pop( void ) {
     runtime_error("stack underflow");
 
   return Vm.stack[--Vm.sp];
+}
+
+Expr rpop(void) {
+  if ( Vm.sp < 2 )
+    runtime_error("stack underflow");
+
+  Expr out          = Vm.stack[Vm.sp-2];
+  Vm.stack[Vm.sp-2] = Vm.stack[Vm.sp-1];
+
+  Vm.sp--;
+
+  return out;
 }
 
 Expr popn( int n ) {
@@ -425,7 +433,15 @@ void restore_ctx(void) {
   // close any upvalues whose frames are being abandoned
   close_upvs(&Vm.stack[SaveState.sp]);
 
-  
+  // discard invalidated GC frames (important because these now point to invalid memory)
+  GcFrames = SaveState.gcf;
+
+  // restore main registers
+  Vm.fn    = SaveState.fn;
+  Vm.sp    = SaveState.sp;
+  Vm.pc    = SaveState.pc;
+  Vm.fp    = SaveState.fp;
+  Vm.bp    = SaveState.bp;
 }
 
 void discard_ctx(void) {

@@ -16,6 +16,7 @@ typedef unsigned char  byte_t;
 typedef unsigned int   flags_t;
 typedef unsigned short instr_t;
 typedef uintptr_t      hash_t;
+typedef void (*funcptr_t)(void);
 
 // rascal typedefs ------------------------------------------------------------
 // Expression types -----------------------------------------------------------
@@ -40,12 +41,12 @@ typedef struct    Sym    Sym;
 typedef struct    List   List;
 
 typedef union {
-  Expr expr;
-  Num  num;
-  Obj* obj;
-  Bool boolean;
-  Nul  nul;
-  
+  Expr  expr;
+  Num   num;
+  Obj*  obj;
+  Bool  boolean;
+  Nul   nul;
+  Glyph glyph;
 } Val;
 
 // Internal types

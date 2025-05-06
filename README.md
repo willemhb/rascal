@@ -5,12 +5,13 @@ A little lisp with big dreams.
 * <strike>Closures</strike>
 * `load` (disk IO)
 * Exceptions
+* Variadic functions
 * Macros
     - gensyms
     - quasiquote
     - `stx-def`
-* `c-call` (basic FFI)
 * Tail calls
+* `c-call` (basic FFI)
 
 ## medium term
 * Fancy immutable collection types (Vec, Map, Bin)

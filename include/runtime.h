@@ -53,9 +53,7 @@ extern int ep;
 // forward declarations for global variables
 extern char Token[BUFFER_SIZE];
 extern size_t TOff;
-extern Status VmStatus;
 extern char* ErrorNames[];
-extern jmp_buf Toplevel;
 extern Obj* Heap;
 extern size_t HeapUsed, HeapCap;
 extern GcFrame* GcFrames;
@@ -77,6 +75,7 @@ Expr*  stack_ref(int i);
 Expr*  push(Expr x);
 Expr*  pushn(int n);
 Expr   pop(void);
+Expr   rpop(void);
 Expr   popn(int n);
 
 UpVal* get_upv(Expr* loc);
@@ -104,7 +103,7 @@ void   release(void* d, size_t n);
 void   next_gc_frame(GcFrame* gcf);
 
 // convenience macros
-#define safepoint() setjmp(Toplevel)
+#define safepoint() setjmp(SaveState.Cstate)
 
 #define user_error(args...)    rascal_error(USER_ERROR, args)
 #define runtime_error(args...) rascal_error(RUNTIME_ERROR, args)

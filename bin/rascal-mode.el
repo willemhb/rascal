@@ -12,7 +12,7 @@
   '( ;; special forms
     "quote" "def" "put" "if" "do" "fn" "def-stx" "c-call" "catch" "throw"
     ;; macros
-    "fun" "mac" "let"
+    "fun" "mac" "var" "val" "let"
     "cond" "case" "and" "or"
     "except" "raise"
     "require")

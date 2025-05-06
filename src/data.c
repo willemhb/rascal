@@ -686,10 +686,10 @@ void  close_port(Port* port) {
 }
 
 // stdio.h wrappers -----------------------------------------------------------
-// at some point we hope to create a better  ----------------------------------
-// port implementation using lower-level --------------------------------------
-// C functions, so it makes sense to create -----------------------------------
-// these APIs now -------------------------------------------------------------
+// at some point we hope to create a better
+// port implementation using lower-level
+// C functions, so it makes sense to create
+// these APIs now
 bool peof(Port* p) {
   // don't call on a closed port
   assert(p->ios != NULL);
@@ -895,6 +895,13 @@ void string_intern(Strings* t, StringsKV* kv, char* k, hash_t h) {
   Str* s  = new_str(k, h, true);
   kv->val = s;
   kv->key = s->val;
+}
+
+Str* as_str_s(char* f, Expr x) {
+  ExpType t = exp_type(x);
+  require(t == EXP_STR, "%s wanted a str, got %s", f, Types[t].name);
+
+  return as_str(x);
 }
 
 Str* mk_str(char* cs) {

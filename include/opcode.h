@@ -10,6 +10,7 @@ typedef enum {
 
   // stack manipulation
   OP_POP,
+  OP_RPOP,
 
   // variable lookups
   OP_GET_VALUE,
@@ -23,6 +24,11 @@ typedef enum {
   // branching instructions
   OP_JUMP,
   OP_JUMP_F,
+
+  // exception interface instructions
+  OP_CATCH,  // save execution context and error handler
+  OP_THROW,  // jump to last saved execution context
+  OP_ECATCH, // discard a saved execution context (because the `catch` expression is exiting normally)
 
   // closures and function calls
   OP_CLOSURE,

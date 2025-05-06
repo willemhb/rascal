@@ -728,6 +728,7 @@ Expr exec_code(Fun* fun) {
 
     // stack manipulation -----------------------------------------------------
     [OP_POP]         = &&op_pop,
+    [OP_RPOP]        = &&op_rpop,
 
     // environment instructions -----------------------------------------------
     [OP_GET_VALUE]   = &&op_get_value,
@@ -741,6 +742,11 @@ Expr exec_code(Fun* fun) {
     // jump instructions ------------------------------------------------------
     [OP_JUMP]        = &&op_jump,
     [OP_JUMP_F]      = &&op_jump_f,
+
+    // exception interface instructions ---------------------------------------
+    [OP_CATCH]       = &&op_catch,
+    [OP_THROW]       = &&op_throw,
+    [OP_ECATCH]      = &&op_ecatch,
 
     // function call instructions ---------------------------------------------
     [OP_CLOSURE]     = &&op_closure,
@@ -773,6 +779,7 @@ Expr exec_code(Fun* fun) {
   Expr x, y, z;
   Num nx, ny, nz;
   List* lx, * ly;
+  Str* msg;
 
   install_fun(fun, 0, 0);
 
@@ -781,14 +788,22 @@ Expr exec_code(Fun* fun) {
 
   goto *labels[op];
 
+  // miscellaneous instructions -----------------------------------------------
  op_noop:
   goto fetch;
-  
+
+  // stack manipulation instructions ------------------------------------------
  op_pop: // remove TOS
   pop();
 
   goto fetch;
 
+ op_rpop: // move TOS to TOS-1, then decrement sp
+  rpop();
+
+  goto fetch;
+
+  // value/variable instructions ----------------------------------------------
  op_get_value: // load a value from the constant store
   argx = next_op();
   x    = alist_get(Vm.fn->chunk->vals, argx);
@@ -845,6 +860,7 @@ Expr exec_code(Fun* fun) {
 
   goto fetch;
 
+  // branching instructions ---------------------------------------------------
  op_jump: // unconditional jumping
   argx   = next_op();
   Vm.pc += argx;
@@ -860,6 +876,46 @@ Expr exec_code(Fun* fun) {
 
   goto fetch;
 
+  // exception interface instructions -----------------------------------------
+ op_catch:
+  // handler should be TOS
+
+  // save current execution context
+  save_ctx();
+
+  if ( safepoint() ) {
+    recover();
+    discard_ctx();
+    
+    // set up call to handler
+    argc = 0;
+    fun  = as_fun(tos());
+
+    // jump to handler
+    goto call_user_fn;
+  }
+
+  // unconditional jump that will skip over
+  // the catch body if the handler is invoked
+  Vm.pc += 2;
+
+  // enter catch body
+  goto fetch;
+
+ op_throw:
+  x   = pop();
+  msg = as_str_s("throw", x);
+
+  user_error(msg->val);
+
+ op_ecatch:
+  // discard saved context and handler, leave last expression of catch body at TOS
+  discard_ctx();
+  rpop();
+
+  goto fetch;
+
+  // closures and function calls ----------------------------------------------
  op_call:
   argc = next_op();
   x    = *stack_ref(-argc-1);
@@ -1116,6 +1172,9 @@ void print_exp(Port* out, Expr x) {
 void repl(void) {
   Expr x, v;
 
+  // create a catch point
+  save_ctx();
+
   for (;;) {
     if ( safepoint() )
       recover();
@@ -1129,4 +1188,7 @@ void repl(void) {
       fprintf(stdout, "\n\n");
     }
   }
+
+  // discard catch point
+  discard_ctx();
 }

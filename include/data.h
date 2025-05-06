@@ -294,6 +294,7 @@ Sym* mk_sym(char* cs);
 bool sym_val_eql(Sym* s, char* v);
 
 // string API
+Str* as_str_s(char* f, Expr x);
 Str* mk_str(char* cs);
 
 // list API
