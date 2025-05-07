@@ -14,6 +14,16 @@
   `(catch (fn ~@h)
     ~@body))
 
+(val &loaded (table))
+
+(mac require
+  "Idempotent load (don't load a file twice)."
+  (fname)
+  (if (has? &loaded fname)
+    `(quote ~(get &loaded fname))
+    `(let (#result (load ~fname))
+       (tset &loaded ~fname #result))))
+
 ;; desired syntax for except is that it provides a case-like interface for handling
 ;; different types of exceptions (in fact probably to be implemented by wrapping the given
 ;; handler in a case form). Note that the simple implementation above does *not* meet this

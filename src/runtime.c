@@ -122,9 +122,11 @@ void panic(Status etype) {
   longjmp(SaveState.Cstate, 1);
 }
 
-void recover(void) {
+void recover(funcptr_t cleanup) {
   restore_ctx();
-  pseek(&Ins, SEEK_SET, SEEK_END); // clear out invalid characters
+
+  if ( cleanup )
+    cleanup();
 }
 
 void rascal_error(Status etype, char* fmt, ...) {

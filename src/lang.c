@@ -10,7 +10,18 @@
 #include "lang.h"
 
 // globals --------------------------------------------------------------------
-Str* QuoteStr, *DefStr, * PutStr, * IfStr, * DoStr, * FnStr;
+Str* QuoteStr, *DefStr, * PutStr, * IfStr, * DoStr, * FnStr,
+  * CatchStr, * ThrowStr;
+
+// compiler flags
+enum {
+  // syntax flags (indicates whether a particular form is restricted in the current context)
+  CF_DEF      = 0x01, // allow def forms
+  CF_PUT      = 0x02, // allow put forms
+
+  // other compiler flags
+  CF_TOPLEVEL = 0x80, // form is compiling at toplevel
+};
 
 // Function prototypes --------------------------------------------------------
 bool is_delim_char(int c);
@@ -294,45 +305,47 @@ Expr read_atom(Port* in) {
   return x;
 }
 
-// load -----------------------------------------------------------------------
-List* read_file(char* fname) {
-  Expr* base = &Vm.stack[Vm.sp];
-  Port* in   = open_port(fname, "r");
-
-  if ( safepoint() ) {
-    
-  }
-}
-
-Expr  load_file(char* fname);
-
 // compile --------------------------------------------------------------------
 // compile helpers ------------------------------------------------------------
-void emit_instr(Buf16* code, OpCode op, ...);
+int  code_offset(Buf16* code);
+int  emit_instr(Buf16* code, OpCode op, ...);
 void fill_instr(Buf16* code, int offset, int val);
+bool allow_def_form(flags_t flags);
+bool allow_put_form(flags_t flags);
+bool compiling_at_toplevel(flags_t flags);
+bool has_result(Expr x);
 
 bool is_quote_form(List* form);
-void compile_quote(List* form, Env* vars, Alist* vals, Buf16* code);
+void compile_quote(List* form, Env* vars, Alist* vals, Buf16* code, flags_t flags);
 bool is_def_form(List* form);
-void compile_def(List* form, Env* vars, Alist* vals, Buf16* code);
+void compile_def(List* form, Env* vars, Alist* vals, Buf16* code, flags_t flags);
 bool is_put_form(List* form);
-void compile_put(List* form, Env* vars, Alist* vals, Buf16* code);
+void compile_put(List* form, Env* vars, Alist* vals, Buf16* code, flags_t flags);
 bool is_if_form(List* form);
-void compile_if(List* form, Env* vars, Alist* vals, Buf16* code);
+void compile_if(List* form, Env* vars, Alist* vals, Buf16* code, flags_t flags);
 bool is_do_form(List* form);
-void compile_do(List* form, Env* vars, Alist* vals, Buf16* code);
+void compile_do(List* form, Env* vars, Alist* vals, Buf16* code, flags_t flags);
 bool is_fn_form(List* form);
-void compile_fn(List* form, Env* vars, Alist* vals, Buf16* code);
-void compile_closure(Buf16* c_code, Env* vars, Alist* vals, Buf16* code);
+void compile_fn(List* form, Env* vars, Alist* vals, Buf16* code, flags_t flags);
+bool is_catch_form(List* form);
+void compile_catch(List* form, Env* vars, Alist* vals, Buf16* code, flags_t flags);
+bool is_throw_form(List* form);
+void compile_throw(List* form, Env* vars, Alist* vals, Buf16* code, flags_t flags);
 
-void compile_sequence(List* exprs, Env* vars, Alist* vals, Buf16* code);
-void compile_literal(Expr x, Env* vars, Alist* vals, Buf16* code);
-void compile_reference(Sym* s, Env* ref, Alist* vals, Buf16* code);
-void compile_funcall(List* form, Env* vars, Alist* vals, Buf16* code);
-void compile_expr(Expr x, Env* vars, Alist* vals, Buf16* code);
+void compile_closure(Buf16* c_code, Env* vars, Alist* vals, Buf16* code, flags_t flags);
+void compile_sequence(List* exprs, Env* vars, Alist* vals, Buf16* code, flags_t flags);
+void compile_literal(Expr x, Env* vars, Alist* vals, Buf16* code, flags_t flags);
+void compile_reference(Sym* s, Env* ref, Alist* vals, Buf16* code, flags_t flags);
+void compile_funcall(List* form, Env* vars, Alist* vals, Buf16* code, flags_t flags);
+void compile_expr(Expr x, Env* vars, Alist* vals, Buf16* code, flags_t flags);
 Fun* toplevel_compile(List* form);
+Fun* compile_file(List* forms);
 
-void emit_instr(Buf16* code, OpCode op, ...) {
+int code_offset(Buf16* code) {
+  return code->binary.count;
+}
+
+int emit_instr(Buf16* code, OpCode op, ...) {
   // probably not very efficient, but easy to use
   instr_t buffer[3] = { op, 0, 0 };
   va_list va;
@@ -347,10 +360,36 @@ void emit_instr(Buf16* code, OpCode op, ...) {
   va_end(va);
 
   buf16_write(code, buffer, b);
+
+  return code_offset(code);
 }
 
 void fill_instr(Buf16* code, int offset, int val) {
   ((instr_t*)code->binary.vals)[offset] = val;
+}
+
+bool allow_def_form(flags_t flags) {
+  return flags & CF_DEF;
+}
+
+bool allow_put_form(flags_t flags) {
+  return flags & CF_PUT;
+}
+
+bool compiling_at_toplevel(flags_t flags) {
+  return flags & CF_TOPLEVEL;
+}
+
+bool has_result(Expr x) {
+  bool out = true;
+
+  if ( is_list(x) ) {
+    List* lx = as_list(x);
+
+    out = !(is_def_form(lx) || is_put_form(lx));
+  }
+
+  return out;
 }
 
 bool is_quote_form(List* form) {
@@ -359,12 +398,12 @@ bool is_quote_form(List* form) {
   return is_sym(hd) && as_sym(hd)->val == QuoteStr;
 }
 
-void compile_quote(List* form, Env* vars, Alist* vals, Buf16* code) {
+void compile_quote(List* form, Env* vars, Alist* vals, Buf16* code, flags_t flags) {
   require_argco("quote", 1, form->count-1);
 
   Expr x = form->tail->head;
 
-  compile_literal(x, vars, vals, code);
+  compile_literal(x, vars, vals, code, flags);
 }
 
 bool is_def_form(List* form) {
@@ -373,7 +412,8 @@ bool is_def_form(List* form) {
   return is_sym(hd) && as_sym(hd)->val == DefStr;
 }
 
-void compile_def(List* form, Env* vars, Alist* vals, Buf16* code) {
+void compile_def(List* form, Env* vars, Alist* vals, Buf16* code, flags_t flags) {
+  require(allow_def_form(flags), "(def ...) not allowed in this context");
   require_argco("def", 2, form->count-1);
 
   Sym* n = as_sym_s("def", form->tail->head);
@@ -381,29 +421,13 @@ void compile_def(List* form, Env* vars, Alist* vals, Buf16* code) {
   require(!is_keyword(n), "can't assign to keyword %s", n->val->val);
 
   Ref* r = env_define(vars, n);
-  int i  = r->offset;
 
-  OpCode op;
+  compile_expr(form->tail->tail->head, vars, vals, code, flags);
 
-  switch ( r->ref_type ) {
-    case REF_GLOBAL:
-      op = OP_SET_GLOBAL;
-      break;
-
-    case REF_LOCAL:
-      op = OP_SET_LOCAL;
-
-      if ( i >= vars->arity ) // account for call frame
-        i += FRAME_SIZE;
-
-      break;
-
-    default:
-      unreachable();
-  }
-  
-  compile_expr(form->tail->tail->head, vars, vals, code);
-  emit_instr(code, op, i);
+  // internal defintions don't need a 'set' instruction because they don't need
+  // to be removed from the stack
+  if ( r->ref_type == REF_GLOBAL )
+    emit_instr(code, OP_SET_GLOBAL, r->offset);
 }
 
 bool is_put_form(List* form) {
@@ -412,7 +436,8 @@ bool is_put_form(List* form) {
   return is_sym(hd) && as_sym(hd)->val == PutStr;
 }
 
-void compile_put(List* form, Env* vars, Alist* vals, Buf16* code) {
+void compile_put(List* form, Env* vars, Alist* vals, Buf16* code, flags_t flags) {
+  require(allow_put_form(flags), "(put ...) not allowed in this context");
   require_argco("put", 2, form->count-1);
 
   Sym* n = as_sym_s("put", form->tail->head);
@@ -446,7 +471,7 @@ void compile_put(List* form, Env* vars, Alist* vals, Buf16* code) {
       unreachable();
   }
   
-  compile_expr(form->tail->tail->head, vars, vals, code);
+  compile_expr(form->tail->tail->head, vars, vals, code, flags);
   emit_instr(code, op, i);
 }
 
@@ -456,21 +481,23 @@ bool is_if_form(List* form) {
   return is_sym(hd) && as_sym(hd)->val == IfStr;
 }
 
-void compile_if(List* form, Env* vars, Alist* vals, Buf16* code) {
+void compile_if(List* form, Env* vars, Alist* vals, Buf16* code, flags_t flags) {
     require_argco2("if", 2, 3, form->count-1);
 
+    // don't allow assignments in conditionals
+    flags     = flags & ~(CF_DEF | CF_PUT);
     Expr test = form->tail->head;
     Expr then = form->tail->tail->head;
     Expr alt  = form->count == 3 ? NUL : form->tail->tail->tail->head;
 
     // compile different parts of the form, saving offsets to fill in later
-    compile_expr(test, vars, vals, code);
+    compile_expr(test, vars, vals, code, flags);
     emit_instr(code, OP_JUMP_F, 0);
     int off1 = code->binary.count;
-    compile_expr(then, vars, vals, code);
+    compile_expr(then, vars, vals, code, flags);
     emit_instr(code, OP_JUMP, 0);
     int off2 = code->binary.count;
-    compile_expr(alt, vars, vals, code);
+    compile_expr(alt, vars, vals, code, flags);
     int off3 = code->binary.count;
 
     fill_instr(code, off1-1, off2-off1);
@@ -483,12 +510,12 @@ bool is_do_form(List* form) {
   return is_sym(hd) && as_sym(hd)->val == DoStr;
 }
 
-void compile_do(List* form, Env* vars, Alist* vals, Buf16* code) {
+void compile_do(List* form, Env* vars, Alist* vals, Buf16* code, flags_t flags) {
   require_vargco("do", 2, form->count-1);
 
   List* xprs = form->tail;
 
-  compile_sequence(xprs, vars, vals, code);
+  compile_sequence(xprs, vars, vals, code, flags);
 }
 
 bool is_fn_form(List* form) {
@@ -511,7 +538,7 @@ void prepare_env(List* argl, Env* vars) {
   }
 }
 
-void compile_fn(List* form, Env* vars, Alist* vals, Buf16* code) {
+void compile_fn(List* form, Env* vars, Alist* vals, Buf16* code, flags_t flags) {
   require_vargco("fn", 1, form->count-1);
 
   List* argl  = as_list_s("fn", form->tail->head);
@@ -524,25 +551,38 @@ void compile_fn(List* form, Env* vars, Alist* vals, Buf16* code) {
   Alist* lvals = mk_alist(); add_to_preserved(1, tag_obj(lvals));
   Buf16* lcode = mk_buf16(); add_to_preserved(2, tag_obj(lcode));
 
-  // compile internal definitions first
-  // otherwise their values will get lost in the stack
+  // flags to use for child forms
+  flags_t lflags = CF_DEF | CF_PUT;
+
   while ( body->count > 0 ) {
     Expr hd = body->head;
 
-    if ( !is_list(hd) )
-      break;
+    // allow internal definitions but only at the top of the fn body
+    if ( allow_def_form(lflags) ) {
+      if ( !is_list(hd) )
+        lflags &= ~CF_DEF;
 
-    List* fxpr = as_list(hd);
+      else {
+        List* fxpr = as_list(hd);
 
-    if ( !is_def_form(fxpr) )
-      break;
+        if ( !is_def_form(fxpr) )
+          lflags &= ~CF_DEF;
 
-    compile_def(fxpr, lvars, lvals, lcode);
+        else {
+          compile_def(fxpr, lvars, lvals, lcode, lflags);
+          body = body->tail;
+          continue;
+        }
+      }
+    }
+
+    // compile remainder like body of a 'do' form
+    compile_expr(hd, lvars, lvals, lcode, lflags);
     body = body->tail;
-  }
 
-  // compile remaining expressions like body of a 'do' form
-  compile_sequence(body, lvars, lvals, lcode);
+    if ( body->count > 0 )
+      emit_instr(lcode, OP_POP);
+  }
 
   int ncap = lvars->ncap, upvc = lvars->upvs.count;
 
@@ -560,7 +600,7 @@ void compile_fn(List* form, Env* vars, Alist* vals, Buf16* code) {
 #endif
 
   // add instructions in caller to load resulting function object
-  compile_literal(tag_obj(fun), vars, vals, code);
+  compile_literal(tag_obj(fun), vars, vals, code, flags);
 
   // add instructions to capture upvalues in calling context
   if ( upvc > 0 ) {
@@ -585,10 +625,49 @@ void compile_fn(List* form, Env* vars, Alist* vals, Buf16* code) {
   }
 }
 
-void compile_sequence(List* xprs, Env* vars, Alist* vals, Buf16* code) {
+bool is_catch_form(List* form) {
+  Expr hd = form->head;
+
+  return is_sym(hd) && as_sym(hd)->val == CatchStr;
+}
+
+void compile_catch(List* form, Env* vars, Alist* vals, Buf16* code, flags_t flags) {
+  require_vargco("catch", 2, form->count-1);
+  
+  List* handler = as_list_s( "catch", form->tail->head);
+
+  require(is_fn_form(handler), "first argument to catch must be a handler");
+
+  // compile the handler first so that it gets saved on the stack
+  compile_fn(handler, vars, vals, code, flags);
+  emit_instr(code, OP_CATCH);
+
+  // add a jump instruction to skip the catch body if the catch handler is invoked
+  int off0 = emit_instr(code, OP_JUMP, 0);
+
+  // compile catch body like the body of a 'do' form (disallow definitions)
+  compile_sequence(form->tail->tail, vars, vals, code, flags & ~CF_DEF);
+
+  // discards context and handler and puts last expression of catch body at tos()
+  int off1 = emit_instr(code, OP_ECATCH);
+
+  fill_instr(code, off0-1, off1-off0);
+}
+
+bool is_throw_form(List* form) {
+  Expr hd = form->head;
+
+  return is_sym(hd) && as_sym(hd)->val == ThrowStr;
+}
+
+void compile_throw(List* form, Env* vars, Alist* vals, Buf16* code, flags_t flags) {
+  
+}
+
+void compile_sequence(List* xprs, Env* vars, Alist* vals, Buf16* code, flags_t flags) {
   while ( xprs->count > 0 ) {
     Expr x = xprs->head;
-    compile_expr(x, vars, vals, code);
+    compile_expr(x, vars, vals, code, flags);
 
     if ( xprs->count > 1 )
       emit_instr(code, OP_POP);
@@ -597,15 +676,18 @@ void compile_sequence(List* xprs, Env* vars, Alist* vals, Buf16* code) {
   }
 }
 
-void compile_literal(Expr x, Env* vars, Alist* vals, Buf16* code) {
+void compile_literal(Expr x, Env* vars, Alist* vals, Buf16* code, flags_t flags) {
   (void)vars;
+  (void)flags;
+
   int n = alist_push(vals, x);
 
   emit_instr(code, OP_GET_VALUE, n-1);
 }
 
-void compile_reference(Sym* s, Env* vars, Alist* vals, Buf16* code) {
+void compile_reference(Sym* s, Env* vars, Alist* vals, Buf16* code, flags_t flags) {
   (void)vals;
+  (void)flags;
 
   Ref* r = env_resolve(vars, s, false);
 
@@ -637,35 +719,39 @@ void compile_reference(Sym* s, Env* vars, Alist* vals, Buf16* code) {
   emit_instr(code, op, i);
 }
 
-void compile_funcall(List* form, Env* vars, Alist* vals, Buf16* code) {
+void compile_funcall(List* form, Env* vars, Alist* vals, Buf16* code, flags_t flags) {
   assert(form->count > 0);
 
   if ( is_quote_form(form) )
-    compile_quote(form, vars, vals, code);
+    compile_quote(form, vars, vals, code, flags);
 
-  else if ( is_def_form(form) ) {
-    require(!is_local_env(vars), "syntax error: local def in fn body");
-    compile_def(form, vars, vals, code);
-  }
+  else if ( is_def_form(form) )
+    compile_def(form, vars, vals, code, flags);
 
   else if ( is_put_form(form) )
-    compile_put(form, vars, vals, code);
+    compile_put(form, vars, vals, code, flags);
 
   else if ( is_if_form(form) )
-    compile_if(form, vars, vals, code);
+    compile_if(form, vars, vals, code, flags);
 
   else if ( is_do_form(form) )
-    compile_do(form, vars, vals, code);
+    compile_do(form, vars, vals, code, flags);
 
   else if ( is_fn_form(form) )
-    compile_fn(form, vars, vals, code);
+    compile_fn(form, vars, vals, code, flags);
+
+  else if ( is_catch_form(form) )
+    compile_catch(form, vars, vals, code, flags);
+
+  else if ( is_throw_form(form) )
+    compile_throw(form, vars, vals, code, flags);
 
   else {
     int argc = form->count-1;
 
     while ( form->count > 0 ) {
       Expr arg = form->head;
-      compile_expr(arg, vars, vals, code);
+      compile_expr(arg, vars, vals, code, flags);
       form = form->tail;
     }
 
@@ -673,38 +759,40 @@ void compile_funcall(List* form, Env* vars, Alist* vals, Buf16* code) {
   }
 }
 
-void compile_expr(Expr x, Env* vars, Alist* vals, Buf16* code) {
+void compile_expr(Expr x, Env* vars, Alist* vals, Buf16* code, flags_t flags) {
   ExpType t = exp_type(x);
   
   if ( t == EXP_SYM ) {
     Sym* s = as_sym(x);
 
     if ( is_keyword(s) ) // keywords (symbols whose names begin with ':') are treated as literals
-      compile_literal(x, vars, vals, code);
+      compile_literal(x, vars, vals, code, flags);
 
     else
-      compile_reference(s, vars, vals, code);
+      compile_reference(s, vars, vals, code, flags);
 
   } else if ( t == EXP_LIST ) {
     List* l = as_list(x);
 
     if ( l->count == 0 ) // empty list is treated as a literal
-      compile_literal(x, vars, vals, code);
+      compile_literal(x, vars, vals, code, flags);
 
     else
-      compile_funcall(l, vars, vals, code);
+      compile_funcall(l, vars, vals, code, flags);
 
   } else
-    compile_literal(x, vars, vals, code);
+    compile_literal(x, vars, vals, code, flags);
 }
 
 Fun* toplevel_compile(List* form) {
   preserve(3, tag_obj(form), NUL, NUL);
 
+  flags_t flags = CF_DEF | CF_PUT | CF_TOPLEVEL;
+
   Alist* vals  = mk_alist(); add_to_preserved(1, tag_obj(vals));
   Buf16* code = mk_buf16(); add_to_preserved(2, tag_obj(code));
 
-  compile_funcall(form, &Globals, vals, code);
+  compile_funcall(form, &Globals, vals, code, flags);
   emit_instr(code, OP_RETURN);
 
   Chunk* chunk = mk_chunk(&Globals, vals, code); add_to_preserved(0, tag_obj(chunk)); // reuse saved slot
@@ -772,6 +860,7 @@ Expr exec_code(Fun* fun) {
 
     // system instructions ----------------------------------------------------
     [OP_HEAP_REPORT] = &&op_heap_report,
+    [OP_DIS]         = &&op_dis,
   };
 
   int argc, argx, argy;
@@ -884,9 +973,8 @@ Expr exec_code(Fun* fun) {
   save_ctx();
 
   if ( safepoint() ) {
-    recover();
-    discard_ctx();
-    
+    recover(discard_ctx);
+
     // set up call to handler
     argc = 0;
     fun  = as_fun(tos());
@@ -1115,6 +1203,19 @@ Expr exec_code(Fun* fun) {
   tos() = NUL; // dummy retunr value
 
   goto fetch;
+
+ op_dis:
+  require_argco("*dis*", 1, argc);
+  
+  x   = pop();
+  fun = as_fun_s("*dis*", x);
+
+  require(is_user_fn(fun), "can't disassemble builtin function");
+  disassemble(fun);
+
+  tos() = NUL;
+
+  goto fetch;
 }
 
 // eval -----------------------------------------------------------------------
@@ -1168,16 +1269,71 @@ void print_exp(Port* out, Expr x) {
     pprintf(out, "<%s>", info->name);
 }
 
+
+// load -----------------------------------------------------------------------
+List* read_file(Port* in) {
+  // return a list of all the expressions in a file
+  List* out  = NULL;
+  int   n    = 0; 
+  Expr* base = &Vm.stack[Vm.sp];
+
+  while ( !peof(in) ) {
+    Expr x = read_exp(in);
+    
+    push(x);
+    n++;
+  }
+
+  out = mk_list(n, base);
+
+  popn(n);
+
+  return out;
+}
+
+Expr load_file(char* fname) {
+  // setup save point
+  save_ctx();
+
+  Port* in = NULL;
+  Expr out = NUL;
+
+  if ( safepoint() ) {
+    recover(NULL);
+  } else {
+    in          = open_port(fname, "r");
+    List* exprs = read_file(in);
+    Fun*  code  = compile_file(exprs);
+    out         = exec_code(code);
+  }
+
+  // clean up port (if necessary)
+  if ( in )
+    close_port(in);
+
+  // discard save point
+  discard_ctx();
+
+  return out;
+}
+
 // repl -----------------------------------------------------------------------
 void repl(void) {
   Expr x, v;
+
+  // clean up the token buffer and ensure invalid input
+  // is cleared from input stream
+  void cleanup(void) {
+    reset_token();
+    pseek(&Ins, SEEK_SET, SEEK_END);
+  }
 
   // create a catch point
   save_ctx();
 
   for (;;) {
     if ( safepoint() )
-      recover();
+      recover(cleanup);
 
     else {
       fprintf(stdout, PROMPT" ");

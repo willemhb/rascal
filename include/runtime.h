@@ -34,7 +34,7 @@ typedef struct {
   Expr     stack[STACK_SIZE];
 } VM;
 
-// everything necessary to 
+// everything necessary to restore execution at a particular point
 typedef struct VmCtx {
   GcFrame* gcf;
   Fun* fn;
@@ -64,7 +64,7 @@ extern char* CharNames[128];
 
 // function prototypes
 void   panic(Status etype);
-void   recover(void);
+void   recover(funcptr_t cleanup);
 void   rascal_error(Status etype, char* fmt, ...);
 
 void   reset_token(void);

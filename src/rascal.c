@@ -11,17 +11,17 @@
 #include <string.h>
 #include <ctype.h>
 
-// setup/teardown -------------------------------------------------------------
+// setup ----------------------------------------------------------------------
 void init_standard_streams(void) {
-  // add FILE* objects to corresponding standard ports ------------------------
+  // add FILE* objects to corresponding standard ports
   Ins.ios  = stdin;
   Outs.ios = stdout;
   Errs.ios = stderr;
 }
 
 void init_static_objects(void) {
-  // register static global objects in heap -----------------------------------
-  // so that they get unmarked during the sweep phase -------------------------
+  // register static global objects in heap
+  // so that they get unmarked during the sweep phase
   add_to_heap(&Globals);
   add_to_heap(&Ins);
   add_to_heap(&Outs);
@@ -29,7 +29,7 @@ void init_static_objects(void) {
 }
 
 void define_builtins(void) {
-  // initialize builtin functions ---------------------------------------------
+  // initialize builtin functions
   def_builtin_fun("+", OP_ADD);
   def_builtin_fun("-", OP_SUB);
   def_builtin_fun("*", OP_MUL);
@@ -41,19 +41,22 @@ void define_builtins(void) {
   def_builtin_fun("tail", OP_TAIL);
   def_builtin_fun("nth", OP_NTH);
   def_builtin_fun("*heap-report*", OP_HEAP_REPORT);
+  def_builtin_fun("*dis*", OP_DIS);
 
-  // initialize other globals -------------------------------------------------
+  // initialize other globals
   toplevel_env_def(&Globals, mk_sym("&ins"), tag_obj(&Ins));
   toplevel_env_def(&Globals, mk_sym("&outs"), tag_obj(&Outs));
   toplevel_env_def(&Globals, mk_sym("&errs"), tag_obj(&Errs));
   
-  // special forms and other syntactic markers --------------------------------
+  // special forms and other syntactic markers
   QuoteStr = mk_str("quote");
   DefStr   = mk_str("def");
   PutStr   = mk_str("put");
   IfStr    = mk_str("if");
   DoStr    = mk_str("do");
   FnStr    = mk_str("fn");
+  CatchStr = mk_str("catch");
+  ThrowStr = mk_str("throw");
 }
 
 void initialize_types(void) {
@@ -78,9 +81,10 @@ void setup(void) {
   print_welcome();
 }
 
+// teardown -------------------------------------------------------------------
 void teardown(void) {}
 
-// entry point
+// rascal! --------------------------------------------------------------------
 int main(int argc, const char* argv[argc]) {
   (void)argv;
   (void)argc;
