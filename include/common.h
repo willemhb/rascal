@@ -63,7 +63,7 @@ typedef void   (*FreeFn)(void* ob);
 #define MAX_SAVESTATES 512        // arbitrary, hard to imagine this many nested catch frames
 
 // magic numbers
-#define FRAME_SIZE 4
+#define FRAME_SIZE 3
 
 // Prompt/messages
 #define PROMPT  "rl>"

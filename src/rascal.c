@@ -59,12 +59,22 @@ void define_builtins(void) {
   ThrowStr = mk_str("throw");
 }
 
-void initialize_types(void) {
+void init_types(void) {
   char buffer[256] = { ':' };
 
   for ( int i=0; i < NUM_TYPES; i++ ) {
     ExpTypeInfo* info = &Types[i]; strcpy(buffer+1, info->name);
     info->repr        = mk_sym(buffer);
+  }
+}
+
+void init_etypes(void) {
+  char buffer[256] = { ':' };
+
+  for ( int i=0; i < NUM_ERRORS; i++ ) {
+    strcpy(buffer+1, ErrorNames[i]);
+
+    ErrorTypes[i] = mk_sym(buffer);
   }
 }
 
@@ -77,7 +87,8 @@ void setup(void) {
   init_standard_streams();
   init_static_objects();
   define_builtins();
-  initialize_types();
+  init_types();
+  init_etypes();
   print_welcome();
 }
 

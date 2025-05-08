@@ -11,13 +11,15 @@
 #define HEAPLOAD 0.75
 
 // Global declarations --------------------------------------------------------
-char* ErrorNames[] = {
+char* ErrorNames[NUM_ERRORS] = {
   [OKAY]          = "okay",
   [USER_ERROR]    = "user",
   [EVAL_ERROR]    = "eval",
   [RUNTIME_ERROR] = "runtime",
   [SYSTEM_ERROR]  = "sytem"
 };
+
+Sym* ErrorTypes[NUM_ERRORS] = {};
 
 VmCtx SaveStates[MAX_SAVESTATES];
 int ep = 0;
@@ -28,13 +30,18 @@ Obj* Heap = NULL;
 size_t HeapUsed = 0, HeapCap = INIT_HEAP;
 GcFrame* GcFrames = NULL;
 
+Expr Vals[N_VALS];
+Expr Frames[N_FRAMES];
+
 VM Vm = {
-  .upvs = NULL,
-  .fn   = NULL,
-  .pc   = NULL,
-  .sp   = 0,
-  .fp   = 0,
-  .bp   = 0
+  .upvs   = NULL,
+  .fn     = NULL,
+  .pc     = NULL,
+  .sp     = 0,
+  .fp     = 0,
+  .bp     = 0,
+  .frames = Frames,
+  .vals   = Vals
 };
 
 Env Globals = {
@@ -119,7 +126,7 @@ void panic(Status etype) {
     exit(1);
   }
 
-  longjmp(SaveState.Cstate, 1);
+  longjmp(SaveState.Cstate, etype);
 }
 
 void recover(funcptr_t cleanup) {
@@ -130,12 +137,15 @@ void recover(funcptr_t cleanup) {
 }
 
 void rascal_error(Status etype, char* fmt, ...) {
-  va_list va;
-  va_start(va, fmt);
-  pprintf(&Errs, "%s error: ", ErrorNames[etype]);
-  pvprintf(&Errs, fmt, va);
-  pprintf(&Errs, ".\n");
-  va_end(va);
+  if ( etype > USER_ERROR ) { // user error messages handled in rascal code
+    va_list va;
+    va_start(va, fmt);
+    pprintf(&Errs, "%s error: ", ErrorNames[etype]);
+    pvprintf(&Errs, fmt, va);
+    pprintf(&Errs, ".\n");
+    va_end(va);
+  }
+
   panic(etype);
 }
 
@@ -155,13 +165,14 @@ size_t add_to_token(char c) {
   return TOff;
 }
 
-// stack API ------------------------------------------------------------------
-void reset_stack(void) {
-  memset(Vm.stack, 0, STACK_SIZE * sizeof(Expr));
+// vals API -------------------------------------------------------------------
+void reset_vals(void) {
+  memset(Vals, 0, N_VALS * sizeof(Expr));
   Vm.sp = 0;
+  Vm.bp = 0;
 }
 
-Expr* stack_ref(int i) {
+Expr* vals_ref(int i) {
   int j = i;
 
   if ( j < 0 )
@@ -171,53 +182,178 @@ Expr* stack_ref(int i) {
     runtime_error("stack reference %d out of bounds", i);
   }
 
-  return &Vm.stack[j];
+  return &Vm.vals[j];
 }
 
-Expr* push( Expr x ) {
-  if ( Vm.sp == STACK_SIZE )
-    runtime_error("stack overflow");
-
-  Vm.stack[Vm.sp] = x;
-
-  return &Vm.stack[Vm.sp++];
+void setvp(int n) {
+  assert(n > 0 && n <= N_VALS);
+  Vm.sp = n;
 }
 
-Expr* pushn( int n ) {
-  if ( Vm.sp + n >= STACK_SIZE )
+Expr* vpush( Expr x ) {
+  if ( Vm.sp == N_VALS )
     runtime_error("stack overflow");
 
-  Expr* base = &Vm.stack[Vm.sp]; Vm.sp += n;
+  Vm.vals[Vm.sp] = x;
+
+  return &Vm.vals[Vm.sp++];
+}
+
+Expr* vpushn( int n ) {
+  if ( Vm.sp + n >= N_VALS )
+    runtime_error("stack overflow");
+
+  Expr* base = &Vm.vals[Vm.sp]; Vm.sp += n;
 
   return base;
 }
 
-Expr pop( void ) {
+Expr vpop( void ) {
   if ( Vm.sp == 0 )
     runtime_error("stack underflow");
 
-  return Vm.stack[--Vm.sp];
+  return Vm.vals[--Vm.sp];
 }
 
-Expr rpop(void) {
+Expr vrpop(void) {
   if ( Vm.sp < 2 )
     runtime_error("stack underflow");
 
-  Expr out          = Vm.stack[Vm.sp-2];
-  Vm.stack[Vm.sp-2] = Vm.stack[Vm.sp-1];
+  Expr out = Vm.vals[Vm.sp-2];
+  Vm.vals[Vm.sp-2] = Vm.vals[Vm.sp-1];
 
   Vm.sp--;
 
   return out;
 }
 
-Expr popn( int n ) {
+Expr vpopn( int n ) {
   if ( n > Vm.sp )
     runtime_error("stack underflow");
 
-  Expr out = Vm.stack[Vm.sp-1]; Vm.sp -= n;
+  Expr out = Vm.vals[Vm.sp-1]; Vm.sp -= n;
 
   return out;
+}
+
+void reset_frames(void) {
+  memset(Frames, 0, N_FRAMES * sizeof(Expr));
+  Vm.fp = 0;
+  Vm.ap = 0;
+  Vm.cp = 0;
+}
+
+Expr* frames_ref(int i) {
+  int j = i;
+
+  if ( j < 0 )
+    j += Vm.fp;
+
+  if ( j < 0 || j > Vm.fp ) {
+    runtime_error("stack reference %d out of bounds", i);
+  }
+
+  return &Vm.frames[j];
+}
+
+void setfp(int n) {
+  assert(n > 0 && n <= N_FRAMES);
+  Vm.fp = n;
+}
+
+Expr* fpush(Expr x) {
+  if ( Vm.fp == N_FRAMES )
+    runtime_error("stack overflow");
+
+  Vm.frames[Vm.fp] = x;
+
+  return &Vm.frames[Vm.fp++];
+}
+
+Expr* fpushn(int n) {
+  if ( Vm.fp + n >= N_FRAMES )
+    runtime_error("stack overflow");
+
+  Expr* base = &Vm.frames[Vm.fp]; Vm.fp += n;
+
+  return base;
+}
+
+Expr fpop(void) {
+  if ( Vm.fp == 0 )
+    runtime_error("stack underflow");
+
+  return Vm.frames[--Vm.fp];
+}
+
+Expr frpop(void) {
+  if ( Vm.fp < 2 )
+    runtime_error("stack underflow");
+
+  Expr out = Vm.frames[Vm.fp-2];
+  Vm.frames[Vm.fp-2] = Vm.frames[Vm.fp-1];
+
+  Vm.fp--;
+
+  return out;
+}
+
+Expr fpopn(int n) {
+  if ( n > Vm.fp )
+    runtime_error("stack underflow");
+
+  Expr out = Vm.frames[Vm.fp-1]; Vm.fp -= n;
+
+  return out;
+}
+
+// frame manipulation ---------------------------------------------------------
+void install_fun(Fun* fun, int bp) {
+  Vm.fn = fun;
+  Vm.pc = user_fn_instr(fun);
+  Vm.bp = bp;
+}
+
+void save_frame(void) {
+  // get frame
+  Expr* frame = fpushn(FRAME_SIZE);
+  
+  // save caller state in frame
+  frame[0] = tag_obj(Vm.fn);
+  frame[1] = tag_ptr(Vm.pc);
+  frame[2] = tag_fix(Vm.bp);
+}
+
+void restore_frame(void) {
+  // restore caller state
+  // becomes new sp
+  int oldbp   = Vm.bp;
+
+  // get frame to restore
+  Expr* frame = frames_ref(Vm.fp-3);
+
+  // get saved values/offsets
+  Fun* caller = as_fun(frame[0]);
+  instr_t* pc = as_ptr(frame[1]);
+  int rtnbp   = as_fix(frame[2]);
+
+  // restore values
+  Vm.fn = caller;
+  Vm.pc = pc;
+  Vm.bp = rtnbp;
+
+  // reset vp/fp
+  Vm.sp = oldbp;
+}
+
+// other vm stuff -------------------------------------------------------------
+void reset_vm(void) {
+  Vm.upvs = NULL;
+  Vm.pc   = NULL;
+  Vm.fn   = NULL;
+
+  reset_vals();
+  reset_frames();
 }
 
 // return an UpVal object corresponding to the given stack location
@@ -254,40 +390,6 @@ void close_upvs(Expr* base) {
   }
 }
 
-// frame manipulation
-void install_fun(Fun* fun, int bp, int fp) {
-  Vm.fn = fun;
-  Vm.pc = fun->chunk->code->binary.vals;
-  Vm.bp = bp;
-  Vm.fp = fp;
-}
-
-void save_frame(void) {
-  Expr* frame = pushn(FRAME_SIZE);
-  frame[0]    = tag_ptr(Vm.pc);
-  frame[1]    = Vm.fn == NULL ? tag_ptr(Vm.pc) : tag_obj(Vm.fn); // prevents gc of dummy frame
-  frame[2]    = tag_fix(Vm.bp);
-  frame[3]    = tag_fix(Vm.fp);
-}
-
-void restore_frame(void) {
-  assert(Vm.fp >= 4);
-  Expr* frame = stack_ref(Vm.fp-FRAME_SIZE);
-  Vm.pc       = as_ptr(frame[0]);
-  Vm.fn       = as_fun(frame[1]);
-  Vm.bp       = as_fix(frame[2]);
-  Vm.fp       = as_fix(frame[3]);
-}
-
-void reset_vm(void) {
-  Vm.upvs = NULL;
-  Vm.pc   = NULL;
-  Vm.fn   = NULL;
-  Vm.fp   =  0;
-  Vm.bp   =  0;
-  Vm.sp   =  0;
-}
-
 // garbage collector
 static bool check_gc(size_t n) {
   return HeapUsed + n >= HeapCap;
@@ -301,11 +403,15 @@ static void mark_vm(void) {
   mark_obj(Vm.fn);
 
   for ( int i=0; i < Vm.sp; i++ )
-    mark_exp(Vm.stack[i]);
+    mark_exp(Vm.vals[i]);
+
+  for ( int i=0; i < Vm.fp; i++ )
+    mark_exp(Vm.frames[i]);
 }
 
 static void mark_globals(void) {
-  extern Str* QuoteStr, * DefStr, * PutStr, * IfStr, * DoStr, * FnStr;
+  extern Str* QuoteStr, * DefStr, * PutStr, * IfStr, * DoStr, * FnStr,
+    * CatchStr, * ThrowStr;
 
   mark_obj(&Globals);
   mark_obj(QuoteStr);
@@ -314,6 +420,8 @@ static void mark_globals(void) {
   mark_obj(IfStr);
   mark_obj(DoStr);
   mark_obj(FnStr);
+  mark_obj(CatchStr);
+  mark_obj(ThrowStr);
 }
 
 static void mark_upvals(void) {
@@ -328,6 +436,11 @@ static void mark_upvals(void) {
 static void mark_types(void) {
   for ( int i=0; i < NUM_TYPES; i++ )
     mark_obj(Types[i].repr);
+}
+
+static void mark_etypes(void) {
+  for ( int i=0; i < NUM_ERRORS; i++ )
+    mark_obj(ErrorTypes[i]);
 }
 
 static void mark_gc_frames(void) {
@@ -346,6 +459,7 @@ static void mark_phase(void) {
   mark_globals();
   mark_upvals();
   mark_types();
+  mark_etypes();
   mark_gc_frames();
 }
 
@@ -419,31 +533,28 @@ void heap_report(void) {
 }
 
 void save_ctx(void) {
-  // The Toplevel jmp_buf will probably be preserved and used for something 
   assert(ep < MAX_SAVESTATES);
 
   VmCtx* ctx = &SaveStates[ep++];
-
-  ctx->fn = Vm.fn;
-  ctx->pc = Vm.pc;
-  ctx->sp = Vm.sp;
-  ctx->fp = Vm.fp;
-  ctx->bp = Vm.bp;
+  ctx->gcf   = GcFrames;
+  ctx->fn    = Vm.fn;
+  ctx->pc    = Vm.pc;
+  ctx->sp    = Vm.sp;
+  ctx->fp    = Vm.fp;
 }
 
 void restore_ctx(void) {
-  // close any upvalues whose frames are being abandoned
-  close_upvs(&Vm.stack[SaveState.sp]);
-
+  // close any upvalues that are about to lose their place on the stack
+  close_upvs(vals_ref(SaveState.sp));
   // discard invalidated GC frames (important because these now point to invalid memory)
   GcFrames = SaveState.gcf;
 
-  // restore main registers
-  Vm.fn    = SaveState.fn;
-  Vm.sp    = SaveState.sp;
-  Vm.pc    = SaveState.pc;
-  Vm.fp    = SaveState.fp;
-  Vm.bp    = SaveState.bp;
+  // restore execution state
+  Vm.fn = SaveState.fn;
+  Vm.pc = SaveState.pc;
+  Vm.sp = SaveState.sp;
+  Vm.fp = SaveState.fp;
+  Vm.bp = SaveState.bp;
 }
 
 void discard_ctx(void) {

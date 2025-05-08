@@ -207,7 +207,7 @@ Expr read_list(Port* in) {
   List* out;
   ppeekc(in); // consume the '('
   skip_space(in);
-  Expr* base = &Vm.stack[Vm.sp], x;
+  Expr* base = &Vm.vals[Vm.sp], x;
   int n = 0, c;
 
   while ( (c=ppeekc(in)) != ')' ) {
@@ -215,7 +215,7 @@ Expr read_list(Port* in) {
       runtime_error("unterminated list");
 
     x = read_exp(in);
-    push(x);
+    vpush(x);
     n++;
     skip_space(in);
   }
@@ -225,7 +225,7 @@ Expr read_list(Port* in) {
   out = mk_list(n, base);
 
   if ( n > 0 )
-    popn(n);
+    vpopn(n);
 
   return tag_obj(out);
 }
@@ -661,7 +661,12 @@ bool is_throw_form(List* form) {
 }
 
 void compile_throw(List* form, Env* vars, Alist* vals, Buf16* code, flags_t flags) {
-  
+  require_argco("throw", 1, form->count-1);
+
+  Expr arg = form->tail->head;
+
+  compile_expr(arg, vars, vals, code, flags);
+  emit_instr(code, OP_THROW);
 }
 
 void compile_sequence(List* xprs, Env* vars, Alist* vals, Buf16* code, flags_t flags) {
@@ -696,24 +701,10 @@ void compile_reference(Sym* s, Env* vars, Alist* vals, Buf16* code, flags_t flag
   OpCode op; int i = r->offset;
 
   switch ( r->ref_type ) {
-    case REF_GLOBAL:
-      op = OP_GET_GLOBAL;
-      break;
-
-    case REF_LOCAL:
-      op = OP_GET_LOCAL;
-
-      if ( i >= vars->arity )
-        i += FRAME_SIZE;
-
-      break;
-
-    case REF_CAPTURED_UPVAL:
-      op = OP_GET_UPVAL;
-      break;
-
-    default:
-      unreachable();
+    case REF_GLOBAL:         op = OP_GET_GLOBAL; break;
+    case REF_LOCAL:          op = OP_GET_LOCAL;  break;
+    case REF_CAPTURED_UPVAL: op = OP_GET_UPVAL;  break;
+    default:                 unreachable();
   }
 
   emit_instr(code, op, i);
@@ -748,6 +739,8 @@ void compile_funcall(List* form, Env* vars, Alist* vals, Buf16* code, flags_t fl
 
   else {
     int argc = form->count-1;
+    Expr caller = form->head;
+    form = form->tail;
 
     while ( form->count > 0 ) {
       Expr arg = form->head;
@@ -755,6 +748,8 @@ void compile_funcall(List* form, Env* vars, Alist* vals, Buf16* code, flags_t fl
       form = form->tail;
     }
 
+    // compile last so that caller is on top of the stack
+    compile_expr(caller, vars, vals, code, flags);
     emit_instr(code, OP_CALL, argc);
   }
 }
@@ -869,8 +864,9 @@ Expr exec_code(Fun* fun) {
   Num nx, ny, nz;
   List* lx, * ly;
   Str* msg;
+  Status sig;
 
-  install_fun(fun, 0, 0);
+  install_fun(fun, 0);
 
  fetch:
   op = next_op();
@@ -883,12 +879,12 @@ Expr exec_code(Fun* fun) {
 
   // stack manipulation instructions ------------------------------------------
  op_pop: // remove TOS
-  pop();
+  vpop();
 
   goto fetch;
 
  op_rpop: // move TOS to TOS-1, then decrement sp
-  rpop();
+  vrpop();
 
   goto fetch;
 
@@ -897,7 +893,7 @@ Expr exec_code(Fun* fun) {
   argx = next_op();
   x    = alist_get(Vm.fn->chunk->vals, argx);
 
-  push(x);
+  vpush(x);
 
   goto fetch;
 
@@ -906,13 +902,13 @@ Expr exec_code(Fun* fun) {
   x    = toplevel_env_ref(&Globals, argx);
 
   require(x != NONE, "undefined reference");
-  push(x);
+  vpush(x);
 
   goto fetch;
 
  op_set_global:
   argx = next_op();
-  x    = pop();
+  x    = vpop();
 
   toplevel_env_refset(&Globals, argx, x);
 
@@ -920,16 +916,16 @@ Expr exec_code(Fun* fun) {
 
  op_get_local:
   argx = next_op();
-  x    = Vm.stack[Vm.bp+argx];
+  x    = Vm.vals[Vm.bp+argx];
 
-  push(x);
+  vpush(x);
 
   goto fetch;
 
  op_set_local:
   argx = next_op();
-  x    = pop();
-  Vm.stack[Vm.bp+argx] = x;
+  x    = vpop();
+  Vm.vals[Vm.bp+argx] = x;
 
   goto fetch;
 
@@ -937,13 +933,13 @@ Expr exec_code(Fun* fun) {
   argx = next_op();
   x    = upval_ref(Vm.fn, argx);
 
-  push(x);
+  vpush(x);
 
   goto fetch;
 
  op_set_upval:
   argx = next_op();
-  x    = pop();
+  x    = vpop();
 
   upval_set(Vm.fn, argx, x);
 
@@ -958,7 +954,7 @@ Expr exec_code(Fun* fun) {
 
  op_jump_f: // jump if TOS is falsey
   argx   = next_op();
-  x      = pop();
+  x      = vpop();
 
   if ( is_falsey(x) )
     Vm.pc += argx;
@@ -968,16 +964,22 @@ Expr exec_code(Fun* fun) {
   // exception interface instructions -----------------------------------------
  op_catch:
   // handler should be TOS
-
   // save current execution context
   save_ctx();
 
-  if ( safepoint() ) {
-    recover(discard_ctx);
+  sig = safepoint();
+
+  if ( sig ) {
+    // argument to handler
+    x = sig > USER_ERROR ? tag_obj(ErrorTypes[sig]) : tos();
+
+    recover(NULL);
+    discard_ctx();
 
     // set up call to handler
-    argc = 0;
-    fun  = as_fun(tos());
+    argc  = 1;
+    fun   = as_fun(tos());
+    tos() = x;
 
     // jump to handler
     goto call_user_fn;
@@ -991,22 +993,18 @@ Expr exec_code(Fun* fun) {
   goto fetch;
 
  op_throw:
-  x   = pop();
-  msg = as_str_s("throw", x);
-
-  user_error(msg->val);
+  user_error("");
 
  op_ecatch:
-  // discard saved context and handler, leave last expression of catch body at TOS
-  discard_ctx();
-  rpop();
+  discard_ctx(); // discard saved context
+  vrpop();       // discard handler and leave last expression of catch body at tos
 
   goto fetch;
 
   // closures and function calls ----------------------------------------------
  op_call:
   argc = next_op();
-  x    = *stack_ref(-argc-1);
+  x    = vpop();
   fun  = as_fun_s(Vm.fn->name->val->val, x);
 
   if ( is_user_fn(fun) )
@@ -1019,7 +1017,7 @@ Expr exec_code(Fun* fun) {
  call_user_fn:
   require_argco("fn", user_fn_argc(fun), argc);
   save_frame();                                 // save caller state
-  install_fun(fun, Vm.sp-argc-FRAME_SIZE, Vm.sp);
+  install_fun(fun, Vm.sp-argc);
 
   goto fetch;
 
@@ -1037,31 +1035,27 @@ Expr exec_code(Fun* fun) {
       fun->upvs.vals[i] = Vm.fn->upvs.vals[argy];
 
     else
-      fun->upvs.vals[i] = get_upv(Vm.stack+Vm.bp+argy);
+      fun->upvs.vals[i] = get_upv(Vm.vals+Vm.bp+argy);
   }
 
   goto fetch;
 
   // emmitted before a frame with local upvalues returns
  op_capture:
-  close_upvs(Vm.stack+Vm.bp);
+  close_upvs(Vm.vals+Vm.bp);
 
   goto fetch;
 
  op_return:
-  x    = Vm.sp > Vm.fp ? pop() : NUL;
+  x = Vm.sp > 0 ? vpop() : NUL;
 
   if ( Vm.fp == 0 ) { // no calling frame, exit
     reset_vm();
-    return x;    
+    return x;
   }
 
-  argx  = Vm.bp;       // adjust stack to here after restore
-  
   restore_frame();
-
-  Vm.sp = argx;
-  tos() = x;
+  vpush(x);
 
   goto fetch;
 
@@ -1071,34 +1065,36 @@ Expr exec_code(Fun* fun) {
  op_add:
   require_argco("+", 2, argc);
 
-  y      = pop();
-  x      = pop();
+  y      = vpop();
+  x      = vpop();
   nx     = as_num_s("+", x);
   ny     = as_num_s("+", y);
   nz     = nx + ny;
   z      = tag_num(nz);
-  tos()  = z;           // combine push/pop
 
+  vpush(z);
+  
   goto fetch;
 
  op_sub:
   require_argco("-", 2, argc);
 
-  y      = pop();
-  x      = pop();
+  y      = vpop();
+  x      = vpop();
   nx     = as_num_s("-", x);
   ny     = as_num_s("-", y);
   nz     = nx - ny;
   z      = tag_num(nz);
-  tos()  = z;           // combine push/pop
+
+  vpush(z);
 
   goto fetch;
 
  op_mul:
   require_argco("*", 2, argc);
 
-  y      = pop();
-  x      = pop();
+  y      = vpop();
+  x      = vpop();
   nx     = as_num_s("*", x);
   ny     = as_num_s("*", y);
   nz     = nx * ny;
@@ -1142,8 +1138,8 @@ Expr exec_code(Fun* fun) {
  op_cons:
   require_argco("cons", 2, argc);
 
-  lx = as_list_s("cons", Vm.stack[Vm.sp-1]);
-  ly = cons(Vm.stack[Vm.sp-2], lx);
+  lx = as_list_s("cons", Vm.vals[Vm.sp-1]);
+  ly = cons(Vm.vals[Vm.sp-2], lx);
   z  = tag_obj(ly);
 
   popn(2);
@@ -1269,17 +1265,16 @@ void print_exp(Port* out, Expr x) {
     pprintf(out, "<%s>", info->name);
 }
 
-
 // load -----------------------------------------------------------------------
 List* read_file(Port* in) {
   // return a list of all the expressions in a file
   List* out  = NULL;
   int   n    = 0; 
-  Expr* base = &Vm.stack[Vm.sp];
+  Expr* base = &Vm.vals[Vm.sp];
 
   while ( !peof(in) ) {
     Expr x = read_exp(in);
-    
+
     push(x);
     n++;
   }

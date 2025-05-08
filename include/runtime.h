@@ -5,8 +5,10 @@
 
 // Magic numbers
 #define BUFFER_SIZE 2048
-#define STACK_SIZE  65536
+#define N_FRAMES    32768
+#define N_VALS      65536
 #define BUFFER_MAX  2046
+#define EFRAME_SIZE 7
 #define INIT_HEAP   (2048 * sizeof(uintptr_t))
 
 // Internal types -------------------------------------------------------------
@@ -18,6 +20,8 @@ typedef enum {
   SYSTEM_ERROR
 } Status;
 
+#define NUM_ERRORS (SYSTEM_ERROR+1)
+
 typedef struct GcFrame {
   struct GcFrame* next;
   int count;
@@ -25,23 +29,19 @@ typedef struct GcFrame {
 } GcFrame;
 
 typedef struct {
-  UpVal*   upvs;
-  Fun*     fn;
+  UpVal* upvs;
+  Fun* fn;
   instr_t* pc;
-  int      sp;
-  int      fp;
-  int      bp;
-  Expr     stack[STACK_SIZE];
+  int sp, fp, bp;
+  Expr* frames, * vals;
 } VM;
 
-// everything necessary to restore execution at a particular point
+// C state information necessary for error handling
 typedef struct VmCtx {
   GcFrame* gcf;
   Fun* fn;
   instr_t* pc;
-  int sp;
-  int fp;
-  int bp;
+  int sp, fp, bp;
   jmp_buf Cstate;
 } VmCtx;
 
@@ -53,7 +53,8 @@ extern int ep;
 // forward declarations for global variables
 extern char Token[BUFFER_SIZE];
 extern size_t TOff;
-extern char* ErrorNames[];
+extern char* ErrorNames[NUM_ERRORS];
+extern Sym* ErrorTypes[NUM_ERRORS];
 extern Obj* Heap;
 extern size_t HeapUsed, HeapCap;
 extern GcFrame* GcFrames;
@@ -70,30 +71,44 @@ void   rascal_error(Status etype, char* fmt, ...);
 void   reset_token(void);
 size_t add_to_token(char c);
 
-void   reset_stack(void);
-Expr*  stack_ref(int i);
-Expr*  push(Expr x);
-Expr*  pushn(int n);
-Expr   pop(void);
-Expr   rpop(void);
-Expr   popn(int n);
+// stack & frame operations
+void   reset_vals(void);
+Expr*  vals_ref(int i);
+void   setvp(int n);
+Expr*  vpush(Expr x);
+Expr*  vrpush(Expr x);
+Expr*  vpushn(int n);
+Expr   vpop(void);
+Expr   vrpop(void);
+Expr   vpopn(int n);
 
+void   reset_frames(void);
+Expr*  frames_ref(int i);
+void   setfp(int n);
+Expr*  fpush(Expr x);
+Expr*  fpushn(int n);
+Expr   fpop(void);
+Expr   frpop(void);
+Expr   fpopn(int n);
+
+// frame manipulation
+void   install_fun(Fun* fun, int bp);
+void   save_frame(void);
+void   restore_frame(void);
+
+// other vm stuff
+void   reset_vm(void);
 UpVal* get_upv(Expr* loc);
 void   close_upvs(Expr* base);
 
-void   install_fun(Fun* fun, int bp, int fp);
-void   save_frame(void);
-void   restore_frame(void);
-void   reset_vm(void);
+void  add_to_heap(void* ptr);
+void  gc_save(void* ob);
+void  run_gc(void);
+void  heap_report(void);
 
-void   add_to_heap(void* ptr);
-void   gc_save(void* ob);
-void   run_gc(void);
-void   heap_report(void);
-
-void   save_ctx(void);    // save execution state
-void   restore_ctx(void); // restore saved execution state
-void   discard_ctx(void); // discard saved execution state (presumably because we're exiting normally)
+void save_ctx(void);    // save C execution state
+void restore_ctx(void); // restore saved execution state
+void discard_ctx(void); // discard save point
 
 void*  allocate(bool h, size_t n);
 char*  duplicates(char* cs);
@@ -110,7 +125,7 @@ void   next_gc_frame(GcFrame* gcf);
 #define eval_error(args...)    rascal_error(EVAL_ERROR, args)
 #define system_error(args...)  rascal_error(SYSTEM_ERROR, args)
 
-#define tos()  (stack_ref(-1)[0])
+#define tos()  (vals_ref(-1)[0])
 
 #define next_op() *(Vm.pc++)
 

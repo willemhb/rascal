@@ -340,6 +340,7 @@ Expr  tag_glyph(Glyph x);
 #define is_toplevel_fn(f) (!(f)->chunk->vars->local)
 #define user_fn_argc(f)   ((f)->chunk->vars->arity)
 #define user_fn_upvalc(f) ((f)->chunk->vars->upvs.count)
+#define user_fn_instr(f)  ((f)->chunk->code->binary.vals)
 #define is_sym(x)         has_type(x, EXP_SYM)
 #define is_fun(x)         has_type(x, EXP_FUN)
 #define is_list(x)        has_type(x, EXP_LIST)
