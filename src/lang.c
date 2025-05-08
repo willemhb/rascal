@@ -313,6 +313,7 @@ void fill_instr(Buf16* code, int offset, int val);
 bool allow_def_form(flags_t flags);
 bool allow_put_form(flags_t flags);
 bool compiling_at_toplevel(flags_t flags);
+flags_t forbid(flags_t flags, flags_t forbidden);
 bool has_result(Expr x);
 
 bool is_quote_form(List* form);
@@ -379,6 +380,11 @@ bool allow_put_form(flags_t flags) {
 bool compiling_at_toplevel(flags_t flags) {
   return flags & CF_TOPLEVEL;
 }
+
+flags_t forbid(flags_t flags, flags_t forbidden) {
+  return flags & ~forbidden;
+}
+
 
 bool has_result(Expr x) {
   bool out = true;
@@ -470,7 +476,7 @@ void compile_put(List* form, Env* vars, Alist* vals, Buf16* code, flags_t flags)
     default:
       unreachable();
   }
-  
+
   compile_expr(form->tail->tail->head, vars, vals, code, flags);
   emit_instr(code, op, i);
 }
@@ -485,7 +491,7 @@ void compile_if(List* form, Env* vars, Alist* vals, Buf16* code, flags_t flags) 
     require_argco2("if", 2, 3, form->count-1);
 
     // don't allow assignments in conditionals
-    flags     = flags & ~(CF_DEF | CF_PUT);
+    flags     = forbid(flags, CF_DEF | CF_PUT);
     Expr test = form->tail->head;
     Expr then = form->tail->tail->head;
     Expr alt  = form->count == 3 ? NUL : form->tail->tail->tail->head;
@@ -559,28 +565,21 @@ void compile_fn(List* form, Env* vars, Alist* vals, Buf16* code, flags_t flags) 
 
     // allow internal definitions but only at the top of the fn body
     if ( allow_def_form(lflags) ) {
-      if ( !is_list(hd) )
-        lflags &= ~CF_DEF;
-
-      else {
-        List* fxpr = as_list(hd);
-
-        if ( !is_def_form(fxpr) )
-          lflags &= ~CF_DEF;
+      if ( !is_list(hd) || !is_def_form(as_list(hd)) )
+        lflags = forbid(lflags, CF_DEF);
 
         else {
-          compile_def(fxpr, lvars, lvals, lcode, lflags);
+          compile_def(as_list(hd), lvars, lvals, lcode, lflags);
           body = body->tail;
           continue;
         }
-      }
     }
 
     // compile remainder like body of a 'do' form
     compile_expr(hd, lvars, lvals, lcode, lflags);
     body = body->tail;
 
-    if ( body->count > 0 )
+    if ( body->count > 0 && has_result(hd) )
       emit_instr(lcode, OP_POP);
   }
 
@@ -646,7 +645,7 @@ void compile_catch(List* form, Env* vars, Alist* vals, Buf16* code, flags_t flag
   int off0 = emit_instr(code, OP_JUMP, 0);
 
   // compile catch body like the body of a 'do' form (disallow definitions)
-  compile_sequence(form->tail->tail, vars, vals, code, flags & ~CF_DEF);
+  compile_sequence(form->tail->tail, vars, vals, code, forbid(flags, CF_DEF));
 
   // discards context and handler and puts last expression of catch body at tos()
   int off1 = emit_instr(code, OP_ECATCH);
@@ -665,7 +664,7 @@ void compile_throw(List* form, Env* vars, Alist* vals, Buf16* code, flags_t flag
 
   Expr arg = form->tail->head;
 
-  compile_expr(arg, vars, vals, code, flags);
+  compile_expr(arg, vars, vals, code, forbid(flags, CF_DEF | CF_PUT));
   emit_instr(code, OP_THROW);
 }
 
@@ -674,7 +673,7 @@ void compile_sequence(List* xprs, Env* vars, Alist* vals, Buf16* code, flags_t f
     Expr x = xprs->head;
     compile_expr(x, vars, vals, code, flags);
 
-    if ( xprs->count > 1 )
+    if ( xprs->count > 1 && has_result(x) )
       emit_instr(code, OP_POP);
 
     xprs = xprs->tail;
@@ -740,6 +739,7 @@ void compile_funcall(List* form, Env* vars, Alist* vals, Buf16* code, flags_t fl
   else {
     int argc = form->count-1;
     Expr caller = form->head;
+    flags = forbid(flags, CF_DEF | CF_PUT);
     form = form->tail;
 
     while ( form->count > 0 ) {
@@ -788,6 +788,27 @@ Fun* toplevel_compile(List* form) {
   Buf16* code = mk_buf16(); add_to_preserved(2, tag_obj(code));
 
   compile_funcall(form, &Globals, vals, code, flags);
+  emit_instr(code, OP_RETURN);
+
+  Chunk* chunk = mk_chunk(&Globals, vals, code); add_to_preserved(0, tag_obj(chunk)); // reuse saved slot
+  Fun* out     = mk_user_fun(chunk);
+
+#ifdef RASCAL_DEBUG
+  disassemble(out);
+#endif
+
+  return out;
+}
+
+Fun* compile_file(List* forms) {
+  preserve(3, tag_obj(forms), NUL, NUL);
+
+  flags_t flags = CF_DEF | CF_PUT | CF_TOPLEVEL;
+
+  Alist* vals  = mk_alist(); add_to_preserved(1, tag_obj(vals));
+  Buf16* code = mk_buf16(); add_to_preserved(2, tag_obj(code));
+
+  compile_sequence(forms, &Globals, vals, code, flags);
   emit_instr(code, OP_RETURN);
 
   Chunk* chunk = mk_chunk(&Globals, vals, code); add_to_preserved(0, tag_obj(chunk)); // reuse saved slot
@@ -863,7 +884,6 @@ Expr exec_code(Fun* fun) {
   Expr x, y, z;
   Num nx, ny, nz;
   List* lx, * ly;
-  Str* msg;
   Status sig;
 
   install_fun(fun, 0);
@@ -1099,39 +1119,43 @@ Expr exec_code(Fun* fun) {
   ny     = as_num_s("*", y);
   nz     = nx * ny;
   z      = tag_num(nz);
-  tos()  = z;           // combine push/pop
+
+  vpush(z);
 
   goto fetch;
 
  op_div:
   require_argco("/", 2, argc);
 
-  y      = pop();
-  x      = pop();
+  y      = vpop();
+  x      = vpop();
   nx     = as_num_s("/", x);
   ny     = as_num_s("/", y); require(ny != 0, "division by zero");
   nz     = nx / ny;
   z      = tag_num(nz);
-  tos()  = z;           // combine push/pop
+
+  vpush(z);
 
   goto fetch;
 
  op_egal:
   require_argco("=", 2, argc);
 
-  y      = pop();
-  x      = pop();
+  y      = vpop();
+  x      = vpop();
   z      = egal_exps(x, y) ? TRUE : FALSE;
-  tos()  = z;
+
+  vpush(z);
 
   goto fetch;
 
  op_type:
   require_argco("type", 1, argc);
 
-  x      = pop();
+  x      = vpop();
   y      = tag_obj(exp_info(x)->repr);
-  tos()  = y;
+
+  vpush(y);
 
   goto fetch;
 
@@ -1142,52 +1166,52 @@ Expr exec_code(Fun* fun) {
   ly = cons(Vm.vals[Vm.sp-2], lx);
   z  = tag_obj(ly);
 
-  popn(2);
-
-  tos() = z;
+  vpopn(2);
+  vpush(z);
 
   goto fetch;
 
  op_head:
   require_argco("head", 1, argc);
 
-  x  = pop();
+  x  = vpop();
   lx = as_list_s("head", x);
 
   require(lx->count > 0, "can't call head on empty list");
 
   y  = lx->head;
 
-  push(y);
+  vpush(y);
 
   goto fetch;
 
  op_tail:
   require_argco("tail", 1, argc);
 
-  x  = pop();
+  x  = vpop();
   lx = as_list_s("tail", x);
 
   require(lx->count > 0, "can't call tail on empty list");
 
   ly = lx->tail;
 
-  push(tag_obj(ly));
+  vpush(tag_obj(ly));
 
   goto fetch;
 
  op_nth:
   require_argco("nth", 2, argc);
 
-  x     = pop();
+  x     = vpop();
   argx  = as_num_s("nth", x);
-  x     = pop();
+  x     = vpop();
   lx    = as_list_s("nth", x);
 
   require(argx < (int)lx->count, "index out of bounds");
 
-  x     = list_ref(lx, argx);
-  tos() = x;
+  x = list_ref(lx, argx);
+
+  vpush(x);
 
   goto fetch;
 
@@ -1196,20 +1220,20 @@ Expr exec_code(Fun* fun) {
 
   heap_report();
 
-  tos() = NUL; // dummy retunr value
+  vpush(NUL); // dummy return value
 
   goto fetch;
 
  op_dis:
   require_argco("*dis*", 1, argc);
   
-  x   = pop();
+  x   = vpop();
   fun = as_fun_s("*dis*", x);
 
   require(is_user_fn(fun), "can't disassemble builtin function");
   disassemble(fun);
 
-  tos() = NUL;
+  vpush(NUL);
 
   goto fetch;
 }
@@ -1275,13 +1299,13 @@ List* read_file(Port* in) {
   while ( !peof(in) ) {
     Expr x = read_exp(in);
 
-    push(x);
+    vpush(x);
     n++;
   }
 
   out = mk_list(n, base);
 
-  popn(n);
+  vpopn(n);
 
   return out;
 }
