@@ -7,67 +7,6 @@
 #include "collection.h"
 #include "opcode.h"
 
-// Types
-// Expression type codes
-typedef enum {
-  EXP_NONE,
-  EXP_NUL,
-  EXP_EOS,
-  EXP_BOOL,
-  EXP_GLYPH,
-  EXP_CHUNK,
-  EXP_ALIST,
-  EXP_BUF16,
-  EXP_REF,
-  EXP_UPV,
-  EXP_ENV,
-  EXP_PORT,
-  EXP_FUN,
-  EXP_SYM,
-  EXP_STR,
-  EXP_LIST,
-  EXP_NUM
-} ExpType;
-
-#define NUM_TYPES (EXP_NUM+1)
-
-typedef struct {
-  ExpType type;
-  char*   name;
-  Sym*    repr;       // rascal representation of the type (for now just a keyword)
-  size_t  obsize;
-  PrintFn print_fn;
-  HashFn  hash_fn;
-  EgalFn  egal_fn;
-  CloneFn clone_fn;
-  TraceFn trace_fn;
-  FreeFn  free_fn;
-} ExpTypeInfo;
-
-extern ExpTypeInfo Types[];
-
-#define HEAD                                     \
-  Obj* heap;                                     \
-  ExpType type;                                  \
-  union {                                        \
-    flags_t bfields;                             \
-    struct {                                     \
-      flags_t black   :   1;                     \
-      flags_t gray    :   1;                     \
-      flags_t nosweep :   1;                     \
-      flags_t flags    : 29;                     \
-    };                                           \
-  }
-
-typedef enum {
-  FL_BLACK   = 0x80000000,
-  FL_GRAY    = 0x40000000,
-  FL_NOSWEEP = 0x20000000
-} ExpFlags;
-
-struct Obj {
-  HEAD;
-};
 
 // Array types
 ALIST_API(Exprs, Expr, exprs);
@@ -89,7 +28,7 @@ struct Chunk {
   Buf16*  code;
 };
 
-// wrapper around a Stack object
+// wrapper around Exprs object
 struct Alist {
   HEAD;
 

@@ -17,6 +17,7 @@ typedef unsigned int   flags_t;
 typedef unsigned short instr_t;
 typedef uintptr_t      hash_t;
 typedef void (*funcptr_t)(void);
+typedef uintptr_t      uptr_t;
 
 // rascal typedefs ------------------------------------------------------------
 // Expression types -----------------------------------------------------------
@@ -58,14 +59,14 @@ typedef void   (*TraceFn)(void* ob);
 typedef void   (*FreeFn)(void* ob);
 
 // limits ---------------------------------------------------------------------
-#define MAX_INTERN     512
+#define MAX_INTERN     512        // interned string length limit
 #define MAX_ARITY      0x40000000 // largest 32-bit power of 2
-#define MAX_SAVESTATES 512        // arbitrary, hard to imagine this many nested catch frames
+#define MAX_SAVESTATES 512        // arbitrary, hard to imagine needing more
 
-// magic numbers
+// magic numbers --------------------------------------------------------------
 #define FRAME_SIZE 3
 
-// Prompt/messages
+// Prompt/messages ------------------------------------------------------------
 #define PROMPT  "rl>"
 #define VERSION "%.2d.%.2d.%.2d.%s"
 #define WELCOME "Welcome to rascal version "VERSION"!"

@@ -6,7 +6,8 @@
       (fn (&form &env ~args) ~@body))))
 
 (mac thunk
-  (xpr) `(fn () ~thunk))
+  (xpr) `(λ () ~thunk))
+
 
 (mac except
   "Wrapper for slightly less readable builtin 'catch' form."
