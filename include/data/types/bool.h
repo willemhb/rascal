@@ -1,24 +1,25 @@
-/* DESCRIPTION */
-// headers --------------------------------------------------------------------
+#ifndef rl_data_types_bool_h
+#define rl_data_types_bool_h
 
-#include "TYPE.h"
+/* Boolean type. */
+// headers --------------------------------------------------------------------
+#include "common.h"
+
+#include "data/expr.h"
 
 // macros ---------------------------------------------------------------------
+#define TRUE   0xfffc000000000001ul // BOOL_T | 1
+#define FALSE  0xfffc000000000000ul // BOOL_T | 0
 
 // C types --------------------------------------------------------------------
 
 // globals --------------------------------------------------------------------
 
 // function prototypes --------------------------------------------------------
-
-// function implementations ---------------------------------------------------
-// internal -------------------------------------------------------------------
-
-// external -------------------------------------------------------------------
+Bool as_bool(Expr x);
+Expr tag_bool(Bool b);
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data_type_TYPE(void) {
-     Types[EXP_TYPE] = (ExpTypeInfo) {
-     
-     };
-}
+void toplevel_init_data_type_bool(void);
+
+#endif

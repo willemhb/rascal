@@ -1,6 +1,9 @@
-#include "opcode.h"
+/* Implementations for opcode helpers. */
 
+// headers --------------------------------------------------------------------
+#include "sys/opcode.h"
 
+// function 
 int op_arity(OpCode op) {
   int n;
 

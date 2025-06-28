@@ -1,7 +1,10 @@
-/* DESCRIPTION */
+#ifndef rl_sys_memory_h
+#define rl_sys_memory_h
+
+/* Data structures and definitions for Rascal memory management. */
 // headers --------------------------------------------------------------------
 
-#include "TYPE.h"
+#include "common.h"
 
 // macros ---------------------------------------------------------------------
 
@@ -11,14 +14,6 @@
 
 // function prototypes --------------------------------------------------------
 
-// function implementations ---------------------------------------------------
-// internal -------------------------------------------------------------------
-
-// external -------------------------------------------------------------------
-
 // initialization -------------------------------------------------------------
-void toplevel_init_data_type_TYPE(void) {
-     Types[EXP_TYPE] = (ExpTypeInfo) {
-     
-     };
-}
+
+#endif

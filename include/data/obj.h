@@ -1,9 +1,14 @@
 #ifndef rl_data_obj_h
 #define rl_data_obj_h
 
+/* Common types and APIs for object types. */
+
+// headers --------------------------------------------------------------------
+#include "common.h"
+
 #include "data/expr.h"
 
-
+// macros ---------------------------------------------------------------------
 #define HEAD                                     \
   Obj* heap;                                     \
   ExpType type;                                  \
@@ -17,6 +22,9 @@
     };                                           \
   }
 
+#define head(x)        ((Obj*)as_obj(x))
+
+// C types --------------------------------------------------------------------
 typedef enum {
   FL_BLACK   = 0x80000000,
   FL_GRAY    = 0x40000000,
@@ -26,5 +34,16 @@ typedef enum {
 struct Obj {
   HEAD;
 };
+
+// globals --------------------------------------------------------------------
+
+// function prototypes --------------------------------------------------------
+void* as_obj(Expr x);
+Expr  tag_obj(void* ptr);
+void* mk_obj(ExpType type, flags_t flags);
+void* clone_obj(void* ptr);
+void  mark_obj(void* ptr);
+void  unmark_obj(void* ptr);
+void  free_obj(void *ptr);
 
 #endif

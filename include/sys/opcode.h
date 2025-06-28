@@ -1,8 +1,14 @@
-#ifndef rl_opcode_h
-#define rl_opcode_h
+#ifndef rl_sys_opcode_h
+#define rl_sys_opcode_h
 
+/* Definitions for VM labels and some basic utilities. */
+
+// headers --------------------------------------------------------------------
 #include "common.h"
 
+// macros ---------------------------------------------------------------------
+
+// C types --------------------------------------------------------------------
 // vm labels and a few utilities
 typedef enum {
   // miscellaneous instructions
@@ -57,6 +63,9 @@ typedef enum {
   OP_DIS,
 } OpCode;
 
+// globals --------------------------------------------------------------------
+
+// function prototypes --------------------------------------------------------
 int   op_arity(OpCode op);
 char* op_name(OpCode op);
 

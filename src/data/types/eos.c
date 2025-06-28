@@ -1,7 +1,6 @@
 /* DESCRIPTION */
 // headers --------------------------------------------------------------------
-
-#include "TYPE.h"
+#include "data/types/eos.h"
 
 // macros ---------------------------------------------------------------------
 
@@ -17,8 +16,10 @@
 // external -------------------------------------------------------------------
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data_type_TYPE(void) {
-     Types[EXP_TYPE] = (ExpTypeInfo) {
-     
+void toplevel_init_data_type_eos(void) {
+     Types[EXP_EOS] = (ExpTypeInfo) {
+    .type   = EXP_EOS,
+    .name   = "eos",
+    .obsize = 0
      };
 }

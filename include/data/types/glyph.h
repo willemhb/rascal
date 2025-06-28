@@ -1,10 +1,10 @@
-#ifndef rl_FILENAME_h
-#define rl_FILENAME_h
+#ifndef rl_data_types_glyph_h
+#define rl_data_types_glyph_h
 
-/* DESCRIPTION */
+/* Character type. Pretty straightforward, most APIs are elsewhere. */
 // headers --------------------------------------------------------------------
-
 #include "common.h"
+#include "data/expr.h"
 
 // macros ---------------------------------------------------------------------
 
@@ -13,7 +13,10 @@
 // globals --------------------------------------------------------------------
 
 // function prototypes --------------------------------------------------------
+Glyph as_glyph(Expr x);
+Expr  tag_glyph(Glyph x);
 
 // initialization -------------------------------------------------------------
+void toplevel_init_data_type_glyph(void);
 
 #endif

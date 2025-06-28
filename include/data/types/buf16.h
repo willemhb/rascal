@@ -1,24 +1,32 @@
-/* DESCRIPTION */
+#ifndef rl_data_types_buf16_h
+#define rl_data_types_buf16_h
+
+/* Mutable 16-bit binary type (used to represent compiled code). */
 // headers --------------------------------------------------------------------
 
-#include "TYPE.h"
+#include "common.h"
+
+#include "data/expr.h"
+#include "data/obj.h"
+#include "data/array.h"
 
 // macros ---------------------------------------------------------------------
 
 // C types --------------------------------------------------------------------
+struct Buf16 {
+  HEAD;
+
+  Bin16 binary;
+};
 
 // globals --------------------------------------------------------------------
 
 // function prototypes --------------------------------------------------------
-
-// function implementations ---------------------------------------------------
-// internal -------------------------------------------------------------------
-
-// external -------------------------------------------------------------------
+Buf16* mk_buf16(void);
+void   free_buf16(void* ptr);
+int    buf16_write(Buf16* b, ushort_t *xs, int n);
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data_type_TYPE(void) {
-     Types[EXP_TYPE] = (ExpTypeInfo) {
-     
-     };
-}
+void toplevel_init_data_type_buf16(void);
+
+#endif
