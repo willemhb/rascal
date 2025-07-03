@@ -1,8 +1,9 @@
-#ifndef rl_util_hashing_h
-#define rl_util_hashing_h
+#ifndef rl_FILENAME_h
+#define rl_FILENAME_h
 
-/* Hashing utilities. */
+/* DESCRIPTION */
 // headers --------------------------------------------------------------------
+
 #include "common.h"
 
 // macros ---------------------------------------------------------------------
@@ -12,9 +13,7 @@
 // globals --------------------------------------------------------------------
 
 // function prototypes --------------------------------------------------------
-hash_t hash_string(const char* chars);
-hash_t hash_word(uintptr_t word);
-hash_t hash_pointer(void* ptr);
+uptr_t cpow2(uptr_t i);
 
 // initialization -------------------------------------------------------------
 

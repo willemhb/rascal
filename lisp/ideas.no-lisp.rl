@@ -54,3 +54,13 @@ end
 mac try(exprs) do
   if 
 end
+
+mac yield(xpr) do
+  raise :yield, xpr
+end
+
+mac generator(body) do
+  quote
+    
+  end
+end

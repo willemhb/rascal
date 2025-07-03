@@ -15,6 +15,7 @@
 
 // macros ---------------------------------------------------------------------
 #define as_fun(x)         ((Fun*)as_obj(x))
+#define is_fun(x)         has_type(x, EXP_FUN)
 #define is_user_fn(f)     ((f)->label == OP_NOOP)
 #define is_toplevel_fn(f) (!(f)->chunk->vars->local)
 #define user_fn_argc(f)   ((f)->chunk->vars->arity)
