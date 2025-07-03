@@ -4,8 +4,8 @@
 /* Special type for indirecting captured references, used to implement closures. */
 // headers --------------------------------------------------------------------
 #include "common.h"
-#include "data/expr.h"
-#include "data/obj.h"
+
+#include "data/base.h"
 
 // macros ---------------------------------------------------------------------
 

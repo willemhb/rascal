@@ -4,7 +4,8 @@
 /* Character type. Pretty straightforward, most APIs are elsewhere. */
 // headers --------------------------------------------------------------------
 #include "common.h"
-#include "data/expr.h"
+
+#include "data/base.h"
 
 // macros ---------------------------------------------------------------------
 

@@ -1,10 +1,9 @@
-#ifndef rl_FILENAME_h
-#define rl_FILENAME_h
+#ifndef rl_lang_exec_h
+#define rl_lang_exec_h
 
-/* DESCRIPTION */
+/* High level API for entry into the bytecode interpreter. */
 // headers --------------------------------------------------------------------
-
-#include "common.h"
+#include "lang/base.h"
 
 // macros ---------------------------------------------------------------------
 

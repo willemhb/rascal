@@ -1,8 +1,16 @@
-/* Miscellaneous string utilities. */
+/**
+ *
+ * Bundles includes from the `sys` directory and exports the
+ * toplevel initialization function.
+ * 
+ **/
+
 // headers --------------------------------------------------------------------
 #include <string.h>
 
-#include "util/string.h"
+#include "sys/sys.h"
+
+#include "data/types/sym.h"
 
 // macros ---------------------------------------------------------------------
 
@@ -16,8 +24,18 @@
 // internal -------------------------------------------------------------------
 
 // external -------------------------------------------------------------------
-bool streq(char* sx, char* sy) {
-  return strcmp(sx, sy) == 0;
-}
 
 // initialization -------------------------------------------------------------
+static void toplevel_init_error_types(void) {
+  char buffer[256] = { ':' };
+
+  for ( int i=0; i < NUM_ERRORS; i++ ) {
+    strcpy(buffer+1, ErrorNames[i]);
+
+    ErrorTypes[i] = mk_sym(buffer);
+  }
+}
+
+void toplevel_init_sys(void) {
+  toplevel_init_error_types();
+}

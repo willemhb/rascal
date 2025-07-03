@@ -1,7 +1,7 @@
-#ifndef rl_FILENAME_h
-#define rl_FILENAME_h
+#ifndef rl_util_string_h
+#define rl_util_string_h
 
-/* DESCRIPTION */
+/* Miscellaneous string utilities. */
 // headers --------------------------------------------------------------------
 
 #include "common.h"

@@ -5,8 +5,7 @@
 // headers --------------------------------------------------------------------
 #include "common.h"
 
-#include "data/expr.h"
-#include "data/obj.h"
+#include "data/base.h"
 
 // macros ---------------------------------------------------------------------
 #define as_sym(x)     ((Sym*)as_obj(x))

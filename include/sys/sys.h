@@ -1,10 +1,19 @@
-#ifndef rl_FILENAME_h
-#define rl_FILENAME_h
+#ifndef rl_sys_sys_h
+#define rl_sys_sys_h
 
-/* DESCRIPTION */
+/**
+ *
+ * Bundles includes from the `sys` directory and exports the
+ * toplevel initialization function.
+ * 
+ **/
+
 // headers --------------------------------------------------------------------
-
-#include "common.h"
+#include "sys/base.h"
+#include "sys/opcode.h"
+#include "sys/error.h"
+#include "sys/memory.h"
+#include "sys/vm.h"
 
 // macros ---------------------------------------------------------------------
 
@@ -15,5 +24,6 @@
 // function prototypes --------------------------------------------------------
 
 // initialization -------------------------------------------------------------
+void toplevel_init_sys(void);
 
 #endif

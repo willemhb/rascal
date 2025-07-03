@@ -1,7 +1,7 @@
-#ifndef rl_FILENAME_h
-#define rl_FILENAME_h
+#ifndef rl_util_number_h
+#define rl_util_number_h
 
-/* DESCRIPTION */
+/* Miscellaneous bit twiddling utilities. */
 // headers --------------------------------------------------------------------
 
 #include "common.h"

@@ -9,13 +9,11 @@
 // headers --------------------------------------------------------------------
 #include "common.h"
 
-#include "data/expr.h"
-#include "data/obj.h"
+#include "data/base.h"
 
 // macros ---------------------------------------------------------------------
 #define as_list(x) ((List*)as_obj(x))
 #define is_list(x) has_type(x, EXP_LIST)
-
 
 // C types --------------------------------------------------------------------
 struct List {
@@ -35,7 +33,7 @@ List*  mk_list(size_t n, Expr* xs);
 List*  cons(Expr hd, List* tl);
 Expr   list_ref(List* xs, int n);
 
-
 // initialization -------------------------------------------------------------
+void toplevel_init_data_type_list(void);
 
 #endif

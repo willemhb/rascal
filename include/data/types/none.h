@@ -6,7 +6,8 @@
    May serve as the template for a bottom type in a more sophisticated type system. */
 // headers --------------------------------------------------------------------
 #include "common.h"
-#include "data/expr.h"
+
+#include "data/base.h"
 
 // macros ---------------------------------------------------------------------
 #define NONE 0x7ffd000000000000ul

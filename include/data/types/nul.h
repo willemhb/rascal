@@ -4,7 +4,8 @@
 /* Unit type. Pretty self explanatory. */
 // headers --------------------------------------------------------------------
 #include "common.h"
-#include "data/expr.h"
+
+#include "data/base.h"
 
 // macros ---------------------------------------------------------------------
 #define NUL 0x7ffe000000000000ul // NUL_T | 0

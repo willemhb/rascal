@@ -8,7 +8,6 @@
 (mac thunk
   (xpr) `(λ () ~thunk))
 
-
 (mac except
   "Wrapper for slightly less readable builtin 'catch' form."
   (h & body)
@@ -29,6 +28,7 @@
 ;; different types of exceptions (in fact probably to be implemented by wrapping the given
 ;; handler in a case form). Note that the simple implementation above does *not* meet this
 ;; goal.
+
 (except
   ((e m)
      :type-error    ...

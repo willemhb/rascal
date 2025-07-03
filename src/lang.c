@@ -10,8 +10,7 @@
 #include "lang.h"
 
 // globals --------------------------------------------------------------------
-Str* QuoteStr, *DefStr, * PutStr, * IfStr, * DoStr, * FnStr,
-  * CatchStr, * ThrowStr;
+
 
 // compiler flags
 enum {

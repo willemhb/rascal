@@ -1,7 +1,7 @@
-#ifndef rl_FILENAME_h
-#define rl_FILENAME_h
+#ifndef rl_lang_compile_h
+#define rl_lang_compile_h
 
-/* DESCRIPTION */
+/* Toplevel compile API. */
 // headers --------------------------------------------------------------------
 
 #include "common.h"

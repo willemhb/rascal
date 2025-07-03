@@ -1,14 +1,109 @@
+/* Core type information, globals, and toplevel expression APIs. */
 // headers --------------------------------------------------------------------
-#include "data/table.h"
-
-
 #include <string.h>
 
-#include "runtime.h"
-#include "util.h"
-#include "data.h"
+#include "data/base.h"
 
-// Table implementation macro
+#include "sys/error.h"
+#include "sys/memory.h"
+
+#include "util/hashing.h"
+
+// macros ---------------------------------------------------------------------
+// magic numbers
+#define MIN_CAP 8
+#define LOADF   0.625
+
+// alist implementation macro
+#define ALIST_IMPL(A, X, a)                                         \
+  void init_##a(A* a) {                                             \
+    a->vals      = NULL;                                            \
+    a->count     = 0;                                               \
+    a->max_count = 0;                                               \
+  }                                                                 \
+                                                                    \
+  void free_##a(A* a) {                                             \
+    release(a->vals, 0);                                            \
+    init_##a(a);                                                    \
+  }                                                                 \
+                                                                    \
+  void grow_##a(A* a) {                                             \
+    if ( a->max_count == MAX_ARITY )                                \
+      runtime_error("maximum "#a" size exceeded");                  \
+    int new_maxc  = a->max_count ? a->max_count << 1 : MIN_CAP;   \
+    X*  new_spc  = reallocate(false,                              \
+                              new_maxc * sizeof(X),               \
+                              a->max_count * sizeof(X),           \
+                              a->vals);                           \
+                                                                  \
+    a->vals = new_spc;                                            \
+    a->max_count = new_maxc;                                      \
+  }                                                               \
+                                                                  \
+  void shrink_##a(A* a) {                                         \
+    assert(a->max_count > MIN_CAP);                               \
+                                                                  \
+    size_t new_maxc = a->max_count >> 1;                          \
+    X*  new_spc     = reallocate(false,                           \
+                                 new_maxc*sizeof(X),              \
+                                 a->max_count*sizeof(X),          \
+                                 a->vals);                        \
+                                                                  \
+    a->vals      = new_spc;                                       \
+    a->max_count = new_maxc;                                      \
+  }                                                               \
+                                                                  \
+  void resize_##a(A* a, int n) {                                  \
+    if ( n > MAX_ARITY )                                          \
+      runtime_error("maximum"#a"size exceeded");                  \
+                                                                        \
+    int new_maxc = cpow2(n);                                            \
+                                                                        \
+    if ( new_maxc < MIN_CAP )                                           \
+      new_maxc = MIN_CAP;                                               \
+                                                                        \
+    X* new_spc = reallocate(false,                                      \
+                            new_maxc*sizeof(X),                         \
+                            a->max_count*sizeof(X),                     \
+                            a->vals);                                   \
+    a->vals         = new_spc;                                          \
+    a->max_count    = new_maxc;                                         \
+  }                                                                     \
+                                                                        \
+  void a##_push(A* a, X x) {                                            \
+    if ( a->count == a->max_count )                                     \
+      grow_##a(a);                                                      \
+                                                                        \
+    a->vals[a->count++] = x;                                            \
+  }                                                                     \
+                                                                        \
+  X a##_pop(A* a) {                                                     \
+    X out = a->vals[--a->count];                                        \
+                                                                        \
+    if ( a->count == 0 )                                                \
+      free_##a(a);                                                      \
+                                                                        \
+    else if ( a->max_count > MIN_CAP && a->count < (a->max_count >> 1) ) \
+      shrink_##a(a);                                                    \
+                                                                        \
+    return out;                                                         \
+  }                                                                     \
+                                                                        \
+                                                                        \
+  void a##_write(A* a, X* xs, int n) {                                  \
+    if ( a->count + n > a->max_count )                                  \
+      resize_##a(a, a->count+n);                                        \
+                                                                        \
+    if ( xs != NULL )                                                   \
+      memcpy(a->vals+a->count, xs, n*sizeof(X));                        \
+                                                                        \
+    a->count += n;                                                      \
+  }
+
+ALIST_IMPL(Exprs, Expr, exprs);
+ALIST_IMPL(Objs, void*, objs);
+ALIST_IMPL(Bin16, ushort_t, bin16);
+
 #define check_grow(t) ((t)->count >= ((t)->max_count * LOADF))
 
 #define TABLE_IMPL(T, K, V, t, NK, NV, hashf, rehashf, cmpf)            \
@@ -180,3 +275,163 @@ hash_t rehash_symbol( EMapKV* kv ) {
 }
 
 TABLE_IMPL(EMap, Sym*, Ref*, emap, NULL, NULL, hash_symbol, rehash_symbol, cmp_symbols );
+
+// C types --------------------------------------------------------------------
+
+// globals --------------------------------------------------------------------
+ExpTypeInfo Types[NUM_TYPES];
+
+// function prototypes --------------------------------------------------------
+
+// function implementations ---------------------------------------------------
+// internal -------------------------------------------------------------------
+
+// external -------------------------------------------------------------------
+// Expression APIs ------------------------------------------------------------
+ExpType exp_type(Expr x) {
+  ExpType t;
+
+  switch ( x & XTMSK ) {
+    case NONE_T  : t = EXP_NONE;      break;
+    case NUL_T   : t = EXP_NUL;       break;
+    case EOS_T   : t = EXP_EOS;       break;
+    case BOOL_T  : t = EXP_BOOL;      break;
+    case GLYPH_T : t = EXP_GLYPH;     break;
+    case OBJ_T   : t = head(x)->type; break;
+    default      : t = EXP_NUM;       break;
+  }
+
+  return t;
+}
+
+bool has_type(Expr x, ExpType t) {
+  return exp_type(x) == t;
+}
+
+ExpTypeInfo* exp_info(Expr x) {
+  return &Types[exp_type(x)];
+}
+
+hash_t hash_exp(Expr x) {
+  hash_t out;
+  ExpTypeInfo* info = exp_info(x);
+
+  if ( info->hash_fn )
+    out = info->hash_fn(x);
+
+  else
+    out = hash_word(x);
+
+  return out;
+}
+
+bool egal_exps(Expr x, Expr y) {
+  bool out;
+  
+  if ( x == y )
+    out = true;
+
+  else {
+    ExpType tx = exp_type(x), ty = exp_type(y);
+
+    if ( tx != ty )
+      out = false;
+
+    else {
+      EgalFn fn = Types[tx].egal_fn;
+      out       = fn ? fn(x, y) : false;
+    }
+  }
+
+  return out;
+}
+
+void mark_exp(Expr x) {
+  if ( exp_tag(x) == OBJ_T )
+    mark_obj(as_obj(x));
+}
+
+// Object APIs ----------------------------------------------------------------
+void trace_exprs(Exprs* xs) {
+  for ( int i=0; i < xs->count; i++ )
+    mark_exp(xs->vals[i]);
+}
+
+void trace_objs(Objs* os) {
+  for ( int i=0; i < os->count; i++ )
+    mark_obj(os->vals[i]);
+}
+
+// object API
+void* as_obj(Expr x) {
+  return (void*)(x & XVMSK);
+}
+
+Expr tag_obj(void* o) {
+  return ((Expr)o) | OBJ_T;
+}
+
+void* mk_obj(ExpType type, flags_t flags) {
+  Obj* out = allocate(true, Types[type].obsize);
+
+  out->type     = type;
+  out->bfields  = flags | FL_GRAY;
+  out->heap     = Heap;
+  Heap          = out;
+
+  return out;
+}
+
+void* clone_obj(void* ptr) {
+  assert(ptr != NULL);
+
+  Obj* obj = ptr;
+  ExpTypeInfo* info = &Types[obj->type];
+  Obj* out = duplicate(true, info->obsize, obj);
+
+  if ( info->clone_fn )
+    info->clone_fn(out);
+
+  return out;
+}
+
+void mark_obj(void* ptr) {
+  Obj* obj = ptr;
+
+  if ( obj != NULL ) {
+    if ( obj->black == false ) {
+      obj->black = true;
+
+      ExpTypeInfo* info = &Types[obj->type];
+
+      if ( info->trace_fn )
+        gc_save(obj);
+
+      else
+        obj->gray = false;
+    }
+  }
+}
+
+// used mostly to manually unmark global objects so they're collected correctly
+// on subsequent GC cycles
+void unmark_obj(void* ptr) {
+  Obj* obj   = ptr;
+  obj->black = false;
+  obj->gray  = true;
+}
+
+void free_obj(void* ptr) {
+  Obj* obj = ptr;
+
+  if ( obj ) {
+    ExpTypeInfo* info = &Types[obj->type];
+
+    if ( info->free_fn )
+      info->free_fn(obj);
+
+    release(obj, info->obsize);
+  }
+}
+
+// initialization -------------------------------------------------------------

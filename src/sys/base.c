@@ -1,25 +1,22 @@
-#ifndef rl_data_types_bool_h
-#define rl_data_types_bool_h
+/**
+ *
+ * Common declarations, APIs, and helpers for Rascal runtime system.
+ *
+ **/
 
-/* Boolean type. */
 // headers --------------------------------------------------------------------
-#include "common.h"
-
-#include "data/base.h"
 
 // macros ---------------------------------------------------------------------
-#define TRUE   0xfffc000000000001ul // BOOL_T | 1
-#define FALSE  0xfffc000000000000ul // BOOL_T | 0
 
 // C types --------------------------------------------------------------------
 
 // globals --------------------------------------------------------------------
 
 // function prototypes --------------------------------------------------------
-Bool as_bool(Expr x);
-Expr tag_bool(Bool b);
+
+// function implementations ---------------------------------------------------
+// internal -------------------------------------------------------------------
+
+// external -------------------------------------------------------------------
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data_type_bool(void);
-
-#endif

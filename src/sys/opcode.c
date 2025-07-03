@@ -3,7 +3,7 @@
 // headers --------------------------------------------------------------------
 #include "sys/opcode.h"
 
-// function 
+// function implementations ---------------------------------------------------
 int op_arity(OpCode op) {
   int n;
 

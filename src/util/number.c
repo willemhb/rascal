@@ -1,5 +1,6 @@
-/* DESCRIPTION */
+/* Miscellaneous bit twiddling utilities. */
 // headers --------------------------------------------------------------------
+#include "util/number.h"
 
 // macros ---------------------------------------------------------------------
 
@@ -13,5 +14,19 @@
 // internal -------------------------------------------------------------------
 
 // external -------------------------------------------------------------------
+#define TOP_BIT 0x8000000000000000ul
+
+uptr_t cpow2(uptr_t i)
+{
+    if ( i == 0 )
+      return 1;
+    if ( (i & (i-1)) == 0 )
+      return i;
+    if ( i &TOP_BIT )
+      return TOP_BIT;
+
+    // bit twiddling (changed from busted version using while loop)
+    return i << (64 - clz(i) + 1);
+}
 
 // initialization -------------------------------------------------------------

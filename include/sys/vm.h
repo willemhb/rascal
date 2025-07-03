@@ -1,12 +1,18 @@
-#ifndef rl_FILENAME_h
-#define rl_FILENAME_h
+#ifndef rl_sys_vm_h
+#define rl_sys_vm_h
 
-/* DESCRIPTION */
+/**
+ *
+ * Internal VM API.
+ * 
+ **/
+
 // headers --------------------------------------------------------------------
-
-#include "common.h"
+#include "sys/base.h"
 
 // macros ---------------------------------------------------------------------
+#define tos()      (vals_ref(-1)[0])
+#define next_op() *(Vm.pc++)
 
 // C types --------------------------------------------------------------------
 

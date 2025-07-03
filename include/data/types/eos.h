@@ -6,7 +6,8 @@
    Not clear that this should be its own type, I guess we'll see. */
 // headers --------------------------------------------------------------------
 #include "common.h"
-#include "data/expr.h"
+
+#include "data/base.h"
 
 // macros ---------------------------------------------------------------------
 #define EOS 0x7fff0000fffffffful

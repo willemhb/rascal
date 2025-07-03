@@ -6,9 +6,7 @@
 // headers --------------------------------------------------------------------
 #include "common.h"
 
-#include "data/expr.h"
-#include "data/obj.h"
-#include "data/array.h"
+#include "data/base.h"
 
 // macros ---------------------------------------------------------------------
 

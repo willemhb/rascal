@@ -5,10 +5,7 @@
 // headers --------------------------------------------------------------------
 #include "common.h"
 
-#include "data/expr.h"
-#include "data/obj.h"
-#include "data/array.h"
-#include "data/table.h"
+#include "data/base.h"
 
 // macros ---------------------------------------------------------------------
 #define as_env(x)        ((Env*)as_obj(x))

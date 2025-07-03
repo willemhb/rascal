@@ -1,7 +1,7 @@
-#ifndef rl_FILENAME_h
-#define rl_FILENAME_h
+#ifndef rl_lang_eval_h
+#define rl_lang_eval_h
 
-/* DESCRIPTION */
+/* Toplevel interpreter API. */
 // headers --------------------------------------------------------------------
 
 #include "common.h"
@@ -13,6 +13,9 @@
 // globals --------------------------------------------------------------------
 
 // function prototypes --------------------------------------------------------
+Expr  eval_exp(Expr x);
+Expr  load_file(char* fname);
+void  repl(void);
 
 // initialization -------------------------------------------------------------
 

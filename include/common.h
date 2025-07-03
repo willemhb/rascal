@@ -51,25 +51,25 @@ typedef uintptr_t      uptr_t;
 
 // rascal typedefs ------------------------------------------------------------
 // Expression types -----------------------------------------------------------
-typedef uintptr_t        Expr;
-typedef nullptr_t        Nul;
-typedef double           Num;
-typedef bool             Bool;
-typedef char32_t         Glyph;
-typedef struct    Obj    Obj;
+typedef uptr_t     Expr;
+typedef nullptr_t  Nul;
+typedef double     Num;
+typedef bool       Bool;
+typedef char32_t   Glyph;
+typedef struct Obj Obj;
 
 // Object types ---------------------------------------------------------------
-typedef struct    Chunk  Chunk;
-typedef struct    Alist  Alist;
-typedef struct    Buf16  Buf16;
-typedef struct    Ref    Ref;
-typedef struct    UpVal  UpVal;
-typedef struct    Env    Env;
-typedef struct    Port   Port;
-typedef struct    Fun    Fun;
-typedef struct    Str    Str;
-typedef struct    Sym    Sym;
-typedef struct    List   List;
+typedef struct Chunk  Chunk;
+typedef struct Alist  Alist;
+typedef struct Buf16  Buf16;
+typedef struct Ref    Ref;
+typedef struct UpVal  UpVal;
+typedef struct Env    Env;
+typedef struct Port   Port;
+typedef struct Fun    Fun;
+typedef struct Str    Str;
+typedef struct Sym    Sym;
+typedef struct List   List;
 
 typedef union {
   Expr  expr;
@@ -80,11 +80,11 @@ typedef union {
   Glyph glyph;
 } Val;
 
-// Internal types -------------------------------------------------------------
+// Internal function pointer types --------------------------------------------
 typedef void   (*PrintFn)(Port* p, Expr x);
 typedef hash_t (*HashFn)(Expr x);
 typedef bool   (*EgalFn)(Expr x, Expr y);
-typedef void   (*CloneFn)(void* ob); // called to clone an object's owned pointers
+typedef void   (*CloneFn)(void* ob); // called to clone object's owned pointers
 typedef void   (*TraceFn)(void* ob);
 typedef void   (*FreeFn)(void* ob);
 

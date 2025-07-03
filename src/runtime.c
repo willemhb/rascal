@@ -73,36 +73,8 @@ Objs GrayStack = {
   .max_count = 0
 };
 
-// static wrapper objects for standard streams
-Port Ins = {
-  .type    = EXP_PORT,
-  .black   = false,
-  .gray    = true,
-  .nosweep = true
-};
-
-Port Outs = {
-  .type    = EXP_PORT,
-  .black   = false,
-  .gray    = true,
-  .nosweep = true  
-};
-
-Port Errs = {
-  .type    = EXP_PORT,
-  .black   = false,
-  .gray    = true,
-  .nosweep = true
-};
 
 // mostly whitespace and control characters
-char* CharNames[128] = {
-  ['\0'] = "nul",      ['\n'] = "newline",
-  [' ']  = "space",    ['\a'] = "bel",
-  ['\t'] = "tab",      ['\r'] = "return",
-  ['\f'] = "formfeed", ['\v'] = "vtab",
-  ['\b'] = "backspace"
-};
 
 // internal helpers
 static bool check_gc(size_t n);

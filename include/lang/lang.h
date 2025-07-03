@@ -1,25 +1,24 @@
-#ifndef rl_data_types_bool_h
-#define rl_data_types_bool_h
+#ifndef rl_lang_lang_h
+#define rl_lang_lang_h
 
-/* Boolean type. */
+/* Packages headers from `lang` subdirectory. */
 // headers --------------------------------------------------------------------
-#include "common.h"
-
-#include "data/base.h"
+#include "lang/base.h"
+#include "lang/read.h"
+#include "lang/compile.h"
+#include "lang/exec.h"
+#include "lang/eval.h"
+#include "lang/print.h"
 
 // macros ---------------------------------------------------------------------
-#define TRUE   0xfffc000000000001ul // BOOL_T | 1
-#define FALSE  0xfffc000000000000ul // BOOL_T | 0
 
 // C types --------------------------------------------------------------------
 
 // globals --------------------------------------------------------------------
 
 // function prototypes --------------------------------------------------------
-Bool as_bool(Expr x);
-Expr tag_bool(Bool b);
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data_type_bool(void);
+void toplevel_init_lang(void);
 
 #endif
