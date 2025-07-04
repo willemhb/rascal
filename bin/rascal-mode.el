@@ -19,15 +19,15 @@
     ;; conditional and pattern matching syntax
     "if" "elif" "else" "and" "or" "not" "case"
     ;; looping syntax
-    "label" "for" "while" "until"
+    "label" "loop"
     ;; effect handling syntax
-    "raise" "abort" "perform" "handle"
+    "raise" "perform" "handle"
     ;; module syntax
     "require" "provide" "as"
     ;; block syntax
-    "do" "end"
+    "let" "do" "end"
     ;; miscellaneous syntax
-    "yield" "quote" "λ")
+    "quote" "λ")
   '(("\\(?:[^-_a-zA-Z?*+0-9/:]:[-_a-zA-Z?*+0-9/<>=]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ("\\(?:[^~]@[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^@[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ;; special constants
@@ -40,7 +40,7 @@
     ;; syntax
     ("\\_<otherwise\\_>" . font-lock-function-name-face)
     ("\\_<&\\_>" . font-lock-function-name-face))
-  '("\\.rascal$")
+  '("\\.rscl$")
   (list 'rainbow-delimiters-mode
                                         ; (lambda () (set-input-method 'TeX))
         )

@@ -7,7 +7,7 @@ provide Base
 
 # example import usage
 require Core
-require "regex-state-machine.rascal" as RESM
+require "regex-state-machine.rscl" as RESM
 
 # utilities
 fun method_error(values...) do
