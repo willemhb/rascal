@@ -1,5 +1,5 @@
-#ifndef rl_data_types_list_h
-#define rl_data_types_list_h
+#ifndef rl_data_list_h
+#define rl_data_list_h
 
 /* The great Lisp classic.
 
@@ -34,6 +34,6 @@ List*  cons(Expr hd, List* tl);
 Expr   list_ref(List* xs, int n);
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data_type_list(void);
+void toplevel_init_data_list(void);
 
 #endif

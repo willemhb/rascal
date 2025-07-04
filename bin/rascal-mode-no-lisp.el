@@ -9,18 +9,22 @@
 (define-generic-mode
   'rascal-no-lisp-mode
   '("#" ("#|" . "|#"))
-  '( ;; special forms
-    "quote" "def" "put" "fn" "def-stx"
-    ;; macros
-    "fun" "mac" "var" "val" "type" "trait"
-    "let" "label"
-    "if" "elif" "else" "cond"
-    "match" "case" "when" "stx"
-    "and" "or" "not"
-    "try" "catch" "throw" "except" "finally"
+  '( ;; syntax
+    ;; binding syntax
+    "fun" "mac" "var" "val" "type"
+    ;; conditional syntax
+    "if" "elif" "else" "and" "or" "not"
+    ;; pattern matching syntax
+    "match" "stx"
+    ;; looping syntax
+    "label" "for" "while" "until"
+    ;; effect handling syntax
     "raise" "abort" "handle"
-    "import" "use" "expose" "module"
+    ;; process syntax
     "receive" "send" "await"
+    ;; module syntax
+    "module" "import" "as" "export" "use"
+    ;; block syntax
     "do" "end")
   '(("\\(?:[^-_a-zA-Z?*+0-9/:]:[-_a-zA-Z?*+0-9/<>=]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ("\\(?:[^~]@[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^@[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)

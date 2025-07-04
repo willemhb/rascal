@@ -1,23 +1,22 @@
-#ifndef rl_data_types_glyph_h
-#define rl_data_types_glyph_h
+#ifndef rl_data_nul_h
+#define rl_data_nul_h
 
-/* Character type. Pretty straightforward, most APIs are elsewhere. */
+/* Unit type. Pretty self explanatory. */
 // headers --------------------------------------------------------------------
 #include "common.h"
 
 #include "data/base.h"
 
 // macros ---------------------------------------------------------------------
+#define NUL 0x7ffe000000000000ul // NUL_T | 0
 
 // C types --------------------------------------------------------------------
 
 // globals --------------------------------------------------------------------
 
 // function prototypes --------------------------------------------------------
-Glyph as_glyph(Expr x);
-Expr  tag_glyph(Glyph x);
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data_type_glyph(void);
+void toplevel_init_data_nul(void);
 
 #endif

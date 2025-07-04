@@ -1,9 +1,13 @@
 #ifndef rl_common_h
 #define rl_common_h
 
-/* Common system headers and typedefs. */
+/**
+ *
+ * Common system headers and typedefs.
+ *
+ **/
 
-// headers -------------------------------------------------------------------- 
+// headers --------------------------------------------------------------------
 #include <limits.h>
 #include <errno.h>
 #include <uchar.h>
@@ -16,8 +20,7 @@
 // macros ---------------------------------------------------------------------
 // limits
 #define MAX_INTERN     512        // interned string length limit
-#define MAX_ARITY      0x40000000 // largest 32-bit power of 2
-#define MAX_SAVESTATES 512        // arbitrary, hard to imagine needing more
+#define MAX_ARITY      0x40000000 // largest (signed?) 32-bit power of 2
 
 // magic numbers
 #define FRAME_SIZE 3
@@ -65,6 +68,7 @@ typedef struct Buf16  Buf16;
 typedef struct Ref    Ref;
 typedef struct UpVal  UpVal;
 typedef struct Env    Env;
+typedef struct Ctl    Ctl;
 typedef struct Port   Port;
 typedef struct Fun    Fun;
 typedef struct Str    Str;

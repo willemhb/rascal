@@ -1,24 +1,33 @@
-#ifndef rl_data_types_eos_h
-#define rl_data_types_eos_h
+#ifndef rl_data_alist_h
+#define rl_data_alist_h
 
-/* Unique end of stream marker.
+/* Internal mutable array type. */
 
-   Not clear that this should be its own type, I guess we'll see. */
 // headers --------------------------------------------------------------------
 #include "common.h"
 
 #include "data/base.h"
 
 // macros ---------------------------------------------------------------------
-#define EOS 0x7fff0000fffffffful
 
 // C types --------------------------------------------------------------------
+// wrapper around Exprs object
+struct Alist {
+  HEAD;
+
+  Exprs exprs;
+};
 
 // globals --------------------------------------------------------------------
 
 // function prototypes --------------------------------------------------------
+Alist* mk_alist(void);
+void   free_alist(void* ptr);
+int    alist_push(Alist* a, Expr x);
+Expr   alist_pop(Alist* a);
+Expr   alist_get(Alist* a, int n);
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data_type_eos(void);
+void toplevel_init_data_alist(void);
 
 #endif

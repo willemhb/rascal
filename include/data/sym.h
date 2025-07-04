@@ -1,34 +1,34 @@
-#ifndef rl_data_types_upv_h
-#define rl_data_types_upv_h
+#ifndef rl_data_sym_h
+#define rl_data_sym_h
 
-/* Special type for indirecting captured references, used to implement closures. */
+/* First-class identifier type. A Lisp classic! */
 // headers --------------------------------------------------------------------
 #include "common.h"
 
 #include "data/base.h"
+#include "data/str.h"
 
 // macros ---------------------------------------------------------------------
+#define as_sym(x)     ((Sym*)as_obj(x))
+#define is_keyword(s) (*(s)->val->val == ':')
+#define is_sym(x)     has_type(x, EXP_SYM)
 
 // C types --------------------------------------------------------------------
-struct UpVal {
+struct Sym {
   HEAD;
 
-  UpVal* next;
-  bool   closed;
-
-  union {
-    Expr  val;
-    Expr* loc;
-  };
+  Str*   val;
+  hash_t hash;
 };
 
 // globals --------------------------------------------------------------------
 
 // function prototypes --------------------------------------------------------
-UpVal* mk_upval(UpVal* next, Expr* loc);
-Expr*  deref(UpVal* upv);
+Sym* as_sym_s(char* f, Expr x);
+Sym* mk_sym(char* cs);
+bool sym_val_eql(Sym* s, char* v);
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data_type_upv(void);
+void toplevel_init_data_sym(void);
 
 #endif

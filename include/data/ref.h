@@ -1,34 +1,40 @@
-#ifndef rl_data_types_sym_h
-#define rl_data_types_sym_h
+#ifndef rl_data_ref_h
+#define rl_data_ref_h
 
-/* First-class identifier type. A Lisp classic! */
+/* Implementation of the reference type, which stores information about individual variables. */
 // headers --------------------------------------------------------------------
+
 #include "common.h"
 
 #include "data/base.h"
-#include "data/types/str.h"
 
 // macros ---------------------------------------------------------------------
-#define as_sym(x)     ((Sym*)as_obj(x))
-#define is_keyword(s) (*(s)->val->val == ':')
-#define is_sym(x)     has_type(x, EXP_SYM)
 
 // C types --------------------------------------------------------------------
-struct Sym {
+typedef enum {
+  REF_UNDEF,
+  REF_GLOBAL,
+  REF_LOCAL,
+  REF_LOCAL_UPVAL,
+  REF_CAPTURED_UPVAL
+} RefType;
+
+struct Ref {
   HEAD;
 
-  Str*   val;
-  hash_t hash;
+  Ref*    captures;
+  Sym*    name;
+  RefType ref_type;
+  int     offset;
 };
 
 // globals --------------------------------------------------------------------
+#define as_ref(x) ((Ref*)as_obj(x))
 
 // function prototypes --------------------------------------------------------
-Sym* as_sym_s(char* f, Expr x);
-Sym* mk_sym(char* cs);
-bool sym_val_eql(Sym* s, char* v);
+Ref* mk_ref(Sym* n, int o);
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data_type_sym(void);
+void toplevel_init_data_ref(void);
 
 #endif

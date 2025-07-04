@@ -1,40 +1,25 @@
-#ifndef rl_data_types_env_h
-#define rl_data_types_env_h
+#ifndef rl_data_bool_h
+#define rl_data_bool_h
 
-/* Object representing compile-time and run-time environments. */
+/* Boolean type. */
 // headers --------------------------------------------------------------------
 #include "common.h"
 
 #include "data/base.h"
 
 // macros ---------------------------------------------------------------------
-#define as_env(x)        ((Env*)as_obj(x))
-#define is_local_env(e)  ((e)->parent != NULL)
-#define is_global_env(e) ((e)->parent == NULL)
+#define TRUE   0xfffc000000000001ul // BOOL_T | 1
+#define FALSE  0xfffc000000000000ul // BOOL_T | 0
 
 // C types --------------------------------------------------------------------
-struct Env {
-  HEAD;
-
-  Env*   parent;
-
-  int    arity;
-  int    ncap; // number of captured *local* upvalues
-
-  EMap  vars; // personal namespace
-
-  union {
-    EMap  upvs;
-    Exprs vals;
-  };
-};
 
 // globals --------------------------------------------------------------------
 
 // function prototypes --------------------------------------------------------
-Env* mk_env(Env* parent);
+Bool as_bool(Expr x);
+Expr tag_bool(Bool b);
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data_type_env(void);
+void toplevel_init_data_bool(void);
 
 #endif

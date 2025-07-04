@@ -25,8 +25,8 @@
 #define XVMSK  0x0000fffffffffffful
 
 // utility macros
-#define exp_tag(x)     ((x) & XTMSK)
-#define exp_val(x)     ((x) & XVMSK)
+#define exp_tag(x) ((x) & XTMSK)
+#define exp_val(x) ((x) & XVMSK)
 
 // limits
 #define NUM_TYPES (EXP_NUM+1)
@@ -105,6 +105,7 @@ typedef enum {
   EXP_REF,
   EXP_UPV,
   EXP_ENV,
+  EXP_CTL,
   EXP_PORT,
   EXP_FUN,
   EXP_SYM,

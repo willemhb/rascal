@@ -1,10 +1,8 @@
-#ifndef rl_data_types_port_h
-#define rl_data_types_port_h
+#ifndef rl_data_upv_h
+#define rl_data_upv_h
 
-/* simple wrapper around a C file object. */
+/* Special type for indirecting captured references, used to implement closures. */
 // headers --------------------------------------------------------------------
-#include <stdio.h>
-
 #include "common.h"
 
 #include "data/base.h"
@@ -12,18 +10,25 @@
 // macros ---------------------------------------------------------------------
 
 // C types --------------------------------------------------------------------
-struct Port {
+struct UpVal {
   HEAD;
 
-  FILE* ios;
+  UpVal* next;
+  bool   closed;
+
+  union {
+    Expr  val;
+    Expr* loc;
+  };
 };
 
 // globals --------------------------------------------------------------------
 
 // function prototypes --------------------------------------------------------
-Port* mk_port(FILE* ios);
+UpVal* mk_upval(UpVal* next, Expr* loc);
+Expr*  deref(UpVal* upv);
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data_type_port(void);
+void toplevel_init_data_upv(void);
 
 #endif

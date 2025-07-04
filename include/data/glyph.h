@@ -1,35 +1,23 @@
-#ifndef rl_data_types_str_h
-#define rl_data_types_str_h
+#ifndef rl_data_glyph_h
+#define rl_data_glyph_h
 
-/* User string type.
-
-   Small strings are interned, making them the basis for fast symbol comparison. */
-
+/* Character type. Pretty straightforward, most APIs are elsewhere. */
 // headers --------------------------------------------------------------------
 #include "common.h"
 
 #include "data/base.h"
 
 // macros ---------------------------------------------------------------------
-#define as_str(x)      ((Str*)as_obj(x))
-#define is_interned(s) ((s)->flags == true)
 
 // C types --------------------------------------------------------------------
-struct Str {
-  HEAD;
-
-  char*  val;
-  size_t count;
-  hash_t hash;
-};
 
 // globals --------------------------------------------------------------------
 
 // function prototypes --------------------------------------------------------
-Str* as_str_s(char* f, Expr x);
-Str* mk_str(char* cs);
+Glyph as_glyph(Expr x);
+Expr  tag_glyph(Glyph x);
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data_type_str(void);
+void toplevel_init_data_glyph(void);
 
 #endif

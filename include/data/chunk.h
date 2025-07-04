@@ -1,25 +1,31 @@
-#ifndef rl_data_types_bool_h
-#define rl_data_types_bool_h
+#ifndef rl_data_chunk_h
+#define rl_data_chunk_h
 
-/* Boolean type. */
+/* Type representing a compiled user function. */
+
 // headers --------------------------------------------------------------------
 #include "common.h"
 
 #include "data/base.h"
 
 // macros ---------------------------------------------------------------------
-#define TRUE   0xfffc000000000001ul // BOOL_T | 1
-#define FALSE  0xfffc000000000000ul // BOOL_T | 0
 
 // C types --------------------------------------------------------------------
+struct Chunk {
+  HEAD;
+
+  Env*    vars;
+  Alist*  vals;
+  Buf16*  code;
+};
 
 // globals --------------------------------------------------------------------
 
-// function prototypes --------------------------------------------------------
-Bool as_bool(Expr x);
-Expr tag_bool(Bool b);
+// forward declarations -------------------------------------------------------
+Chunk* mk_chunk(Env* vars, Alist* vals, Buf16* code);
+void   dis_chunk(Chunk* chunk);
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data_type_bool(void);
+void toplevel_init_data_chunk(void);
 
 #endif

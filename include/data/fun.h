@@ -1,5 +1,5 @@
-#ifndef rl_data_types_fun_h
-#define rl_data_types_fun_h
+#ifndef rl_data_fun_h
+#define rl_data_fun_h
 
 /* Common function representation (includes builtin and user functions).
 
@@ -41,6 +41,6 @@ Fun* mk_user_fun(Chunk* code);
 void disassemble(Fun* fun);
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data_type_fun(void);
+void toplevel_init_data_fun(void);
 
 #endif

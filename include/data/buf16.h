@@ -1,5 +1,5 @@
-#ifndef rl_data_types_buf16_h
-#define rl_data_types_buf16_h
+#ifndef rl_data_buf16_h
+#define rl_data_buf16_h
 
 /* Mutable 16-bit binary type (used to represent compiled code). */
 // headers --------------------------------------------------------------------
@@ -24,6 +24,6 @@ void   free_buf16(void* ptr);
 int    buf16_write(Buf16* b, ushort_t *xs, int n);
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data_type_buf16(void);
+void toplevel_init_data_buf16(void);
 
 #endif

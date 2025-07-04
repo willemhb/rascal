@@ -10,12 +10,18 @@
   'rascal-mode
   '(";" ("#|" . "|#"))
   '( ;; special forms
-    "quote" "def" "put" "if" "do" "fn" "def-stx" "c-call" "raise" "handle"
+    "quote" "def" "put" "if" "do" "fn" "def-stx" "c-call" "call/eff" "raise" "abort"
     
     ;; macros
-    "λ" "fun" "mac" "var" "val" "let"
-    "cond" "case" "and" "or"
-    "except" "throw"
+    ;; bindign macros
+    "λ" "fun" "mac" "var" "val" "type"
+    ;; block/looping macros
+    "let" "label"
+    ;; conditional macros
+    "cond" "case" "and" "or" "when" "unless"
+    ;; control macros
+    "handle" "except" "throw"
+    ;; module macros
     "require")
   '(("\\(?:[^-_a-zA-Z?*+0-9/:]:[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ("\\(?:[^~]@[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^@[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
