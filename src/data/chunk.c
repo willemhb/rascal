@@ -8,8 +8,8 @@
 
 #include "data/array.h"
 
-#include "data/types/chunk.h"
-#include "data/types/buf16.h"
+#include "data/chunk.h"
+#include "data/buf16.h"
 
 // macros ---------------------------------------------------------------------
 
@@ -83,7 +83,7 @@ void dis_chunk(Chunk* chunk) {
 }
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data_type_chunk(void) {
+void toplevel_init_data_chunk(void) {
   Types[EXP_CHUNK] = (ExpTypeInfo){
     .type     = EXP_CHUNK,
     .name     = "chunk",

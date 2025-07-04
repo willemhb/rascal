@@ -1,8 +1,8 @@
-/* Character type. Pretty straightforward, most APIs are elsewhere. */
-// headers --------------------------------------------------------------------
-#include "data/types/glyph.h"
 
-#include "lang/io.h"
+/* Implementation for 16-bit mutable buffer type. */
+// headers --------------------------------------------------------------------
+
+#include "data/buf16.h"
 
 // macros ---------------------------------------------------------------------
 
@@ -11,35 +11,35 @@
 // globals --------------------------------------------------------------------
 
 // function prototypes --------------------------------------------------------
-void print_glyph(Port* ios, Expr x);
+void free_buf16(void* ptr);
 
 // function implementations ---------------------------------------------------
 // internal -------------------------------------------------------------------
-void print_glyph(Port* ios, Expr x) {
-  Glyph g = as_glyph(x);
+void free_buf16(void* ptr) {
+  Buf16* b = ptr;
 
-  if ( g < CHAR_MAX && CharNames[g] )
-    pprintf(ios, "\\%s", CharNames[g]);
-
-  else
-    pprintf(ios, "\\%c", g);
+  free_bin16(&b->binary);
 }
 
 // external -------------------------------------------------------------------
-Glyph as_glyph(Expr x) {
-  return x & XVMSK;
+Buf16* mk_buf16(void) {
+  Buf16* b = mk_obj(EXP_BUF16, 0); init_bin16(&b->binary);
+
+  return b;
 }
 
-Expr tag_glyph(Glyph x) {
-  return ((Expr)x) | GLYPH_T;
+int buf16_write(Buf16* b, ushort_t *xs, int n) {
+  bin16_write(&b->binary, xs, n);
+
+  return b->binary.count;
 }
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data_type_glyph(void) {
-     Types[EXP_GLYPH] = (ExpTypeInfo) {
-    .type     = EXP_GLYPH,
-    .name     = "glyph",
-    .obsize   = 0,
-    .print_fn = print_glyph
-     };
+void toplevel_init_data_buf16(void) {
+  Types[EXP_BUF16] = (ExpTypeInfo) {
+    .type     = EXP_BUF16,
+    .name     = "buf16",
+    .obsize   = sizeof(Buf16),
+    .free_fn  = free_buf16
+  };
 }

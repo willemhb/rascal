@@ -1,7 +1,7 @@
 /* DESCRIPTION */
 // headers --------------------------------------------------------------------
 
-#include "data/types/list.h"
+#include "data/list.h"
 
 #include "lang/io.h"
 #include "lang/print.h"
@@ -157,7 +157,7 @@ Expr list_ref(List* xs, int n) {
 }
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data_type_list(void) {
+void toplevel_init_data_list(void) {
   Types[EXP_LIST] = (ExpTypeInfo) {
     .type     = EXP_LIST,
     .name     = "list",

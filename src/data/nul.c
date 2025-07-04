@@ -1,8 +1,8 @@
-
-/*  Special type for indirecting captured references, used to implement closures. */
+/* Unit type. Pretty self explanatory. */
 // headers --------------------------------------------------------------------
+#include "data/nul.h"
 
-#include "data/types/upv.h"
+#include "lang/io.h"
 
 // macros ---------------------------------------------------------------------
 
@@ -11,38 +11,23 @@
 // globals --------------------------------------------------------------------
 
 // function prototypes --------------------------------------------------------
-void trace_upval(void* ptr);
+void print_nul(Port* ios, Expr x);
 
 // function implementations ---------------------------------------------------
 // internal -------------------------------------------------------------------
-void trace_upval(void* ptr) {
-  UpVal* upv = ptr;
-
-  if ( upv->closed )
-    mark_exp(upv->val);
+void print_nul(Port* ios, Expr x) {
+  (void)x;
+  pprintf(ios, "nul");
 }
 
 // external -------------------------------------------------------------------
-UpVal* mk_upval(UpVal* next, Expr* loc) {
-  // only open upvalues can be created
-  UpVal* upv  = mk_obj(EXP_UPV, 0);
-  upv->next   = next;
-  upv->closed = false;
-  upv->loc    = loc;
-
-  return upv;
-}
-
-Expr* deref(UpVal* upv) {
-  return upv->closed ? &upv->val : upv->loc;
-}
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data_type_upv(void) {
-  Types[EXP_UPV] = (ExpTypeInfo) {
-    .type     = EXP_UPV,
-    .name     = "upval",
-    .obsize   = sizeof(UpVal),
-    .trace_fn = trace_upval  
+void toplevel_init_data_nul(void) {
+  Types[EXP_NUL] = (ExpTypeInfo) {
+    .type     = EXP_NUL,
+    .name     = "nul",
+    .obsize   = 0,
+    .print_fn = print_nul
   };
 }

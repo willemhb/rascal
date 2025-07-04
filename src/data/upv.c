@@ -1,10 +1,8 @@
-/* Currently a dummy value used to mark eg missing values in tables.
 
-   May serve as the template for a bottom type in a more sophisticated type system. */
+/*  Special type for indirecting captured references, used to implement closures. */
 // headers --------------------------------------------------------------------
-#include "data/types/none.h"
 
-#include "lang/io.h"
+#include "data/upv.h"
 
 // macros ---------------------------------------------------------------------
 
@@ -13,23 +11,38 @@
 // globals --------------------------------------------------------------------
 
 // function prototypes --------------------------------------------------------
-void print_none(Port* ios, Expr x);
+void trace_upval(void* ptr);
 
 // function implementations ---------------------------------------------------
 // internal -------------------------------------------------------------------
-void print_none(Port* ios, Expr x) {
-  (void)x;
-  pprintf(ios, "none");
+void trace_upval(void* ptr) {
+  UpVal* upv = ptr;
+
+  if ( upv->closed )
+    mark_exp(upv->val);
 }
 
 // external -------------------------------------------------------------------
+UpVal* mk_upval(UpVal* next, Expr* loc) {
+  // only open upvalues can be created
+  UpVal* upv  = mk_obj(EXP_UPV, 0);
+  upv->next   = next;
+  upv->closed = false;
+  upv->loc    = loc;
+
+  return upv;
+}
+
+Expr* deref(UpVal* upv) {
+  return upv->closed ? &upv->val : upv->loc;
+}
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data_type_none(void) {
-  Types[EXP_NONE] = (ExpTypeInfo) {
-    .type     = EXP_NONE,
-    .name     = "none",
-    .obsize   = 0,
-    .print_fn = print_none   
+void toplevel_init_data_upv(void) {
+  Types[EXP_UPV] = (ExpTypeInfo) {
+    .type     = EXP_UPV,
+    .name     = "upval",
+    .obsize   = sizeof(UpVal),
+    .trace_fn = trace_upval  
   };
 }

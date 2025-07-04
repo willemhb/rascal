@@ -1,6 +1,6 @@
 /* First-class identifier type. A Lisp classic! */
 // headers --------------------------------------------------------------------
-#include "data/types/sym.h"
+#include "data/sym.h"
 
 #include "lang/io.h"
 
@@ -56,7 +56,7 @@ bool sym_val_eql(Sym* s, char* v) {
 }
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data_type_sym(void) {
+void toplevel_init_data_sym(void) {
      Types[EXP_SYM] = (ExpTypeInfo) {
     .type     = EXP_SYM,
     .name     = "sym",

@@ -1,7 +1,7 @@
 
 /* Implementation for dynamic list utility type. */
 // headers --------------------------------------------------------------------
-#include "data/types/alist.h"
+#include "data/alist.h"
 
 // macros ---------------------------------------------------------------------
 
@@ -51,7 +51,7 @@ Expr alist_get(Alist* a, int n) {
 }
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data_type_alist(void) {
+void toplevel_init_data_alist(void) {
   Types[EXP_ALIST] = (ExpTypeInfo){
     .type     = EXP_ALIST,
     .name     = "alist",

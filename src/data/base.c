@@ -3,11 +3,13 @@
 #include <string.h>
 
 #include "data/base.h"
+#include "data/sym.h"
 
 #include "sys/error.h"
 #include "sys/memory.h"
 
 #include "util/hashing.h"
+#include "util/number.h"
 
 // macros ---------------------------------------------------------------------
 // magic numbers

@@ -2,8 +2,8 @@
 
    There is no separate closure type for the time being. */
 // headers --------------------------------------------------------------------
-#include "data/types/fun.h"
-#include "data/types/sym.h"
+#include "data/fun.h"
+#include "data/sym.h"
 
 // macros ---------------------------------------------------------------------
 
@@ -74,7 +74,7 @@ void disassemble(Fun* fun) {
 }
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data_type_fun(void) {
+void toplevel_init_data_fun(void) {
   Types[EXP_FUN] = (ExpTypeInfo) {
     .type     = EXP_FUN,
     .name     = "fun",

@@ -1,6 +1,11 @@
-/* Common initilization. */
+
+/* DESCRIPTION */
 // headers --------------------------------------------------------------------
-#include "data/data.h"
+
+#include "data/ref.h"
+#include "data/sym.h"
+
+#include "lang/io.h"
 
 // macros ---------------------------------------------------------------------
 
@@ -9,30 +14,42 @@
 // globals --------------------------------------------------------------------
 
 // function prototypes --------------------------------------------------------
+void print_ref(Port* ios, Expr x);
+void trace_ref(void* ptr);
 
 // function implementations ---------------------------------------------------
 // internal -------------------------------------------------------------------
+void print_ref(Port* ios, Expr x) {
+  Ref* r = as_ref(x);
+
+  pprintf(ios, "#'%s", r->name->val->val);
+}
+
+void trace_ref(void* ptr) {
+  Ref* r = ptr;
+
+  mark_obj(r->name);
+}
 
 // external -------------------------------------------------------------------
+Ref* mk_ref(Sym* n, int o) {
+  Ref* ref  = mk_obj(EXP_REF, 0);
+  ref->name = n;
+  ref->ref_type = REF_UNDEF; // filled in by env_put, env_resolve, &c
+  ref->offset = o;
+
+  return ref;
+}
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data(void) {
-  /* Initialize all builtin type information (probably needs to be called first). */
-  toplevel_init_data_none();
-  toplevel_init_data_nul();
-  toplevel_init_data_eos();
-  toplevel_init_data_bool();
-  toplevel_init_data_glyph();
-  toplevel_init_data_chunk();
-  toplevel_init_data_alist();
-  toplevel_init_data_buf16();
-  toplevel_init_data_ref();
-  toplevel_init_data_upv();
-  toplevel_init_data_env();
-  toplevel_init_data_port();
-  toplevel_init_data_fun();
-  toplevel_init_data_sym();
-  toplevel_init_data_str();
-  toplevel_init_data_list();
-  toplevel_init_data_num();
+void toplevel_init_data_ref(void) {
+  Types[EXP_REF] = (ExpTypeInfo) {
+    .type     = EXP_REF,
+    .name     = "ref",
+    .obsize   = sizeof(Ref),
+    .print_fn = print_ref,
+    .trace_fn = trace_ref
+  };
+
+  
 }

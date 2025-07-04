@@ -6,7 +6,7 @@
 #include <string.h>
 
 #include "data/table.h"
-#include "data/types/str.h"
+#include "data/str.h"
 
 #include "lang/io.h"
 
@@ -113,7 +113,7 @@ Str* mk_str(char* cs) {
 }
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data_type_str(void) {
+void toplevel_init_data_str(void) {
   Types[EXP_STR] = (ExpTypeInfo) {
     .type     = EXP_STR,
     .name     = "str",

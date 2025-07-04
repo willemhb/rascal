@@ -1,6 +1,6 @@
 /* DESCRIPTION */
 // headers --------------------------------------------------------------------
-#include "data/types/num.h"
+#include "data/num.h"
 
 #include "lang/io.h"
 
@@ -56,7 +56,7 @@ Expr tag_ptr(void* ptr) {
 }
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data_type_num(void) {
+void toplevel_init_data_num(void) {
   Types[EXP_NUM] = (ExpTypeInfo) {
     .type     = EXP_NUM,
     .name     = "num",

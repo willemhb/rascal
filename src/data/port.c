@@ -1,9 +1,6 @@
-
-/* DESCRIPTION */
+/* simple wrapper around a C file object. */
 // headers --------------------------------------------------------------------
-
-#include "data/types/ref.h"
-#include "data/types/sym.h"
+#include "data/port.h"
 
 #include "lang/io.h"
 
@@ -14,42 +11,30 @@
 // globals --------------------------------------------------------------------
 
 // function prototypes --------------------------------------------------------
-void print_ref(Port* ios, Expr x);
-void trace_ref(void* ptr);
+void free_port(void* ptr);
 
 // function implementations ---------------------------------------------------
 // internal -------------------------------------------------------------------
-void print_ref(Port* ios, Expr x) {
-  Ref* r = as_ref(x);
+void free_port(void* ptr) {
+  Port* p = ptr;
 
-  pprintf(ios, "#'%s", r->name->val->val);
-}
-
-void trace_ref(void* ptr) {
-  Ref* r = ptr;
-
-  mark_obj(r->name);
+  close_port(p);
 }
 
 // external -------------------------------------------------------------------
-Ref* mk_ref(Sym* n, int o) {
-  Ref* ref  = mk_obj(EXP_REF, 0);
-  ref->name = n;
-  ref->ref_type = REF_UNDEF; // filled in by env_put, env_resolve, &c
-  ref->offset = o;
+Port* mk_port(FILE* ios) {
+  Port* p = mk_obj(EXP_PORT, 0);
+  p->ios  = ios;
 
-  return ref;
+  return p;
 }
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data_type_ref(void) {
-  Types[EXP_REF] = (ExpTypeInfo) {
-    .type     = EXP_REF,
-    .name     = "ref",
-    .obsize   = sizeof(Ref),
-    .print_fn = print_ref,
-    .trace_fn = trace_ref
+void toplevel_init_data_port(void) {
+  Types[EXP_PORT] = (ExpTypeInfo) {
+    .type     = EXP_PORT,
+    .name     = "port",
+    .obsize   = sizeof(Port),
+    .free_fn  = free_port
   };
-
-  
 }

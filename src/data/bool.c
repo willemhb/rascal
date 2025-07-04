@@ -1,6 +1,6 @@
-/* simple wrapper around a C file object. */
+/* DESCRIPTION */
 // headers --------------------------------------------------------------------
-#include "data/types/port.h"
+#include "data/bool.h"
 
 #include "lang/io.h"
 
@@ -11,30 +11,29 @@
 // globals --------------------------------------------------------------------
 
 // function prototypes --------------------------------------------------------
-void free_port(void* ptr);
+void print_bool(Port* ios, Expr x);
 
 // function implementations ---------------------------------------------------
 // internal -------------------------------------------------------------------
-void free_port(void* ptr) {
-  Port* p = ptr;
-
-  close_port(p);
+void print_bool(Port* ios, Expr x) {
+  pprintf(ios, x == TRUE ? "true" : "false");
 }
 
 // external -------------------------------------------------------------------
-Port* mk_port(FILE* ios) {
-  Port* p = mk_obj(EXP_PORT, 0);
-  p->ios  = ios;
+Bool as_bool(Expr x) {
+  return x == TRUE;
+}
 
-  return p;
+Expr tag_bool(Bool b) {
+  return b ? TRUE : FALSE;
 }
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data_type_port(void) {
-  Types[EXP_PORT] = (ExpTypeInfo) {
-    .type     = EXP_PORT,
-    .name     = "port",
-    .obsize   = sizeof(Port),
-    .free_fn  = free_port
+void toplevel_init_data_bool(void) {
+  Types[EXP_BOOL] = (ExpTypeInfo) {
+    .type     = EXP_BOOL,
+    .name     = "bool",
+    .obsize   = 0,
+    .print_fn = print_bool
   };
 }

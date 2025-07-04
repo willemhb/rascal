@@ -1,7 +1,7 @@
 
 /* Object representing compile-time and run-time environments. */
 // headers --------------------------------------------------------------------
-#include "data/types/env.h"
+#include "data/env.h"
 
 // macros ---------------------------------------------------------------------
 
@@ -68,7 +68,7 @@ Env* mk_env(Env* parent) {
 }
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data_type_env(void) {
+void toplevel_init_data_env(void) {
   Types[EXP_ENV] = (ExpTypeInfo) {
     .type     = EXP_ENV,
     .name     = "env",
