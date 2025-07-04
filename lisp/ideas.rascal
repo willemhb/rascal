@@ -1,66 +1,18 @@
 # speculative non-lisp syntax.
 
+# module declaration
+provide Base
 
-module Base do
-  @doc "Rascal base library."
-  use Core
-  export Cons, map, keep
+@doc Base, "Rascal base library."
 
-  # Example type definition (pseudo-algebraic type)
-  type SExpr = Empty() | Cons(car, cdr)
+# example import usage
+require Core
+require "regex-state-machine.rascal" as RESM
 
-  fun SExpr(args...) do
-    @docstr "General constructor."
-    @method VarList
-    @return SExpr
+# utilities
+fun method_error(values...) do
+  val types_string = values |> map(typeof) |> map(Str) |> join(", ")
 
-    fold reverse(args), Cons, Empty()
-  end
-
-  fun map(xs, fn) do
-    @docstr "`map` implementation for `SExpr` type."
-    @method SExpr, Func
-    @return SExpr
-
-    match xs do
-      Empty()    -> Empty()
-      Cons(a, d) -> Cons(fn(a), map(fn, d))
-    end
-  end
-
-  fun keep(xs, p?) do
-    @docstr "`keep` implementation for `SExpr` type."
-    @method SExpr, Func
-    @return SExpr
-
-    match xs do
-      Empty()             -> Empty()
-      Cons(a, d) if p?(a) -> Cons(a, keep(d, p?))
-      Cons(a, d)          -> keep(d, p?)
-    end
-  end
-
-  fun take(xs, p?) do
-  @docstr "`take` implementation for predicate argument."
-  @method SExpr, Func
-  @return SExpr
-
-    match xs do
-      Empty()             -> Empty()
-      Cons(a, d) if p?(a) -> Cons(a, take(d, p?))
-      otherwise           -> Empty()
-    end
-  end
-
-  fun take(xs, n) do
-    @docstr "`take` implementation with `SExpr` and numeric argument."
-    @method SExpr, Int
-    @return SExpr
-
-    match xs, n do
-      Empty(), _    -> Empty()
-      _, 0          -> Empty()
-      Cons(a, d), n -> Cons(a, take(d, n-1))
-    end
-  end
+  raise :method-error, "No method matching (${types_string})"
 end
+

@@ -8,22 +8,27 @@
 ;;; Code:
 (define-generic-mode
   'rascal-mode
-  '(";" ("#|" . "|#"))
-  '( ;; special forms
-    "quote" "def" "put" "if" "do" "fn" "def-stx" "c-call" "call/eff" "raise" "abort"
-    
-    ;; macros
-    ;; bindign macros
-    "λ" "fun" "mac" "var" "val" "type"
-    ;; block/looping macros
-    "let" "label"
-    ;; conditional macros
-    "cond" "case" "and" "or" "when" "unless"
-    ;; control macros
-    "handle" "except" "throw"
-    ;; module macros
-    "require")
-  '(("\\(?:[^-_a-zA-Z?*+0-9/:]:[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
+  '("#" ("#|" . "|#"))
+  '( ;; syntax
+    ;; basic binding syntax
+    "var" "val"
+    ;; function binding syntax
+    "fun" "mac"
+    ;; type binding syntax
+    "type" "union" "struct" "record"
+    ;; conditional and pattern matching syntax
+    "if" "elif" "else" "and" "or" "not" "case"
+    ;; looping syntax
+    "label" "for" "while" "until"
+    ;; effect handling syntax
+    "raise" "abort" "perform" "handle"
+    ;; module syntax
+    "require" "provide" "as"
+    ;; block syntax
+    "do" "end"
+    ;; miscellaneous syntax
+    "yield" "quote" "λ")
+  '(("\\(?:[^-_a-zA-Z?*+0-9/:]:[-_a-zA-Z?*+0-9/<>=]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ("\\(?:[^~]@[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^@[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ;; special constants
     ("\\_<none\\_>" . font-lock-constant-face)
@@ -35,9 +40,10 @@
     ;; syntax
     ("\\_<otherwise\\_>" . font-lock-function-name-face)
     ("\\_<&\\_>" . font-lock-function-name-face))
-  '("\\.rl$")
+  '("\\.rascal$")
   (list 'rainbow-delimiters-mode
-        (lambda () (set-input-method 'TeX)))
+                                        ; (lambda () (set-input-method 'TeX))
+        )
   "A major mode for rascal files.")
 
 (provide 'rascal-mode)
