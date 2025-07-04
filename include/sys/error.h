@@ -11,7 +11,7 @@
 #include "sys/base.h"
 
 // macros ---------------------------------------------------------------------
-#define safepoint() setjmp(SaveState.Cstate)
+#define safepoint() setjmp(SaveState)
 
 #define user_error(args...)    rascal_error(USER_ERROR, args)
 #define runtime_error(args...) rascal_error(RUNTIME_ERROR, args)

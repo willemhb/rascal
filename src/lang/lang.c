@@ -10,6 +10,7 @@
 #include "data/types/str.h"
 #include "data/types/port.h"
 #include "data/types/sym.h"
+#include "data/types/env.h"
 
 // macros ---------------------------------------------------------------------
 
@@ -48,6 +49,30 @@ char* CharNames[128] = {
   ['\t'] = "tab",      ['\r'] = "return",
   ['\f'] = "formfeed", ['\v'] = "vtab",
   ['\b'] = "backspace"
+};
+
+// Global environment
+Env Globals = {
+  .type    = EXP_ENV,
+  .black   = false,
+  .gray    = true,
+  .nosweep = true,
+
+  .parent = NULL,
+  .arity  = 0,
+  .ncap   = 0,
+
+  .vars = {
+    .kvs       = NULL,
+    .count     = 0,
+    .max_count = 0
+  },
+
+  .vals = {
+    .vals      = NULL,
+    .count     = 0,
+    .max_count = 0
+  }
 };
 
 // function prototypes --------------------------------------------------------

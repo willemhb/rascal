@@ -21,9 +21,6 @@ char* ErrorNames[NUM_ERRORS] = {
 
 Sym* ErrorTypes[NUM_ERRORS] = {};
 
-VmCtx SaveStates[MAX_SAVESTATES];
-int ep = 0;
-
 char Token[BUFFER_SIZE];
 size_t TOff = 0;
 Obj* Heap = NULL;
@@ -44,35 +41,12 @@ VM Vm = {
   .vals   = Vals
 };
 
-Env Globals = {
-  .type    = EXP_ENV,
-  .black   = false,
-  .gray    = true,
-  .nosweep = true,
-
-  .parent = NULL,
-  .arity  = 0,
-  .ncap   = 0,
-
-  .vars = {
-    .kvs       = NULL,
-    .count     = 0,
-    .max_count = 0
-  },
-
-  .vals = {
-    .vals      = NULL,
-    .count     = 0,
-    .max_count = 0
-  }
-};
 
 Objs GrayStack = {
   .vals      = NULL,
   .count     = 0,
   .max_count = 0
 };
-
 
 // mostly whitespace and control characters
 
@@ -122,27 +96,9 @@ void rascal_error(Status etype, char* fmt, ...) {
 }
 
 // token API
-void reset_token(void) {
-  memset(Token, 0, BUFFER_SIZE);
-  TOff = 0;
-}
 
-size_t add_to_token(char c) {
-  if ( TOff < BUFFER_MAX )
-    Token[TOff++] = c;
-
-  else
-    runtime_error("maximum token length exceeded");
-
-  return TOff;
-}
 
 // vals API -------------------------------------------------------------------
-void reset_vals(void) {
-  memset(Vals, 0, N_VALS * sizeof(Expr));
-  Vm.sp = 0;
-  Vm.bp = 0;
-}
 
 Expr* vals_ref(int i) {
   int j = i;
@@ -206,13 +162,6 @@ Expr vpopn( int n ) {
   Expr out = Vm.vals[Vm.sp-1]; Vm.sp -= n;
 
   return out;
-}
-
-void reset_frames(void) {
-  memset(Frames, 0, N_FRAMES * sizeof(Expr));
-  Vm.fp = 0;
-  Vm.ap = 0;
-  Vm.cp = 0;
 }
 
 Expr* frames_ref(int i) {
@@ -319,14 +268,6 @@ void restore_frame(void) {
 }
 
 // other vm stuff -------------------------------------------------------------
-void reset_vm(void) {
-  Vm.upvs = NULL;
-  Vm.pc   = NULL;
-  Vm.fn   = NULL;
-
-  reset_vals();
-  reset_frames();
-}
 
 // return an UpVal object corresponding to the given stack location
 UpVal* get_upv(Expr* loc) {
@@ -502,35 +443,6 @@ void heap_report(void) {
          HeapUsed,
          "used",
          HeapCap);
-}
-
-void save_ctx(void) {
-  assert(ep < MAX_SAVESTATES);
-
-  VmCtx* ctx = &SaveStates[ep++];
-  ctx->gcf   = GcFrames;
-  ctx->fn    = Vm.fn;
-  ctx->pc    = Vm.pc;
-  ctx->sp    = Vm.sp;
-  ctx->fp    = Vm.fp;
-}
-
-void restore_ctx(void) {
-  // close any upvalues that are about to lose their place on the stack
-  close_upvs(vals_ref(SaveState.sp));
-  // discard invalidated GC frames (important because these now point to invalid memory)
-  GcFrames = SaveState.gcf;
-
-  // restore execution state
-  Vm.fn = SaveState.fn;
-  Vm.pc = SaveState.pc;
-  Vm.sp = SaveState.sp;
-  Vm.fp = SaveState.fp;
-  Vm.bp = SaveState.bp;
-}
-
-void discard_ctx(void) {
-  ep--;
 }
 
 void* allocate(bool h, size_t n) {

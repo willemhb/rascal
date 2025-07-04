@@ -3,17 +3,34 @@
 
 module Base do
   @doc "Rascal base library."
-  expose cond
-  
-end
+  expose var, val
 
+  mac var(name, :=, init) do
+    @doc "Standard syntax for defining mutable bindings."
+    quote do
+      def unquote(name) do
+        @annot(:final, false)
+        unquote(init)
+      end
+    end
+  end
+
+  mac val(name, :=, init) do
+    quote do
+      def unquote(name) do
+        @annot(:final, true)
+        unquote(init)
+      end
+    end
+  end
+end
 
 module Math do
   @doc "Demo math module."
 
   use Base
   import FFI.C
-  
+
   expose pi, e, divides?, lcm, gcd, Integer, Ratio, Number, sin
 
   val pi: Real = 3.14159
