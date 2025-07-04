@@ -46,5 +46,6 @@ UpVal* get_upv(Expr* loc);
 void   close_upvs(Expr* base);
 
 // initialization -------------------------------------------------------------
+void toplevel_init_sys_vm(void);
 
 #endif

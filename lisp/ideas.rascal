@@ -15,7 +15,17 @@ module Base do
     end
   end
 
+  mac var(name, do: block) do
+    quote do
+      def unquote(name) do
+        @annot(:final, false)
+        unquote(block)
+      end
+    end
+  end
+
   mac val(name, :=, init) do
+    @doc "Standard syntax for defining immutable bindings."
     quote do
       def unquote(name) do
         @annot(:final, true)
@@ -23,96 +33,19 @@ module Base do
       end
     end
   end
-end
 
-module Math do
-  @doc "Demo math module."
-
-  use Base
-  import FFI.C
-
-  expose pi, e, divides?, lcm, gcd, Integer, Ratio, Number, sin
-
-  val pi: Real = 3.14159
-  val e:  Real = 2.78128
-
-  # Example union type declaration
-  type Integer = Small | Big
-
-  fun divides?(a: Small, b: Small): Bool do
-    b % a == 0
-  end
-
-  fun divides?(a: Big, b: Big): Bool do
-    b % a == 0
-  end
-
-  fun gcd(a: Small, b: Small): Small do
-    @doc "Compute GCD using Euclid's algorithm."
-    if a > b do
-      gcd(b, a)
-    else # avoid performing the above test for every loop iteration
-      label loop(a=a, b=b) do
-        a if a divides? b else loop(b % a, a)
+  mac val(name, do: block) do
+    @doc "Standard syntax for defining immutable bindings."
+    quote do
+      def unquote(name) do
+        @annot(:final, true)
+        unquote(block)
       end
     end
   end
 
-  fun lcm(a: Small, b: Small): Small do
-    @doc "Computes LCM."
-    a * b // gcd(a, b)
-  end
+  # Example struct type definition
+  type Pair{X, Y} = (fst: X, snd: Y)
 
-  # Example struct type declaration
-  type Ratio = (
-    numer: Big,
-    denom: Big
-  )
-
-  # Constructor
-  fun Ratio(numer: Big, denom: Big): Ratio do
-    @doc "Standardize the representation of a `Ratio`."
-    var n = numer, d = denom
-
-    if n < 0 and d < 0 do
-      n = -n
-      d = -d
-    elif n >= 0 and d < 0 do
-      n = -n
-      d = -d
-    end
-
-    val cd = gcd(abs(n), abs(d))
-
-    if cd > 1 do
-      n = n // cd
-      d = d // cd
-    end
-
-    new(n, d)
-  end
-
-  fun Ratio(denom: Big): Ratio do
-    @doc "One argument form returns the reciprocal."
-    new(1, denom)
-  end
-
-  # Example union type declaration
-  type Number = Small | Big | Real | Ratio
-
-  fun sin(x: Real32): Real32 do
-    FFI.C :sinf, ["math.h"], [:float], :float, [x]
-  end
-
-  fun sin(x: Real64): Real64 do
-    FFI.C :sin, ["math.h"], [:double], :double, [x]
-  end
-
-  fun sin(x: Small): Real32 do
-    FFI.C :sinf, ["math.h"], [:float], :float, [Real32(x)]
-  end
-
-  fun sin(x: BigInt): Real64 do
-    FFI.C :sin, ["math.h"], [:double], :double, [Real64(x)]
-  end
+  # Example trait definition
 end

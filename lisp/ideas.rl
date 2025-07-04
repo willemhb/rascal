@@ -6,12 +6,12 @@
       (fn (&form &env ~args) ~@body))))
 
 (mac thunk
-  (xpr) `(λ () ~thunk))
+  (xpr) `(fn () ~xpr))
 
-(mac except
+(mac catch
   "Wrapper for slightly less readable builtin 'catch' form."
   (h & body)
-  `(catch (fn ~@h)
+  `(handle (fn ~@h)
     ~@body))
 
 (val &loaded (table))

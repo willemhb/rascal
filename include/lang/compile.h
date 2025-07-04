@@ -1,10 +1,14 @@
 #ifndef rl_lang_compile_h
 #define rl_lang_compile_h
 
-/* Toplevel compile API. */
-// headers --------------------------------------------------------------------
+/**
+ *
+ * Toplevel compile API.
+ *
+ **/
 
-#include "common.h"
+// headers --------------------------------------------------------------------
+#include "lang/base.h"
 
 // macros ---------------------------------------------------------------------
 
@@ -13,6 +17,8 @@
 // globals --------------------------------------------------------------------
 
 // function prototypes --------------------------------------------------------
+Fun* toplevel_compile(List* form);
+Fun* compile_file(List* forms);
 
 // initialization -------------------------------------------------------------
 

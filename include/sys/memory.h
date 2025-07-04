@@ -1,7 +1,12 @@
 #ifndef rl_sys_memory_h
 #define rl_sys_memory_h
 
-/* Data structures and definitions for Rascal memory management. */
+/**
+ *
+ * Data structures and definitions for Rascal memory management.
+ * 
+ **/
+
 // headers --------------------------------------------------------------------
 #include "sys/base.h"
 

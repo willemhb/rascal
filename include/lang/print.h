@@ -1,10 +1,14 @@
 #ifndef rl_lang_print_h
 #define rl_lang_print_h
 
-/* Toplevel print API. */
+/**
+ *
+ * Toplevel print API.
+ *
+ **/
 // headers --------------------------------------------------------------------
 
-#include "common.h"
+#include "lang/base.h"
 
 // macros ---------------------------------------------------------------------
 

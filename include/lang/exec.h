@@ -1,7 +1,12 @@
 #ifndef rl_lang_exec_h
 #define rl_lang_exec_h
 
-/* High level API for entry into the bytecode interpreter. */
+/**
+ *
+ * High level API for entry into the bytecode interpreter.
+ * 
+ **/
+
 // headers --------------------------------------------------------------------
 #include "lang/base.h"
 
@@ -12,6 +17,7 @@
 // globals --------------------------------------------------------------------
 
 // function prototypes --------------------------------------------------------
+Expr exec_code(Fun* fun);
 
 // initialization -------------------------------------------------------------
 

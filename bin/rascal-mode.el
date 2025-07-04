@@ -10,11 +10,12 @@
   'rascal-mode
   '(";" ("#|" . "|#"))
   '( ;; special forms
-    "quote" "def" "put" "if" "do" "fn" "def-stx" "c-call" "catch" "throw"
+    "quote" "def" "put" "if" "do" "fn" "def-stx" "c-call" "raise" "handle"
+    
     ;; macros
-    "fun" "mac" "var" "val" "let"
+    "λ" "fun" "mac" "var" "val" "let"
     "cond" "case" "and" "or"
-    "except" "raise"
+    "except" "throw"
     "require")
   '(("\\(?:[^-_a-zA-Z?*+0-9/:]:[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ("\\(?:[^~]@[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^@[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
@@ -29,7 +30,8 @@
     ("\\_<otherwise\\_>" . font-lock-function-name-face)
     ("\\_<&\\_>" . font-lock-function-name-face))
   '("\\.rl$")
-  (list 'rainbow-delimiters-mode)
+  (list 'rainbow-delimiters-mode
+        (lambda () (set-input-method 'TeX)))
   "A major mode for rascal files.")
 
 (provide 'rascal-mode)

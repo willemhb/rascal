@@ -7,8 +7,8 @@
 #include "common.h"
 
 #include "data/data.h"
-#include "lang/lang.h"
 #include "sys/sys.h"
+#include "lang/lang.h"
 
 // setup ----------------------------------------------------------------------
 void print_welcome(void) {
@@ -17,6 +17,9 @@ void print_welcome(void) {
 }
 
 void setup(void) {
+  toplevel_init_data();
+  toplevel_init_sys();
+  toplevel_init_lang();
   print_welcome();
 }
 

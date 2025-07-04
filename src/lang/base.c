@@ -247,4 +247,15 @@ void upval_set(Fun* fun, int i, Expr x) {
   *deref(upv) = x;
 }
 
+// miscellaneous utilities ----------------------------------------------------
+bool is_falsey(Expr x) {
+  return x == NONE || x == NUL || x == FALSE;
+}
+
+bool is_literal(Expr x) {
+  ExpType t = exp_type(x);
+
+  return t != EXP_LIST && t != EXP_SYM;
+}
+
 // initialization -------------------------------------------------------------

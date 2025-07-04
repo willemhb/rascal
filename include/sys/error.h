@@ -66,5 +66,6 @@ void recover(funcptr_t cleanup);
 void rascal_error(Status etype, char* fmt, ...);
 
 // initialization -------------------------------------------------------------
+void toplevel_init_sys_error(void);
 
 #endif

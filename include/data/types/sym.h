@@ -6,6 +6,7 @@
 #include "common.h"
 
 #include "data/base.h"
+#include "data/types/str.h"
 
 // macros ---------------------------------------------------------------------
 #define as_sym(x)     ((Sym*)as_obj(x))
