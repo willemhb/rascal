@@ -15,13 +15,13 @@
     ;; function binding syntax
     "fun" "mac"
     ;; type binding syntax
-    "type" "union" "struct" "record"
+    "type" "union" "struct" "record" "trait" "instance"
     ;; conditional and pattern matching syntax
     "if" "elif" "else" "and" "or" "not" "case"
     ;; looping syntax
     "label" "loop"
     ;; effect handling syntax
-    "raise" "perform" "handle"
+    "begin" "handle" "raise" "from"
     ;; module syntax
     "require" "provide" "as"
     ;; block syntax
@@ -29,7 +29,7 @@
     ;; miscellaneous syntax
     "quote" "λ")
   '(("\\(?:[^-_a-zA-Z?*+0-9/:]:[-_a-zA-Z?*+0-9/<>=]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
-    ("\\(?:[^~]@[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^@[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
+    ("\\(?:[^~]@[-_a-zA-Z?*+0-9/.<>=]+\\)\\|\\(?:^@[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ;; special constants
     ("\\_<none\\_>" . font-lock-constant-face)
     ("\\_<nul\\_>" . font-lock-constant-face)

@@ -16,10 +16,11 @@
 struct Ctl {
   HEAD;
 
+  Ctl* captured;
   Fun* fn;
   instr_t* pc;
-  
-  Exprs stack;
+  int fp, bp;
+  Exprs stack; // copy of stack slice
 };
 
 // globals --------------------------------------------------------------------

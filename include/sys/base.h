@@ -13,7 +13,6 @@
 // macros ---------------------------------------------------------------------
 // Magic numbers
 #define BUFFER_SIZE 2048
-#define N_FRAMES    32768
 #define N_VALS      65536
 #define BUFFER_MAX  2046
 #define INIT_HEAP   (2048 * sizeof(uptr_t))
@@ -39,8 +38,8 @@ typedef struct {
   UpVal* upvs;
   Fun* fn;
   instr_t* pc;
-  int sp, fp, bp;
-  Expr* frames, * vals;
+  int sp, fp, bp, cp; // stack pointer, frame pointer, base pointer, catch pointer
+  Expr* stack;
 } VM;
 
 // globals --------------------------------------------------------------------
@@ -63,8 +62,7 @@ extern size_t TOff;
 
 // function prototypes --------------------------------------------------------
 // VM helpers -----------------------------------------------------------------
-void reset_vals(void);
-void reset_frames(void);
+void reset_stack(void);
 void reset_vm(void);
 
 // reader helpers -------------------------------------------------------------

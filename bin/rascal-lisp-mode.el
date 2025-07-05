@@ -17,14 +17,14 @@
     "if" "quote" "do"
 
     ;; continuations
-    "shift" "reset" "capture"
+    "call-with-handler"
 
     ;; miscellaneous forms
-    "annotate"
+    "annot"
 
     ;; extended syntax
     ;; binding syntax
-    "var" "val" "fun" "mac" "λ" "type" "struct" "record"
+    "var" "val" "fun" "mac" "method" "λ" "type" "struct" "record"
 
     ;; block/looping syntax
     "let" "label" "loop"
@@ -33,7 +33,7 @@
     "cond" "case" "and" "or" "when" "unless"
 
     ;; control syntax
-    "try" "handle" "raise"
+    "handle" "raise" "raise*" "begin"
     
     ;; module macros
     "require" "provide")

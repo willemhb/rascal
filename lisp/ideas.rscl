@@ -1,18 +1,70 @@
 # speculative non-lisp syntax.
 
-# module declaration
+# module examples
 provide Base
 
-@doc Base, "Rascal base library."
-
-# example import usage
 require Core
-require "regex-state-machine.rscl" as RESM
 
-# utilities
-fun method_error(values...) do
-  val types_string = values |> map(typeof) |> map(Str) |> join(", ")
+@Base.doc "Rascal base library."
 
-  raise :method-error, "No method matching (${types_string})"
+# example of simple function definitions (demos multimethods).
+fun count(xs: List): Int do
+  list_count(xs)
 end
 
+fun count(xs: Map): Int do
+  map_count(xs)
+end
+
+fun count(xs: Str): Int do
+  str_count(xs)
+end
+
+fun count(xs: Bin): Int do
+  bin_count(xs)
+end
+
+# trait examples
+trait Seq{S} do
+  @doc "Trait representing collections that can be accessed inductively."
+
+  require do
+    fun empty?(s: S): Bool
+    fun first(s: S{X}): X
+    fun rest(s: S{X}): S{X} | Unit
+
+  provide
+    
+  end
+end
+
+List instance ProxiedSeq do
+  
+end
+
+# example effect usage (compare to similar example in ideas.rl)
+fun with_output_stream(s: Str, f: Fun): Any do
+  if not file_exists?(s) do
+    raise :error, "file not found"
+  else
+    begin do
+      var port = open(s)
+      f(port)
+
+    handle k
+      :return, (x) -> # normal exit
+        close(port)
+        x
+      :resume, (x) -> # resuming from an enclosing handler
+        port = open(s)
+        k(x)
+      :error, (m) ->
+        close(port)
+        print(m)
+        nul
+      op, args ->
+        port = close(port)
+        raise op, args from k
+    end
+  end
+end
