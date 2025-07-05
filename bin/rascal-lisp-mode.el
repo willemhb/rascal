@@ -9,41 +9,36 @@
 (define-generic-mode
   'rascal-lisp-mode
   '(";" ("#|" . "|#"))
-  '( ;; special forms
-    ;; binding forms
-    "def" "put" "fn"
-
-    ;; control forms
-    "if" "quote" "do"
-
-    ;; continuations
-    "call-with-handler"
-
-    ;; miscellaneous forms
-    "annot"
-
-    ;; extended syntax
-    ;; binding syntax
-    "var" "val" "fun" "mac" "method" "λ" "type" "struct" "record"
-
+  '( ;; binding syntax
+    ;; general binding syntax
+    "def" "var" "val" "put"
+    ;; function binding syntax
+    "fn" "fun" "mac" "method"
+    ;; type binding syntax
+    "type" "struct" "record" "trait" "instance"
+    ;; control syntax
+    ;; branching syntax
+    "if" "and" "or" "cond" "case" "syntax" "when" "unless"
+    ;; miscellaneous control syntax
+    "quote" "do"
+    ;; effect syntax
+    "handle" "raise" "begin" "from"
+    ;; exception syntax
+    "try" "catch" "finally"
     ;; block/looping syntax
     "let" "label" "loop"
-    
-    ;; conditional syntax
-    "cond" "case" "and" "or" "when" "unless"
-
-    ;; control syntax
-    "handle" "raise" "raise*" "begin"
-    
-    ;; module macros
-    "require" "provide")
-  '(("\\(?:[^-_a-zA-Z?*+0-9/:]:[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
+    ;; module syntax
+    "require" "provide"
+    ;; metadata syntax
+    "annot")
+  '(("\\(?:[^-_a-zA-Z?*+0-9/:]:[-_a-zA-Z?*+0-9/.]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ("\\(?:[^~]@[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^@[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ;; special constants
     ("\\_<none\\_>" . font-lock-constant-face)
     ("\\_<nul\\_>" . font-lock-constant-face)
     ("\\_<true\\_>" . font-lock-constant-face)
     ("\\_<false\\_>" . font-lock-constant-face)
+    ("\\_<not\\_>" . font-lock-builtin-face)
     ;; types
     ("\\_<[A-Z][a-zA-Z0-9\\|]*\\_>" . font-lock-type-face)
     ;; syntax
