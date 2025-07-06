@@ -38,7 +38,7 @@ typedef struct {
   UpVal* upvs;
   Fun* fn;
   instr_t* pc;
-  int sp, fp, bp, cp; // stack pointer, frame pointer, base pointer, catch pointer
+  int sp, fp, bp; // stack pointer, frame pointer, base pointer
   Expr* stack;
 } VM;
 

@@ -1,33 +1,23 @@
-#ifndef rl_data_alist_h
-#define rl_data_alist_h
+#ifndef rl_FILENAME_h
+#define rl_FILENAME_h
 
-/* Internal mutable array type. */
+/**
+ *
+ * DESCRIPTION
+ *
+ **/
 
 // headers --------------------------------------------------------------------
 #include "common.h"
 
-#include "data/base.h"
-
 // macros ---------------------------------------------------------------------
 
 // C types --------------------------------------------------------------------
-// wrapper around Exprs object
-struct Alist {
-  HEAD;
-
-  Exprs exprs;
-};
 
 // globals --------------------------------------------------------------------
 
 // function prototypes --------------------------------------------------------
-Alist* mk_alist(void);
-void   free_alist(void* ptr);
-int    alist_push(Alist* a, Expr x);
-Expr   alist_pop(Alist* a);
-Expr   alist_get(Alist* a, int n);
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data_alist(void);
 
 #endif

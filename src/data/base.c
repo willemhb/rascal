@@ -270,18 +270,18 @@ hash_t hash_symbol( Sym* sx ) {
   return sx->hash;
 }
 
-hash_t rehash_symbol( EMapKV* kv ) {
+hash_t rehash_symbol( EnvMapKV* kv ) {
   Sym* s = kv->key;
 
   return s->hash;
 }
 
-TABLE_IMPL(EMap, Sym*, Ref*, emap, NULL, NULL, hash_symbol, rehash_symbol, cmp_symbols );
+TABLE_IMPL(EnvMap, Sym*, Ref*, env_map, NULL, NULL, hash_symbol, rehash_symbol, cmp_symbols );
 
 // C types --------------------------------------------------------------------
 
 // globals --------------------------------------------------------------------
-ExpTypeInfo Types[NUM_TYPES];
+TypeInfo Types[NUM_TYPES];
 
 // function prototypes --------------------------------------------------------
 
@@ -294,9 +294,7 @@ ExpType exp_type(Expr x) {
   ExpType t;
 
   switch ( x & XTMSK ) {
-    case NONE_T  : t = EXP_NONE;      break;
     case NUL_T   : t = EXP_NUL;       break;
-    case EOS_T   : t = EXP_EOS;       break;
     case BOOL_T  : t = EXP_BOOL;      break;
     case GLYPH_T : t = EXP_GLYPH;     break;
     case OBJ_T   : t = head(x)->type; break;
@@ -310,13 +308,27 @@ bool has_type(Expr x, ExpType t) {
   return exp_type(x) == t;
 }
 
-ExpTypeInfo* exp_info(Expr x) {
+TypeInfo* type_info(Expr x) {
   return &Types[exp_type(x)];
+}
+
+ExpAPI* exp_api(Expr x) {
+  TypeInfo* ti = type_info(x);
+
+  return ti->exp_api;
+}
+
+ObjAPI* obj_api(void* ptr) {
+  assert(ptr != NULL);
+
+  Obj* obj = ptr;
+
+  return Types[obj->type].obj_api;
 }
 
 hash_t hash_exp(Expr x) {
   hash_t out;
-  ExpTypeInfo* info = exp_info(x);
+  ExpAPI* info = exp_api(x);
 
   if ( info->hash_fn )
     out = info->hash_fn(x);
@@ -340,7 +352,7 @@ bool egal_exps(Expr x, Expr y) {
       out = false;
 
     else {
-      EgalFn fn = Types[tx].egal_fn;
+      EgalFn fn = Types[tx].exp_api->egal_fn;
       out       = fn ? fn(x, y) : false;
     }
   }
@@ -373,8 +385,18 @@ Expr tag_obj(void* o) {
   return ((Expr)o) | OBJ_T;
 }
 
-void* mk_obj(ExpType type, flags_t flags) {
-  Obj* out = allocate(true, Types[type].obsize);
+void* mk_obj(ExpType type, flags_t flags, size_t n) {
+  assert(type > EXP_GLYPH);
+
+  ObjAPI* api = Types[type].obj_api;
+  
+  Obj* out;
+
+  if ( api->alloc_fn )
+    out = api->alloc_fn(type, flags, n);
+
+  else
+    out = allocate(true, api->obsize);
 
   out->type     = type;
   out->bfields  = flags | FL_GRAY;
@@ -384,15 +406,25 @@ void* mk_obj(ExpType type, flags_t flags) {
   return out;
 }
 
+size_t obj_size(void* ptr) {
+  assert(ptr != NULL);
+
+  Obj* obj    = ptr;
+  ObjAPI* api = obj_api(obj);
+  size_t size = api->size_fn ? api->size_fn(obj) : api->obsize;
+
+  return size;
+}
+
 void* clone_obj(void* ptr) {
   assert(ptr != NULL);
 
-  Obj* obj = ptr;
-  ExpTypeInfo* info = &Types[obj->type];
-  Obj* out = duplicate(true, info->obsize, obj);
+  Obj* obj    = ptr;
+  ObjAPI* api = obj_api(obj);
+  Obj* out    = duplicate(true, obj_size(obj), obj);
 
-  if ( info->clone_fn )
-    info->clone_fn(out);
+  if ( api->clone_fn )
+    api->clone_fn(out);
 
   return out;
 }
@@ -404,9 +436,9 @@ void mark_obj(void* ptr) {
     if ( obj->black == false ) {
       obj->black = true;
 
-      ExpTypeInfo* info = &Types[obj->type];
+      ObjAPI* api = obj_api(obj);
 
-      if ( info->trace_fn )
+      if ( api->trace_fn )
         gc_save(obj);
 
       else
@@ -427,12 +459,12 @@ void free_obj(void* ptr) {
   Obj* obj = ptr;
 
   if ( obj ) {
-    ExpTypeInfo* info = &Types[obj->type];
+    ObjAPI* api = obj_api(obj);
 
-    if ( info->free_fn )
-      info->free_fn(obj);
+    if ( api->free_fn )
+      api->free_fn(obj);
 
-    release(obj, info->obsize);
+    release(obj, obj_size(obj));
   }
 }
 

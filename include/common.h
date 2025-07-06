@@ -62,18 +62,36 @@ typedef char32_t   Glyph;
 typedef struct Obj Obj;
 
 // Object types ---------------------------------------------------------------
-typedef struct Chunk  Chunk;
-typedef struct Alist  Alist;
-typedef struct Buf16  Buf16;
-typedef struct Ref    Ref;
-typedef struct UpVal  UpVal;
-typedef struct Env    Env;
-typedef struct Ctl    Ctl;
-typedef struct Port   Port;
-typedef struct Fun    Fun;
-typedef struct Str    Str;
-typedef struct Sym    Sym;
-typedef struct List   List;
+// Vm types -------------------------------------------------------------------
+typedef struct Chunk   Chunk;
+typedef struct Ref     Ref;
+typedef struct Env     Env;
+typedef struct UpVal   UpVal;
+
+// Language types -------------------------------------------------------------
+typedef struct Sym  Sym;
+typedef struct Fun  Fun;
+typedef struct Port Port;
+
+// Immutable aggregate types --------------------------------------------------
+typedef struct Tuple Tuple;
+typedef struct List  List;
+typedef struct Map   Map;
+typedef struct Str   Str;
+typedef struct Bin   Bin;
+
+// Mutable aggretate types ----------------------------------------------------
+typedef struct MutTuple MutTuple;
+typedef struct MutList  MutList;
+typedef struct MutMap   MutMap;
+typedef struct MutStr   MutStr;
+typedef struct MutBin   MutBin;
+
+// Internal types (used in map and list implementations) ----------------------
+typedef struct ListNode ListNode;
+typedef struct ListLeaf ListLeaf;
+typedef struct MapNode  MapNode;
+typedef struct MapLeaf  MapLeaf;
 
 typedef union {
   Expr  expr;
@@ -83,14 +101,6 @@ typedef union {
   Nul   nul;
   Glyph glyph;
 } Val;
-
-// Internal function pointer types --------------------------------------------
-typedef void   (*PrintFn)(Port* p, Expr x);
-typedef hash_t (*HashFn)(Expr x);
-typedef bool   (*EgalFn)(Expr x, Expr y);
-typedef void   (*CloneFn)(void* ob); // called to clone object's owned pointers
-typedef void   (*TraceFn)(void* ob);
-typedef void   (*FreeFn)(void* ob);
 
 // globals --------------------------------------------------------------------
 

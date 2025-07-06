@@ -1,43 +1,33 @@
-#ifndef rl_data_ref_h
-#define rl_data_ref_h
+#ifndef rl_data_mut_list_h
+#define rl_data_mut_list_h
 
-/**
- *
- * Implementation of the reference type, which stores information about
- * individual variables.
- *
- **/
+/* Internal mutable array type. */
+
 // headers --------------------------------------------------------------------
+#include "common.h"
+
 #include "data/base.h"
 
 // macros ---------------------------------------------------------------------
 
 // C types --------------------------------------------------------------------
-typedef enum {
-  REF_UNDEF,
-  REF_GLOBAL,
-  REF_LOCAL,
-  REF_LOCAL_UPVAL,
-  REF_CAPTURED_UPVAL
-} RefType;
-
-struct Ref {
+// wrapper around Exprs object
+struct MutList {
   HEAD;
 
-  Ref*    captures;
-  Sym*    name;
-  RefType ref_type;
-  int     offset;
-  bool    final;
+  Exprs exprs;
 };
 
 // globals --------------------------------------------------------------------
-#define as_ref(x) ((Ref*)as_obj(x))
 
 // function prototypes --------------------------------------------------------
-Ref* mk_ref(Sym* n, int o);
+MutList* mk_mut_list(void);
+void     free_mut_list(void* ptr);
+int      mut_list_push(MutList* a, Expr x);
+Expr     mut_list_pop(MutList* a);
+Expr     mut_list_ref(MutList* a, int n);
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data_ref(void);
+void toplevel_init_data_mut_list(void);
 
 #endif
