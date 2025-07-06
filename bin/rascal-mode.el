@@ -17,7 +17,7 @@
     ;; type binding syntax
     "union" "struct"
     ;; conditional syntax
-    "if" "else" "and" "or" "not" "case"
+    "if" "else" "elif" "and" "or" "not" "case"
     ;; looping syntax
     "label" "loop"
     ;; effect handling syntax
@@ -25,7 +25,7 @@
     ;; module syntax
     "module" "import" "as"
     ;; block syntax
-    "do" "end"
+    "let" "do" "end"
     ;; miscellaneous syntax
     "quote")
   '(("\\(?:[^-_a-zA-Z?*+0-9/:]:[-_a-zA-Z?*+0-9/<>=.]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/<>=.]+\\)" . font-lock-type-face)
@@ -39,7 +39,8 @@
     ("\\_<[A-Z][-_a-zA-Z0-9.*\\|]*\\_>" . font-lock-type-face)
     ;; syntax
     ("\\_<otherwise\\_>" . font-lock-function-name-face)
-    ("\\_<&\\_>" . font-lock-function-name-face))
+    ("\\_<&\\_>" . font-lock-function-name-face)
+    ("::" . font-lock-comment-face))
   '("\\.rscl$")
   (list 'rainbow-delimiters-mode
                                         ; (lambda () (set-input-method 'TeX))

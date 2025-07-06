@@ -1,23 +1,28 @@
 # speculative non-lisp syntax.
 
 module Core
-  from Meta import sexpr, repr, gensym
+  import Meta::(repr)
 
   @doc "Core Rascal syntax (imported automatically in most modules)."
 
   fun syntax_error(expr)
-    raise error.syntax("Malformed expression: #{expr}.")
+    raise error::syntax("Malformed expression: #{expr}.")
   end
 
-  mac case(expr, block)
-    
+  mac case(expr, block) do
+  
+    quote do
+      let ($expr_name = $(expr)) do
+        
+      end
+    end
   end
 
-  mac var(expr)
-    case sexpr(expr)
+  mac var(expr) do
+    case expr do
       [name] ->
-        quote
-          def $(name)
+        quote do
+          def $(name) do
             @final false
             nul
           end
@@ -29,7 +34,7 @@ module Core
             value
         end
       _ ->
-        syntax_error("`var #{Meta.to_string(expr)}`")
+        syntax_error("`var #{repr(expr)}`")
     end
   end
 
@@ -43,7 +48,7 @@ module Core
           end
         end
       _ ->
-        syntax_error("`val #{Meta.to_string(expr)}`")
+        syntax_error("`val #{repr(expr)}`")
     end
   end
 end
@@ -82,88 +87,72 @@ module Base
   end
 
   # Slightly more sophisticated
-  struct Seq
-    @doc "A."
+  struct Seq do
+    @doc ""
     source: Any
     first: Any
     forced?: Bool
     state: Tuple
   end
 
-  fun map(fn)
+  fun map(fn) do
     @doc "Single argument forms of map auto-curry."
     raise error.method("No method matching signature (#{typeof xs}).")
   end
 
-  fun map(fn, xs)
+  fun map(fn, xs) do
     @doc "Two-argument forms of map return a collection of the same type as `xs`."
     raise error.method("No method matching signature (#{typeof fn}, #{typeof xs}).")
   end
 
-  fun map(fn: Fun)
+  fun map(fn: Fun) do
     (coll) -> map(fn, coll)
   end
 
-  fun map(key: Num | Str | Sym)
+  fun map(key: Num | Str | Sym) do
     (coll) -> map((x) -> x[key], coll)
   end
 
-  fun map(key: Num | Str | Sym, xs: List)
+  fun map(key: Num | Str | Sym, xs: List) do
     map((x) -> x[key], xs)
   end
 
-  fun map(fn: Fun, xs: List)
-    if xs == []
+  fun map(fn: Fun, xs: List) do
+    if xs == [] do
       []
     else
-      label loop (fn = fn, xs = xs, off = 0, acc = MutList())
-        if off == count(xs)
-          mut_list_to_list(acc)
+      label loop (fn = fn, xs = xs, off = 0, acc = MutList()) do
+        if off == count(xs) do
+          to_list(acc)
         else
-          loop fn, xs, off + 1, push!(acc, fn(xs[off]))
+          loop(fn, xs, off + 1, add_to!(acc, fn(xs[off])))
         end
       end
     end
   end
 
-  fun map(fn: Fun, xs: Map)
+  fun map(fn: Fun, xs: Str) do
     
   end
 
   # Examples of effect usage
-  fun with_output_file(path: Str, func: Fun)
-    if not file_exists?(path)
-      raise error.file_not_found("file '#{path}' does not exist.")
+  fun with_output_file(path: Str, func: Fun) do
+    if not file_exists?(path) do
+      raise error::file_not_found("file '#{path}' does not exist.")
     else
-      control continue
-        var output_file
-
-      handle enter
-        output_file = open(path)
-
+      control continue do
+        var output_file = open(path)
+        func(output_file)
       handle exit
         output_file = close(output_file)
-
-      handle error.* (msg)
+      handle enter
+        output_file = close(output_file)
+      handle error::* (msg)
+        print(msg)
         nul
-
-      handle * as op (args...)
-        raise op(args...) from continue
-
-      begin
-        func(output_file)
-    end
-  end
-
-  fun make_generator(generator: Fun)
-    fun outer(args...)
-      fun inner(args...)
-        
+      handle *
+        raise * from continue
       end
-
-      
     end
-
-    outer
   end
 end
