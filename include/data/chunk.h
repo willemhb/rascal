@@ -14,15 +14,15 @@
 struct Chunk {
   HEAD;
 
-  Env*    vars;
-  Alist*  vals;
-  Buf16*  code;
+  Env*     vars;
+  MutList* vals;
+  MutBin*  code;
 };
 
 // globals --------------------------------------------------------------------
 
 // forward declarations -------------------------------------------------------
-Chunk* mk_chunk(Env* vars, Alist* vals, Buf16* code);
+Chunk* mk_chunk(Env* vars, MutList* vals, MutBin* code);
 void   dis_chunk(Chunk* chunk);
 
 // initialization -------------------------------------------------------------

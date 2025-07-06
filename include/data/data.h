@@ -13,11 +13,10 @@
 
 #include "data/none.h"
 #include "data/nul.h"
-#include "data/eos.h"
 #include "data/bool.h"
 #include "data/glyph.h"
 #include "data/chunk.h"
-#include "data/alist.h"
+#include "data/mut-list.h"
 #include "data/buf16.h"
 #include "data/ref.h"
 #include "data/upv.h"

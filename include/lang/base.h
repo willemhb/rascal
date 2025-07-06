@@ -28,6 +28,14 @@ extern Env Globals;
 extern char* CharNames[128];
 
 // function prototypes --------------------------------------------------------
+// Core expression APIs -------------------------------------------------------
+hash_t hash_exp(Expr x);
+bool   egal_exps(Expr x, Expr y);
+void   print_exp(Port* out, Expr x);
+bool   egal_traverse(size_t xn, Expr* xs, size_t yn, Expr* ys);
+void   print_traverse(Port* out, size_t n, Expr* xs, char* sep, bool sep_end);
+
+
 // Rascal IO helpers ----------------------------------------------------------
 Port* open_port(char* fname, char* mode);
 void  close_port(Port* port);

@@ -1,5 +1,5 @@
-#ifndef rl_data_buf16_h
-#define rl_data_buf16_h
+#ifndef rl_data_mut_bin_h
+#define rl_data_mut_bin_h
 
 /* Mutable 16-bit binary type (used to represent compiled code). */
 // headers --------------------------------------------------------------------
@@ -8,22 +8,24 @@
 #include "data/base.h"
 
 // macros ---------------------------------------------------------------------
+#define mut_bin_elsize(mb) ((mb)->flags)
 
 // C types --------------------------------------------------------------------
-struct Buf16 {
+struct MutBin {
   HEAD;
 
-  Bin16 binary;
+  size_t count, max_count;
+  void* data;
 };
 
 // globals --------------------------------------------------------------------
 
 // function prototypes --------------------------------------------------------
-Buf16* mk_buf16(void);
-void   free_buf16(void* ptr);
-int    buf16_write(Buf16* b, ushort_t *xs, int n);
+MutBin* mk_mut_bin(size_t o);
+void   free_mut_bin(void* ptr);
+int    mut_bin_write(MutBin* b, size_t o, size_t n, void* data);
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data_buf16(void);
+void toplevel_init_data_mut_bin(void);
 
 #endif

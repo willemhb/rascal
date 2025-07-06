@@ -36,6 +36,6 @@ Tuple* mk_tuple(size_t n, Expr* xs);
 Expr   tuple_ref(Tuple* t, size_t o);
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data_tuple();
+void toplevel_init_data_tuple(void);
 
 #endif

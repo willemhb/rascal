@@ -185,8 +185,6 @@ bool      has_type(Expr x, ExpType t);
 TypeInfo* type_info(Expr x);
 ExpAPI*   exp_api(Expr x);
 ObjAPI*   obj_api(void* ptr);
-hash_t    hash_exp(Expr x);
-bool      egal_exps(Expr x, Expr y);
 void      mark_exp(Expr x);
 
 // object API -----------------------------------------------------------------
