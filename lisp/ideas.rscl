@@ -1,70 +1,169 @@
 # speculative non-lisp syntax.
 
-# module examples
-provide Base
+module Core
+  from Meta import sexpr, repr, gensym
 
-require Core
+  @doc "Core Rascal syntax (imported automatically in most modules)."
 
-@Base.doc "Rascal base library."
+  fun syntax_error(expr)
+    raise error.syntax("Malformed expression: #{expr}.")
+  end
 
-# example of simple function definitions (demos multimethods).
-fun count(xs: List): Int do
-  list_count(xs)
-end
-
-fun count(xs: Map): Int do
-  map_count(xs)
-end
-
-fun count(xs: Str): Int do
-  str_count(xs)
-end
-
-fun count(xs: Bin): Int do
-  bin_count(xs)
-end
-
-# trait examples
-trait Seq{S} do
-  @doc "Trait representing collections that can be accessed inductively."
-
-  require do
-    fun empty?(s: S): Bool
-    fun first(s: S{X}): X
-    fun rest(s: S{X}): S{X} | Unit
-
-  provide
+  mac case(expr, block)
     
+  end
+
+  mac var(expr)
+    case sexpr(expr)
+      [name] ->
+        quote
+          def $(name)
+            @final false
+            nul
+          end
+        end
+      [:=, name, value] ->
+        quote do
+          def $(name) do
+            @final false
+            value
+        end
+      _ ->
+        syntax_error("`var #{Meta.to_string(expr)}`")
+    end
+  end
+
+  mac val(expr) do
+    case sexpr(expr) do
+      [:=, name, value] ->
+        quote do
+          def $(name) do
+            @final true
+            value
+          end
+        end
+      _ ->
+        syntax_error("`val #{Meta.to_string(expr)}`")
+    end
   end
 end
 
-List instance ProxiedSeq do
-  
-end
+module Base
+  import Core.*
+  import Mutable.*
 
-# example effect usage (compare to similar example in ideas.rl)
-fun with_output_stream(s: Str, f: Fun): Any do
-  if not file_exists?(s) do
-    raise :error, "file not found"
-  else
-    begin do
-      var port = open(s)
-      f(port)
+  @doc "Example code for notional Rascal base library (non-lisp variant)."
 
-    handle k
-      :return, (x) -> # normal exit
-        close(port)
-        x
-      :resume, (x) -> # resuming from an enclosing handler
-        port = open(s)
-        k(x)
-      :error, (m) ->
-        close(port)
-        print(m)
-        nul
-      op, args ->
-        port = close(port)
-        raise op, args from k
+  # basic multimethod examples
+  fun count(xs) do
+    @doc "Return the number of elements in the sequence `xs`."
+    raise error.method("No method matching signature (#{typeof xs}).")
+  end
+
+  fun count(xs: List) do
+    list_count(xs)
+  end
+
+  fun count(xs: Map) do
+    map_count(xs)
+  end
+
+  fun count(xs: Str) do
+    str_count(xs)
+  end
+
+  fun count(xs: Bin) do
+    bin_count(xs)
+  end
+
+  fun empty?(xs)
+    @doc "Return `true` if the given collection has no more elements."
+    count(xs) == 0
+  end
+
+  # Slightly more sophisticated
+  struct Seq
+    @doc "A."
+    source: Any
+    first: Any
+    forced?: Bool
+    state: Tuple
+  end
+
+  fun map(fn)
+    @doc "Single argument forms of map auto-curry."
+    raise error.method("No method matching signature (#{typeof xs}).")
+  end
+
+  fun map(fn, xs)
+    @doc "Two-argument forms of map return a collection of the same type as `xs`."
+    raise error.method("No method matching signature (#{typeof fn}, #{typeof xs}).")
+  end
+
+  fun map(fn: Fun)
+    (coll) -> map(fn, coll)
+  end
+
+  fun map(key: Num | Str | Sym)
+    (coll) -> map((x) -> x[key], coll)
+  end
+
+  fun map(key: Num | Str | Sym, xs: List)
+    map((x) -> x[key], xs)
+  end
+
+  fun map(fn: Fun, xs: List)
+    if xs == []
+      []
+    else
+      label loop (fn = fn, xs = xs, off = 0, acc = MutList())
+        if off == count(xs)
+          mut_list_to_list(acc)
+        else
+          loop fn, xs, off + 1, push!(acc, fn(xs[off]))
+        end
+      end
     end
+  end
+
+  fun map(fn: Fun, xs: Map)
+    
+  end
+
+  # Examples of effect usage
+  fun with_output_file(path: Str, func: Fun)
+    if not file_exists?(path)
+      raise error.file_not_found("file '#{path}' does not exist.")
+    else
+      control continue
+        var output_file
+
+      handle enter
+        output_file = open(path)
+
+      handle exit
+        output_file = close(output_file)
+
+      handle error.* (msg)
+        nul
+
+      handle * as op (args...)
+        raise op(args...) from continue
+
+      begin
+        func(output_file)
+    end
+  end
+
+  fun make_generator(generator: Fun)
+    fun outer(args...)
+      fun inner(args...)
+        
+      end
+
+      
+    end
+
+    outer
   end
 end

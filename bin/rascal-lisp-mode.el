@@ -13,22 +13,20 @@
     ;; general binding syntax
     "def" "var" "val" "put"
     ;; function binding syntax
-    "fn" "fun" "mac" "method"
+    "fn" "fun" "mac"
     ;; type binding syntax
-    "type" "struct" "record" "trait" "instance"
+    "struct" "union"
     ;; control syntax
     ;; branching syntax
-    "if" "and" "or" "cond" "case" "syntax" "when" "unless"
+    "if" "and" "or" "cond" "not"
     ;; miscellaneous control syntax
     "quote" "do"
     ;; effect syntax
-    "handle" "raise" "begin" "from"
-    ;; exception syntax
-    "try" "catch" "finally"
+    "control" "handle" "begin" "raise" "from"
     ;; block/looping syntax
     "let" "label" "loop"
     ;; module syntax
-    "require" "provide"
+    "module" "import"
     ;; metadata syntax
     "annot")
   '(("\\(?:[^-_a-zA-Z?*+0-9/:]:[-_a-zA-Z?*+0-9/.]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)

@@ -11,24 +11,24 @@
   '("#" ("#|" . "|#"))
   '( ;; syntax
     ;; basic binding syntax
-    "var" "val"
+    "def" "var" "val"
     ;; function binding syntax
     "fun" "mac"
     ;; type binding syntax
-    "type" "union" "struct" "record" "trait" "instance"
-    ;; conditional and pattern matching syntax
-    "if" "elif" "else" "and" "or" "not" "case"
+    "union" "struct"
+    ;; conditional syntax
+    "if" "else" "and" "or" "not" "case"
     ;; looping syntax
     "label" "loop"
     ;; effect handling syntax
-    "begin" "handle" "raise" "from"
+    "control" "handle" "begin" "raise" "from"
     ;; module syntax
-    "require" "provide" "as"
+    "module" "import" "as"
     ;; block syntax
-    "let" "do" "end"
+    "do" "end"
     ;; miscellaneous syntax
-    "quote" "λ")
-  '(("\\(?:[^-_a-zA-Z?*+0-9/:]:[-_a-zA-Z?*+0-9/<>=]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
+    "quote")
+  '(("\\(?:[^-_a-zA-Z?*+0-9/:]:[-_a-zA-Z?*+0-9/<>=.]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/<>=.]+\\)" . font-lock-type-face)
     ("\\(?:[^~]@[-_a-zA-Z?*+0-9/.<>=]+\\)\\|\\(?:^@[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ;; special constants
     ("\\_<none\\_>" . font-lock-constant-face)
@@ -36,7 +36,7 @@
     ("\\_<true\\_>" . font-lock-constant-face)
     ("\\_<false\\_>" . font-lock-constant-face)
     ;; types
-    ("\\_<[A-Z][a-zA-Z0-9\\|]*\\_>" . font-lock-type-face)
+    ("\\_<[A-Z][-_a-zA-Z0-9.*\\|]*\\_>" . font-lock-type-face)
     ;; syntax
     ("\\_<otherwise\\_>" . font-lock-function-name-face)
     ("\\_<&\\_>" . font-lock-function-name-face))
