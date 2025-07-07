@@ -52,7 +52,7 @@
     ExpType _t = exp_type(x);                                           \
     if ( (e) != _t )                                                    \
       eval_error("%s wanted a %s, got a %s",                            \
-                 (f), Types[e].name, Types[_t].name);                   \
+                 (f), Types[e].c_name, Types[_t].c_name);               \
   } while ( false )
 
 // C types --------------------------------------------------------------------

@@ -23,12 +23,11 @@
 #define XVMSK  0x0000fffffffffffful
 
 // HAMT magic numbers
-#define HAMT_SIZE  0x40 // = 64
-#define HAMT_SHIFT 0x06 // = 6 (duh-doi)
-#define HAMT_MASK  0x3f // = 63 = 0b00111111
-
-// HAMT utility accessors
-#define hamt_shift(n) ((n)->flags)
+#define HAMT_SIZE      0x40ul // = 64
+#define HAMT_SHIFT     0x06ul // = 6 (duh-doi)
+#define HAMT_MASK      0x3ful // = 63 = 0b00111111
+#define HAMT_MAX_SHIFT 0x30ul // = 48
+#define HAMT_MAX_DEPTH 0x08ul // = 8 (duh-doi)
 
 // utility macros
 #define exp_tag(x) ((x) & XTMSK)
@@ -51,7 +50,8 @@
       flags_t black   :   1;                     \
       flags_t gray    :   1;                     \
       flags_t nosweep :   1;                     \
-      flags_t flags    : 29;                     \
+      flags_t frozen  :   1;                     \
+      flags_t flags    : 28;                     \
     };                                           \
   }
 
@@ -64,9 +64,8 @@
       uptr_t black   :  1;                        \
       uptr_t gray    :  1;                        \
       uptr_t nosweep :  1;                        \
-      uptr_t nohash  :  1;                        \
       uptr_t frozen  :  1;                        \
-      uptr_t flags   : 11;                        \
+      uptr_t flags   : 12;                        \
       uptr_t hash    : 48;                        \
     }                                             \
   };
@@ -169,6 +168,8 @@ typedef void*  (*AllocFn)(ExpType type, flags_t flags, size_t n);
 typedef void   (*CloneFn)(void* ob); // called to clone object's owned pointers
 typedef void   (*TraceFn)(void* ob);
 typedef void   (*FreeFn)(void* ob);
+typedef void   (*PrHelpFn)(Port* p, void* ob, char* sep, bool pr_sep); // called on internal objects like MapNode
+typedef bool   (*EgalHelpFn)(void* obx, void* oby); // called on internal objects like MapNode
 
 // internal type information struct
 typedef struct {
@@ -178,12 +179,14 @@ typedef struct {
 } ExpAPI;
 
 typedef struct {
-  size_t  obsize;
-  SizeFn  size_fn;
-  AllocFn alloc_fn;
-  CloneFn clone_fn;
-  TraceFn trace_fn;
-  FreeFn  free_fn;
+  size_t     obsize;
+  SizeFn     size_fn;
+  AllocFn    alloc_fn;
+  CloneFn    clone_fn;
+  TraceFn    trace_fn;
+  FreeFn     free_fn;
+  PrHelpFn   pr_help_fn;
+  EgalHelpFn egal_help_fn;
 } ObjAPI;
 
 typedef struct {
@@ -198,7 +201,8 @@ typedef struct {
 typedef enum {
   FL_BLACK   = 0x80000000,
   FL_GRAY    = 0x40000000,
-  FL_NOSWEEP = 0x20000000
+  FL_NOSWEEP = 0x20000000,
+  FL_FROZEN  = 0x10000000,
 } ExpFlags;
 
 // Common Object head type
@@ -225,9 +229,13 @@ void   unmark_obj(void* ptr);
 void   free_obj(void *ptr);
 
 // miscellaneous array helpers ------------------------------------------------
-
 void trace_exprs(Exprs* xs);
 void trace_objs(Objs* os);
+
+// HAMT helpers ---------------------------------------------------------------
+size_t hamt_shift(void* ob);
+size_t hamt_asize(void* ob);
+void   init_hamt(void* ob, size_t shift, size_t asize);
 
 // globals --------------------------------------------------------------------
 extern TypeInfo Types[];

@@ -430,4 +430,18 @@ void free_obj(void* ptr) {
   }
 }
 
+// HAMT helpers ---------------------------------------------------------------
+size_t hamt_shift(void* ob) {
+  return ((Obj*)ob)->flags & HAMT_MASK;
+}
+
+size_t hamt_asize(void* ob) {
+  return ((Obj*)ob)->flags >> HAMT_SHIFT;
+}
+
+void init_hamt(void* ob, size_t shift, size_t asize) {
+  Obj* obj    = ob;
+  obj->flags |= shift | (asize << HAMT_SHIFT);
+}
+
 // initialization -------------------------------------------------------------

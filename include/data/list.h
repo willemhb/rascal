@@ -23,7 +23,6 @@
 // macros ---------------------------------------------------------------------
 #define as_list(x) ((List*)as_obj(x))
 #define is_list(x) has_type(x, EXP_LIST)
-#define list_node_offset(n) ((n)->flags)
 
 // C types --------------------------------------------------------------------
 struct List {
