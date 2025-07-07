@@ -21,11 +21,11 @@ struct Env {
   int    arity;
   int    ncap; // number of captured *local* upvalues
 
-  EMap  vars; // personal namespace
+  EnvMap vars; // personal namespace
 
   union {
-    EMap  upvs;
-    Exprs vals;
+    EnvMap upvs;
+    Exprs  vals;
   };
 };
 

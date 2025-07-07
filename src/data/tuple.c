@@ -53,7 +53,7 @@ void print_tuple(Port* ios, Expr x) {
 
   pprintf(ios, "(");
 
-  print_traverse(ios, tn, t->slots, ", ", false);
+  print_exp_array(ios, tn, t->slots, ", ", false);
 
   pprintf(ios, ")");
 }
@@ -62,7 +62,7 @@ bool egal_tuples(Expr x, Expr y) {
   Tuple* tx = as_tuple(x), * ty = as_tuple(y);
   size_t xn = tuple_arity(tx), yn = tuple_arity(ty);
 
-  return egal_traverse(xn, tx->slots, yn, ty->slots);
+  return egal_exp_arrays(xn, tx->slots, yn, ty->slots);
 }
 
 void* alloc_tuple(ExpType type, flags_t flags, size_t n) {
@@ -82,7 +82,9 @@ size_t tuple_size(void* ptr) {
 }
 
 void trace_tuple(void* ptr) {
-  
+  Tuple* t = ptr;
+
+  trace_exp_array(tuple_arity(t), t->slots);
 }
 
 Tuple* new_tuple(size_t n) {

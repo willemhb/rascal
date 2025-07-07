@@ -1,63 +1,69 @@
 
 /* Implementation for dynamic list utility type. */
 // headers --------------------------------------------------------------------
-#include "data/alist.h"
+#include "data/mut-list.h"
 
 // macros ---------------------------------------------------------------------
 
 // C types --------------------------------------------------------------------
 
-// globals --------------------------------------------------------------------
-
 // function prototypes --------------------------------------------------------
-void trace_alist(void* ptr);
-void free_alist(void* ptr);
+void trace_mut_list(void* ptr);
+void free_mut_list(void* ptr);
+
+// globals --------------------------------------------------------------------
+ExpAPI MutListExpAPI = {};
+
+ObjAPI MutListObjAPI = {
+  .obsize   = sizeof(MutList),
+  .trace_fn = trace_mut_list,
+  .free_fn  = free_mut_list,
+};
 
 // function implementations ---------------------------------------------------
 // internal -------------------------------------------------------------------
-void trace_alist(void* ptr) {
-  Alist* a = ptr;
+void trace_mut_list(void* ptr) {
+  MutList* a = ptr;
 
   trace_exprs(&a->exprs);
 }
 
-void free_alist(void* ptr) {
-  Alist* a = ptr;
+void free_mut_list(void* ptr) {
+  MutList* a = ptr;
   
   free_exprs(&a->exprs);
 }
 
 // external -------------------------------------------------------------------
-Alist* mk_alist(void) {
-  Alist* out = mk_obj(EXP_ALIST, 0); init_exprs(&out->exprs);
+MutList* mk_mut_list(void) {
+  MutList* out = mk_obj(EXP_MUT_LIST, 0, 0); init_exprs(&out->exprs);
 
   return out;
 }
 
-int alist_push(Alist* a, Expr x) {
+int mut_list_push(MutList* a, Expr x) {
   exprs_push(&a->exprs, x);
 
   return a->exprs.count;
 }
 
-Expr alist_pop(Alist* a) {
+Expr mut_list_pop(MutList* a) {
   return exprs_pop(&a->exprs);
 }
 
-Expr alist_get(Alist* a, int n) {
+Expr mut_list_get(MutList* a, int n) {
   assert(n >= 0 && n < a->exprs.count);
 
   return a->exprs.vals[n];
 }
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data_alist(void) {
-  Types[EXP_ALIST] = (ExpTypeInfo){
-    .type     = EXP_ALIST,
-    .name     = "alist",
-    .obsize   = sizeof(Alist),
-    .trace_fn = trace_alist,
-    .free_fn  = free_alist
+void toplevel_init_data_mut_list(void) {
+  Types[EXP_MUT_LIST] = (TypeInfo) {
+    .type    = EXP_MUT_LIST,
+    .c_name  = "mut_list",
+    .exp_api = &MutListExpAPI,
+    .obj_api = &MutListObjAPI
   };
 }
 

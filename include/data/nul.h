@@ -8,7 +8,8 @@
 #include "data/base.h"
 
 // macros ---------------------------------------------------------------------
-#define NUL 0x7ffe000000000000ul // NUL_T | 0
+#define NUL  0x7ffe000000000000ul // NUL_T | 0
+#define NONE 0x7ffe000000000001ul // NUL_T | 1 (not a valid value, used as a sentinel)
 
 // C types --------------------------------------------------------------------
 

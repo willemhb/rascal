@@ -13,7 +13,7 @@
 #include "sys/error.h"
 
 #include "data/base.h"
-#include "data/types/upv.h"
+#include "data/upv.h"
 
 #include "lang/base.h"
 
@@ -54,17 +54,11 @@ static bool check_heap_grow(void) {
 
 static void mark_vm(void) {
   mark_obj(Vm.fn);
-
-  for ( int i=0; i < Vm.sp; i++ )
-    mark_exp(Vm.vals[i]);
-
-  for ( int i=0; i < Vm.fp; i++ )
-    mark_exp(Vm.frames[i]);
+  trace_exp_array(Vm.sp, Vm.stack);
 }
 
 static void mark_globals(void) {
-  extern Str* QuoteStr, * DefStr, * PutStr, * IfStr, * DoStr, * FnStr,
-    * CatchStr, * ThrowStr;
+  extern Str* QuoteStr, * DefStr, * PutStr, * IfStr, * DoStr, * FnStr;
 
   mark_obj(&Globals);
   mark_obj(QuoteStr);
@@ -88,7 +82,7 @@ static void mark_upvals(void) {
 
 static void mark_types(void) {
   for ( int i=0; i < NUM_TYPES; i++ )
-    mark_obj(Types[i].repr);
+    mark_obj(Types[i].rl_name);
 }
 
 static void mark_etypes(void) {
@@ -118,11 +112,11 @@ static void mark_phase(void) {
 
 static void trace_phase(void) {
   while ( GrayStack.count > 0 ) {
-    Obj* obj          = objs_pop(&GrayStack);
-    ExpTypeInfo* info = &Types[obj->type];
-    obj->gray         = false;
+    Obj* obj    = objs_pop(&GrayStack);
+    ObjAPI* api = obj_api(obj);
+    obj->gray   = false;
     
-    info->trace_fn(obj);
+    api->trace_fn(obj);
   }
 }
 
@@ -268,18 +262,31 @@ void gc_save(void* ob) {
   objs_push(&GrayStack, ob);
 }
 
+
+void next_gc_frame(GcFrame* gcf) {
+  assert(gcf != NULL);
+
+  GcFrames = gcf->next;
+}
+
+void trace_exp_array(size_t n, Expr* xs) {
+  for ( size_t i=0; i < n; i++ )
+    mark_exp(xs[i]);
+}
+
+void trace_obj_array(size_t n, void* os) {
+  Obj** objs = os;
+
+  for ( size_t i=0; i < n; i++ )
+    mark_obj(objs[i]);
+}
+
 void heap_report(void) {
   printf("\n\n==== heap report ====\n\%-16s %20zu\n%-16s %20zu\n\n",
          "allocated",
          HeapUsed,
          "used",
          HeapCap);
-}
-
-void next_gc_frame(GcFrame* gcf) {
-  assert(gcf != NULL);
-
-  GcFrames = gcf->next;
 }
 
 // initialization -------------------------------------------------------------

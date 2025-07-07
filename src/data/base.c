@@ -290,7 +290,7 @@ TypeInfo Types[NUM_TYPES];
 
 // external -------------------------------------------------------------------
 // Expression APIs ------------------------------------------------------------
-ExpType exp_type(Expr x) {
+ExpType get_exp_type(Expr x) {
   ExpType t;
 
   switch ( x & XTMSK ) {
@@ -304,12 +304,10 @@ ExpType exp_type(Expr x) {
   return t;
 }
 
-bool has_type(Expr x, ExpType t) {
-  return exp_type(x) == t;
-}
+ExpType get_obj_type(void* p) {
+  assert(p != NULL);
 
-TypeInfo* type_info(Expr x) {
-  return &Types[exp_type(x)];
+  return ((Obj*)p)->type;
 }
 
 ExpAPI* exp_api(Expr x) {
@@ -326,40 +324,6 @@ ObjAPI* obj_api(void* ptr) {
   return Types[obj->type].obj_api;
 }
 
-hash_t hash_exp(Expr x) {
-  hash_t out;
-  ExpAPI* info = exp_api(x);
-
-  if ( info->hash_fn )
-    out = info->hash_fn(x);
-
-  else
-    out = hash_word(x);
-
-  return out;
-}
-
-bool egal_exps(Expr x, Expr y) {
-  bool out;
-  
-  if ( x == y )
-    out = true;
-
-  else {
-    ExpType tx = exp_type(x), ty = exp_type(y);
-
-    if ( tx != ty )
-      out = false;
-
-    else {
-      EgalFn fn = Types[tx].exp_api->egal_fn;
-      out       = fn ? fn(x, y) : false;
-    }
-  }
-
-  return out;
-}
-
 void mark_exp(Expr x) {
   if ( exp_tag(x) == OBJ_T )
     mark_obj(as_obj(x));
@@ -367,13 +331,11 @@ void mark_exp(Expr x) {
 
 // Object APIs ----------------------------------------------------------------
 void trace_exprs(Exprs* xs) {
-  for ( int i=0; i < xs->count; i++ )
-    mark_exp(xs->vals[i]);
+  trace_exp_array(xs->count, xs->vals);
 }
 
 void trace_objs(Objs* os) {
-  for ( int i=0; i < os->count; i++ )
-    mark_obj(os->vals[i]);
+  trace_obj_array(os->count, os->vals);
 }
 
 // object API

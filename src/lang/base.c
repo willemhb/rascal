@@ -9,6 +9,8 @@
 #include "sys/error.h"
 #include "sys/memory.h"
 
+#include "util/hashing.h"
+
 // macros ---------------------------------------------------------------------
 
 // C types --------------------------------------------------------------------
@@ -21,6 +23,72 @@
 // internal -------------------------------------------------------------------
 
 // external -------------------------------------------------------------------
+// Core expression APIs -------------------------------------------------------
+
+hash_t hash_exp(Expr x) {
+  hash_t out;
+  ExpAPI* info = exp_api(x);
+
+  if ( info->hash_fn )
+    out = info->hash_fn(x);
+
+  else
+    out = hash_word(x);
+
+  return out;
+}
+
+
+bool egal_exps(Expr x, Expr y) {
+  bool out;
+  
+  if ( x == y )
+    out = true;
+
+  else {
+    ExpType tx = exp_type(x), ty = exp_type(y);
+
+    if ( tx != ty )
+      out = false;
+
+    else {
+      EgalFn fn = Types[tx].exp_api->egal_fn;
+      out       = fn ? fn(x, y) : false;
+    }
+  }
+
+  return out;
+}
+
+void print_exp(Port* out, Expr x) {
+  TypeInfo* type = type_info(x);
+  ExpAPI*   api  = type->exp_api;
+
+  if ( api->print_fn )
+    api->print_fn(out, x);
+
+  else
+    pprintf(out, "<%s>", type->c_name);
+}
+
+bool egal_exp_array(size_t xn, Expr* xs, size_t yn, Expr* ys) {
+  bool out = xn == yn;
+
+  for ( size_t i=0; out && i < xn; i++ )
+    out = egal_exps(xs[i], ys[i]);
+
+  return out;
+}
+
+void print_exp_array(Port* out, size_t n, Expr* xs, char* sep, bool sep_end) {
+  for ( size_t i=0; i < n; i++ ) {
+    print_exp(out, xs[n]);
+
+    if ( i + 1 < n || sep_end )
+      pprintf(out, sep);
+  }
+}
+
 // Rascal IO helpers ----------------------------------------------------------
 Port* open_port(char* fname, char* mode) {
   FILE* ios = fopen(fname, mode);
@@ -101,7 +169,7 @@ int pvprintf(Port* p, char* fmt, va_list va) {
 }
 
 // Rascal environment helpers -------------------------------------------------
-void intern_in_env(EMap* m, EMapKV* kv, Sym* k, hash_t h) {
+void intern_in_env(EnvMap* m, EnvMapKV* kv, Sym* k, hash_t h) {
   (void)h;
 
   kv->key = k;
@@ -111,7 +179,7 @@ void intern_in_env(EMap* m, EMapKV* kv, Sym* k, hash_t h) {
 Ref* env_capture(Env* e, Ref* r) {
   assert(is_local_env(e));
 
-  Ref* c = emap_intern(&e->upvs, r->name, intern_in_env);
+  Ref* c = env_map_intern(&e->upvs, r->name, intern_in_env);
 
   if ( c->ref_type == REF_UNDEF ) {
     c->ref_type = r->ref_type == REF_LOCAL ? REF_LOCAL_UPVAL : REF_CAPTURED_UPVAL;
@@ -125,12 +193,12 @@ Ref* env_resolve(Env* e, Sym* n, bool capture) {
   Ref* r = NULL;
 
   if ( is_global_env(e) )
-    emap_get(&e->vars, n, &r);
+    env_map_get(&e->vars, n, &r);
 
   else {
     bool found;
 
-    found = emap_get(&e->vars, n, &r); // check locals first
+    found = env_map_get(&e->vars, n, &r); // check locals first
 
     if ( found ) {
       if ( capture ) {         // resolved from enclosed context
@@ -140,7 +208,7 @@ Ref* env_resolve(Env* e, Sym* n, bool capture) {
 
     } else {
       // check already captured upvalues
-      found = emap_get(&e->upvs, n, &r);
+      found = env_map_get(&e->upvs, n, &r);
 
       if ( !found ) {
         r = env_resolve(e->parent, n, true);
@@ -155,7 +223,7 @@ Ref* env_resolve(Env* e, Sym* n, bool capture) {
 }
 
 Ref* env_define(Env* e, Sym* n) {
-  Ref* ref = emap_intern(&e->vars, n, intern_in_env);
+  Ref* ref = env_map_intern(&e->vars, n, intern_in_env);
 
   if ( ref->ref_type == REF_UNDEF ) {
     if ( is_local_env(e) )
@@ -202,7 +270,7 @@ Ref* toplevel_env_find(Env* e, Sym* n) {
 
   Ref* ref = NULL;
 
-  emap_get(&e->vars, n, &ref);
+  env_map_get(&e->vars, n, &ref);
 
   return ref;
 }

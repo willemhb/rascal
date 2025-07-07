@@ -12,6 +12,9 @@
  * library for handling the cases where a cons cell is actually
  * what's desired).
  *
+ * Obviously this is an early implementation and space utilization
+ * needs to be optimized.
+ *
  **/
 
 // headers --------------------------------------------------------------------

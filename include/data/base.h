@@ -22,9 +22,21 @@
 #define XTMSK  0xffff000000000000ul
 #define XVMSK  0x0000fffffffffffful
 
+// HAMT magic numbers
+#define HAMT_SIZE  0x40 // = 64
+#define HAMT_SHIFT 0x06 // = 6 (duh-doi)
+#define HAMT_MASK  0x3f // = 63 = 0b00111111
+
+// HAMT utility accessors
+#define hamt_shift(n) ((n)->flags)
+
 // utility macros
 #define exp_tag(x) ((x) & XTMSK)
 #define exp_val(x) ((x) & XVMSK)
+
+#define exp_type(x)    generic((x), Expr: get_exp_type, default: get_obj_type)(x)
+#define has_type(x,t)  (exp_type(x) == (t))
+#define type_info(x)   (&Types[exp_type(x)])
 
 // limits
 #define NUM_TYPES (EXP_MAP_LEAF+1)
@@ -42,6 +54,22 @@
       flags_t flags    : 29;                     \
     };                                           \
   }
+
+#define HEAD2                                     \
+  Obj*  heap;                                     \
+  Type* type;                                     \
+  union {                                         \
+    uptr_t bit_fields;                            \
+    struct {                                      \
+      uptr_t black   :  1;                        \
+      uptr_t gray    :  1;                        \
+      uptr_t nosweep :  1;                        \
+      uptr_t nohash  :  1;                        \
+      uptr_t frozen  :  1;                        \
+      uptr_t flags   : 11;                        \
+      uptr_t hash    : 48;                        \
+    }                                             \
+  };
 
 // array template
 #define ALIST_API(A, X, a)                      \
@@ -180,9 +208,8 @@ struct Obj {
 
 // function prototypes --------------------------------------------------------
 // expression API -------------------------------------------------------------
-ExpType   exp_type(Expr x);
-bool      has_type(Expr x, ExpType t);
-TypeInfo* type_info(Expr x);
+ExpType   get_exp_type(Expr x);
+ExpType   get_obj_type(void* p);
 ExpAPI*   exp_api(Expr x);
 ObjAPI*   obj_api(void* ptr);
 void      mark_exp(Expr x);
@@ -198,6 +225,7 @@ void   unmark_obj(void* ptr);
 void   free_obj(void *ptr);
 
 // miscellaneous array helpers ------------------------------------------------
+
 void trace_exprs(Exprs* xs);
 void trace_objs(Objs* os);
 

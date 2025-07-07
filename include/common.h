@@ -42,6 +42,8 @@
 #define popc        __builtin_popcountl
 #define unreachable __builtin_unreachable
 
+#define generic _Generic
+
 // C types --------------------------------------------------------------------
 // utility typedefs -----------------------------------------------------------
 typedef unsigned short ushort_t;

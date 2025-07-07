@@ -21,14 +21,5 @@
 // internal -------------------------------------------------------------------
 
 // external -------------------------------------------------------------------
-void print_exp(Port* out, Expr x) {
-  ExpTypeInfo* info = exp_info(x);
-
-  if ( info->print_fn )
-    info->print_fn(out, x);
-
-  else
-    pprintf(out, "<%s>", info->name);
-}
 
 // initialization -------------------------------------------------------------
