@@ -17,18 +17,7 @@
     ;; block syntax
     "do" "end"
     ;; module syntax
-    "require" "provide"
-    ;; long-term syntax (mostly for fucking around in ideas.rl)
-    ;; binding syntax
-    "mac" "type" "struct" "trait" "union" "where" "in"
-    ;; branching syntax
-    "case"
-    ;; block/looping syntax
-    "label" "loop" "for" "while"
-    ;; module syntax
-    "module" "import" "export" "as"
-    ;; control syntax
-    "control" "raise" "handle" "from")
+    "require" "provide" "as")
   '(("\\(?:[^-_a-zA-Z?*+0-9/:]:[-_a-zA-Z?*+0-9/<>=.]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/<>=.]+\\)" . font-lock-type-face)
     ("\\(?:[^~]@[-_a-zA-Z?*+0-9/.<>=]+\\)\\|\\(?:^@[-_a-zA-Z?*+0-9/.<>=]+\\)" . font-lock-type-face)
     ;; special constants

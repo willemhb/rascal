@@ -5,20 +5,20 @@ provide Math
 val pi = 3.14159
 val e  = 2.71828
 
-fun even?(n)
+fun even?(n) do
   n % 2 == 0
 end
 
-fun odd?(n)
+fun odd?(n) do
   n % 2 == 1
 end
 
-fun divides?(a, b)
+fun divides?(a, b) do
   b % a == 0
 end
 
-fun abs(x)
-  if x < 0
+fun abs(x) do
+  if x < 0 do
     -x
   else
     x
@@ -26,7 +26,7 @@ fun abs(x)
 end
 
 fun max(x, y)
-  if x > y
+  if x > y do
     x
   else
     y
@@ -34,17 +34,17 @@ fun max(x, y)
 end
 
 fun min(x, y)
-  if x < y
+  if x < y do
     x
   else
     y
   end
 end
 
-fun pow(x, n)
+fun pow(x, n) do
   # fast power algorithm (log2)
-  fun loop(x, n, acc)
-    if n == 0
+  fun loop(x, n, acc) do
+    if n == 0 do
       acc
     elif even?(n)
       loop(x*x, n/2, acc)
@@ -56,10 +56,10 @@ fun pow(x, n)
   loop(x, n, 1)
 end
 
-fun gcd(a, b)
+fun gcd(a, b) do
   # euclid's algorithm
-  fun loop(a, b)
-    if divides?(a, b)
+  fun loop(a, b) do
+    if divides?(a, b) do
       a
     else
       loop(b % a, a)
@@ -69,7 +69,7 @@ fun gcd(a, b)
   val x = abs(a)
   val y = abs(b)
 
-  if x > y
+  if x > y do
     loop(y, x)
   else
     loop(x, y)

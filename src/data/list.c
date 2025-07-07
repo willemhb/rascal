@@ -41,8 +41,6 @@ size_t index_for_node(ListNode* node, size_t offset);
 size_t index_for_shift(size_t shift, size_t offset);
 Expr*  array_for(List* list, size_t offset);
 
-
-
 List*     new_list(void);
 ListLeaf* new_list_leaf(void);
 ListLeaf* mk_list_leaf(Expr* xs);
@@ -57,14 +55,11 @@ void trace_list(void* ptr);
 // function implementations ---------------------------------------------------
 // internal -------------------------------------------------------------------
 size_t tail_size(List* list) {
-  // TODO: probably a faster and more annoying way to do this
   size_t arity = list->arity;
 
-  if ( arity < HAMT_SIZE )
-    return arity;
-
-  else
-    return arity & HAMT_MASK ? : HAMT_SIZE;
+  // TODO: maybe a cleverer way to do this?
+  // The rationale here is 
+  return arity ? ((arity - 1) & HAMT_MASK) + 1 : 0;
 }
 
 size_t tail_offset(List* list) {
