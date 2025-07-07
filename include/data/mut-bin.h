@@ -22,8 +22,8 @@ struct MutBin {
 
 // function prototypes --------------------------------------------------------
 MutBin* mk_mut_bin(size_t o);
-void   free_mut_bin(void* ptr);
-int    mut_bin_write(MutBin* b, size_t o, size_t n, void* data);
+void    free_mut_bin(void* ptr);
+size_t  mut_bin_write(MutBin* b, size_t o, size_t n, void* data);
 
 // initialization -------------------------------------------------------------
 void toplevel_init_data_mut_bin(void);

@@ -228,6 +228,9 @@ void   mark_obj(void* ptr);
 void   unmark_obj(void* ptr);
 void   free_obj(void *ptr);
 
+void* freeze(void* ptr, bool deep);
+void* unfreeze(void* ptr, bool deep);
+
 // miscellaneous array helpers ------------------------------------------------
 void trace_exprs(Exprs* xs);
 void trace_objs(Objs* os);

@@ -9,13 +9,26 @@
 (define-generic-mode
   'rascal-mode
   '("#")
-  '( ;; syntax
+  '(;; actual syntax (near-term plan to support)
     ;; binding syntax
     "var" "val" "fun"
     ;; conditional syntax
     "if" "elif" "else" "and" "or" "not"
     ;; block syntax
-    "do" "end")
+    "do" "end"
+    ;; module syntax
+    "require" "provide"
+    ;; long-term syntax (mostly for fucking around in ideas.rl)
+    ;; binding syntax
+    "mac" "type" "struct" "trait" "union" "where" "in"
+    ;; branching syntax
+    "case"
+    ;; block/looping syntax
+    "label" "loop" "for" "while"
+    ;; module syntax
+    "module" "import" "export" "as"
+    ;; control syntax
+    "control" "raise" "handle" "from")
   '(("\\(?:[^-_a-zA-Z?*+0-9/:]:[-_a-zA-Z?*+0-9/<>=.]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/<>=.]+\\)" . font-lock-type-face)
     ("\\(?:[^~]@[-_a-zA-Z?*+0-9/.<>=]+\\)\\|\\(?:^@[-_a-zA-Z?*+0-9/.<>=]+\\)" . font-lock-type-face)
     ;; special constants
