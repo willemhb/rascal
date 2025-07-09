@@ -42,7 +42,6 @@ provide Macro
 # This provides a simple universal interface for controlling compilation,
 # as well as a way to implement decorators in a more sophisticated version of the language.
 
-
 # By default, annotations are attached to the current environment. This will be the module environment at toplevel.
 @doc "Simple macro utilities."
 
