@@ -33,11 +33,36 @@ require "local-file.rl"
 # As above, but the module environment associated with "local-file.rl" is bound to the 
 require "local-file.rl" as Local
 
-# macro system
-mac let(binds, block) do
-  
+# annotation syntax
+provide Macro
+
+# Symbols prefixed with the `@` character are treated as annotations.
+# Annotations are attached to an object's metadata during compilation,
+# rather than being evaluated as expressions.
+# This provides a simple universal interface for controlling compilation,
+# as well as a way to implement decorators in a more sophisticated version of the language.
+
+
+# By default, annotations are attached to the current environment. This will be the module environment at toplevel.
+@doc "Simple macro utilities."
+
+# Inside a function definition, annotations are attached to the metadata of the function environment.
+fun syntax_type(expr) do
+  @doc "Classify the syntactic type of an AST expression."
+
+  val expr_type = typeof(expr)
+
+  if expr_type == :List do
+    :Call
+  elif expr_type == :Tuple
+    :Reference
+  else
+    :Literal
+  end
 end
 
-mac label(name, binds, block) do
-  
-end
+val SyntaxTable = MutMap()
+
+# Annotations can also be added to an object explicitly using the `@<object>.<annot> <value>` syntax.
+@SyntaxTable.type :MutMap
+@SyntaxTable.doc "Macro environment (just for demo purposes, macros probably won't be implemented this way)."
