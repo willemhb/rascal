@@ -1,14 +1,14 @@
-#ifndef rl_FILENAME_h
-#define rl_FILENAME_h
+#ifndef rl_lang_parse_h
+#define rl_lang_parse_h
 
 /**
  *
- * DESCRIPTION
+ * Interface to the parser.
  *
  **/
 
 // headers --------------------------------------------------------------------
-#include "common.h"
+#include "lang/base.h"
 
 // macros ---------------------------------------------------------------------
 
@@ -19,5 +19,6 @@
 // function prototypes --------------------------------------------------------
 
 // initialization -------------------------------------------------------------
+void toplevel_init_lang_parse(void);
 
 #endif

@@ -35,6 +35,9 @@ typedef enum {
 
   // literals -----------------------------------------------------------------
   TOKEN_SYMBOL, TOKEN_STRING, TOKEN_GLYPH, TOKEN_NUMBER,
+
+  // sentinels ----------------------------------------------------------------
+  TOKEN_EOF, TOKEN_ERROR,
 } TokenType;
 
 typedef struct {
@@ -48,5 +51,6 @@ typedef struct {
 // function prototypes --------------------------------------------------------
 
 // initialization -------------------------------------------------------------
+void toplevel_init_lang_lex(void);
 
 #endif
