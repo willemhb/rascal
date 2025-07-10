@@ -56,10 +56,6 @@ extern GcFrame* GcFrames;
 // Interpreter state
 extern VM Vm;
 
-// Reader state
-extern char Token[BUFFER_SIZE];
-extern size_t TOff;
-
 // function prototypes --------------------------------------------------------
 // VM helpers -----------------------------------------------------------------
 void reset_stack(void);

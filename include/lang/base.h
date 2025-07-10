@@ -46,6 +46,7 @@ Port* open_port(char* fname, char* mode);
 void  close_port(Port* port);
 bool  peof(Port* p);
 int   pseek(Port* p, long off, int orig);
+void  prewind(Port* p);
 Glyph pgetc(Port* p);
 Glyph pungetc(Port* p, Glyph g);
 Glyph ppeekc(Port* p);

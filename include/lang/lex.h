@@ -46,9 +46,19 @@ typedef struct {
   int       lineno;
 } Token;
 
+typedef struct {
+  Port* ios;
+  int   line;
+  int   offset;  // position in buffer
+  char* buffer;
+} Scanner;
+
 // globals --------------------------------------------------------------------
+extern Scanner Lexer;
 
 // function prototypes --------------------------------------------------------
+void   init_scanner(Scanner* scn, Port* ios);
+Token* next_token(Scanner* scn);
 
 // initialization -------------------------------------------------------------
 void toplevel_init_lang_lex(void);
