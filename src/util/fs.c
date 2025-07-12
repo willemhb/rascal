@@ -5,6 +5,10 @@
  **/
 
 // headers --------------------------------------------------------------------
+#include <errno.h>
+#include <string.h>
+#include <stdlib.h>
+
 #include "util/fs.h"
 
 // macros ---------------------------------------------------------------------
@@ -43,9 +47,34 @@ size_t file_size(FILE* file) {
 char* read_file(char* fname) {
   /**
    *
-   * 
+   * Read entire file contents into a dynamically allocated string.
+   *
+   * Stupidly unsafe, but if I wrote it right now there'd be no
+   * room to improve.
    *
    **/
+
+  FILE* in = fopen(fname, "rt");
+
+  if ( in == NULL ) {
+    fprintf(stderr, "Error reading file '%s': %s.\n", fname, strerror(errno));
+    exit(1);
+  }
+
+  size_t fsize = file_size(in);
+  char*  fdata = malloc((fsize+1) * sizeof(char));
+
+  if ( fdata == NULL ) {
+    fprintf(stderr, "Error allocating file buffer: %s\n.", strerror(errno));
+    exit(1);
+  }
+
+  if ( fgets(fdata, fsize+1, in) == NULL) {
+    2
+  }
+  fclose(in);
+
+  
 }
 
 // initialization -------------------------------------------------------------
