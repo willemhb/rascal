@@ -55,19 +55,19 @@
     };                                           \
   }
 
-#define HEAD2                                     \
-  Obj*  heap;                                     \
-  Type* type;                                     \
-  union {                                         \
-    uptr_t bit_fields;                            \
-    struct {                                      \
-      uptr_t black   :  1;                        \
-      uptr_t gray    :  1;                        \
-      uptr_t nosweep :  1;                        \
-      uptr_t frozen  :  1;                        \
-      uptr_t flags   : 12;                        \
-      uptr_t hash    : 48;                        \
-    }                                             \
+#define HEAD2                                           \
+  Obj*  heap;                                           \
+  Type* type;                                           \
+  union {                                               \
+    uptr_t bit_fields;                                  \
+    struct {                                            \
+      uptr_t black   :  1;                              \
+      uptr_t gray    :  1;                              \
+      uptr_t nosweep :  1;                              \
+      uptr_t sealed  :  1; /* */                        \
+      uptr_t flags   : 12; /* miscellaneous flags */    \
+      uptr_t wflags  : 48; /* usually a cached hash */  \
+    }                                                   \
   };
 
 // array template

@@ -1,4 +1,2 @@
 provide Sequence
 
-# Sequence interface
-

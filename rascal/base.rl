@@ -12,14 +12,12 @@ fun Set(items) do
     error("not a list")
   end
 
-  fun loop(xs, off, acc) do
+  label loop xs = xs, off = 0, acc = MutMap() do
     if off == count(xs) do
       to_map(acc)
     else
       loop(xs, off+1, mut_map_set!(acc, xs[off], true))
     end
   end
-
-  loop(xs, 0, MutMap())
 end
 

@@ -1,47 +1,5 @@
 # This file is for experimenting with different syntaxes and shouldn't be expected to work.
 
-# module system
-#
-# Every `rascal` file is evaluated with its own toplevel environment. This means that by default, bindings created in one file aren't visible in others.
-# (In general, only bootstrapping C code and repl code alters the global environment). A small API is provided for making these bindings visible.
-#
-# Module environments are cached globally by absolute path name in `Rascal.__loaded__`.
-#
-# Module bindings are always final, so an error will be raised if attempts are made to assign to them.
-
-# Binds the module environment to the name `Module` in the global environment.
-# Raises an error if this file has previously provided a module name.
-# Raises an error if the name `Module` is already bound.
-provide Module
-
-# Adds the bindings in `Math` to the current module environment.
-# Raises na error if the name `Math` has not been previously provided.
-require Math
-
-# Binds the module environment provided by `Math` to the name `M` in the current module environment.
-# Raises an error if `Math` is not bound or isn't an environment bound by a provide form.
-require Math as M
-
-# Checks `Rascal.__loaded__` to see if a file named "local-file.rl" has been loaded.
-# If not, it loads the file and saves the resulting module environment in `Rascal.__loaded__`.
-# The module environment associated with "local-file.rl" then has its bindings merged into the
-# current module environment.
-# "local-file.rl" is first expanded to an absolute path name.
-# Errors are raised for the reasons you might imagine (file not found, eval errors, etc).
-require "local-file.rl"
-
-# As above, but the module environment associated with "local-file.rl" is bound to the 
-require "local-file.rl" as Local
-
-# annotation syntax
-provide Macro
-
-# Symbols prefixed with the `@` character are treated as annotations.
-# Annotations are attached to an object's metadata during compilation,
-# rather than being evaluated as expressions.
-# This provides a simple universal interface for controlling compilation,
-# as well as a way to implement decorators in a more sophisticated version of the language.
-
 # By default, annotations are attached to the current environment. This will be the module environment at toplevel.
 
 @doc "Simple macro utilities."
@@ -77,14 +35,14 @@ fun partition(xs) do
   label do
     even(xs, left, right) ->
       if empty?(xs) do
-        {left, right}
+        (left, right)
       else
         odd(rest(xs), conj(left, first(xs)), right)
       end
 
     odd(xs, left, right) ->
       if empty?(xs) do
-        {left, right}
+        (left, right)
       else
         even(rest(xs), left, conj(right, first(xs)))
       end
@@ -222,66 +180,126 @@ fun make_generator(func: Func) do
   wrapper
 end
 
-# Example to demonstrate how effects could be used to implement coroutines
-type DequeNode = (
-  mut data: Any,
-  mut next: DequeNode | nul
-)
+# Examples to demonstrate using traits to build protocols
 
-type Deque = (
-  mut first: DequeNode | nul,
-  mut last:  DequeNode | nul
-)
+# Traits are syntactic sugar providing direct
+# support for the Tim Holy trait trick from Julia.
 
-type Promise = (
-  expression: Func,
-  awaiting: Ctl,
-  done?: Bool,
-  result: Any
-)
+# Traits can optionally specify an interface, but don't
+# have to (but this is an extremely common use case that
+# ought to be supported).
 
-fun append(d: Deque, x) do
-  val node = DequeNode(x, nul)
+# Traits can extend other traits using the `instance` keyword,
+# provided the extended trait has the same arity.
 
-  if d.first == nul do # empty deque
-    d.first = node
-    d.last  = node
-  else
-    d.last.next = node
-    d.last      = node
-  end
+# A group of types 'XS' can instantiate a trait 'T' using
+# `instance T{XS}`. If 'T' specifies an interface, the interface
+# must be implemented in a `do` block following the `instance`
+# declaration.
+
+
+
+trait Seq{S} do
+  @doc "Trait type for collections whose values can be visited in some order."
+  fun seq(xs: S): S' where Seq{S'}
+  fun first(xs: S)
+  fun rest(xs: S): S' where Seq{S'}
+  fun empty?(xs: S): Bool
 end
 
-fun pop(d: Deque) do
-  if d.first == nul do
-    throw empty_collection("Empty deque.")
-  else
-    val out = d.first.data
-    d.first = d.first.next
+trait Atom not instance Seq # 
 
-    if d.first == nul do # Deque had just one item
-      d.last = nul
+struct ListSeq{X} do
+  val source: List{X}
+  mut first: X | nul
+  mut forced?: Bool
+  mut offset: Arity
+end
+
+fun ListSeq(xs: List{X}, offset: Arity) do
+    ListSeq(xs, nul, false, offset)
+end
+
+instance Seq{nul} do
+  fun seq(xs: nul) do: nul
+
+  fun first(xs: nul) do: raise error.value("`first` called on empty sequence.")
+
+  fun rest(xs: nul) do: nul
+  
+  fun empty?(xs: nul) do: true
+end
+
+instance Seq{ListSeq{X}} do
+  fun seq(xs: ListSeq{X}): X do
+    xs
+  end
+
+  fun first(xs: ListSeq{X}): X do
+    if not xs.forced? do
+      xs.first   = xs.source[xs.offset]
+      xs.forced? = true
+    end
+
+    xs.first
+  end
+
+  fun rest(xs: ListSeq{X}): ListSeq{X} | nul do
+    if xs.offset + 1 == count(xs.source) do
+      nul
+    else
+      ListSeq(xs.source, nul, false, xs.offset + 1)
     end
   end
-end
 
-val CoroutineQueue = Deque()
+  fun rest!(xs: ListSeq{X}): ListSeq{X} | nul do
+    @doc "Imperative version of rest (useful for avoiding massive memory use in internal loops)."
+    if xs.offset + 1 == count(xs.source) do
+      nul
+    else
+      xs.offset += 1
+      xs.first   = nul
+      xs.forced? = false
+      xs
+  end
 
-mac await(expression) do
-  quote do: raise coroutine.await( () -> $(expression) )
-end
-
-mac async(fun: name, args, do: body) do
-  @doc "Example of python style coroutine."
-
-  quote do
-    fun $(name) $(args) do
-      control do
-      handle k
-        coroutine.await(expression) ->
-          schedule(k, expression)
-          nul
-      end
-    end
+  fun empty?(xs: ListSeq{X}): Bool do
+    false
   end
 end
+
+instance Seq{List{X}} do
+  fun seq(xs: List{X}): ListSeq{X} | nul do
+    if count(xs) == 0 do
+      nul
+    else
+      ListSeq(xs, 0)
+    end
+  end
+
+  fun first(xs: List{X}): X do
+    xs[0]
+  end
+
+  fun rest(xs: List{X}): ListSeq{X} | nul do
+    if count(xs) == 1 do
+      nul
+    else
+      ListSeq(xs, 1)
+    end
+  end
+
+  fun empty?(xs: List{X}): Bool do
+    count(xs) == 0
+  end
+end
+
+# Examples of various cute function composition syntaxes.
+# First 16 powers of 2
+0..15 |> map &(2^) |> []
+
+# Map of ASCII characters to their integer values
+'\0'..'\DEL' |> 0..127 |> zip |> {}
+
+
+# Examples of process usage
