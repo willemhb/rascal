@@ -19,7 +19,7 @@ typedef enum {
   TOKEN_LEFT_BRACE, TOKEN_RIGHT_BRACE, TOKEN_COMMA,        TOKEN_DOT,
   TOKEN_MINUS,      TOKEN_PLUS,        TOKEN_SLASH,        TOKEN_STAR,
   TOKEN_EQUAL,      TOKEN_LESS,        TOKEN_GREATER,      TOKEN_PERCENT,
-  TOKEN_AT,
+  /* TOKEN_AT, */
 
   // two character tokens -----------------------------------------------------
   TOKEN_EQUAL_EQUAL,   TOKEN_SLASH_EQUAL, TOKEN_LESS_EQUAL,
@@ -43,7 +43,8 @@ typedef enum {
 typedef struct {
   TokenType type;
   char*     value;
-  int       lineno;
+  int       length;
+  int       line;
 } Token;
 
 typedef struct {
@@ -57,8 +58,10 @@ typedef struct {
 extern Scanner Lexer;
 
 // function prototypes --------------------------------------------------------
-void   init_scanner(Scanner* scn, Port* ios);
-Token* next_token(Scanner* scn);
+void  free_scanner(Scanner* scn);
+void  init_scanner(Scanner* scn, Port* ios);
+Token make_token(Scanner* scn, TokenType type, int length);
+
 
 // initialization -------------------------------------------------------------
 void toplevel_init_lang_lex(void);

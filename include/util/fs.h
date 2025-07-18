@@ -21,6 +21,7 @@
 // function prototypes --------------------------------------------------------
 size_t file_size(FILE* file);
 char* read_file(char* fname);
+char* read_stream(FILE* in);
 
 // initialization -------------------------------------------------------------
 

@@ -61,6 +61,14 @@ char* read_file(char* fname) {
     exit(1);
   }
 
+  char* fdata = read_stream(in);
+
+  fclose(in);
+
+  return fdata;
+}
+
+char* read_stream(FILE* in) {
   size_t fsize = file_size(in);
   char*  fdata = malloc((fsize+1) * sizeof(char));
 
@@ -70,11 +78,11 @@ char* read_file(char* fname) {
   }
 
   if ( fgets(fdata, fsize+1, in) == NULL) {
-    2
+    fprintf(stderr, "Error reading file into file buffer: %s\n.", strerror(errno));
+    exit(1);
   }
-  fclose(in);
 
-  
+  return fdata;
 }
 
 // initialization -------------------------------------------------------------

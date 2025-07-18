@@ -43,6 +43,7 @@ provide Macro
 # as well as a way to implement decorators in a more sophisticated version of the language.
 
 # By default, annotations are attached to the current environment. This will be the module environment at toplevel.
+
 @doc "Simple macro utilities."
 
 # Inside a function definition, annotations are attached to the metadata of the function environment.
@@ -51,17 +52,236 @@ fun syntax_type(expr) do
 
   val expr_type = typeof(expr)
 
-  if expr_type == :List do
-    :Call
-  elif expr_type == :Tuple
-    :Reference
-  else
-    :Literal
+  cond do
+    expr_type == :List ->
+      :Call
+    expr_type == :Tuple ->
+      :Reference
+    otherwise ->
+      :Literal
   end
 end
 
 val SyntaxTable = MutMap()
 
 # Annotations can also be added to an object explicitly using the `@<object>.<annot> <value>` syntax.
-@SyntaxTable.type :MutMap
+@SyntaxTable.constraint MutMap
 @SyntaxTable.doc "Macro environment (just for demo purposes, macros probably won't be implemented this way)."
+
+# Looping syntax
+fun partition(xs) do
+  @doc "return a tuple of two lists where"
+       "the first list has all of the even-indexed elements from `xs`"
+       "and the second list has all of the odd-index elements from `xs`."
+
+  label do
+    even(xs, left, right) ->
+      if empty?(xs) do
+        {left, right}
+      else
+        odd(rest(xs), conj(left, first(xs)), right)
+      end
+
+    odd(xs, left, right) ->
+      if empty?(xs) do
+        {left, right}
+      else
+        even(rest(xs), left, conj(right, first(xs)))
+      end
+
+    begin xs = seq(xs), left = [], right = [] ->
+      even(xs, left, right)
+  end
+end
+
+# Effect syntax
+fun safe_divide(x, y) do
+  control _ do
+    x / y
+  handle
+    error.zero_division() ->
+      print("error: division by zero in #{x} / #{y}")
+      nan
+  end
+end
+
+fun with_output_file(path, func) do
+  control with in do
+  when
+    enter ->
+      in = open(path)
+    leave ->
+      close(in)
+      in = nul
+    return(x) ->
+      close(in)
+      x
+  handle _
+    error.file_not_found(msg) ->
+      print("file at '#{path}' does not exist.")
+      print(msg)
+      nul
+    error.*(msg) ->
+      print(msg)
+      nul
+  begin
+    func(in)
+  end
+end
+
+# Examples to demonstrate using effects to implement exceptions
+mac throw(expression) do
+  quote do: raise $(Macro.qualify(:error, expression))
+end
+
+mac try(do: do_block, catch: catch_block) do
+  fun xform(left, right) do
+    quote do
+      $(Macro.qualify(:error, left)) ->
+        $(right)
+    end
+  end
+
+  val xformed_catch = Macro.arrow_map(xform, catch_block)
+
+  quote do
+    control do
+      $(do_block)
+    handle _
+      $(xformed_catch)
+    end
+  end
+end
+
+mac try(do: do_block, catch: catch_block, finally: finally_block) do
+  fun xform(left, right) do
+    quote do
+      $(qualify(:error, left)) ->
+        $(right)
+    end
+  end
+
+  val xformed_catch = Macro.arrow_map(xform, catch_block)
+
+  quote do
+    control do
+    when
+      leave ->
+        $(finally_block)
+    handle _
+      $(xformed_catch)
+    begin
+      $(do_block)
+    end
+  end
+end
+
+# Examples to demonstrate how effects could be used to implement
+# Python-style generators. This isn't really idiomatic in Rascal,
+# but it's a good way to experiment with and demonstrate syntax.
+
+# NB: some of the functions below use a spread syntax and variadic arguments,
+# but I'm not sure this will actually be part of an initial release of
+# Rascal, since it makes multimethods significantly more complicated.
+# It should be possible to write a function or macro that generates an argument
+# signature for a wrapper function but I don't want to think about this just yet.
+mac yield(expression) do
+  quote do: raise generator.yield($(expression))
+end
+
+fun make_generator(func: Func) do
+  fun wrapper(args..) do
+    var resume = nul
+    var result = nul
+    var done?  = false
+
+    fun inner(args..) do
+      cond do
+        done? ->
+          result
+        resume /= nul ->
+          resume(args..)
+        otherwise ->
+          control do
+          when
+            return(x) ->
+              result = x
+              done?  = true
+              resume = nul
+          handle k
+            generator.yield(x) ->
+              resume = k
+              x
+          begin
+            func(args..)
+          end
+      end
+    end
+  end
+
+  wrapper
+end
+
+# Example to demonstrate how effects could be used to implement coroutines
+type DequeNode = (
+  mut data: Any,
+  mut next: DequeNode | nul
+)
+
+type Deque = (
+  mut first: DequeNode | nul,
+  mut last:  DequeNode | nul
+)
+
+type Promise = (
+  expression: Func,
+  awaiting: Ctl,
+  done?: Bool,
+  result: Any
+)
+
+fun append(d: Deque, x) do
+  val node = DequeNode(x, nul)
+
+  if d.first == nul do # empty deque
+    d.first = node
+    d.last  = node
+  else
+    d.last.next = node
+    d.last      = node
+  end
+end
+
+fun pop(d: Deque) do
+  if d.first == nul do
+    throw empty_collection("Empty deque.")
+  else
+    val out = d.first.data
+    d.first = d.first.next
+
+    if d.first == nul do # Deque had just one item
+      d.last = nul
+    end
+  end
+end
+
+val CoroutineQueue = Deque()
+
+mac await(expression) do
+  quote do: raise coroutine.await( () -> $(expression) )
+end
+
+mac async(fun: name, args, do: body) do
+  @doc "Example of python style coroutine."
+
+  quote do
+    fun $(name) $(args) do
+      control do
+      handle k
+        coroutine.await(expression) ->
+          schedule(k, expression)
+          nul
+      end
+    end
+  end
+end
