@@ -74,6 +74,7 @@ cores/
 # don't ignore the emacs mode
 !bin/rascal-mode.el
 !bin/rascal-lisp-mode.el
+!bin/future-rascal-mode.el
 
 # don't ignore utils??
 !utils/
