@@ -10,7 +10,7 @@
   'future-rascal-mode
   '("#" ("\"\"\"" . "\"\"\""))
   '(;; general binding/declaration syntax
-    "pub" "mut" "val" "as" "with"
+    "pub" "mut" "as" "with"
     ;; function binding syntax
     "fun" "mac"
     ;; type binding syntax
@@ -23,7 +23,7 @@
     "module" "import"
     ;; control syntax
     "control" "raise" "from" "when" "handle" "begin"
-    ;; process syntax
+    ;; process syntaxg
     "receive" "after"
     ;; miscellaneous syntax
     "quote")
