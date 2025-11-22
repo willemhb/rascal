@@ -13,7 +13,7 @@
     ;; binding/declaration syntax
     "var" "val" "fun" "as"
     ;; conditional syntax
-    "if" "else" "cond" "and" "or" "not"
+    "if" "elif" "else" "cond" "and" "or" "not"
     ;; block/loop syntax
     "label" "loop" "do" "end"
     ;; module syntax

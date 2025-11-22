@@ -9,22 +9,21 @@
 (define-generic-mode
   'future-rascal-mode
   '("#" ("\"\"\"" . "\"\"\""))
-  '(;; general binding/declaration syntax
-    "pub" "mut" "as" "with"
-    ;; function binding syntax
-    "fun" "mac"
-    ;; type binding syntax
-    "type" "struct" "union" "trait" "instance" "where"
+  '( ;; binding syntax
+    "fun" "mac" "type" "mut" "var" "val" "as"
+
     ;; conditional syntax
-    "if" "else" "cond" "otherwise" "case" "and" "or" "not"
+    "if" "elif" "else" "case" "and" "or" "not"
+
     ;; block/loop syntax
     "label" "loop" "do" "end"
+
     ;; module syntax
-    "module" "import"
+    "provide" "require"
+
     ;; control syntax
-    "control" "raise" "from" "when" "handle" "begin"
-    ;; process syntaxg
-    "receive" "after"
+    "control" "handle" "raise"
+
     ;; miscellaneous syntax
     "quote")
   '(("\\(?:[^-_a-zA-Z?*+0-9/:]:[-_a-zA-Z?*+0-9/<>=.]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/<>=.]+\\)" . font-lock-type-face)

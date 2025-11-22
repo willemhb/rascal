@@ -2,389 +2,232 @@
 
 # By default, annotations are attached to the current environment. This will be the module environment at toplevel.
 
-module Ideas do
-  @doc "Syntax experiments and demonstrations."
+provide Ideas
+require Core, Base, "local.rlf"
 
-  # Inside a function definition, annotations are attached to the metadata of the function environment.
-  fun syntax_type(expr) do
-    @doc "Classify the syntactic type of an AST expression."
-  
-    expr_type = typeof(expr)
+@doc "Syntax experiments and demonstrations."
 
-    cond do
-      expr_type == :List ->
-        :Call
-      expr_type == :Tuple ->
-        :Reference
-      otherwise ->
-        :Literal
+type Numeric # example abstract type
+
+type Int32 = Small # example type alias
+
+type Number = Real | Small | Big | Ratio | Complex # example union type
+
+type Gender = :Male | :Female | :Other # example enum type
+
+type Person = {name: Str, age: Int, gender: Gender} # example record type
+
+type Pair = (car: Any, cdr: Any) # example struct type
+
+# example of algebraic type definitions
+type EmptyCons = () # creates new singleton type
+type ConsNode = (head: Any, tail: ConsNode | EmptyCons)
+type Cons = EmptyCons | ConsNode
+
+# overloading methods for the new type
+fun size(_: EmptyCons) = 0
+
+fun size(n: ConsNode) do
+  loop n = n, acc = 0 do
+    case n do
+      ()     -> acc
+      (_, t) -> loop t, acc+1
+    end
+  end
+end
+
+# Example of how trait types could work (obviously a lot of this could be abstracted out with macros but that's not a priority right now)
+type Sequence # Create new abstract type
+
+fun declare_sequence(t: Type) do # Create a method for 
+  cache = put_meta!(Sequence, :instance_cache, {})
+  cache = map_set(cache, t, true)
+  set_meta!(Sequence, :instance_cache, cache)
+end
+
+fun isa?(x, t :: Sequence) do # define an interface
+  X = typeof(x)
+  cache = put_meta!(t, :instance_cache, {})
+  answer = get(cache, XType, nul)
+
+  if answer == nul do
+    answer = method_exists(seq, (X,)) and
+             method_exists(first, (X,)) and
+             method_exists(rest, (X,))
+
+    cache = map_set(cache, X, answer)
+
+    set_meta!(t, :instance_cache, cache)
+  end
+
+  answer
+end
+
+
+
+fun seq(_: EmptyCons) = nul
+fun seq(n: ConsNode) = n
+fun first(_: EmptyCons) = nul
+fun first(n: ConsNode) = n.head
+fun rest(_: EmptyCons) = nul
+fun rest(n: ConsNode) = if t == EmptyCons(), do: nul, else: n.tail
+
+# Effect examples
+
+fun with_output_file(path, handler) do
+  @doc "Example of basic effect usage."
+
+  control do
+    in = open(path); handler(in)
+
+  handle
+    (:error.file_not_found, _, _) ->
+      print("file not found at '#{path}'.")
+      close(in)
+      nul
+
+    (:error.* as err, [msg], _) ->
+      close(in)
+      raise err, [msg]
+
+    (op, args, k) ->
+      raise op, args, k
+  end
+end
+
+# Example of building simple control structures with effects and macros
+fun qualify_exception(exc_type) do
+  if is_sym?(exc_type) do
+    if not has_ns?(exc_type, :error) do
+      qualify(:error, exc_type)
+    else
+      exc_type
+    end
+  else
+    [:error.*, :as, exc_type]
+  end
+end
+
+mac throw(exc_type) do
+  throw(exc_type, "error")
+end
+  
+mac throw(exc_type, msg) do
+  op = qualify_exception(exc_type)
+
+  quote do
+    raise $(op), [$(msg)]
+  end
+end
+
+mac try(do: body, catch: handlers) do
+  
+  fun xform(name_pattern, msg_pattern) do
+    op = qualify_exception(name_pattern)
+
+    quote do
+      ( $$(op), [$(msg_pattern)], _ )
     end
   end
 
-  SyntaxTable: MutMap = MutMap()
+    xformed_handlers = transform_patterns(handlers)
 
-  # Looping syntax
-  fun partition(xs) do
-    @doc "return a tuple of two lists where"
-         "the first list has all of the even-indexed elements from `xs`"
-         "and the second list has all of the odd-index elements from `xs`."
-  
-    label do
-      even(xs, left, right) ->
-        if empty?(xs) do
-          (left, right)
-        else
-          odd(rest(xs), conj(left, first(xs)), right)
-        end
-  
-      odd(xs, left, right) ->
-        if empty?(xs) do
-          (left, right)
-        else
-          even(rest(xs), left, conj(right, first(xs)))
-        end
-  
-      begin xs = seq(xs), left = [], right = [] ->
-        even(xs, left, right)
-    end
-  end
-  
-  # Effect syntax
-  fun safe_divide(x, y) do
-    control _ do
-      x / y
-    handle
-      error.zero_division() ->
-        print("error: division by zero in #{x} / #{y}")
-        nan
-    end
-  end
-  
-  fun with_output_file(path, func) do
-    control with in do
-    when
-      enter ->
-        in = open(path)
-      leave ->
-        close(in)
-        in = nul
-      return(x) ->
-        close(in)
-        x
-    handle _
-      error.file_not_found(msg) ->
-        print("file at '#{path}' does not exist.")
-        print(msg)
-        nul
-      error.*(msg) ->
-        print(msg)
-        nul
-    begin
-      func(in)
-    end
-  end
-  
-  # Examples to demonstrate using effects to implement exceptions
-  mac throw(expression) do
-    quote do: raise $(Macro.qualify(:error, expression))
-  end
-  
-  mac try(do: do_block, catch: catch_block) do
-    fun xform(left, right) do
-      quote do
-        $(Macro.qualify(:error, left)) ->
-          $(right)
-      end
-    end
-  
-    xformed_catch = Macro.arrow_map(xform, catch_block)
-  
     quote do
       control do
-        $(do_block)
-      handle _
-        $(xformed_catch)
+        $$(body)
+
+      handle
+        $$(xformed_handlers)
+
+        (op$, args$, k$) ->
+          raise op$, args$, k$
       end
     end
   end
-  
-  mac try(do: do_block, catch: catch_block, finally: finally_block) do
-    fun xform(left, right) do
-      quote do
-        $(qualify(:error, left)) ->
-          $(right)
-      end
+
+  fun with_output_file(path: Str, handler: Fun) do
+    try do
+      in = open(path)
+      out = handler(in)
+      close(in)
+      out
+
+    catch
+      (:file_not_found, _) ->
+        print("No file at '#{path}'.")
+        close(in)
+        nul
+
+      (exc, msg) ->
+        close(in)
+        throw exc, msg
     end
-  
-    xformed_catch = Macro.arrow_map(xform, catch_block)
-  
+  end
+
+  # Example of more complex control structures built with effects and macros
+  mac yield(x) do
     quote do
-      control do
-      when
-        leave ->
-          $(finally_block)
-      handle _
-        $(xformed_catch)
-      begin
-        $(do_block)
-      end
+      raise :generator.yield, [$(x)]
     end
   end
-  
-  # Examples to demonstrate how effects could be used to implement
-  # Python-style generators. This isn't really idiomatic in Rascal,
-  # but it's a good way to experiment with and demonstrate syntax.
-  
-  # NB: some of the functions below use a spread syntax and variadic arguments,
-  # but I'm not sure this will actually be part of an initial release of
-  # Rascal, since it makes multimethods significantly more complicated.
-  # It should be possible to write a function or macro that generates an argument
-  # signature for a wrapper function but I don't want to think about this just yet.
-  mac yield(expression) do
-    quote do: raise generator.yield($(expression))
+
+  mac yield(x, to: thread) do
+    quote do
+      raise :generator.yield, [$(x), $(thread)]
+    end
   end
-  
-  fun make_generator(func: Func) do
-    fun wrapper(args..) do
-      var resume = nul
-      var result = nul
-      var done?  = false
-  
-      fun inner(args..) do
-        cond do
-          done? ->
-            result
-          resume /= nul ->
-            resume(args..)
-          otherwise ->
-            control do
-            when
-              return(x) ->
-                result = x
-                done?  = true
-                resume = nul
-            handle k
-              generator.yield(x) ->
-                resume = k
-                x
-            begin
-              func(args..)
-            end
+
+mac coro(args, do: body) do
+  quote do
+    
+  end
+end
+
+mac coro(name, args, do: body) do
+  quote do
+    $(name) = make_coro(fun($(args), $(body)))
+  end
+end
+
+  fun make_coro(fn: Fun) do
+    fun wrapper(args...) do
+      mut resume = nul
+
+      fun inner(args...) do
+        if resume != nul do
+          resume(args...)
+        else
+          control do
+            fn(args...)
+
+          handle
+            (:generator.yield, [x], k) ->
+              resume = k
+              x
+
+            (:generator.yield, [x, t], k) ->
+              resume = k
+              t(x)
+
+            (op, args, k) ->
+              raise op, args, k
+          end
         end
       end
+
+      inner(args...)
     end
-  
+
     wrapper
   end
-  
-  # Examples to demonstrate using traits
 
-  # Traits are syntactic sugar providing direct
-  # support for the Tim Holy trait trick from Julia.
-
-  # Traits can optionally specify an interface, but don't
-  # have to (but this is an extremely common use case that
-  # ought to be supported).
-
-  # Traits can extend other traits using the `instance` keyword,
-  # provided the extended trait has the same arity.
-
-  # A group of types 'XS' can instantiate a trait 'T' using
-  # `instance T{XS}`. If 'T' specifies an interface, the interface
-  # must be implemented in a `do` block following the `instance`
-  # declaration.
-
-  # Traits 
-
-  trait Seq{S} do
-    @doc "Trait type for collections whose values can be visited in some order."
-    fun seq(xs: S): S' where Seq{S'}
-    fun first(xs: S)
-    fun rest(xs: S): S' where Seq{S'}
-    fun empty?(xs: S): Bool
-  end
-
-  trait Atom not instance Seq #
-
-  struct Transducer do
-    xform: Fun
-    next:  Fun
-    source:: Seq mut
-    first: Any mut
-    forced? Bool mut
-  end
-
-  struct ListSeq{X} do
-    source: List{X}
-    mut first: X | nul
-    mut forced?: Bool
-    mut offset: Arity
-  end
-  
-  fun ListSeq(xs: List{X}, offset: Arity) do
-      ListSeq(xs, nul, false, offset)
-  end
-  
-  instance Seq{nul} do
-    fun seq(xs: nul) do: nul
-  
-    fun first(xs: nul) do: raise error.value("`first` called on empty sequence.")
-  
-    fun rest(xs: nul) do: nul
-    
-    fun empty?(xs: nul) do: true
-  end
-  
-  instance Seq{ListSeq{X}} do
-    fun seq(xs: ListSeq{X}): X do
-      xs
-    end
-  
-    fun first(xs: ListSeq{X}): X do
-      if not xs.forced? do
-        xs.first   = xs.source[xs.offset]
-        xs.forced? = true
-      end
-  
-      xs.first
-    end
-  
-    fun rest(xs: ListSeq{X}): ListSeq{X} | nul do
-      if xs.offset + 1 == count(xs.source) do
-        nul
-      else
-        ListSeq(xs.source, nul, false, xs.offset + 1)
-      end
-    end
-  
-    fun rest!(xs: ListSeq{X}): ListSeq{X} | nul do
-      @doc "Imperative version of rest (useful for avoiding massive memory use in internal loops)."
-      if xs.offset + 1 == count(xs.source) do
-        nul
-      else
-        xs.offset += 1
-        xs.first   = nul
-        xs.forced? = false
-        xs
-    end
-  
-    fun empty?(xs: ListSeq{X}): Bool do
-      false
-    end
-  end
-
-  instance Seq{List{X}} do
-    fun seq(xs: List{X}): ListSeq{X} | nul do
-      if count(xs) == 0 do
-        nul
-      else
-        ListSeq(xs, 0)
-      end
-    end
-
-    fun first(xs: List{X}): X do
-      xs[0]
-    end
-  
-    fun rest(xs: List{X}): ListSeq{X} | nul do
-      if count(xs) == 1 do
-        nul
-      else
-        ListSeq(xs, 1)
-      end
-    end
-  
-    fun empty?(xs: List{X}): Bool do
-      count(xs) == 0
-    end
-  end
-
-  instance Seq{Transducer} do
-    fun seq(xs: Transducer) do
-      xs
-    end
-
-    fun first(xs: Transducer) do
-      if not xs.forced? do
-        first  = first(xs.source)
-        xs.first   = xs.xform(first)
-        xs.forced? = true
-      end
-
-      xs.first
-    end
-
-    fun rest(xs: Transducer) do
-      source = xs.next(xs.source)
-
-      if source == nul do
-        nul
-      else
-        Transducer(xs.xform, xs.next, source, nul, false)
-      end
-    end
-
-    fun empty?(xs: Transducer) do
-      false
-    end
-  end
-
-  fun map(fn: Fun, xs: S{X}) where Seq{S} do
-    @doc "Generic lazy map implemented in terms of Seq trait."
-    if empty?(xs) do
-      nul
+coro range(start, stop, step) do
+  loop start = start, stop = stop, step = step do
+    if start >= stop do
+      stop
     else
-      Transducer(fn, rest, seq(xs), nul, false)
+      yield start
+      loop start+step, stop, step
     end
   end
-
-  fun filter(p?: Fun, xs: S{X}) where Seq{S} do
-    @doc "Generic lazy filter implemented in terms of Seq trait."
-    fun next(xs) do
-      more = rest(xs)
-
-      if more == nul do: nul
-
-      head = first(more)
-
-      if p?(head) do
-        more
-      else
-        next(more)
-      end
-    end
-
-    more = next(xs)
-
-    if more == nul do
-      nul
-    else
-      Transducer(id, next, more, nul, false)
-    end
-  end
-
-  fun Map(xs: S{K, V}) where Seq{S} do
-    if empty?(xs) do
-      {}
-    else
-      label loop xs = seq(xs), acc = transient_map() do
-        if empty?(xs) do
-          persistent(xs)
-        else
-          (k, v) = first(xs)
-          put(acc, k, v)
-          loop(rest(xs), acc)
-        end
-      end
-    end
-  end
-  
-  # Examples of various cute function composition syntaxes.
-  # First 16 powers of 2
-  0..15 |> map &(2^) |> []
-  
-  # Map of ASCII characters to their integer values
-  '\0'..'\x7f' |> 0..127 |> zip |> {}
-  
-  # Examples of process usage
 end

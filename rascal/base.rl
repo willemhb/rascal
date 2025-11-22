@@ -16,7 +16,7 @@ fun Set(items) do
     if off == count(xs) do
       to_map(acc)
     else
-      loop(xs, off+1, mut_map_set!(acc, xs[off], true))
+      loop xs, off+1, mut_map_set!(acc, xs[off], true)
     end
   end
 end

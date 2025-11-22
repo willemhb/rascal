@@ -19,19 +19,16 @@
 
 // macros ---------------------------------------------------------------------
 // limits
-#define MAX_INTERN     512        // interned string length limit
-#define MAX_ARITY      0x40000000 // largest (signed?) 32-bit power of 2
-
-// magic numbers
-#define FRAME_SIZE 3
+#define MAX_INTERN 512 // interned string length limit
+#define MAX_ARITY 0x40000000 // largest (signed?) 32-bit power of 2
 
 // Prompt/messages
-#define PROMPT  "rl>"
+#define PROMPT  "rascal>"
 #define VERSION "%.2d.%.2d.%.2d.%s"
 #define WELCOME "Welcome to rascal version "VERSION"!"
-#define MAJOR   0
-#define MINOR   8
-#define PATCH   0
+#define MAJOR 0
+#define MINOR 1
+#define PATCH 0
 #define RELEASE "a"
 
 // miscellaneous
@@ -47,60 +44,72 @@
 // C types --------------------------------------------------------------------
 // utility typedefs -----------------------------------------------------------
 typedef unsigned short ushort_t;
-typedef unsigned char  byte_t;
-typedef unsigned int   flags_t;
+typedef unsigned char byte_t;
+typedef unsigned int flags_t;
 typedef unsigned short instr_t;
-typedef uintptr_t      hash_t;
+typedef uintptr_t hash_t;
 typedef void (*funcptr_t)(void);
-typedef uintptr_t      uptr_t;
+typedef uintptr_t uptr_t;
 
 // rascal typedefs ------------------------------------------------------------
 // Expression types -----------------------------------------------------------
-typedef uptr_t     Expr;
-typedef nullptr_t  Nul;
-typedef double     Num;
-typedef bool       Bool;
-typedef char32_t   Glyph;
+typedef uptr_t Expr;
+typedef nullptr_t Nul;
+typedef double Num;
+typedef bool Bool;
+typedef char32_t Glyph;
 typedef struct Obj Obj;
 
 // Object types ---------------------------------------------------------------
 // Vm types -------------------------------------------------------------------
-typedef struct Chunk   Chunk;
-typedef struct Ref     Ref;
-typedef struct Env     Env;
-typedef struct UpVal   UpVal;
+typedef struct Chunk Chunk;
+typedef struct Ref Ref;
+typedef struct Env Env;
+typedef struct UpVal UpVal;
 
 // Language types -------------------------------------------------------------
-typedef struct Sym  Sym;
-typedef struct Fun  Fun;
+typedef struct Sym Sym;
+typedef struct Fun Fun;
 typedef struct Port Port;
 
 // Immutable aggregate types --------------------------------------------------
 typedef struct Tuple Tuple;
-typedef struct List  List;
-typedef struct Map   Map;
-typedef struct Str   Str;
-typedef struct Bin   Bin;
+typedef struct List List;
+typedef struct Map Map;
+typedef struct Str Str;
+typedef struct Bin Bin;
 
 // Mutable aggretate types ----------------------------------------------------
 typedef struct MutTuple MutTuple;
-typedef struct MutList  MutList;
-typedef struct MutMap   MutMap;
-typedef struct MutStr   MutStr;
-typedef struct MutBin   MutBin;
+typedef struct MutList MutList;
+typedef struct MutMap MutMap;
+typedef struct MutStr MutStr;
+typedef struct MutBin MutBin;
 
 // Internal types (used in map and list implementations) ----------------------
 typedef struct ListNode ListNode;
 typedef struct ListLeaf ListLeaf;
-typedef struct MapNode  MapNode;
-typedef struct MapLeaf  MapLeaf;
+typedef struct MapNode MapNode;
+typedef struct MapLeaf MapLeaf;
+
+// VM types -------------------------------------------------------------------
+// struct types ---------------------------------------------------------------
+typedef struct Objects Objects;
+typedef struct StringsTable StringsTable;
+typedef struct CallState CallState;
+typedef struct GlobalState GlobalState;
+typedef struct RascalState RascalState;
+
+// scalar types ---------------------------------------------------------------
+typedef Expr* StackRef;
+typedef CallState* CSRef;
 
 typedef union {
-  Expr  expr;
-  Num   num;
-  Obj*  obj;
-  Bool  boolean;
-  Nul   nul;
+  Expr expr;
+  Num num;
+  Obj* obj;
+  Bool boolean;
+  Nul nul;
   Glyph glyph;
 } Val;
 

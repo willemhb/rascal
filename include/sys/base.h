@@ -28,33 +28,45 @@ typedef enum {
 
 #define NUM_ERRORS (SYSTEM_ERROR+1)
 
-typedef struct GcFrame {
-  struct GcFrame* next;
-  int count;
-  Expr* exprs;
-} GcFrame;
+struct CallState {
+  StackRef base;
+  StackRef func;
+  StackRef top;
+  CSRef    catch;
+  instr_t* savepc;
+};
 
-typedef struct {
-  UpVal* upvs;
-  Fun* fn;
-  instr_t* pc;
-  int sp, fp, bp; // stack pointer, frame pointer, base pointer
-  Expr* stack;
-} VM;
+struct GlobalState {
+  StringsTable* strings; /* interned strings */
+  Env* globals; /* global namespace */
+
+  /* heap state */
+  size_t heap_used; /* amount of heap space actually used */
+  size_t heap_total; /* amount of heap space available */
+  Obj* gcroot; /* list of all collectable objects */
+  Objects* gray; /* stack of objects that are live but untraced */
+};
+
+struct RascalState {
+  GlobalState* global_state; /* link back to owning global state */
+
+  /* interpreter state */
+  UpVal* upvalues; /* list of all open upvalues in the current thread */
+  Fun* function; /* currently executing user function */
+  instr_t* pc; /* program counter */
+  StackRef top; /* stack pointer */
+  StackRef base; /* base pointer (current function) */
+  StackRef stack; /* expression stack */
+  CSRef cs_top; /* top of call state stack */
+  CSRef cs_stack; /* call state stack */
+};
+
 
 // globals --------------------------------------------------------------------
 // Error state
 extern jmp_buf SaveState;
 extern char* ErrorNames[NUM_ERRORS];
 extern Sym* ErrorTypes[NUM_ERRORS];
-
-// Heap state
-extern Obj* Heap;
-extern size_t HeapUsed, HeapCap;
-extern GcFrame* GcFrames;
-
-// Interpreter state
-extern VM Vm;
 
 // function prototypes --------------------------------------------------------
 // VM helpers -----------------------------------------------------------------
