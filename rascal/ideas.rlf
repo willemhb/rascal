@@ -39,7 +39,7 @@ end
 # Example of how trait types could work (obviously a lot of this could be abstracted out with macros but that's not a priority right now)
 type Sequence # Create new abstract type
 
-fun declare_sequence(t: Type) do # Create a method for 
+fun declare_sequence(t: Type) do # Create a method for adding members
   cache = put_meta!(Sequence, :instance_cache, {})
   cache = map_set(cache, t, true)
   set_meta!(Sequence, :instance_cache, cache)
@@ -51,9 +51,9 @@ fun isa?(x, t :: Sequence) do # define an interface
   answer = get(cache, XType, nul)
 
   if answer == nul do
-    answer = method_exists(seq, (X,)) and
-             method_exists(first, (X,)) and
-             method_exists(rest, (X,))
+    answer = method_exists?(seq, (X,)) and
+             method_exists?(first, (X,)) and
+             method_exists?(rest, (X,))
 
     cache = map_set(cache, X, answer)
 
@@ -63,17 +63,19 @@ fun isa?(x, t :: Sequence) do # define an interface
   answer
 end
 
-
-
+# Define for new type
 fun seq(_: EmptyCons) = nul
 fun seq(n: ConsNode) = n
 fun first(_: EmptyCons) = nul
 fun first(n: ConsNode) = n.head
 fun rest(_: EmptyCons) = nul
-fun rest(n: ConsNode) = if t == EmptyCons(), do: nul, else: n.tail
+fun rest(n: ConsNode) = if n.tail == EmptyCons(), do: nul, else: n.tail
+
+declare_sequence(Cons)
+declare_sequence(EmptyCons)
+declare_sequence(ConsNode)
 
 # Effect examples
-
 fun with_output_file(path, handler) do
   @doc "Example of basic effect usage."
 
@@ -139,8 +141,8 @@ mac try(do: body, catch: handlers) do
       handle
         $$(xformed_handlers)
 
-        (op$, args$, k$) ->
-          raise op$, args$, k$
+        ($op, $args, $k) ->
+          raise $op, $args, $k
       end
     end
   end
@@ -164,70 +166,45 @@ mac try(do: body, catch: handlers) do
     end
   end
 
-  # Example of more complex control structures built with effects and macros
-  mac yield(x) do
-    quote do
-      raise :generator.yield, [$(x)]
+# Example of implementing a new feature using effects, macros, and overloading
+mut type Coro = (done?, result, resume, fn)
+
+fun Coro(fn: Fun) do
+  fun wrapper(coro, fn) do
+    fun (args...) do
+      control do
+        coro.result = fn(args...)
+        coro.done? = true
+        coro.resume = nul
+
+      handle
+        (:coro.yield, [x], k) ->
+          coro.resume = k
+          x
+
+        (op, args, k) ->
+          raise op, args, k
+      end 
     end
   end
 
-  mac yield(x, to: thread) do
-    quote do
-      raise :generator.yield, [$(x), $(thread)]
-    end
-  end
+  coro = Coro(false, nul, nul, nul)
+  coro.fn = wrapper(coro, fn)
+  coro
+end
 
-mac coro(args, do: body) do
-  quote do
-    
+fun call(fn: Coro, args...) do
+  if coro.done? do
+    coro.result
+  elif coro.resume == nul
+    coro.fn(args...)
+  else
+    coro.resume(args...)
   end
 end
 
-mac coro(name, args, do: body) do
+mac yield(x) do
   quote do
-    $(name) = make_coro(fun($(args), $(body)))
-  end
-end
-
-  fun make_coro(fn: Fun) do
-    fun wrapper(args...) do
-      mut resume = nul
-
-      fun inner(args...) do
-        if resume != nul do
-          resume(args...)
-        else
-          control do
-            fn(args...)
-
-          handle
-            (:generator.yield, [x], k) ->
-              resume = k
-              x
-
-            (:generator.yield, [x, t], k) ->
-              resume = k
-              t(x)
-
-            (op, args, k) ->
-              raise op, args, k
-          end
-        end
-      end
-
-      inner(args...)
-    end
-
-    wrapper
-  end
-
-coro range(start, stop, step) do
-  loop start = start, stop = stop, step = step do
-    if start >= stop do
-      stop
-    else
-      yield start
-      loop start+step, stop, step
-    end
+    raise :generator.yield, [$(x)]
   end
 end

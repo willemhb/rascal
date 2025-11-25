@@ -1,6 +1,5 @@
 provide Base
 
-
 fun isa?(x, t) do
   # simple type checking utility
   typeof(x) == t
@@ -9,7 +8,7 @@ end
 fun Set(items) do
   # constructor for set pseudo-type
   if not isa?(items, :List) do
-    error("not a list")
+    throw "not a list"
   end
 
   label loop xs = xs, off = 0, acc = MutMap() do

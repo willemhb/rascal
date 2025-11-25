@@ -10,13 +10,13 @@
   'future-rascal-mode
   '("#" ("\"\"\"" . "\"\"\""))
   '( ;; binding syntax
-    "fun" "mac" "type" "mut" "var" "val" "as"
+    "fun" "mac" "type" "mut" "as"
 
     ;; conditional syntax
     "if" "elif" "else" "case" "and" "or" "not"
 
     ;; block/loop syntax
-    "label" "loop" "do" "end"
+    "label" "loop" "let" "do" "end"
 
     ;; module syntax
     "provide" "require"
