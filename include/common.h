@@ -63,9 +63,10 @@ typedef struct Obj Obj;
 // Object types ---------------------------------------------------------------
 // Vm types -------------------------------------------------------------------
 typedef struct Chunk Chunk;
-typedef struct Ref Ref;
-typedef struct Env Env;
+typedef struct Env   Env;
+typedef struct Ref   Ref;
 typedef struct UpVal UpVal;
+typedef struct Cntl  Cntl;
 
 // Language types -------------------------------------------------------------
 typedef struct Sym Sym;
@@ -73,32 +74,30 @@ typedef struct Fun Fun;
 typedef struct Port Port;
 
 // Immutable aggregate types --------------------------------------------------
-typedef struct Tuple Tuple;
 typedef struct List List;
+typedef struct Tuple Tuple;
 typedef struct Map Map;
-typedef struct Str Str;
 typedef struct Bin Bin;
 
 // Mutable aggretate types ----------------------------------------------------
 typedef struct MutTuple MutTuple;
 typedef struct MutList MutList;
 typedef struct MutMap MutMap;
-typedef struct MutStr MutStr;
 typedef struct MutBin MutBin;
 
-// Internal types (used in map and list implementations) ----------------------
-typedef struct ListNode ListNode;
-typedef struct ListLeaf ListLeaf;
+// Internal types (used in map implementation) --------------------------------
 typedef struct MapNode MapNode;
 typedef struct MapLeaf MapLeaf;
 
 // VM types -------------------------------------------------------------------
 // struct types ---------------------------------------------------------------
 typedef struct Objects Objects;
-typedef struct StringsTable StringsTable;
 typedef struct CallState CallState;
 typedef struct GlobalState GlobalState;
 typedef struct RascalState RascalState;
+
+// function pointer types -----------------------------------------------------
+typedef int (*RascalIFn)(RascalState* s);
 
 // scalar types ---------------------------------------------------------------
 typedef Expr* StackRef;

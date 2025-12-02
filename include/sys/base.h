@@ -29,15 +29,14 @@ typedef enum {
 #define NUM_ERRORS (SYSTEM_ERROR+1)
 
 struct CallState {
-  StackRef base;
-  StackRef func;
-  StackRef top;
-  CSRef    catch;
-  instr_t* savepc;
+  int frame_size; /* stack usage */
+  int cntl_off; /* offset to nearest enclosing control frame (0 if this is a control frame, -1 if no control frames exist) */
+  int cntl_size; /* total size of stack enclosed by a control frame (-1 if no control frame exists) */
+  int flags; /* idk but struct padding activates my autism */
+  instr_t* savepc; /* caller's program counter */
 };
 
 struct GlobalState {
-  StringsTable* strings; /* interned strings */
   Env* globals; /* global namespace */
 
   /* heap state */
@@ -61,6 +60,12 @@ struct RascalState {
   CSRef cs_stack; /* call state stack */
 };
 
+  Fun* function; /* currently executing user function */
+  instr_t* pc; /* program counter */
+  StackRef top; /* stack pointer */
+  StackRef base; /* base pointer (current function) */
+  StackRef stack; /* expression stack */
+  CSRef cs_top; /* top of call state stack */
 
 // globals --------------------------------------------------------------------
 // Error state

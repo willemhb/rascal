@@ -1,22 +1,51 @@
 provide Base
+require Core
 
-fun isa?(x, t) do
-  # simple type checking utility
-  typeof(x) == t
+
+fun isa?(x, t: Type) do
+  instance?(typeof(x), t)
 end
 
-fun Set(items) do
-  # constructor for set pseudo-type
-  if not isa?(items, :List) do
-    throw "not a list"
-  end
-
-  label loop xs = xs, off = 0, acc = MutMap() do
-    if off == count(xs) do
-      to_map(acc)
+fun map(fn: Fun, xs: List) do
+  label loop fn = fn, xs = xs, acc = [] do
+    if empty? xs do
+      reverse acc
     else
-      loop xs, off+1, mut_map_set!(acc, xs[off], true)
+      let [first | rest] = xs do
+        loop fn, rest, fn(first) | acc
+      end
     end
   end
 end
 
+fun map(fn: Fun, kvs: Map) do
+  label loop fn = fn, kvs = pairs(kvs), acc = {} do
+    if empty?(kvs) do
+      acc
+    else
+      let [first | rest] = kvs do
+        loop fn, rest, fn(first) | acc
+      end
+    end
+  end
+end
+
+mac try(do: try_block, catch: catch_block) do
+  fun xform_catch_pattern(pattern) do
+    let (etype, msg) = pattern do
+      quote (qualify(etype, :exception), msg, _)
+    end
+  end
+
+  fun xform_catch_clauses(block) do
+    syntax_map(xform_catch_pattern, block)
+  end
+
+  quote do
+    control do
+      splice(try_block)
+    handle
+      splice(xform_catch_clauses(catch_block))
+    end
+  end
+end

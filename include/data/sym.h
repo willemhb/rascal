@@ -18,6 +18,8 @@ struct Sym {
 
   Str*   val;
   hash_t hash;
+  Sym*   left;
+  Sym*   right;
 };
 
 // globals --------------------------------------------------------------------

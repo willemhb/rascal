@@ -11,15 +11,17 @@
   '("#" ("\"\"\"" . "\"\"\""))
   '(;; actual syntax (near-term plan to support)
     ;; binding/declaration syntax
-    "fun" "mac" "type" "mut" "as"
+    "fun" "mac" "type" "mut"
     ;; conditional syntax
     "if" "elif" "else" "and" "or" "not"
     ;; block/loop syntax
-    "label" "loop" "let" "do" "end"
+    "label" "let"
     ;; module syntax
-    "require" "provide"
+    "require" "provide" "as"
     ;; control syntax
-    "try" "catch" "finally" "throw")
+    "control" "handle" "raise"
+    ;; miscellaneous syntax
+    "quote" "do" "end")
   '(("\\(?:[^-_a-zA-Z?*+0-9/:]:[-_a-zA-Z?*+0-9/<>=.]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/<>=.]+\\)" . font-lock-type-face)
     ("\\(?:[^~]@[-_a-zA-Z?*+0-9/.<>=]+\\)\\|\\(?:^@[-_a-zA-Z?*+0-9/.<>=]+\\)" . font-lock-type-face)
     ;; special constants
