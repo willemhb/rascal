@@ -3,17 +3,11 @@
 
 /**
  *
- * Rascal lists are based on tries. They are the go-to data structure
- * for storing sequenced data.
+ * Rascal lists are based on linked lists.
  *
- * They're a bit more complicated than linked lists, but
- * they have much better general performance characteristics
- * (at some point there will be a 'cons' type in the standard
- * library for handling the cases where a cons cell is actually
- * what's desired).
- *
- * Obviously this is an early implementation and space utilization
- * needs to be optimized.
+ * In the future I would like to supply a trie-based list, but the implementation
+ * is more complicated and it requires significantly more bells and whistles to
+ * operate on efficiently without a stateful iteration construct.
  *
  **/
 
@@ -29,20 +23,8 @@ struct List {
   HEAD;
 
   size_t arity;
-  ListNode* root;
-  Expr tail[64];
-};
-
-struct ListNode {
-  HEAD;
-
-  Obj* children[64];
-};
-
-struct ListLeaf {
-  HEAD;
-
-  Expr slots[64];
+  Expr* head;
+  List* tail;
 };
 
 // globals --------------------------------------------------------------------

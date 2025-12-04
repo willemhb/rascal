@@ -1,8 +1,7 @@
-/* First-class identifier type. A Lisp classic! */
+/* DESCRIPTION */
 // headers --------------------------------------------------------------------
-#include "data/sym.h"
 
-#include "sys/memory.h"
+#include "TYPE.h"
 
 // macros ---------------------------------------------------------------------
 
@@ -11,15 +10,15 @@
 // globals --------------------------------------------------------------------
 
 // function prototypes --------------------------------------------------------
+
 // function implementations ---------------------------------------------------
 // internal -------------------------------------------------------------------
-/* symbol table implementation */
 
 // external -------------------------------------------------------------------
 
 // initialization -------------------------------------------------------------
-void toplevel_init_data_sym(void) {
+void toplevel_init_data_type_TYPE(void) {
+     Types[EXP_TYPE] = (ExpTypeInfo) {
+     
+     };
 }
-
-#undef MIN_CAP
-#undef LOADF

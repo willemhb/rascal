@@ -32,17 +32,15 @@
 
 // function prototypes --------------------------------------------------------
 // high level heap API --------------------------------------------------------
-void* allocate(bool h, size_t n);
-char* duplicates(char* cs);
+void* allocate(RascalState* m, bool h, size_t n);
 void* duplicate(bool h, size_t n, void* ptr);
 void* reallocate(bool h, size_t n, size_t o, void* spc);
-void  release(void* d, size_t n);
+void  release(RascalState* m, void* d, size_t n);
 void  run_gc(void);
 
 // low level heap helpers -----------------------------------------------------
 void add_to_heap(void* ptr);
 void gc_save(void* ob);
-void next_gc_frame(GcFrame* gcf);
 void trace_exp_array(size_t n, Expr* xs);
 void trace_obj_array(size_t n, void* os);
 void heap_report(void);

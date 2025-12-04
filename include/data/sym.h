@@ -6,28 +6,29 @@
 #include "common.h"
 
 #include "data/base.h"
-#include "data/str.h"
 
 // macros ---------------------------------------------------------------------
-#define as_sym(x)     ((Sym*)as_obj(x))
-#define is_sym(x)     has_type(x, EXP_SYM)
+#define as_sym(x) ((Sym*)as_obj(x))
+#define is_sym(x) has_type(x, EXP_SYM)
 
 // C types --------------------------------------------------------------------
 struct Sym {
   HEAD;
 
-  Str*   val;
+  char* val;
+  idno_t idno; /* gensym counter, 0 if this is an interned symbol */
   hash_t hash;
-  Sym*   left;
-  Sym*   right;
 };
 
 // globals --------------------------------------------------------------------
+extern Type SymType;
 
 // function prototypes --------------------------------------------------------
 Sym* as_sym_s(char* f, Expr x);
-Sym* mk_sym(char* cs);
-bool sym_val_eql(Sym* s, char* v);
+Sym* new_sym(char* cs, bool intern, hash_t h);
+
+// interface functions
+Status iget_sym(RascalState* s, char* name, bool intern);
 
 // initialization -------------------------------------------------------------
 void toplevel_init_data_sym(void);

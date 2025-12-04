@@ -26,15 +26,8 @@ struct Map {
 struct MapNode {
   HEAD;
 
-  size_t bitmap;
-  Obj**  children;
-};
-
-struct MapLeaf {
-  HEAD;
-
-  Val key;
-  Val val;
+  uptr_t bitmap;
+  Obj** children;
 };
 
 // globals --------------------------------------------------------------------

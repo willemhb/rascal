@@ -11,11 +11,11 @@
   '("#" ("\"\"\"" . "\"\"\""))
   '(;; actual syntax (near-term plan to support)
     ;; binding/declaration syntax
-    "fun" "mac" "type" "mut"
+    "mut" "ref" "fun" "mac" "type"
     ;; conditional syntax
     "if" "elif" "else" "and" "or" "not"
     ;; block/loop syntax
-    "label" "let"
+    "label"
     ;; module syntax
     "require" "provide" "as"
     ;; control syntax

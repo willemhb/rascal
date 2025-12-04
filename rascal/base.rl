@@ -7,45 +7,27 @@ fun isa?(x, t: Type) do
 end
 
 fun map(fn: Fun, xs: List) do
-  label loop fn = fn, xs = xs, acc = [] do
+  label loop fn = fn, xs = vals!(xs), acc = transient!([]) do
     if empty? xs do
-      reverse acc
+      persistent(acc)
     else
-      let [first | rest] = xs do
-        loop fn, rest, fn(first) | acc
-      end
+      ref (first, rest) = next!(vals)
+      loop fn, rest, fn(first) | acc
     end
   end
 end
 
 fun map(fn: Fun, kvs: Map) do
-  label loop fn = fn, kvs = pairs(kvs), acc = {} do
+  label loop fn = fn, kvs = pairs!(kvs), acc = transient!({}) do
     if empty?(kvs) do
-      acc
+      persistent(acc)
     else
-      let [first | rest] = kvs do
-        loop fn, rest, fn(first) | acc
-      end
+      ref (kv, rest) = next!(kvs)
+      loop fn, rest, fn(kv) | acc
     end
   end
 end
 
-mac try(do: try_block, catch: catch_block) do
-  fun xform_catch_pattern(pattern) do
-    let (etype, msg) = pattern do
-      quote (qualify(etype, :exception), msg, _)
-    end
-  end
-
-  fun xform_catch_clauses(block) do
-    syntax_map(xform_catch_pattern, block)
-  end
-
-  quote do
-    control do
-      splice(try_block)
-    handle
-      splice(xform_catch_clauses(catch_block))
-    end
-  end
+fun elem?(x, xs: List) do
+  
 end
