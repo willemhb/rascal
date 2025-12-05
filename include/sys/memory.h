@@ -32,18 +32,18 @@
 
 // function prototypes --------------------------------------------------------
 // high level heap API --------------------------------------------------------
-void* allocate(RascalState* m, bool h, size_t n);
-void* duplicate(bool h, size_t n, void* ptr);
-void* reallocate(bool h, size_t n, size_t o, void* spc);
-void  release(RascalState* m, void* d, size_t n);
-void  run_gc(void);
+void* allocate(RascalState* s, bool h, size_t n);
+void* duplicate(RascalState* s, bool h, size_t n, void* ptr);
+void* reallocate(RascalState* s, bool h, size_t n, size_t o, void* spc);
+void  release(RascalState* s, void* d, size_t n);
+void  run_gc(RascalState* s);
 
 // low level heap helpers -----------------------------------------------------
-void add_to_heap(void* ptr);
-void gc_save(void* ob);
-void trace_exp_array(size_t n, Expr* xs);
-void trace_obj_array(size_t n, void* os);
-void heap_report(void);
+void add_to_heap(RascalState* s, void* ptr);
+void gc_save(RascalState* s, void* ob);
+void trace_exp_array(RascalState* s, size_t n, Expr* xs);
+void trace_obj_array(RascalState* s, size_t n, void* os);
+void heap_report(RascalState* s);
 
 // initialization -------------------------------------------------------------
 void toplevel_init_sys_memory(void);
