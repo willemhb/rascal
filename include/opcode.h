@@ -55,6 +55,7 @@ typedef enum {
   // system instructions
   OP_HEAP_REPORT,
   OP_DIS,
+  OP_LOAD,
 } OpCode;
 
 int   op_arity(OpCode op);

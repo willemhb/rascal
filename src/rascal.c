@@ -10,6 +10,33 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <getopt.h>
+
+// command line options -------------------------------------------------------
+static struct option long_options[] = {
+  {"help",    no_argument, 0, 'h'},
+  {"version", no_argument, 0, 'v'},
+  {0, 0, 0, 0}
+};
+
+void print_help(const char* progname) {
+  printf("Usage: %s [OPTIONS] [FILE]\n", progname);
+  printf("\n");
+  printf("A bytecode interpreter for a small Lisp dialect.\n");
+  printf("\n");
+  printf("Arguments:\n");
+  printf("  FILE        Execute the specified file\n");
+  printf("\n");
+  printf("Options:\n");
+  printf("  -h, --help     Show this help message and exit\n");
+  printf("  -v, --version  Show version information and exit\n");
+  printf("\n");
+  printf("If no FILE is provided, an interactive REPL is started.\n");
+}
+
+void print_version(void) {
+  printf("rascal version " VERSION "\n", MAJOR, MINOR, PATCH, RELEASE);
+}
 
 // setup/teardown -------------------------------------------------------------
 void init_standard_streams(void) {
@@ -41,6 +68,7 @@ void define_builtins(void) {
   def_builtin_fun("tail", OP_TAIL);
   def_builtin_fun("nth", OP_NTH);
   def_builtin_fun("*heap-report*", OP_HEAP_REPORT);
+  def_builtin_fun("load", OP_LOAD);
 
   // initialize other globals -------------------------------------------------
   toplevel_env_def(&Globals, mk_sym("&ins"), tag_obj(&Ins));
@@ -75,18 +103,40 @@ void setup(void) {
   init_static_objects();
   define_builtins();
   initialize_types();
-  print_welcome();
 }
 
 void teardown(void) {}
 
 // entry point
-int main(int argc, const char* argv[argc]) {
-  (void)argv;
-  (void)argc;
+int main(int argc, char* argv[]) {
+  int opt;
+  int option_index = 0;
+
+  while ((opt = getopt_long(argc, argv, "hv", long_options, &option_index)) != -1) {
+    switch (opt) {
+      case 'h':
+        print_help(argv[0]);
+        return 0;
+      case 'v':
+        print_version();
+        return 0;
+      default:
+        print_help(argv[0]);
+        return 1;
+    }
+  }
 
   setup();
-  repl();
+
+  if (optind < argc) {
+    // Execute the specified file
+    load_file(argv[optind]);
+  } else {
+    // Enter REPL
+    print_welcome();
+    repl();
+  }
+
   teardown();
 
   return 0;

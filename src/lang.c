@@ -42,7 +42,11 @@ void skip_space(Port* p) {
   while ( !peof(p) ) {
     c = pgetc(p);
 
-    if ( !isspace(c) ) {
+    if ( c == ';' ) {
+      // skip comment to end of line
+      while ( !peof(p) && (c = pgetc(p)) != '\n' )
+        ;
+    } else if ( !isspace(c) ) {
       pungetc(p, c);
       break;
     }
@@ -85,7 +89,7 @@ Expr read_glyph(Port* in) {
   Glyph g; int c;
 
   if ( !isalpha(ppeekc(in)) ) {
-    g = ppeekc(in);
+    g = pgetc(in);
     c = ppeekc(in);
 
     require(isspace(c) || is_delim_char(c), "invalid character literal");
@@ -94,7 +98,7 @@ Expr read_glyph(Port* in) {
   else {
     while (!peof(in) && !isspace(c=ppeekc(in)) && !is_delim_char(c) ) {
       add_to_token(c);
-      ppeekc(in);
+      pgetc(in);
     }
 
     if ( TOff == 1 )
@@ -180,7 +184,7 @@ Expr read_glyph(Port* in) {
 }
 
 Expr read_quote(Port* in) {
-  ppeekc(in); // consume opening '
+  pgetc(in); // consume opening '
 
   if ( peof(in) || isspace(ppeekc(in)) )
     eval_error("invalid syntax: quoted nothing");
@@ -194,7 +198,7 @@ Expr read_quote(Port* in) {
 
 Expr read_list(Port* in) {
   List* out;
-  ppeekc(in); // consume the '('
+  pgetc(in); // consume the '('
   skip_space(in);
   Expr* base = &Vm.stack[Vm.sp], x;
   int n = 0, c;
@@ -209,7 +213,7 @@ Expr read_list(Port* in) {
     skip_space(in);
   }
 
-  ppeekc(in); // consume ')'
+  pgetc(in); // consume ')'
 
   out = mk_list(n, base);
 
@@ -224,17 +228,17 @@ Expr read_string(Port* in) {
 
   int c;
 
-  ppeekc(in); // consume opening '"'
+  pgetc(in); // consume opening '"'
 
   while ( (c=ppeekc(in)) != '"' ) {
     if ( peof(in) )
       runtime_error("unterminated string");
 
     add_to_token(c); // accumulate
-    ppeekc(in);   // advance
+    pgetc(in);   // advance
   }
 
-  ppeekc(in); // consume terminal '"'
+  pgetc(in); // consume terminal '"'
 
   out = mk_str(Token);
 
@@ -247,7 +251,7 @@ Expr read_atom(Port* in) {
   
   while ( !peof(in) && is_sym_char(c=ppeekc(in)) ) {
     add_to_token(c); // accumulate
-    ppeekc(in);   // consume character
+    pgetc(in);   // consume character
   }
 
   assert(TOff > 0);
@@ -295,16 +299,37 @@ Expr read_atom(Port* in) {
 }
 
 // load -----------------------------------------------------------------------
-List* read_file(char* fname) {
-  Expr* base = &Vm.stack[Vm.sp];
-  Port* in   = open_port(fname, "r");
+Fun* compile_file(char* fname);
 
-  if ( safepoint() ) {
-    
+List* read_file(char* fname) {
+  Port* in = open_port(fname, "r");
+  preserve(1, tag_obj(in));  // protect port from GC
+
+  Expr* base = &Vm.stack[Vm.sp];
+  Expr x;
+  int n = 0;
+
+  while ( (x = read_exp(in)) != EOS ) {
+    push(x);
+    n++;
   }
+
+  close_port(in);
+
+  List* out = mk_list(n, base);
+
+  if ( n > 0 )
+    popn(n);
+
+  return out;
 }
 
-Expr  load_file(char* fname);
+Expr load_file(char* fname) {
+  Fun* code = compile_file(fname);
+  Expr v = exec_code();
+
+  return v;
+}
 
 // compile --------------------------------------------------------------------
 // compile helpers ------------------------------------------------------------
@@ -330,6 +355,7 @@ void compile_literal(Expr x, Env* vars, Alist* vals, Buf16* code);
 void compile_reference(Sym* s, Env* ref, Alist* vals, Buf16* code);
 void compile_funcall(List* form, Env* vars, Alist* vals, Buf16* code);
 void compile_expr(Expr x, Env* vars, Alist* vals, Buf16* code);
+Fun* compile_file(char* fname);
 Fun* toplevel_compile(List* form);
 
 void emit_instr(Buf16* code, OpCode op, ...) {
@@ -717,6 +743,25 @@ Fun* toplevel_compile(List* form) {
   return out;
 }
 
+Fun* compile_file(char* fname) {
+  List* exprs = read_file(fname);
+  preserve(4, tag_obj(exprs), NUL, NUL, NUL);
+  Alist* vals = mk_alist(); add_to_preserved(1, tag_obj(vals));
+  Buf16* code = mk_buf16(); add_to_preserved(2, tag_obj(code));
+
+  compile_sequence(exprs, &Globals, vals, code);
+  emit_instr(code, OP_RETURN);
+
+  Chunk* chunk = mk_chunk(&Globals, vals, code); add_to_preserved(0, tag_obj(chunk));
+  Fun* out = mk_user_fun(chunk);
+  
+#ifdef RASCAL_DEBUG
+  disassemble(out);
+#endif
+
+  return out;
+}
+
 // exec
 bool is_falsey(Expr x) {
   return x == NONE || x == NUL || x == FALSE;
@@ -772,6 +817,7 @@ Expr exec_code(Fun* fun) {
 
     // system instructions ----------------------------------------------------
     [OP_HEAP_REPORT] = &&op_heap_report,
+    [OP_LOAD]        = &&op_load,
   };
 
   int argc, argx, argy;
@@ -779,9 +825,10 @@ Expr exec_code(Fun* fun) {
   Expr x, y, z;
   Num nx, ny, nz;
   List* lx, * ly;
-  Str* msg;
+  Fun* fx;
+  Str* msg, * name;
 
-  install_fun(fun, 0, 0);
+  install_fun(fun, 0);
 
  fetch:
   op = next_op();
@@ -930,8 +977,8 @@ Expr exec_code(Fun* fun) {
 
  call_user_fn:
   require_argco("fn", user_fn_argc(fun), argc);
-  save_frame();                                 // save caller state
-  install_fun(fun, Vm.sp-argc-FRAME_SIZE, Vm.sp);
+  save_frame(); // save caller state
+  install_fun(fun, argc);
 
   goto fetch;
 
@@ -1113,6 +1160,18 @@ Expr exec_code(Fun* fun) {
   heap_report();
 
   tos() = NUL; // dummy retunr value
+
+  goto fetch;
+
+ op_load:
+  // compile the file and begin executing
+  require_argco("load", 1, argc);
+
+  x = pop();
+  name = as_str_s("load", x);
+  fx = compile_file(name->val);
+  save_frame();
+  install_fun(fx, 0);
 
   goto fetch;
 }

@@ -25,6 +25,11 @@ typedef struct GcFrame {
 } GcFrame;
 
 typedef struct {
+  Fun* fn;
+  int sp;
+} CallState;
+
+typedef struct {
   UpVal*   upvs;
   Fun*     fn;
   instr_t* pc;
@@ -34,7 +39,7 @@ typedef struct {
   Expr     stack[STACK_SIZE];
 } VM;
 
-// everything necessary to 
+// everything necessary to restore execution at a particular point
 typedef struct VmCtx {
   GcFrame* gcf;
   Fun* fn;
@@ -81,7 +86,7 @@ Expr   popn(int n);
 UpVal* get_upv(Expr* loc);
 void   close_upvs(Expr* base);
 
-void   install_fun(Fun* fun, int bp, int fp);
+void   install_fun(Fun* fun, int argc);
 void   save_frame(void);
 void   restore_frame(void);
 void   reset_vm(void);

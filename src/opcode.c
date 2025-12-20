@@ -59,6 +59,7 @@ char* op_name(OpCode op) {
     case OP_HEAD:       out = "HEAD";       break;
     case OP_TAIL:       out = "TAIL";       break;
     case OP_NTH:        out = "NTH";        break;
+    case OP_LOAD:       out = "LOAD";       break;
     default:            out = "????";       break;
   }
 
