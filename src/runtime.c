@@ -24,18 +24,9 @@ int ep = 0;
 
 char Token[BUFFER_SIZE];
 size_t TOff = 0;
-Obj* Heap = NULL;
-size_t HeapUsed = 0, HeapCap = INIT_HEAP;
 GcFrame* GcFrames = NULL;
 
-VM Vm = {
-  .upvs = NULL,
-  .fn   = NULL,
-  .pc   = NULL,
-  .sp   = 0,
-  .fp   = 0,
-  .bp   = 0
-};
+extern Strings StringTable;
 
 Env Globals = {
   .type    = EXP_ENV,
@@ -64,6 +55,26 @@ Objs GrayStack = {
   .vals      = NULL,
   .count     = 0,
   .max_count = 0
+};
+
+RlVm Vm = {
+  .globals   = &Globals,
+  .strings   = &StringTable,
+  .heap_cap  = INIT_HEAP,
+  .heap_used = 0,
+  .heap_live = NULL,
+  .grays     = &GrayStack
+};
+
+RlState Main = {
+  .vm   = &Vm,
+  .upvs = NULL,
+  .fn   = NULL,
+  .pc   = NULL,
+  .sp   = 0,
+  .fp   = 0,
+  .bp   = 0,
+  .ep   = 0
 };
 
 // static wrapper objects for standard streams
@@ -98,16 +109,16 @@ char* CharNames[128] = {
 };
 
 // internal helpers
-static bool check_gc(size_t n);
-static void mark_vm(void);
-static void mark_globals(void);
-static void mark_upvals(void);
-static void mark_types(void);
-static void mark_gc_frames(void);
-static void mark_phase(void);
-static void trace_phase(void);
-static void sweep_phase(void);
-static void cleanup_phase(void);
+static bool check_gc(RlState* rls, size_t n);
+static void mark_vm(RlState* rls);
+static void mark_globals(RlState* rls);
+static void mark_upvals(RlState* rls);
+static void mark_types(RlState* rls);
+static void mark_gc_frames(RlState* rls);
+static void mark_phase(RlState* rls);
+static void trace_phase(RlState* rls);
+static void sweep_phase(RlState* rls);
+static void cleanup_phase(RlState* rls);
 
 // error helpers
 void panic(Status etype) {
@@ -123,7 +134,7 @@ void panic(Status etype) {
 }
 
 void recover(void) {
-  restore_ctx();
+  restore_ctx(&Main);
   pseek(&Ins, SEEK_SET, SEEK_END); // clear out invalid characters
 }
 
@@ -154,80 +165,80 @@ size_t add_to_token(char c) {
 }
 
 // stack API ------------------------------------------------------------------
-void reset_stack(void) {
-  memset(Vm.stack, 0, EXPR_STACK_SIZE * sizeof(Expr));
-  Vm.sp = 0;
+void reset_stack(RlState* rls) {
+  memset(rls->stack, 0, EXPR_STACK_SIZE * sizeof(Expr));
+  rls->sp = 0;
 }
 
-Expr* stack_ref(int i) {
+Expr* stack_ref(RlState* rls, int i) {
   int j = i;
 
   if ( j < 0 )
-    j += Vm.sp;
+    j += rls->sp;
 
-  if ( j < 0 || j > Vm.sp ) {
+  if ( j < 0 || j > rls->sp ) {
     runtime_error("stack reference %d out of bounds", i);
   }
 
-  return &Vm.stack[j];
+  return &rls->stack[j];
 }
 
-Expr* push( Expr x ) {
-  if ( Vm.sp == EXPR_STACK_SIZE )
+Expr* push(RlState* rls, Expr x) {
+  if ( rls->sp == EXPR_STACK_SIZE )
     runtime_error("stack overflow");
 
-  Vm.stack[Vm.sp] = x;
+  rls->stack[rls->sp] = x;
 
-  return &Vm.stack[Vm.sp++];
+  return &rls->stack[rls->sp++];
 }
 
-Expr* pushn( int n ) {
-  if ( Vm.sp + n >= EXPR_STACK_SIZE )
+Expr* pushn(RlState* rls, int n) {
+  if ( rls->sp + n >= EXPR_STACK_SIZE )
     runtime_error("stack overflow");
 
-  Expr* base = &Vm.stack[Vm.sp]; Vm.sp += n;
+  Expr* base = &rls->stack[rls->sp]; rls->sp += n;
 
   return base;
 }
 
-Expr pop( void ) {
-  if ( Vm.sp == 0 )
+Expr pop(RlState* rls) {
+  if ( rls->sp == 0 )
     runtime_error("stack underflow");
 
-  return Vm.stack[--Vm.sp];
+  return rls->stack[--rls->sp];
 }
 
-Expr rpop(void) {
-  if ( Vm.sp < 2 )
+Expr rpop(RlState* rls) {
+  if ( rls->sp < 2 )
     runtime_error("stack underflow");
 
-  Expr out          = Vm.stack[Vm.sp-2];
-  Vm.stack[Vm.sp-2] = Vm.stack[Vm.sp-1];
+  Expr out            = rls->stack[rls->sp-2];
+  rls->stack[rls->sp-2] = rls->stack[rls->sp-1];
 
-  Vm.sp--;
+  rls->sp--;
 
   return out;
 }
 
-Expr popn( int n ) {
-  if ( n > Vm.sp )
+Expr popn(RlState* rls, int n) {
+  if ( n > rls->sp )
     runtime_error("stack underflow");
 
-  Expr out = Vm.stack[Vm.sp-1]; Vm.sp -= n;
+  Expr out = rls->stack[rls->sp-1]; rls->sp -= n;
 
   return out;
 }
 
 // return an UpVal object corresponding to the given stack location
-UpVal* get_upv(Expr* loc) {
-  UpVal** spc = &Vm.upvs;
+UpVal* get_upv(RlState* rls, Expr* loc) {
+  UpVal** spc = &rls->upvs;
   UpVal* out = NULL;
 
   while ( out == NULL ) {
     UpVal* upv = *spc;
 
     if ( upv == NULL || loc < upv->loc )
-      *spc = out = mk_upval(upv, loc);
+      *spc = out = mk_upval(rls, upv, loc);
 
     else if ( upv->loc == loc )
       out = upv;
@@ -239,8 +250,8 @@ UpVal* get_upv(Expr* loc) {
   return out;
 }
 
-void close_upvs(Expr* base) {
-  UpVal* upv = Vm.upvs;
+void close_upvs(RlState* rls, Expr* base) {
+  UpVal* upv = rls->upvs;
 
   while ( upv != NULL && upv->loc > base ) {
     UpVal* tmpu = upv->next;
@@ -253,116 +264,113 @@ void close_upvs(Expr* base) {
 }
 
 // frame manipulation
-void install_fun(Fun* fun, int argc) {
-  Vm.fn = fun;
-  Vm.pc = fun->chunk->code->binary.vals;
-  Vm.bp = Vm.sp-argc;
+void install_fun(RlState* rls, Fun* fun, int argc) {
+  rls->fn = fun;
+  rls->pc = fun->chunk->code->binary.vals;
+  rls->bp = rls->sp-argc;
 }
 
-void save_frame(void) {
-  if ( Vm.fp == CALL_STACK_SIZE )
+void save_frame(RlState* rls) {
+  if ( rls->fp == CALL_STACK_SIZE )
     runtime_error("runtime:save_frame", "stack overflow");
 
-  CallState *frame = &Vm.frames[Vm.fp++];
-  frame->frame_size = Vm.sp-Vm.bp;
+  CallState *frame = &rls->frames[rls->fp++];
+  frame->frame_size = rls->sp-rls->bp;
   frame->cntl_off = -1;
   frame->flags = -1;
-  frame->savepc = Vm.pc;
+  frame->savepc = rls->pc;
 }
 
-void restore_frame(void) {
-  assert(Vm.fp > 0);
-  CallState* frame = &Vm.frames[--Vm.fp];
-
-  
-  Vm.pc       = as_ptr(frame[0]);
-  Vm.fn       = as_fun(frame[1]);
-  Vm.bp       = as_fix(frame[2]);
-  Vm.fp       = as_fix(frame[3]);
+void restore_frame(RlState* rls) {
+  assert(rls->fp > 0);
+  CallState* frame = &rls->frames[--rls->fp];
+  rls->pc = frame->savepc;
+  rls->bp = rls->sp - frame->frame_size;
+  rls->fn = as_fun(rls->stack[rls->bp-1]);
 }
 
-void reset_vm(void) {
-  Vm.upvs = NULL;
-  Vm.pc   = NULL;
-  Vm.fn   = NULL;
-  Vm.fp   =  0;
-  Vm.bp   =  0;
-  Vm.sp   =  0;
+void reset_vm(RlState* rls) {
+  rls->upvs = NULL;
+  rls->pc = NULL;
+  rls->fn = NULL;
+  rls->fp =  0;
+  rls->bp =  0;
+  rls->sp =  0;
 }
 
 // garbage collector
-static bool check_gc(size_t n) {
-  return HeapUsed + n >= HeapCap;
+static bool check_gc(RlState* rls, size_t n) {
+  return rls->vm->heap_used + n >= rls->vm->heap_cap;
 }
 
-static bool check_heap_grow(void) {
-  return HeapCap * HEAPLOAD < HeapUsed;
+static bool check_heap_grow(RlState* rls) {
+  return rls->vm->heap_cap * HEAPLOAD < rls->vm->heap_used;
 }
 
-static void mark_vm(void) {
-  mark_obj(Vm.fn);
+static void mark_vm(RlState* rls) {
+  mark_obj(rls, rls->fn);
 
-  for ( int i=0; i < Vm.sp; i++ )
-    mark_exp(Vm.stack[i]);
+  for ( int i=0; i < rls->sp; i++ )
+    mark_exp(rls, rls->stack[i]);
 }
 
-static void mark_globals(void) {
+static void mark_globals(RlState* rls) {
   extern Str* QuoteStr, * DefStr, * PutStr, * IfStr, * DoStr, * FnStr;
 
-  mark_obj(&Globals);
-  mark_obj(QuoteStr);
-  mark_obj(DefStr);
-  mark_obj(PutStr);
-  mark_obj(IfStr);
-  mark_obj(DoStr);
-  mark_obj(FnStr);
+  mark_obj(rls, rls->vm->globals);
+  mark_obj(rls, QuoteStr);
+  mark_obj(rls, DefStr);
+  mark_obj(rls, PutStr);
+  mark_obj(rls, IfStr);
+  mark_obj(rls, DoStr);
+  mark_obj(rls, FnStr);
 }
 
-static void mark_upvals(void) {
-  UpVal* upv = Vm.upvs;
+static void mark_upvals(RlState* rls) {
+  UpVal* upv = rls->upvs;
 
   while ( upv != NULL ) {
-    mark_obj(upv);
+    mark_obj(rls, upv);
     upv = upv->next;
   }
 }
 
-static void mark_types(void) {
+static void mark_types(RlState* rls) {
   for ( int i=0; i < NUM_TYPES; i++ )
-    mark_obj(Types[i].repr);
+    mark_obj(rls, Types[i].repr);
 }
 
-static void mark_gc_frames(void) {
+static void mark_gc_frames(RlState* rls) {
   GcFrame* frame = GcFrames;
 
   while ( frame != NULL ) {
     for ( int i=0; i < frame->count; i++ )
-      mark_exp(frame->exprs[i]);
+      mark_exp(rls, frame->exprs[i]);
 
     frame = frame->next;
   }
 }
 
-static void mark_phase(void) {
-  mark_vm();
-  mark_globals();
-  mark_upvals();
-  mark_types();
-  mark_gc_frames();
+static void mark_phase(RlState* rls) {
+  mark_vm(rls);
+  mark_globals(rls);
+  mark_upvals(rls);
+  mark_types(rls);
+  mark_gc_frames(rls);
 }
 
-static void trace_phase(void) {
-  while ( GrayStack.count > 0 ) {
-    Obj* obj          = objs_pop(&GrayStack);
+static void trace_phase(RlState* rls) {
+  while ( rls->vm->grays->count > 0 ) {
+    Obj* obj          = objs_pop(rls->vm->grays);
     ExpTypeInfo* info = &Types[obj->type];
     obj->gray         = false;
-    
-    info->trace_fn(obj);
+
+    info->trace_fn(rls, obj);
   }
 }
 
-static void sweep_phase(void) {
-  Obj** spc = &Heap;
+static void sweep_phase(RlState* rls) {
+  Obj** spc = &rls->vm->heap_live;
 
   while ( *spc != NULL ) {
     Obj* obj = *spc;
@@ -379,88 +387,89 @@ static void sweep_phase(void) {
   }
 }
 
-static void cleanup_phase(void) {
-  if ( check_heap_grow() )
-    HeapCap <<= 1;
+static void cleanup_phase(RlState* rls) {
+  if ( check_heap_grow(rls) )
+    rls->vm->heap_cap <<= 1;
 }
 
-void add_to_heap(void* ptr) {
+void add_to_heap(RlState* rls, void* ptr) {
   Obj* obj  = ptr;
-  obj->heap = Heap;
-  Heap      = obj;
+  obj->heap = rls->vm->heap_live;
+  rls->vm->heap_live = obj;
 }
 
-void gc_save(void* ob) {
-  objs_push(&GrayStack, ob);
+void gc_save(RlState* rls, void* ob) {
+  objs_push(rls->vm->grays, ob);
 }
 
-void run_gc(void) {
+void run_gc(RlState* rls) {
 #ifdef RASCAL_DEBUG
   printf("\n\nINFO: entering gc.\n\n");
-  heap_report();
+  heap_report(rls);
 #endif
 
-  mark_phase();
-  trace_phase();
-  sweep_phase();
-  cleanup_phase();
+  mark_phase(rls);
+  trace_phase(rls);
+  sweep_phase(rls);
+  cleanup_phase(rls);
 
 #ifdef RASCAL_DEBUG
   printf("\n\nINFO: exiting gc.\n\n");
-  heap_report();
+  heap_report(rls);
 #endif
 
 }
 
-void heap_report(void) {
+void heap_report(RlState* rls) {
   printf("\n\n==== heap report ====\n\%-16s %20zu\n%-16s %20zu\n\n",
          "allocated",
-         HeapUsed,
+         rls->vm->heap_used,
          "used",
-         HeapCap);
+         rls->vm->heap_cap);
 }
 
-void save_ctx(void) {
-  // The Toplevel jmp_buf will probably be preserved and used for something 
+void save_ctx(RlState* rls) {
+  // The Toplevel jmp_buf will probably be preserved and used for something
   assert(ep < MAX_SAVESTATES);
 
   VmCtx* ctx = &SaveStates[ep++];
 
-  ctx->fn = Vm.fn;
-  ctx->pc = Vm.pc;
-  ctx->sp = Vm.sp;
-  ctx->fp = Vm.fp;
-  ctx->bp = Vm.bp;
+  ctx->fn = rls->fn;
+  ctx->pc = rls->pc;
+  ctx->sp = rls->sp;
+  ctx->fp = rls->fp;
+  ctx->bp = rls->bp;
 }
 
-void restore_ctx(void) {
+void restore_ctx(RlState* rls) {
   // close any upvalues whose frames are being abandoned
-  close_upvs(&Vm.stack[SaveState.sp]);
+  close_upvs(rls, &rls->stack[SaveState.sp]);
 
   // discard invalidated GC frames (important because these now point to invalid memory)
   GcFrames = SaveState.gcf;
 
   // restore main registers
-  Vm.fn    = SaveState.fn;
-  Vm.sp    = SaveState.sp;
-  Vm.pc    = SaveState.pc;
-  Vm.fp    = SaveState.fp;
-  Vm.bp    = SaveState.bp;
+  rls->fn    = SaveState.fn;
+  rls->sp    = SaveState.sp;
+  rls->pc    = SaveState.pc;
+  rls->fp    = SaveState.fp;
+  rls->bp    = SaveState.bp;
 }
 
 void discard_ctx(void) {
   ep--;
 }
 
-void* allocate(bool h, size_t n) {
+void* allocate(RlState* rls, size_t n) {
   void* out;
+  bool h = rls != NULL;
 
   if ( h ) {
-    if ( check_gc(n) )
-      run_gc();
+    if ( check_gc(rls, n) )
+      run_gc(rls);
 
     out = calloc(n, 1);
-    HeapUsed += n;
+    rls->vm->heap_used += n;
   } else
     out = calloc(n, 1);
 
@@ -470,7 +479,8 @@ void* allocate(bool h, size_t n) {
   return out;
 }
 
-char* duplicates(char* cs) {
+char* duplicates(RlState* rls, char* cs) {
+  (void)rls; // for consistency
   char* out = strdup(cs);
 
   if ( out == NULL )
@@ -479,38 +489,39 @@ char* duplicates(char* cs) {
   return out;
 }
 
-void* duplicate(bool h, size_t n, void* ptr) {
-  void* spc = allocate(h, n);
+void* duplicate(RlState* rls, size_t n, void* ptr) {
+  void* spc = allocate(rls, n);
 
   memcpy(spc, ptr, n);
 
   return spc;
 }
 
-void* reallocate(bool h, size_t n, size_t o, void* spc) {
+void* reallocate(RlState* rls, size_t n, size_t o, void* spc) {
   void* out;
+  bool h = rls != NULL;
 
   if ( n == 0 ) {
     out = NULL;
 
-    release(spc, o * h);
+    release(rls, spc, o * h);
   } else if ( o == 0 ) {
-    out = allocate(h, n);
+    out = allocate(rls, n);
   } else {
     if ( h ) {
       if ( o > n ) {
         size_t diff = o - n;
-        out         = realloc(spc, n);
+        out = realloc(spc, n);
 
         if ( out == NULL )
           system_error("out of memory");
 
-        HeapUsed   -= diff;
+        rls->vm->heap_used -= diff;
       } else if ( o < n ) {
         size_t diff = n - o;
 
-        if ( check_gc(diff) )
-          run_gc();
+        if ( check_gc(rls, diff) )
+          run_gc(rls);
 
         out = realloc(spc, n);
 
@@ -519,7 +530,7 @@ void* reallocate(bool h, size_t n, size_t o, void* spc) {
 
         memset(out+o, 0, diff);
 
-        HeapUsed += diff;
+        rls->vm->heap_used += diff;
       }
     } else {
       out = realloc(spc, n);
@@ -535,9 +546,11 @@ void* reallocate(bool h, size_t n, size_t o, void* spc) {
   return out;
 }
 
-void release(void* spc, size_t n) {
+void release(RlState* rls, void* spc, size_t n) {
   free(spc);
-  HeapUsed -= n;
+
+  if ( rls != NULL )
+    rls->vm->heap_used -= n;
 }
 
 void next_gc_frame(GcFrame* gcf) {

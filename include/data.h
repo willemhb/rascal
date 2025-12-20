@@ -74,8 +74,8 @@ ALIST_API(Exprs, Expr, exprs);
 ALIST_API(Objs, void*, objs);
 ALIST_API(Bin16, ushort_t, bin16);
 
-void trace_exprs(Exprs* xs);
-void trace_objs(Objs* os);
+void trace_exprs(RlState* rls, Exprs* xs);
+void trace_objs(RlState* rls, Objs* os);
 
 // Table types
 TABLE_API(Strings, char*, Str*, strings);
@@ -219,42 +219,42 @@ bool    has_type(Expr x, ExpType t);
 ExpTypeInfo* exp_info(Expr x);
 hash_t hash_exp(Expr x);
 bool   egal_exps(Expr x, Expr y);
-void   mark_exp(Expr x);
+void   mark_exp(RlState* rls, Expr x);
 
 // object API
 void* as_obj(Expr x);
 Expr  tag_obj(void* ptr);
-void* mk_obj(ExpType type, flags_t flags);
-void* clone_obj(void* ptr);
-void  mark_obj(void* ptr);
+void* mk_obj(RlState* rls, ExpType type, flags_t flags);
+void* clone_obj(RlState* rls, void* ptr);
+void  mark_obj(RlState* rls, void* ptr);
 void  unmark_obj(void* ptr);
 void  free_obj(void *ptr);
 
 // chunk API
-Chunk* mk_chunk(Env* vars, Alist* vals, Buf16* code);
+Chunk* mk_chunk(RlState* rls, Env* vars, Alist* vals, Buf16* code);
 void   dis_chunk(Chunk* chunk);
 
 // alist API
-Alist* mk_alist(void);
+Alist* mk_alist(RlState* rls);
 void   free_alist(void* ptr);
-int    alist_push(Alist* a, Expr x);
+int    alist_push(RlState* rls, Alist* a, Expr x);
 Expr   alist_pop(Alist* a);
 Expr   alist_get(Alist* a, int n);
 
 // buf16 API
-Buf16*  mk_buf16(void);
+Buf16*  mk_buf16(RlState* rls);
 void    free_buf16(void* ptr);
 int     buf16_write(Buf16* b, ushort_t *xs, int n);
 
 // ref API
-Ref* mk_ref(Sym* n, int o);
+Ref* mk_ref(RlState* rls, Sym* n, int o);
 
 // upval APIs
-UpVal* mk_upval(UpVal* next, Expr* loc);
+UpVal* mk_upval(RlState* rls, UpVal* next, Expr* loc);
 Expr*  deref(UpVal* upv);
 
 // environment API
-Env* mk_env(Env* parent);
+Env* mk_env(RlState* rls, Env* parent);
 Ref* env_capture(Env* e, Ref* r);
 Ref* env_resolve(Env* e, Sym* n, bool capture);
 Ref* env_define(Env* e, Sym* n);
@@ -266,8 +266,8 @@ Expr toplevel_env_ref(Env* e, int n);
 Expr toplevel_env_get(Env* e, Sym* n);
 
 // port API -------------------------------------------------------------------
-Port* mk_port(FILE* ios);
-Port* open_port(char* fname, char* mode);
+Port* mk_port(RlState* rls, FILE* ios);
+Port* open_port(RlState* rls, char* fname, char* mode);
 void  close_port(Port* port);
 bool  peof(Port* p);
 int   pseek(Port* p, long off, int orig);
@@ -279,29 +279,29 @@ int   pvprintf(Port* p, char* fmt, va_list va);
 
 // function API ---------------------------------------------------------------
 Fun* as_fun_s(char* f, Expr x);
-Fun* mk_fun(Sym* name, OpCode op, Chunk* code);
-Fun* mk_closure(Fun* proto);
-Fun* mk_builtin_fun(Sym* name, OpCode op);
-Fun* mk_user_fun(Chunk* code);
-void def_builtin_fun(char* name, OpCode op);
+Fun* mk_fun(RlState* rls, Sym* name, OpCode op, Chunk* code);
+Fun* mk_closure(RlState* rls, Fun* proto);
+Fun* mk_builtin_fun(RlState* rls, Sym* name, OpCode op);
+Fun* mk_user_fun(RlState* rls, Chunk* code);
+void def_builtin_fun(RlState* rls, char* name, OpCode op);
 void disassemble(Fun* fun);
 Expr upval_ref(Fun* fun, int i);
 void upval_set(Fun* fun, int i, Expr x);
 
 // symbol API
 Sym* as_sym_s(char* f, Expr x);
-Sym* mk_sym(char* cs);
+Sym* mk_sym(RlState* rls, char* cs);
 bool sym_val_eql(Sym* s, char* v);
 
 // string API
 Str* as_str_s(char* f, Expr x);
-Str* mk_str(char* cs);
+Str* mk_str(RlState* rls, char* cs);
 
 // list API
 List*  as_list_s(char* f, Expr x);
-List*  empty_list(void);
-List*  mk_list(size_t n, Expr* xs);
-List*  cons(Expr hd, List* tl);
+List*  empty_list(RlState* rls);
+List*  mk_list(RlState* rls, size_t n, Expr* xs);
+List*  cons(RlState* rls, Expr hd, List* tl);
 Expr   list_ref(List* xs, int n);
 
 // number API

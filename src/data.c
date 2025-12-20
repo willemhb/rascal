@@ -26,13 +26,13 @@ bool egal_syms(Expr x, Expr y);
 bool egal_strs(Expr x, Expr y);
 bool egal_lists(Expr x, Expr y);
 
-void trace_chunk(void* ptr);
-void trace_alist(void* ptr);
-void trace_ref(void* ptr);
-void trace_upval(void* ptr);
-void trace_env(void* ptr);
-void trace_fun(void* ptr);
-void trace_list(void* ptr);
+void trace_chunk(RlState* rls, void* ptr);
+void trace_alist(RlState* rls, void* ptr);
+void trace_ref(RlState* rls, void* ptr);
+void trace_upval(RlState* rls, void* ptr);
+void trace_env(RlState* rls, void* ptr);
+void trace_fun(RlState* rls, void* ptr);
+void trace_list(RlState* rls, void* ptr);
 
 void free_alist(void* ptr);
 void free_buf16(void* ptr);
@@ -172,14 +172,14 @@ ExpTypeInfo Types[] = {
 };
 
 // utility array APIs
-void trace_exprs(Exprs* xs) {
+void trace_exprs(RlState* rls, Exprs* xs) {
   for ( int i=0; i < xs->count; i++ )
-    mark_exp(xs->vals[i]);
+    mark_exp(rls, xs->vals[i]);
 }
 
-void trace_objs(Objs* os) {
+void trace_objs(RlState* rls, Objs* os) {
   for ( int i=0; i < os->count; i++ )
-    mark_obj(os->vals[i]);
+    mark_obj(rls, os->vals[i]);
 }
 
 // expression APIs
@@ -241,9 +241,9 @@ bool egal_exps(Expr x, Expr y) {
   return out;
 }
 
-void mark_exp(Expr x) {
+void mark_exp(RlState* rls, Expr x) {
   if ( exp_tag(x) == OBJ_T )
-    mark_obj(as_obj(x));
+    mark_obj(rls, as_obj(x));
 }
 
 // object API
@@ -255,23 +255,22 @@ Expr tag_obj(void* o) {
   return ((Expr)o) | OBJ_T;
 }
 
-void* mk_obj(ExpType type, flags_t flags) {
-  Obj* out = allocate(true, Types[type].obsize);
+void* mk_obj(RlState* rls, ExpType type, flags_t flags) {
+  Obj* out = allocate(rls, Types[type].obsize);
 
   out->type     = type;
   out->bfields  = flags | FL_GRAY;
-  out->heap     = Heap;
-  Heap          = out;
+  add_to_heap(rls, out);
 
   return out;
 }
 
-void* clone_obj(void* ptr) {
+void* clone_obj(RlState* rls, void* ptr) {
   assert(ptr != NULL);
 
   Obj* obj = ptr;
   ExpTypeInfo* info = &Types[obj->type];
-  Obj* out = duplicate(true, info->obsize, obj);
+  Obj* out = duplicate(rls, info->obsize, obj);
 
   if ( info->clone_fn )
     info->clone_fn(out);
@@ -279,7 +278,7 @@ void* clone_obj(void* ptr) {
   return out;
 }
 
-void mark_obj(void* ptr) {
+void mark_obj(RlState* rls, void* ptr) {
   Obj* obj = ptr;
 
   if ( obj != NULL ) {
@@ -289,7 +288,7 @@ void mark_obj(void* ptr) {
       ExpTypeInfo* info = &Types[obj->type];
 
       if ( info->trace_fn )
-        gc_save(obj);
+        gc_save(rls, obj);
 
       else
         obj->gray = false;
@@ -314,7 +313,7 @@ void free_obj(void* ptr) {
     if ( info->free_fn )
       info->free_fn(obj);
 
-    release(obj, info->obsize);
+    release(&Main, obj, info->obsize);
   }
 }
 
@@ -330,8 +329,8 @@ void print_none(Port* ios, Expr x) {
 }
 
 // chunk API
-Chunk* mk_chunk(Env* vars, Alist* vals, Buf16* code) {
-  Chunk* out = mk_obj(EXP_CHUNK, 0);
+Chunk* mk_chunk(RlState* rls, Env* vars, Alist* vals, Buf16* code) {
+  Chunk* out = mk_obj(rls, EXP_CHUNK, 0);
 
   out->vars = vars;
   out->vals = vals;
@@ -381,22 +380,23 @@ void dis_chunk(Chunk* chunk) {
   }
 }
 
-void trace_chunk(void* ptr) {
+void trace_chunk(RlState* rls, void* ptr) {
   Chunk* chunk = ptr;
 
-  mark_obj(chunk->vars);
-  mark_obj(chunk->vals);
-  mark_obj(chunk->code);
+  mark_obj(rls, chunk->vars);
+  mark_obj(rls, chunk->vals);
+  mark_obj(rls, chunk->code);
 }
 
 // alist API
-Alist* mk_alist(void) {
-  Alist* out = mk_obj(EXP_ALIST, 0); init_exprs(&out->exprs);
+Alist* mk_alist(RlState* rls) {
+  Alist* out = mk_obj(rls, EXP_ALIST, 0); init_exprs(&out->exprs);
 
   return out;
 }
 
-int alist_push(Alist* a, Expr x) {
+int alist_push(RlState* rls, Alist* a, Expr x) {
+  (void)rls;
   exprs_push(&a->exprs, x);
 
   return a->exprs.count;
@@ -412,10 +412,10 @@ Expr alist_get(Alist* a, int n) {
   return a->exprs.vals[n];
 }
 
-void trace_alist(void* ptr) {
+void trace_alist(RlState* rls, void* ptr) {
   Alist* a = ptr;
 
-  trace_exprs(&a->exprs);
+  trace_exprs(rls, &a->exprs);
 }
 
 void free_alist(void* ptr) {
@@ -425,8 +425,8 @@ void free_alist(void* ptr) {
 }
 
 // buf16 API
-Buf16* mk_buf16(void) {
-  Buf16* b = mk_obj(EXP_BUF16, 0); init_bin16(&b->binary);
+Buf16* mk_buf16(RlState* rls) {
+  Buf16* b = mk_obj(rls, EXP_BUF16, 0); init_bin16(&b->binary);
 
   return b;
 }
@@ -444,8 +444,8 @@ void free_buf16(void* ptr) {
 }
 
 // reference API
-Ref* mk_ref(Sym* n, int o) {
-  Ref* ref  = mk_obj(EXP_REF, 0);
+Ref* mk_ref(RlState* rls, Sym* n, int o) {
+  Ref* ref  = mk_obj(rls, EXP_REF, 0);
   ref->name = n;
   ref->ref_type = REF_UNDEF; // filled in by env_put, env_resolve, &c
   ref->offset = o;
@@ -459,16 +459,16 @@ void print_ref(Port* ios, Expr x) {
   pprintf(ios, "#'%s", r->name->val->val);
 }
 
-void trace_ref(void* ptr) {
+void trace_ref(RlState* rls, void* ptr) {
   Ref* r = ptr;
 
-  mark_obj(r->name);
+  mark_obj(rls, r->name);
 }
 
 // upval API
-UpVal* mk_upval(UpVal* next, Expr* loc) {
+UpVal* mk_upval(RlState* rls, UpVal* next, Expr* loc) {
   // only open upvalues can be created
-  UpVal* upv  = mk_obj(EXP_UPV, 0);
+  UpVal* upv  = mk_obj(rls, EXP_UPV, 0);
   upv->next   = next;
   upv->closed = false;
   upv->loc    = loc;
@@ -480,23 +480,23 @@ Expr* deref(UpVal* upv) {
   return upv->closed ? &upv->val : upv->loc;
 }
 
-void trace_upval(void* ptr) {
+void trace_upval(RlState* rls, void* ptr) {
   UpVal* upv = ptr;
 
   if ( upv->closed )
-    mark_exp(upv->val);
+    mark_exp(rls, upv->val);
 }
 
 // environment API
-void intern_in_env(EMap* m, EMapKV* kv, Sym* k, hash_t h) {
+void intern_in_env(RlState* rls, EMap* m, EMapKV* kv, Sym* k, hash_t h) {
   (void)h;
 
   kv->key = k;
-  kv->val = mk_ref(k, m->count-1);
+  kv->val = mk_ref(rls, k, m->count-1);
 }
 
-Env* mk_env(Env* parent) {
-  Env* env = mk_obj(EXP_ENV, 0);
+Env* mk_env(RlState* rls, Env* parent) {
+  Env* env = mk_obj(rls, EXP_ENV, 0);
 
   env->parent = parent;
   env->arity  = 0;
@@ -510,7 +510,7 @@ Env* mk_env(Env* parent) {
 Ref* env_capture(Env* e, Ref* r) {
   assert(is_local_env(e));
 
-  Ref* c = emap_intern(&e->upvs, r->name, intern_in_env);
+  Ref* c = emap_intern(&Main, &e->upvs, r->name, intern_in_env);
 
   if ( c->ref_type == REF_UNDEF ) {
     c->ref_type = r->ref_type == REF_LOCAL ? REF_LOCAL_UPVAL : REF_CAPTURED_UPVAL;
@@ -554,7 +554,7 @@ Ref* env_resolve(Env* e, Sym* n, bool capture) {
 }
 
 Ref* env_define(Env* e, Sym* n) {
-  Ref* ref = emap_intern(&e->vars, n, intern_in_env);
+  Ref* ref = emap_intern(&Main, &e->vars, n, intern_in_env);
 
   if ( ref->ref_type == REF_UNDEF ) {
     if ( is_local_env(e) )
@@ -624,30 +624,30 @@ Expr toplevel_env_get(Env* e, Sym* n) {
   return x;
 }
 
-static void trace_emap(EMap* m) {
+static void trace_emap(RlState* rls, EMap* m) {
   for ( int i=0, j=0; i < m->max_count && j < m->count; i++ ) {
     EMapKV* kv = &m->kvs[i];
 
     if ( kv->key != NULL ) {
       j++;
-      mark_obj(kv->key);
-      mark_obj(kv->val);
+      mark_obj(rls, kv->key);
+      mark_obj(rls, kv->val);
     }
   }
 }
 
-void trace_env(void* ptr) {
+void trace_env(RlState* rls, void* ptr) {
   Env* e = ptr;
 
-  mark_obj(e->parent);
+  mark_obj(rls, e->parent);
 
-  trace_emap(&e->vars);
+  trace_emap(rls, &e->vars);
 
   if ( is_local_env(e) )
-    trace_emap(&e->upvs);
+    trace_emap(rls, &e->upvs);
 
   else
-    trace_exprs(&e->vals);
+    trace_exprs(rls, &e->vals);
 }
 
 void free_env(void* ptr) {
@@ -663,19 +663,19 @@ void free_env(void* ptr) {
 }
 
 // port API -------------------------------------------------------------------
-Port* mk_port(FILE* ios) {
-  Port* p = mk_obj(EXP_PORT, 0);
+Port* mk_port(RlState* rls, FILE* ios) {
+  Port* p = mk_obj(rls, EXP_PORT, 0);
   p->ios  = ios;
 
   return p;
 }
 
-Port* open_port(char* fname, char* mode) {
+Port* open_port(RlState* rls, char* fname, char* mode) {
   FILE* ios = fopen(fname, mode);
 
   require(ios != NULL, "couldn't open %s: %s", fname, strerror(errno));
 
-  return mk_port(ios);
+  return mk_port(rls, ios);
 }
 
 void  close_port(Port* port) {
@@ -763,8 +763,8 @@ Fun* as_fun_s(char* f, Expr x) {
   return as_fun(x);
 }
 
-Fun* mk_fun(Sym* name, OpCode op, Chunk* code) {
-  Fun* f   = mk_obj(EXP_FUN, 0);
+Fun* mk_fun(RlState* rls, Sym* name, OpCode op, Chunk* code) {
+  Fun* f   = mk_obj(rls, EXP_FUN, 0);
   f->name  = name;
   f->label = op;
   f->chunk = code;
@@ -774,34 +774,34 @@ Fun* mk_fun(Sym* name, OpCode op, Chunk* code) {
   return f;
 }
 
-Fun* mk_closure(Fun* proto) {
+Fun* mk_closure(RlState* rls, Fun* proto) {
   Fun* cls; int count = user_fn_upvalc(proto);
 
   if ( count == 0 )
     cls = proto;
 
   else {
-    cls = clone_obj(proto);
+    cls = clone_obj(rls, proto);
     objs_write(&cls->upvs, NULL, count);
   }
 
   return cls;
 }
 
-Fun* mk_builtin_fun(Sym* name, OpCode op) {
-  return mk_fun(name, op, NULL);
+Fun* mk_builtin_fun(RlState* rls, Sym* name, OpCode op) {
+  return mk_fun(rls, name, op, NULL);
 }
 
-Fun* mk_user_fun(Chunk* code) {
-  Sym* n = mk_sym("fn"); preserve(1, tag_obj(n));
-  Fun* f = mk_fun(n, OP_NOOP, code);
+Fun* mk_user_fun(RlState* rls, Chunk* code) {
+  Sym* n = mk_sym(rls, "fn"); preserve(1, tag_obj(n));
+  Fun* f = mk_fun(rls, n, OP_NOOP, code);
 
   return f;
 }
 
-void def_builtin_fun(char* name, OpCode op) {
-  Sym* sym = mk_sym(name); preserve(1, tag_obj(sym));
-  Fun* fun = mk_builtin_fun(sym, op);
+void def_builtin_fun(RlState* rls, char* name, OpCode op) {
+  Sym* sym = mk_sym(rls, name); preserve(1, tag_obj(sym));
+  Fun* fun = mk_builtin_fun(rls, sym, op);
 
   toplevel_env_def(&Globals, sym, tag_obj(fun));
 }
@@ -826,11 +826,11 @@ void upval_set(Fun* fun, int i, Expr x) {
   *deref(upv) = x;
 }
 
-void trace_fun(void* ptr) {
+void trace_fun(RlState* rls, void* ptr) {
   Fun* fun = ptr;
 
-  mark_obj(fun->name);
-  mark_obj(fun->chunk);
+  mark_obj(rls, fun->name);
+  mark_obj(rls, fun->chunk);
 }
 
 // symbol API
@@ -841,9 +841,9 @@ Sym* as_sym_s(char* f, Expr x) {
   return as_sym(x);
 }
 
-Sym* mk_sym(char* val) {
-  Sym* s  = mk_obj(EXP_SYM, 0); preserve(1, tag_obj(s));
-  s->val  = mk_str(val);
+Sym* mk_sym(RlState* rls, char* val) {
+  Sym* s  = mk_obj(rls, EXP_SYM, 0); preserve(1, tag_obj(s));
+  s->val  = mk_str(rls, val);
   s->hash = hash_word(s->val->hash); // just munge the string hash
 
   return s;
@@ -878,10 +878,10 @@ Strings StringTable = {
   .max_count = 0
 };
 
-Str* new_str(char* cs, hash_t h, bool interned) {
-  Str* s    = mk_obj(EXP_STR, 0);
+Str* new_str(RlState* rls, char* cs, hash_t h, bool interned) {
+  Str* s    = mk_obj(rls, EXP_STR, 0);
 
-  s->val    = duplicates(cs);
+  s->val    = duplicates(rls, cs);
   s->count  = strlen(cs);
   s->hash   = h;
   s->flags  = interned;
@@ -889,10 +889,10 @@ Str* new_str(char* cs, hash_t h, bool interned) {
   return s;
 }
 
-void string_intern(Strings* t, StringsKV* kv, char* k, hash_t h) {
+void string_intern(RlState* rls, Strings* t, StringsKV* kv, char* k, hash_t h) {
   (void)t;
 
-  Str* s  = new_str(k, h, true);
+  Str* s  = new_str(rls, k, h, true);
   kv->val = s;
   kv->key = s->val;
 }
@@ -904,15 +904,15 @@ Str* as_str_s(char* f, Expr x) {
   return as_str(x);
 }
 
-Str* mk_str(char* cs) {
+Str* mk_str(RlState* rls, char* cs) {
   size_t n = strlen(cs);
   Str* s;
 
   if ( n <= MAX_INTERN )
-    s = strings_intern(&StringTable, cs, string_intern);
+    s = strings_intern(rls, rls->vm->strings, cs, string_intern);
 
   else
-    s = new_str(cs, hash_string(cs), false);
+    s = new_str(rls, cs, hash_string(cs), false);
 
   return s;
 }
@@ -953,15 +953,15 @@ void free_str(void* ptr) {
   if ( is_interned(s) ) // make sure to remove from Strings table before freeing
     strings_del(&StringTable, s->val, NULL);
 
-  release(s->val, 0);
+  release(&Main, s->val, 0);
 }
 
 // list API
-static List* new_lists(size_t n) {
+static List* new_lists(RlState* rls, size_t n) {
   assert(n > 0);
 
   size_t nb = (n+1) * sizeof(List);
-  List* xs  = allocate(true, nb);
+  List* xs  = allocate(rls, nb);
 
   // initialize terminal empty list
   for ( size_t i=0; i < n; i++ ) {
@@ -979,7 +979,7 @@ static List* new_lists(size_t n) {
 
   // handle the terminal empty list specially
   List* cell  = &xs[n];
-  cell->heap   = Heap;
+  cell->heap   = rls->vm->heap_live;
   cell->type   = EXP_LIST;
   cell->black  = false;
   cell->gray   = true;
@@ -988,7 +988,7 @@ static List* new_lists(size_t n) {
   cell->count  = 0;
 
   // add it all to the heap
-  Heap = (Obj*)xs;
+  rls->vm->heap_live = (Obj*)xs;
 
   return xs;
 }
@@ -999,8 +999,8 @@ List* as_list_s(char* f, Expr x) {
   return as_list(x);
 }
 
-List* empty_list(void) {
-  List* l = mk_obj(EXP_LIST, 0);
+List* empty_list(RlState* rls) {
+  List* l = mk_obj(rls, EXP_LIST, 0);
 
   l->head  = NUL;
   l->tail  = NULL;
@@ -1009,14 +1009,14 @@ List* empty_list(void) {
   return l;
 }
 
-List* mk_list(size_t n, Expr* xs) {
+List* mk_list(RlState* rls, size_t n, Expr* xs) {
   List* l;
 
   if ( n == 0 )
-    l = empty_list();
+    l = empty_list(rls);
 
   else {
-    l = new_lists(n);
+    l = new_lists(rls, n);
 
     for ( size_t i=0; i<n; i++ )
       l[i].head = xs[i];
@@ -1025,11 +1025,11 @@ List* mk_list(size_t n, Expr* xs) {
   return l;
 }
 
-List* cons(Expr hd, List* tl) {
+List* cons(RlState* rls, Expr hd, List* tl) {
   assert(tl != NULL);
   preserve(1, tag_obj(tl));
 
-  List* l  = mk_obj(EXP_LIST, 0);
+  List* l  = mk_obj(rls, EXP_LIST, 0);
   l->head  = hd;
   l->tail  = tl;
   l->count = tl->count+1;
@@ -1083,12 +1083,12 @@ bool egal_lists(Expr x, Expr y) {
   return out;
 }
 
-void trace_list(void* ptr) {
+void trace_list(RlState* rls, void* ptr) {
   List* xs = ptr;
 
   if ( xs->count ) {
-    mark_exp(xs->head);
-    mark_obj(xs->tail);
+    mark_exp(rls, xs->head);
+    mark_obj(rls, xs->tail);
   }
 }
 

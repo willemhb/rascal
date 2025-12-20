@@ -13,15 +13,20 @@
 Str* QuoteStr, *DefStr, * PutStr, * IfStr, * DoStr, * FnStr;
 
 // Function prototypes --------------------------------------------------------
+// read helpers ---------------------------------------------------------------
 bool is_delim_char(int c);
 bool is_sym_char(int c);
 bool is_num_char(int c);
 void skip_space(Port* in);
-Expr read_glyph(Port* in);
-Expr read_quote(Port* in);
-Expr read_list(Port *in);
-Expr read_string(Port* in);
-Expr read_atom(Port* in);
+Expr read_glyph(RlState* rls, Port* in);
+Expr read_quote(RlState* rls, Port* in);
+Expr read_list(RlState* rls, Port *in);
+Expr read_string(RlState* rls, Port* in);
+Expr read_atom(RlState* rls, Port* in);
+
+// compile helpers ------------------------------------------------------------
+Expr exec_code(RlState* rls, Fun* code, bool toplevel);
+Fun* compile_file(RlState* rls, char* fname);
 
 // read helpers ---------------------------------------------------------------
 bool is_delim_char(int c) {
@@ -54,7 +59,7 @@ void skip_space(Port* p) {
 }
 
 // read -----------------------------------------------------------------------
-Expr read_exp(Port *in) {
+Expr read_exp(RlState* rls, Port *in) {
   reset_token();
   skip_space(in);
   Expr x;
@@ -63,15 +68,15 @@ Expr read_exp(Port *in) {
   if ( c == EOF )
     x = EOS;
   else if ( c == '\\' )
-    x = read_glyph(in);
+    x = read_glyph(rls, in);
   else if ( c == '\'' )
-    x = read_quote(in);
+    x = read_quote(rls, in);
   else if ( c == '(' )
-    x = read_list(in);
+    x = read_list(rls, in);
   else if ( c == '"')
-    x = read_string(in);
+    x = read_string(rls, in);
   else if ( is_sym_char(c) )
-    x = read_atom(in);
+    x = read_atom(rls, in);
   else if ( c == ')' )
     eval_error("dangling ')'");
   else
@@ -80,7 +85,8 @@ Expr read_exp(Port *in) {
   return x;
 }
 
-Expr read_glyph(Port* in) {
+Expr read_glyph(RlState* rls, Port* in) {
+  (void)rls; // will be used later, suppressing warning
   pgetc(in); // consume opening slash
 
   if ( peof(in) || isspace(ppeekc(in)) )
@@ -183,47 +189,47 @@ Expr read_glyph(Port* in) {
   return tag_glyph(g);
 }
 
-Expr read_quote(Port* in) {
+Expr read_quote(RlState* rls, Port* in) {
   pgetc(in); // consume opening '
 
   if ( peof(in) || isspace(ppeekc(in)) )
     eval_error("invalid syntax: quoted nothing");
 
-  Sym* hd  = mk_sym("quote"); preserve(2, tag_obj(hd), NUL);
-  Expr x   = read_exp(in);    add_to_preserved(1, x);
-  List* qd = mk_list(2, preserved());
+  Sym* hd  = mk_sym(rls, "quote"); preserve(2, tag_obj(hd), NUL);
+  Expr x   = read_exp(rls, in);    add_to_preserved(1, x);
+  List* qd = mk_list(rls, 2, preserved());
 
   return tag_obj(qd);
 }
 
-Expr read_list(Port* in) {
+Expr read_list(RlState* rls, Port* in) {
   List* out;
   pgetc(in); // consume the '('
   skip_space(in);
-  Expr* base = &Vm.stack[Vm.sp], x;
+  Expr* base = &rls->stack[rls->sp], x;
   int n = 0, c;
 
   while ( (c=ppeekc(in)) != ')' ) {
     if ( peof(in) )
       runtime_error("unterminated list");
 
-    x = read_exp(in);
-    push(x);
+    x = read_exp(rls, in);
+    push(rls, x);
     n++;
     skip_space(in);
   }
 
   pgetc(in); // consume ')'
 
-  out = mk_list(n, base);
+  out = mk_list(rls, n, base);
 
   if ( n > 0 )
-    popn(n);
+    popn(rls, n);
 
   return tag_obj(out);
 }
 
-Expr read_string(Port* in) {
+Expr read_string(RlState* rls, Port* in) {
   Str* out;
 
   int c;
@@ -240,12 +246,13 @@ Expr read_string(Port* in) {
 
   pgetc(in); // consume terminal '"'
 
-  out = mk_str(Token);
+  out = mk_str(rls, Token);
 
   return tag_obj(out);
 }
 
-Expr read_atom(Port* in) {
+Expr read_atom(RlState* rls, Port* in) {
+  (void)rls; // will be used after refactor
   int c;
   Expr x;
   
@@ -265,7 +272,7 @@ Expr read_atom(Port* in) {
       if ( TOff > MAX_INTERN )
         runtime_error("symbol name '%s' too long", Token);
 
-      Sym* s = mk_sym(Token);
+      Sym* s = mk_sym(rls, Token);
       x      = tag_obj(s);
     } else {
       x      = tag_num(n);
@@ -290,7 +297,7 @@ Expr read_atom(Port* in) {
       if ( TOff > MAX_INTERN )
         runtime_error("symbol name '%s' too long", Token);
 
-      Sym* s = mk_sym(Token);
+      Sym* s = mk_sym(rls, Token);
       x      = tag_obj(s);
     }
   }
@@ -299,34 +306,32 @@ Expr read_atom(Port* in) {
 }
 
 // load -----------------------------------------------------------------------
-Fun* compile_file(char* fname);
-
-List* read_file(char* fname) {
-  Port* in = open_port(fname, "r");
+List* read_file(RlState* rls, char* fname) {
+  Port* in = open_port(rls, fname, "r");
   preserve(1, tag_obj(in));  // protect port from GC
 
-  Expr* base = &Vm.stack[Vm.sp];
+  Expr* base = &rls->stack[rls->sp];
   Expr x;
   int n = 0;
 
-  while ( (x = read_exp(in)) != EOS ) {
-    push(x);
+  while ( (x = read_exp(rls, in)) != EOS ) {
+    push(rls, x);
     n++;
   }
 
   close_port(in);
 
-  List* out = mk_list(n, base);
+  List* out = mk_list(rls, n, base);
 
   if ( n > 0 )
-    popn(n);
+    popn(rls, n);
 
   return out;
 }
 
-Expr load_file(char* fname) {
-  Fun* code = compile_file(fname);
-  Expr v = exec_code();
+Expr load_file(RlState* rls, char* fname) {
+  Fun* code = compile_file(rls, fname);
+  Expr v = exec_code(rls, code, true);
 
   return v;
 }
@@ -337,26 +342,25 @@ void emit_instr(Buf16* code, OpCode op, ...);
 void fill_instr(Buf16* code, int offset, int val);
 
 bool is_quote_form(List* form);
-void compile_quote(List* form, Env* vars, Alist* vals, Buf16* code);
+void compile_quote(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code);
 bool is_def_form(List* form);
-void compile_def(List* form, Env* vars, Alist* vals, Buf16* code);
+void compile_def(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code);
 bool is_put_form(List* form);
-void compile_put(List* form, Env* vars, Alist* vals, Buf16* code);
+void compile_put(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code);
 bool is_if_form(List* form);
-void compile_if(List* form, Env* vars, Alist* vals, Buf16* code);
+void compile_if(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code);
 bool is_do_form(List* form);
-void compile_do(List* form, Env* vars, Alist* vals, Buf16* code);
+void compile_do(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code);
 bool is_fn_form(List* form);
-void compile_fn(List* form, Env* vars, Alist* vals, Buf16* code);
+void compile_fn(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code);
 void compile_closure(Buf16* c_code, Env* vars, Alist* vals, Buf16* code);
 
-void compile_sequence(List* exprs, Env* vars, Alist* vals, Buf16* code);
-void compile_literal(Expr x, Env* vars, Alist* vals, Buf16* code);
+void compile_sequence(RlState* rls, List* exprs, Env* vars, Alist* vals, Buf16* code);
+void compile_literal(RlState* rls, Expr x, Env* vars, Alist* vals, Buf16* code);
 void compile_reference(Sym* s, Env* ref, Alist* vals, Buf16* code);
-void compile_funcall(List* form, Env* vars, Alist* vals, Buf16* code);
-void compile_expr(Expr x, Env* vars, Alist* vals, Buf16* code);
-Fun* compile_file(char* fname);
-Fun* toplevel_compile(List* form);
+void compile_funcall(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code);
+void compile_expr(RlState* rls, Expr x, Env* vars, Alist* vals, Buf16* code);
+Fun* toplevel_compile(RlState* rls, List* form);
 
 void emit_instr(Buf16* code, OpCode op, ...) {
   // probably not very efficient, but easy to use
@@ -385,12 +389,12 @@ bool is_quote_form(List* form) {
   return is_sym(hd) && as_sym(hd)->val == QuoteStr;
 }
 
-void compile_quote(List* form, Env* vars, Alist* vals, Buf16* code) {
+void compile_quote(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code) {
   require_argco("quote", 1, form->count-1);
 
   Expr x = form->tail->head;
 
-  compile_literal(x, vars, vals, code);
+  compile_literal(rls, x, vars, vals, code);
 }
 
 bool is_def_form(List* form) {
@@ -399,7 +403,7 @@ bool is_def_form(List* form) {
   return is_sym(hd) && as_sym(hd)->val == DefStr;
 }
 
-void compile_def(List* form, Env* vars, Alist* vals, Buf16* code) {
+void compile_def(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code) {
   require_argco("def", 2, form->count-1);
 
   Sym* n = as_sym_s("def", form->tail->head);
@@ -418,17 +422,13 @@ void compile_def(List* form, Env* vars, Alist* vals, Buf16* code) {
 
     case REF_LOCAL:
       op = OP_SET_LOCAL;
-
-      if ( i >= vars->arity ) // account for call frame
-        i += FRAME_SIZE;
-
       break;
 
     default:
       unreachable();
   }
-  
-  compile_expr(form->tail->tail->head, vars, vals, code);
+
+  compile_expr(rls, form->tail->tail->head, vars, vals, code);
   emit_instr(code, op, i);
 }
 
@@ -438,7 +438,7 @@ bool is_put_form(List* form) {
   return is_sym(hd) && as_sym(hd)->val == PutStr;
 }
 
-void compile_put(List* form, Env* vars, Alist* vals, Buf16* code) {
+void compile_put(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code) {
   require_argco("put", 2, form->count-1);
 
   Sym* n = as_sym_s("put", form->tail->head);
@@ -462,17 +462,13 @@ void compile_put(List* form, Env* vars, Alist* vals, Buf16* code) {
 
     case REF_LOCAL:
       op = OP_SET_LOCAL;
-
-      if ( i >= vars->arity ) // account for call frame
-        i += FRAME_SIZE;
-
       break;
 
     default:
       unreachable();
   }
-  
-  compile_expr(form->tail->tail->head, vars, vals, code);
+
+  compile_expr(rls, form->tail->tail->head, vars, vals, code);
   emit_instr(code, op, i);
 }
 
@@ -482,7 +478,7 @@ bool is_if_form(List* form) {
   return is_sym(hd) && as_sym(hd)->val == IfStr;
 }
 
-void compile_if(List* form, Env* vars, Alist* vals, Buf16* code) {
+void compile_if(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code) {
     require_argco2("if", 2, 3, form->count-1);
 
     Expr test = form->tail->head;
@@ -490,13 +486,13 @@ void compile_if(List* form, Env* vars, Alist* vals, Buf16* code) {
     Expr alt  = form->count == 3 ? NUL : form->tail->tail->tail->head;
 
     // compile different parts of the form, saving offsets to fill in later
-    compile_expr(test, vars, vals, code);
+    compile_expr(rls, test, vars, vals, code);
     emit_instr(code, OP_JUMP_F, 0);
     int off1 = code->binary.count;
-    compile_expr(then, vars, vals, code);
+    compile_expr(rls, then, vars, vals, code);
     emit_instr(code, OP_JUMP, 0);
     int off2 = code->binary.count;
-    compile_expr(alt, vars, vals, code);
+    compile_expr(rls, alt, vars, vals, code);
     int off3 = code->binary.count;
 
     fill_instr(code, off1-1, off2-off1);
@@ -509,12 +505,12 @@ bool is_do_form(List* form) {
   return is_sym(hd) && as_sym(hd)->val == DoStr;
 }
 
-void compile_do(List* form, Env* vars, Alist* vals, Buf16* code) {
+void compile_do(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code) {
   require_vargco("do", 2, form->count-1);
 
   List* xprs = form->tail;
 
-  compile_sequence(xprs, vars, vals, code);
+  compile_sequence(rls, xprs, vars, vals, code);
 }
 
 bool is_fn_form(List* form) {
@@ -537,18 +533,18 @@ void prepare_env(List* argl, Env* vars) {
   }
 }
 
-void compile_fn(List* form, Env* vars, Alist* vals, Buf16* code) {
+void compile_fn(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code) {
   require_vargco("fn", 1, form->count-1);
 
   List* argl  = as_list_s("fn", form->tail->head);
   List* body  = form->tail->tail;
-  Env*  lvars = mk_env(vars);
+  Env*  lvars = mk_env(rls, vars);
 
   preserve(3, tag_obj(lvars), NUL, NUL);
   prepare_env(argl, lvars);
 
-  Alist* lvals = mk_alist(); add_to_preserved(1, tag_obj(lvals));
-  Buf16* lcode = mk_buf16(); add_to_preserved(2, tag_obj(lcode));
+  Alist* lvals = mk_alist(rls); add_to_preserved(1, tag_obj(lvals));
+  Buf16* lcode = mk_buf16(rls); add_to_preserved(2, tag_obj(lcode));
 
   // compile internal definitions first
   // otherwise their values will get lost in the stack
@@ -563,12 +559,12 @@ void compile_fn(List* form, Env* vars, Alist* vals, Buf16* code) {
     if ( !is_def_form(fxpr) )
       break;
 
-    compile_def(fxpr, lvars, lvals, lcode);
+    compile_def(rls, fxpr, lvars, lvals, lcode);
     body = body->tail;
   }
 
   // compile remaining expressions like body of a 'do' form
-  compile_sequence(body, lvars, lvals, lcode);
+  compile_sequence(rls, body, lvars, lvals, lcode);
 
   int ncap = lvars->ncap, upvc = lvars->upvs.count;
 
@@ -578,20 +574,20 @@ void compile_fn(List* form, Env* vars, Alist* vals, Buf16* code) {
   emit_instr(lcode, OP_RETURN);
 
   // create chunk object
-  Chunk* chunk = mk_chunk(lvars, lvals, lcode); add_to_preserved(0, tag_obj(chunk));
-  Fun* fun     = mk_user_fun(chunk);
+  Chunk* chunk = mk_chunk(rls, lvars, lvals, lcode); add_to_preserved(0, tag_obj(chunk));
+  Fun* fun     = mk_user_fun(rls, chunk);
 
 #ifdef RASCAL_DEBUG
   disassemble(fun);
 #endif
 
   // add instructions in caller to load resulting function object
-  compile_literal(tag_obj(fun), vars, vals, code);
+  compile_literal(rls, tag_obj(fun), vars, vals, code);
 
   // add instructions to capture upvalues in calling context
   if ( upvc > 0 ) {
     emit_instr(code, OP_CLOSURE, upvc);
-    
+
     instr_t buffer[upvc*2];
 
     for ( int i=0, j=0; i < lvars->upvs.max_count && j < upvc; i++ ) {
@@ -611,10 +607,10 @@ void compile_fn(List* form, Env* vars, Alist* vals, Buf16* code) {
   }
 }
 
-void compile_sequence(List* xprs, Env* vars, Alist* vals, Buf16* code) {
+void compile_sequence(RlState* rls, List* xprs, Env* vars, Alist* vals, Buf16* code) {
   while ( xprs->count > 0 ) {
     Expr x = xprs->head;
-    compile_expr(x, vars, vals, code);
+    compile_expr(rls, x, vars, vals, code);
 
     if ( xprs->count > 1 )
       emit_instr(code, OP_POP);
@@ -623,9 +619,9 @@ void compile_sequence(List* xprs, Env* vars, Alist* vals, Buf16* code) {
   }
 }
 
-void compile_literal(Expr x, Env* vars, Alist* vals, Buf16* code) {
+void compile_literal(RlState* rls, Expr x, Env* vars, Alist* vals, Buf16* code) {
   (void)vars;
-  int n = alist_push(vals, x);
+  int n = alist_push(rls, vals, x);
 
   emit_instr(code, OP_GET_VALUE, n-1);
 }
@@ -646,10 +642,6 @@ void compile_reference(Sym* s, Env* vars, Alist* vals, Buf16* code) {
 
     case REF_LOCAL:
       op = OP_GET_LOCAL;
-
-      if ( i >= vars->arity )
-        i += FRAME_SIZE;
-
       break;
 
     case REF_CAPTURED_UPVAL:
@@ -663,35 +655,35 @@ void compile_reference(Sym* s, Env* vars, Alist* vals, Buf16* code) {
   emit_instr(code, op, i);
 }
 
-void compile_funcall(List* form, Env* vars, Alist* vals, Buf16* code) {
+void compile_funcall(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code) {
   assert(form->count > 0);
 
   if ( is_quote_form(form) )
-    compile_quote(form, vars, vals, code);
+    compile_quote(rls, form, vars, vals, code);
 
   else if ( is_def_form(form) ) {
     require(!is_local_env(vars), "syntax error: local def in fn body");
-    compile_def(form, vars, vals, code);
+    compile_def(rls, form, vars, vals, code);
   }
 
   else if ( is_put_form(form) )
-    compile_put(form, vars, vals, code);
+    compile_put(rls, form, vars, vals, code);
 
   else if ( is_if_form(form) )
-    compile_if(form, vars, vals, code);
+    compile_if(rls, form, vars, vals, code);
 
   else if ( is_do_form(form) )
-    compile_do(form, vars, vals, code);
+    compile_do(rls, form, vars, vals, code);
 
   else if ( is_fn_form(form) )
-    compile_fn(form, vars, vals, code);
+    compile_fn(rls, form, vars, vals, code);
 
   else {
     int argc = form->count-1;
 
     while ( form->count > 0 ) {
       Expr arg = form->head;
-      compile_expr(arg, vars, vals, code);
+      compile_expr(rls, arg, vars, vals, code);
       form = form->tail;
     }
 
@@ -699,14 +691,14 @@ void compile_funcall(List* form, Env* vars, Alist* vals, Buf16* code) {
   }
 }
 
-void compile_expr(Expr x, Env* vars, Alist* vals, Buf16* code) {
+void compile_expr(RlState* rls, Expr x, Env* vars, Alist* vals, Buf16* code) {
   ExpType t = exp_type(x);
-  
+
   if ( t == EXP_SYM ) {
     Sym* s = as_sym(x);
 
     if ( is_keyword(s) ) // keywords (symbols whose names begin with ':') are treated as literals
-      compile_literal(x, vars, vals, code);
+      compile_literal(rls, x, vars, vals, code);
 
     else
       compile_reference(s, vars, vals, code);
@@ -715,26 +707,26 @@ void compile_expr(Expr x, Env* vars, Alist* vals, Buf16* code) {
     List* l = as_list(x);
 
     if ( l->count == 0 ) // empty list is treated as a literal
-      compile_literal(x, vars, vals, code);
+      compile_literal(rls, x, vars, vals, code);
 
     else
-      compile_funcall(l, vars, vals, code);
+      compile_funcall(rls, l, vars, vals, code);
 
   } else
-    compile_literal(x, vars, vals, code);
+    compile_literal(rls, x, vars, vals, code);
 }
 
-Fun* toplevel_compile(List* form) {
+Fun* toplevel_compile(RlState* rls, List* form) {
   preserve(3, tag_obj(form), NUL, NUL);
 
-  Alist* vals  = mk_alist(); add_to_preserved(1, tag_obj(vals));
-  Buf16* code = mk_buf16(); add_to_preserved(2, tag_obj(code));
+  Alist* vals  = mk_alist(rls); add_to_preserved(1, tag_obj(vals));
+  Buf16* code = mk_buf16(rls); add_to_preserved(2, tag_obj(code));
 
-  compile_funcall(form, &Globals, vals, code);
+  compile_funcall(rls, form, &Globals, vals, code);
   emit_instr(code, OP_RETURN);
 
-  Chunk* chunk = mk_chunk(&Globals, vals, code); add_to_preserved(0, tag_obj(chunk)); // reuse saved slot
-  Fun* out     = mk_user_fun(chunk);
+  Chunk* chunk = mk_chunk(rls, &Globals, vals, code); add_to_preserved(0, tag_obj(chunk)); // reuse saved slot
+  Fun* out     = mk_user_fun(rls, chunk);
 
 #ifdef RASCAL_DEBUG
   disassemble(out);
@@ -743,18 +735,18 @@ Fun* toplevel_compile(List* form) {
   return out;
 }
 
-Fun* compile_file(char* fname) {
-  List* exprs = read_file(fname);
+Fun* compile_file(RlState* rls, char* fname) {
+  List* exprs = read_file(rls, fname);
   preserve(4, tag_obj(exprs), NUL, NUL, NUL);
-  Alist* vals = mk_alist(); add_to_preserved(1, tag_obj(vals));
-  Buf16* code = mk_buf16(); add_to_preserved(2, tag_obj(code));
+  Alist* vals = mk_alist(rls); add_to_preserved(1, tag_obj(vals));
+  Buf16* code = mk_buf16(rls); add_to_preserved(2, tag_obj(code));
 
-  compile_sequence(exprs, &Globals, vals, code);
+  compile_sequence(rls, exprs, &Globals, vals, code);
   emit_instr(code, OP_RETURN);
 
-  Chunk* chunk = mk_chunk(&Globals, vals, code); add_to_preserved(0, tag_obj(chunk));
-  Fun* out = mk_user_fun(chunk);
-  
+  Chunk* chunk = mk_chunk(rls, &Globals, vals, code); add_to_preserved(0, tag_obj(chunk));
+  Fun* out = mk_user_fun(rls, chunk);
+
 #ifdef RASCAL_DEBUG
   disassemble(out);
 #endif
@@ -767,7 +759,7 @@ bool is_falsey(Expr x) {
   return x == NONE || x == NUL || x == FALSE;
 }
 
-Expr exec_code(Fun* fun) {
+Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
   void* labels[] = {
     [OP_NOOP]        = &&op_noop,
 
@@ -787,11 +779,6 @@ Expr exec_code(Fun* fun) {
     // jump instructions ------------------------------------------------------
     [OP_JUMP]        = &&op_jump,
     [OP_JUMP_F]      = &&op_jump_f,
-
-    // exception interface instructions ---------------------------------------
-    [OP_CATCH]       = &&op_catch,
-    [OP_THROW]       = &&op_throw,
-    [OP_ECATCH]      = &&op_ecatch,
 
     // function call instructions ---------------------------------------------
     [OP_CLOSURE]     = &&op_closure,
@@ -826,12 +813,16 @@ Expr exec_code(Fun* fun) {
   Num nx, ny, nz;
   List* lx, * ly;
   Fun* fx;
-  Str* msg, * name;
+  Str* name;
 
-  install_fun(fun, 0);
+  if ( !toplevel )
+    save_frame(rls);
+
+  push(rls, tag_obj(fun));
+  install_fun(rls, fun, 0);
 
  fetch:
-  op = next_op();
+  op = next_op(rls);
 
   goto *labels[op];
 
@@ -841,132 +832,93 @@ Expr exec_code(Fun* fun) {
 
   // stack manipulation instructions ------------------------------------------
  op_pop: // remove TOS
-  pop();
+  pop(rls);
 
   goto fetch;
 
  op_rpop: // move TOS to TOS-1, then decrement sp
-  rpop();
+  rpop(rls);
 
   goto fetch;
 
   // value/variable instructions ----------------------------------------------
  op_get_value: // load a value from the constant store
-  argx = next_op();
-  x    = alist_get(Vm.fn->chunk->vals, argx);
+  argx = next_op(rls);
+  x    = alist_get(rls->fn->chunk->vals, argx);
 
-  push(x);
+  push(rls, x);
 
   goto fetch;
 
  op_get_global:
-  argx = next_op(); // previously resolved index in global environment
+  argx = next_op(rls); // previously resolved index in global environment
   x    = toplevel_env_ref(&Globals, argx);
 
   require(x != NONE, "undefined reference");
-  push(x);
+  push(rls, x);
 
   goto fetch;
 
  op_set_global:
-  argx = next_op();
-  x    = pop();
+  argx = next_op(rls);
+  x    = pop(rls);
 
   toplevel_env_refset(&Globals, argx, x);
 
   goto fetch;
 
  op_get_local:
-  argx = next_op();
-  x    = Vm.stack[Vm.bp+argx];
+  argx = next_op(rls);
+  x    = rls->stack[rls->bp+argx];
 
-  push(x);
+  push(rls, x);
 
   goto fetch;
 
  op_set_local:
-  argx = next_op();
-  x    = pop();
-  Vm.stack[Vm.bp+argx] = x;
+  argx = next_op(rls);
+  x    = pop(rls);
+  rls->stack[rls->bp+argx] = x;
 
   goto fetch;
 
  op_get_upval:
-  argx = next_op();
-  x    = upval_ref(Vm.fn, argx);
+  argx = next_op(rls);
+  x    = upval_ref(rls->fn, argx);
 
-  push(x);
+  push(rls, x);
 
   goto fetch;
 
  op_set_upval:
-  argx = next_op();
-  x    = pop();
+  argx = next_op(rls);
+  x    = pop(rls);
 
-  upval_set(Vm.fn, argx, x);
+  upval_set(rls->fn, argx, x);
 
   goto fetch;
 
   // branching instructions ---------------------------------------------------
  op_jump: // unconditional jumping
-  argx   = next_op();
-  Vm.pc += argx;
+  argx   = next_op(rls);
+  rls->pc += argx;
 
   goto fetch;
 
  op_jump_f: // jump if TOS is falsey
-  argx   = next_op();
-  x      = pop();
+  argx   = next_op(rls);
+  x      = pop(rls);
 
   if ( is_falsey(x) )
-    Vm.pc += argx;
-
-  goto fetch;
-
-  // exception interface instructions -----------------------------------------
- op_catch:
-  // handler should be TOS
-
-  // save current execution context
-  save_ctx();
-
-  if ( safepoint() ) {
-    recover();
-    discard_ctx();
-    
-    // set up call to handler
-    argc = 0;
-    fun  = as_fun(tos());
-
-    // jump to handler
-    goto call_user_fn;
-  }
-
-  // unconditional jump that will skip over
-  // the catch body if the handler is invoked
-  Vm.pc += 2;
-
-  // enter catch body
-  goto fetch;
-
- op_throw:
-  x   = pop();
-  msg = as_str_s("throw", x);
-
-  user_error(msg->val);
-
- op_ecatch:
-  // discard saved context and handler, leave last expression of catch body at TOS
-  discard_ctx();
-  rpop();
+    rls->pc += argx;
 
   goto fetch;
 
   // closures and function calls ----------------------------------------------
  op_call:
-  argc = next_op();
-  x    = *stack_ref(-argc-1);
-  fun  = as_fun_s(Vm.fn->name->val->val, x);
+  argc = next_op(rls);
+  x    = *stack_ref(rls, -argc-1);
+  fun  = as_fun_s(rls->fn->name->val->val, x);
 
   if ( is_user_fn(fun) )
     goto call_user_fn;
@@ -977,50 +929,50 @@ Expr exec_code(Fun* fun) {
 
  call_user_fn:
   require_argco("fn", user_fn_argc(fun), argc);
-  save_frame(); // save caller state
-  install_fun(fun, argc);
+  save_frame(rls); // save caller state
+  install_fun(rls, fun, argc);
 
   goto fetch;
 
  op_closure:
-  fun   = as_fun(tos());
-  fun   = mk_closure(fun);
-  tos() = tag_obj(fun);     // make sure new closure is visible to GC
-  argc  = next_op();
+  fun   = as_fun(tos(rls));
+  fun   = mk_closure(rls, fun);
+  tos(rls) = tag_obj(fun);     // make sure new closure is visible to GC
+  argc  = next_op(rls);
 
   for ( int i=0; i < argc; i++ ) {
-    argx = next_op();
-    argy = next_op();
+    argx = next_op(rls);
+    argy = next_op(rls);
 
     if ( argx == 0 ) // nonlocal
-      fun->upvs.vals[i] = Vm.fn->upvs.vals[argy];
+      fun->upvs.vals[i] = rls->fn->upvs.vals[argy];
 
     else
-      fun->upvs.vals[i] = get_upv(Vm.stack+Vm.bp+argy);
+      fun->upvs.vals[i] = get_upv(rls, rls->stack+rls->bp+argy);
   }
 
   goto fetch;
 
   // emmitted before a frame with local upvalues returns
  op_capture:
-  close_upvs(Vm.stack+Vm.bp);
+  close_upvs(rls, rls->stack+rls->bp);
 
   goto fetch;
 
  op_return:
-  x    = Vm.sp > Vm.fp ? pop() : NUL;
+  x    = rls->sp > rls->fp ? pop(rls) : NUL;
 
-  if ( Vm.fp == 0 ) { // no calling frame, exit
-    reset_vm();
-    return x;    
+  if ( rls->fp == 0 ) { // no calling frame, exit
+    reset_vm(rls);
+    return x;
   }
 
-  argx  = Vm.bp;       // adjust stack to here after restore
-  
-  restore_frame();
+  argx  = rls->bp;       // adjust stack to here after restore
 
-  Vm.sp = argx;
-  tos() = x;
+  restore_frame(rls);
+
+  rls->sp = argx;
+  tos(rls) = x;
 
   goto fetch;
 
@@ -1030,136 +982,134 @@ Expr exec_code(Fun* fun) {
  op_add:
   require_argco("+", 2, argc);
 
-  y      = pop();
-  x      = pop();
+  y      = pop(rls);
+  x      = pop(rls);
   nx     = as_num_s("+", x);
   ny     = as_num_s("+", y);
   nz     = nx + ny;
   z      = tag_num(nz);
-  tos()  = z;           // combine push/pop
+  tos(rls)  = z;           // combine push/pop
 
   goto fetch;
 
  op_sub:
   require_argco("-", 2, argc);
 
-  y      = pop();
-  x      = pop();
+  y      = pop(rls);
+  x      = pop(rls);
   nx     = as_num_s("-", x);
   ny     = as_num_s("-", y);
   nz     = nx - ny;
   z      = tag_num(nz);
-  tos()  = z;           // combine push/pop
+  tos(rls)  = z;           // combine push/pop
 
   goto fetch;
 
  op_mul:
   require_argco("*", 2, argc);
 
-  y      = pop();
-  x      = pop();
+  y      = pop(rls);
+  x      = pop(rls);
   nx     = as_num_s("*", x);
   ny     = as_num_s("*", y);
   nz     = nx * ny;
   z      = tag_num(nz);
-  tos()  = z;           // combine push/pop
+  tos(rls)  = z;           // combine push/pop
 
   goto fetch;
 
  op_div:
   require_argco("/", 2, argc);
 
-  y      = pop();
-  x      = pop();
+  y      = pop(rls);
+  x      = pop(rls);
   nx     = as_num_s("/", x);
   ny     = as_num_s("/", y); require(ny != 0, "division by zero");
   nz     = nx / ny;
   z      = tag_num(nz);
-  tos()  = z;           // combine push/pop
+  tos(rls)  = z;           // combine push/pop
 
   goto fetch;
 
  op_egal:
   require_argco("=", 2, argc);
 
-  y      = pop();
-  x      = pop();
+  y      = pop(rls);
+  x      = pop(rls);
   z      = egal_exps(x, y) ? TRUE : FALSE;
-  tos()  = z;
+  tos(rls)  = z;
 
   goto fetch;
 
  op_type:
   require_argco("type", 1, argc);
 
-  x      = pop();
+  x      = pop(rls);
   y      = tag_obj(exp_info(x)->repr);
-  tos()  = y;
+  tos(rls)  = y;
 
   goto fetch;
 
  op_cons:
   require_argco("cons", 2, argc);
 
-  lx = as_list_s("cons", Vm.stack[Vm.sp-1]);
-  ly = cons(Vm.stack[Vm.sp-2], lx);
+  lx = as_list_s("cons", rls->stack[rls->sp-1]);
+  ly = cons(rls, rls->stack[rls->sp-2], lx);
   z  = tag_obj(ly);
 
-  popn(2);
+  popn(rls, 2);
 
-  tos() = z;
+  tos(rls) = z;
 
   goto fetch;
 
  op_head:
   require_argco("head", 1, argc);
 
-  x  = pop();
+  x  = pop(rls);
   lx = as_list_s("head", x);
 
   require(lx->count > 0, "can't call head on empty list");
 
   y  = lx->head;
 
-  push(y);
+  push(rls, y);
 
   goto fetch;
 
  op_tail:
   require_argco("tail", 1, argc);
 
-  x  = pop();
+  x  = pop(rls);
   lx = as_list_s("tail", x);
 
   require(lx->count > 0, "can't call tail on empty list");
 
   ly = lx->tail;
 
-  push(tag_obj(ly));
+  push(rls, tag_obj(ly));
 
   goto fetch;
 
  op_nth:
   require_argco("nth", 2, argc);
 
-  x     = pop();
+  x     = pop(rls);
   argx  = as_num_s("nth", x);
-  x     = pop();
+  x     = pop(rls);
   lx    = as_list_s("nth", x);
 
   require(argx < (int)lx->count, "index out of bounds");
 
   x     = list_ref(lx, argx);
-  tos() = x;
+  tos(rls) = x;
 
   goto fetch;
 
  op_heap_report:
   require_argco("*heap-report*", 0, argc);
-
-  heap_report();
-
-  tos() = NUL; // dummy retunr value
+  heap_report(rls);
+  tos(rls) = NUL; // dummy retunr value
 
   goto fetch;
 
@@ -1167,11 +1117,11 @@ Expr exec_code(Fun* fun) {
   // compile the file and begin executing
   require_argco("load", 1, argc);
 
-  x = pop();
+  x = pop(rls);
   name = as_str_s("load", x);
-  fx = compile_file(name->val);
-  save_frame();
-  install_fun(fx, 0);
+  fx = compile_file(rls, name->val);
+  save_frame(rls);
+  install_fun(rls, fx, 0);
 
   goto fetch;
 }
@@ -1183,7 +1133,7 @@ bool is_literal(Expr x) {
   return t != EXP_LIST && t != EXP_SYM;
 }
 
-Expr eval_exp(Expr x) {
+Expr eval_exp(RlState* rls, Expr x) {
   Expr v;
 
   if ( is_literal(x) )
@@ -1208,8 +1158,8 @@ Expr eval_exp(Expr x) {
     else {
       Fun* fun;
 
-      fun = toplevel_compile(l);
-      v = exec_code(fun);
+      fun = toplevel_compile(rls, l);
+      v = exec_code(rls, fun, true);
     }
   }
 
@@ -1228,11 +1178,11 @@ void print_exp(Port* out, Expr x) {
 }
 
 // repl -----------------------------------------------------------------------
-void repl(void) {
+void repl(RlState* rls) {
   Expr x, v;
 
   // create a catch point
-  save_ctx();
+  save_ctx(rls);
 
   for (;;) {
     if ( safepoint() )
@@ -1240,8 +1190,8 @@ void repl(void) {
 
     else {
       fprintf(stdout, PROMPT" ");
-      x = read_exp(&Ins);
-      v = eval_exp(x);
+      x = read_exp(rls, &Ins);
+      v = eval_exp(rls, x);
       fprintf(stdout, "\n>>> ");
       print_exp(&Outs, v);
       fprintf(stdout, "\n\n");

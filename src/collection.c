@@ -20,17 +20,17 @@
   }                                                                 \
                                                                     \
   void free_##a(A* a) {                                             \
-    release(a->vals, 0);                                            \
+    release(NULL, a->vals, 0);                                      \
     init_##a(a);                                                    \
   }                                                                 \
                                                                     \
   void grow_##a(A* a) {                                             \
     if ( a->max_count == MAX_ARITY )                                \
       runtime_error("maximum "#a" size exceeded");                  \
-    int new_maxc  = a->max_count ? a->max_count << 1 : MIN_CAP;   \
-    X*  new_spc  = reallocate(false,                              \
-                              new_maxc * sizeof(X),               \
-                              a->max_count * sizeof(X),           \
+    int new_maxc  = a->max_count ? a->max_count << 1 : MIN_CAP;     \
+    X*  new_spc  = reallocate(NULL,                                 \
+                              new_maxc * sizeof(X),                 \
+                              a->max_count * sizeof(X),             \
                               a->vals);                           \
                                                                   \
     a->vals = new_spc;                                            \
@@ -41,7 +41,7 @@
     assert(a->max_count > MIN_CAP);                               \
                                                                   \
     size_t new_maxc = a->max_count >> 1;                          \
-    X*  new_spc     = reallocate(false,                           \
+    X*  new_spc     = reallocate(NULL,                            \
                                  new_maxc*sizeof(X),              \
                                  a->max_count*sizeof(X),          \
                                  a->vals);                        \
@@ -59,7 +59,7 @@
     if ( new_maxc < MIN_CAP )                                           \
       new_maxc = MIN_CAP;                                               \
                                                                         \
-    X* new_spc = reallocate(false,                                      \
+    X* new_spc = reallocate(NULL,                                      \
                             new_maxc*sizeof(X),                         \
                             a->max_count*sizeof(X),                     \
                             a->vals);                                   \
@@ -112,7 +112,7 @@ ALIST_IMPL(Bin16, ushort_t, bin16);
   }                                                                     \
                                                                         \
   void free_##t(T* t) {                                                 \
-    release(t->kvs, 0);                                                 \
+    release(NULL, t->kvs, 0);                                           \
     init_##t(t);                                                        \
   }                                                                     \
                                                                         \
@@ -167,7 +167,7 @@ ALIST_IMPL(Bin16, ushort_t, bin16);
                                                                         \
     void grow_##t(T* t) {                                               \
       int nmc    = t->max_count < MIN_CAP ? MIN_CAP : t->max_count << 1; \
-      T##KV*    nkv = allocate(false, nmc*sizeof(T##KV));               \
+      T##KV*    nkv = allocate(NULL, nmc*sizeof(T##KV));                \
                                                                         \
       init_##t##_kvs(nkv, nmc);                                         \
                                                                         \
@@ -176,7 +176,7 @@ ALIST_IMPL(Bin16, ushort_t, bin16);
       T##KV*    okv = t->kvs;                                           \
       int nc  = rehash_##t(okv, omc, nkv, nmc);                         \
       t->count   = nc;                                                  \
-      release(okv, 0);                                                  \
+      release(NULL, okv, 0);                                            \
     }                                                                   \
                                                                         \
     t->kvs       = nkv;                                                 \
@@ -232,7 +232,7 @@ ALIST_IMPL(Bin16, ushort_t, bin16);
     return out;                                                         \
   }                                                                     \
                                                                         \
-  V t##_intern(T* t, K k, T##InternFn ifn) {                            \
+  V t##_intern(RlState* rls, T* t, K k, T##InternFn ifn) {             \
     if ( check_grow(t) )                                                \
       grow_##t(t);                                                      \
     hash_t h = hashf(k);                                                \
@@ -241,7 +241,7 @@ ALIST_IMPL(Bin16, ushort_t, bin16);
     if ( kv->key == NK ) {                                              \
       if ( kv->val == NV )                                              \
         t->count++;                                                     \
-      ifn(t, kv, (void*)k, h);                                          \
+      ifn(rls, t, kv, (void*)k, h);                                     \
     }                                                                   \
                                                                         \
     return kv->val;                                                     \

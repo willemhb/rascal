@@ -50,11 +50,16 @@ typedef union {
 } Val;
 
 // Internal types
+typedef struct Strings Strings;
+typedef struct Objs Objs;
+typedef struct Exprs Exprs;
+typedef struct RlState RlState;
+
 typedef void   (*PrintFn)(Port* p, Expr x);
 typedef hash_t (*HashFn)(Expr x);
 typedef bool   (*EgalFn)(Expr x, Expr y);
 typedef void   (*CloneFn)(void* ob); // called to clone an object's owned pointers
-typedef void   (*TraceFn)(void* ob);
+typedef void   (*TraceFn)(RlState* rls, void* ob);
 typedef void   (*FreeFn)(void* ob);
 
 // limits ---------------------------------------------------------------------
@@ -67,7 +72,7 @@ typedef void   (*FreeFn)(void* ob);
 #define VERSION "%.2d.%.2d.%.2d.%s"
 #define WELCOME "Welcome to rascal version "VERSION"!"
 #define MAJOR   0
-#define MINOR   8
+#define MINOR   9
 #define PATCH   0
 #define RELEASE "a"
 

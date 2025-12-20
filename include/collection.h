@@ -3,13 +3,14 @@
 
 #include "common.h"
 
+// forward declarations
 // macros for defining array and table types
 // API declarations go wherever they make sense, but implementations
 // go in collection.c because otherwise the macros are a pain in the ass to debug
 
 // array template
 #define ALIST_API(A, X, a)                      \
-  typedef struct {                              \
+  typedef struct A {                            \
     X* vals;                                    \
     int count, max_count;                       \
   } A;                                          \
@@ -30,18 +31,18 @@
     V val;                                                       \
   } T##KV;                                                       \
                                                                  \
-  typedef struct {                                               \
+  typedef struct T {                                             \
     T##KV* kvs;                                                  \
     int count, max_count;                                        \
   } T;                                                           \
                                                                  \
-  typedef void (*T##InternFn)(T* t, T##KV* kv, K k, hash_t h);   \
+  typedef void (*T##InternFn)(RlState* rls, T* t, T##KV* kv, K k, hash_t h);   \
                                                                  \
   void init_##t(T* t);                                           \
   void free_##t(T* t);                                           \
   bool t##_get(T* t, K k, V* v);                                 \
   bool t##_set(T* t, K k, V v);                                  \
   bool t##_del(T* t, K k, V* v);                                 \
-  V    t##_intern(T* t, K k, T##InternFn ifn)
+  V    t##_intern(RlState* rls, T* t, K k, T##InternFn ifn)
 
 #endif

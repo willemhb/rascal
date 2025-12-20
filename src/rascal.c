@@ -49,39 +49,39 @@ void init_standard_streams(void) {
 void init_static_objects(void) {
   // register static global objects in heap -----------------------------------
   // so that they get unmarked during the sweep phase -------------------------
-  add_to_heap(&Globals);
-  add_to_heap(&Ins);
-  add_to_heap(&Outs);
-  add_to_heap(&Errs);
+  add_to_heap(&Main, &Globals);
+  add_to_heap(&Main, &Ins);
+  add_to_heap(&Main, &Outs);
+  add_to_heap(&Main, &Errs);
 }
 
 void define_builtins(void) {
   // initialize builtin functions ---------------------------------------------
-  def_builtin_fun("+", OP_ADD);
-  def_builtin_fun("-", OP_SUB);
-  def_builtin_fun("*", OP_MUL);
-  def_builtin_fun("/", OP_DIV);
-  def_builtin_fun("=", OP_EGAL);
-  def_builtin_fun("type", OP_TYPE);
-  def_builtin_fun("cons", OP_CONS);
-  def_builtin_fun("head", OP_HEAD);
-  def_builtin_fun("tail", OP_TAIL);
-  def_builtin_fun("nth", OP_NTH);
-  def_builtin_fun("*heap-report*", OP_HEAP_REPORT);
-  def_builtin_fun("load", OP_LOAD);
+  def_builtin_fun(&Main, "+", OP_ADD);
+  def_builtin_fun(&Main, "-", OP_SUB);
+  def_builtin_fun(&Main, "*", OP_MUL);
+  def_builtin_fun(&Main, "/", OP_DIV);
+  def_builtin_fun(&Main, "=", OP_EGAL);
+  def_builtin_fun(&Main, "type", OP_TYPE);
+  def_builtin_fun(&Main, "cons", OP_CONS);
+  def_builtin_fun(&Main, "head", OP_HEAD);
+  def_builtin_fun(&Main, "tail", OP_TAIL);
+  def_builtin_fun(&Main, "nth", OP_NTH);
+  def_builtin_fun(&Main, "*heap-report*", OP_HEAP_REPORT);
+  def_builtin_fun(&Main, "load", OP_LOAD);
 
   // initialize other globals -------------------------------------------------
-  toplevel_env_def(&Globals, mk_sym("&ins"), tag_obj(&Ins));
-  toplevel_env_def(&Globals, mk_sym("&outs"), tag_obj(&Outs));
-  toplevel_env_def(&Globals, mk_sym("&errs"), tag_obj(&Errs));
+  toplevel_env_def(Vm.globals, mk_sym(&Main, "&ins"), tag_obj(&Ins));
+  toplevel_env_def(Vm.globals, mk_sym(&Main, "&outs"), tag_obj(&Outs));
+  toplevel_env_def(Vm.globals, mk_sym(&Main, "&errs"), tag_obj(&Errs));
   
   // special forms and other syntactic markers --------------------------------
-  QuoteStr = mk_str("quote");
-  DefStr   = mk_str("def");
-  PutStr   = mk_str("put");
-  IfStr    = mk_str("if");
-  DoStr    = mk_str("do");
-  FnStr    = mk_str("fn");
+  QuoteStr = mk_str(&Main, "quote");
+  DefStr   = mk_str(&Main, "def");
+  PutStr   = mk_str(&Main, "put");
+  IfStr    = mk_str(&Main, "if");
+  DoStr    = mk_str(&Main, "do");
+  FnStr    = mk_str(&Main, "fn");
 }
 
 void initialize_types(void) {
@@ -89,7 +89,7 @@ void initialize_types(void) {
 
   for ( int i=0; i < NUM_TYPES; i++ ) {
     ExpTypeInfo* info = &Types[i]; strcpy(buffer+1, info->name);
-    info->repr        = mk_sym(buffer);
+    info->repr        = mk_sym(&Main, buffer);
   }
 }
 
@@ -130,11 +130,11 @@ int main(int argc, char* argv[]) {
 
   if (optind < argc) {
     // Execute the specified file
-    load_file(argv[optind]);
+    load_file(&Main, argv[optind]);
   } else {
     // Enter REPL
     print_welcome();
-    repl();
+    repl(&Main);
   }
 
   teardown();
