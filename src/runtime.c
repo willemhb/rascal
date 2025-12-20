@@ -155,7 +155,7 @@ size_t add_to_token(char c) {
 
 // stack API ------------------------------------------------------------------
 void reset_stack(void) {
-  memset(Vm.stack, 0, STACK_SIZE * sizeof(Expr));
+  memset(Vm.stack, 0, EXPR_STACK_SIZE * sizeof(Expr));
   Vm.sp = 0;
 }
 
@@ -173,7 +173,7 @@ Expr* stack_ref(int i) {
 }
 
 Expr* push( Expr x ) {
-  if ( Vm.sp == STACK_SIZE )
+  if ( Vm.sp == EXPR_STACK_SIZE )
     runtime_error("stack overflow");
 
   Vm.stack[Vm.sp] = x;
@@ -182,7 +182,7 @@ Expr* push( Expr x ) {
 }
 
 Expr* pushn( int n ) {
-  if ( Vm.sp + n >= STACK_SIZE )
+  if ( Vm.sp + n >= EXPR_STACK_SIZE )
     runtime_error("stack overflow");
 
   Expr* base = &Vm.stack[Vm.sp]; Vm.sp += n;
@@ -253,24 +253,28 @@ void close_upvs(Expr* base) {
 }
 
 // frame manipulation
-void install_fun(Fun* fun, int bp, int fp) {
+void install_fun(Fun* fun, int argc) {
   Vm.fn = fun;
   Vm.pc = fun->chunk->code->binary.vals;
-  Vm.bp = bp;
-  Vm.fp = fp;
+  Vm.bp = Vm.sp-argc;
 }
 
 void save_frame(void) {
-  Expr* frame = pushn(FRAME_SIZE);
-  frame[0]    = tag_ptr(Vm.pc);
-  frame[1]    = Vm.fn == NULL ? tag_ptr(Vm.pc) : tag_obj(Vm.fn); // prevents gc of dummy frame
-  frame[2]    = tag_fix(Vm.bp);
-  frame[3]    = tag_fix(Vm.fp);
+  if ( Vm.fp == CALL_STACK_SIZE )
+    runtime_error("runtime:save_frame", "stack overflow");
+
+  CallState *frame = &Vm.frames[Vm.fp++];
+  frame->frame_size = Vm.sp-Vm.bp;
+  frame->cntl_off = -1;
+  frame->flags = -1;
+  frame->savepc = Vm.pc;
 }
 
 void restore_frame(void) {
-  assert(Vm.fp >= 4);
-  Expr* frame = stack_ref(Vm.fp-FRAME_SIZE);
+  assert(Vm.fp > 0);
+  CallState* frame = &Vm.frames[--Vm.fp];
+
+  
   Vm.pc       = as_ptr(frame[0]);
   Vm.fn       = as_fun(frame[1]);
   Vm.bp       = as_fix(frame[2]);
