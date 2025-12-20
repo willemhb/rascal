@@ -5,7 +5,8 @@
 
 // Magic numbers
 #define BUFFER_SIZE 2048
-#define STACK_SIZE  65536
+#define EXPR_STACK_SIZE 65536
+#define CALL_STACK_SIZE 16384
 #define BUFFER_MAX  2046
 #define INIT_HEAP   (2048 * sizeof(uintptr_t))
 
@@ -25,18 +26,22 @@ typedef struct GcFrame {
 } GcFrame;
 
 typedef struct {
-  Fun* fn;
-  int sp;
+  int frame_size; /* stack usage */
+  int cntl_off; /* offset to nearest enclosing control frame (0 if this is a control frame, -1 if no control frames exist) */
+  int cntl_size; /* total size of stack enclosed by a control frame (-1 if no control frame exists) */
+  int flags; /* idk but struct padding activates my autism */
+  instr_t* savepc; /* caller's program counter */
 } CallState;
 
 typedef struct {
-  UpVal*   upvs;
-  Fun*     fn;
+  UpVal* upvs;
+  Fun* fn;
   instr_t* pc;
-  int      sp;
-  int      fp;
-  int      bp;
-  Expr     stack[STACK_SIZE];
+  int sp;
+  int fp;
+  int bp;
+  CallState frames[CALL_STACK_SIZE];
+  Expr stack[EXPR_STACK_SIZE];
 } VM;
 
 // everything necessary to restore execution at a particular point
