@@ -60,6 +60,8 @@ typedef enum {
 
   // system instructions
   OP_HEAP_REPORT,
+  OP_STACK_REPORT,
+  OP_ENV_REPORT,
   OP_DIS,
   OP_LOAD,
 } OpCode;

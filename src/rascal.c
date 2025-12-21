@@ -72,6 +72,8 @@ void define_builtins(void) {
   def_builtin_fun(&Main, "str-ref", OP_STR_REF);
   def_builtin_fun(&Main, "str-len", OP_STR_LEN);
   def_builtin_fun(&Main, "*heap-report*", OP_HEAP_REPORT);
+  def_builtin_fun(&Main, "*stack-report*", OP_STACK_REPORT);
+  def_builtin_fun(&Main, "*env-report*", OP_ENV_REPORT);
   def_builtin_fun(&Main, "*dis*", OP_DIS);
   def_builtin_fun(&Main, "load", OP_LOAD);
 
@@ -79,7 +81,8 @@ void define_builtins(void) {
   toplevel_env_def(Vm.globals, mk_sym(&Main, "&ins"), tag_obj(&Ins));
   toplevel_env_def(Vm.globals, mk_sym(&Main, "&outs"), tag_obj(&Outs));
   toplevel_env_def(Vm.globals, mk_sym(&Main, "&errs"), tag_obj(&Errs));
-  
+  toplevel_env_def(Vm.globals, mk_sym(&Main, "&globals"), tag_obj(Vm.globals));
+
   // special forms and other syntactic markers --------------------------------
   QuoteStr = mk_str(&Main, "quote");
   DefStr   = mk_str(&Main, "def");

@@ -578,7 +578,7 @@ void compile_fn(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code) {
   Fun* fun     = mk_user_fun(rls, chunk);
 
 #ifdef RASCAL_DEBUG
-  disassemble(fun);
+  // disassemble(fun);
 #endif
 
   // add instructions in caller to load resulting function object
@@ -824,6 +824,8 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
 
     // system instructions ----------------------------------------------------
     [OP_HEAP_REPORT] = &&op_heap_report,
+    [OP_STACK_REPORT]= &&op_stack_report,
+    [OP_ENV_REPORT]  = &&op_env_report,
     [OP_DIS]         = &&op_dis,
     [OP_LOAD]        = &&op_load,
   };
@@ -1099,7 +1101,7 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
   lx = as_list_s("tail", x);
   require(lx->count > 0, "can't call tail on empty list");
   ly = lx->tail;
-  push(rls, tag_obj(ly));
+  tos(rls) = tag_obj(ly);
 
   goto fetch;
 
@@ -1133,7 +1135,6 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
   argy = sx->val[argx];
   x = tag_glyph(argy);
   tos(rls) = x;
-
   goto fetch;
 
  op_str_len:
@@ -1141,15 +1142,24 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
   x = pop(rls);
   sx = as_str_s("str-len", x);
   tos(rls) = tag_num(sx->count);
-
   goto fetch;
-
 
  op_heap_report:
   require_argco("*heap-report*", 0, argc);
   heap_report(rls);
   tos(rls) = NUL; // dummy return value
+  goto fetch;
 
+ op_stack_report:
+  require_argco("*stack-report*", 0, argc);
+  stack_report(rls);
+  tos(rls) = NUL; // dummy return value
+  goto fetch;
+
+ op_env_report:
+  require_argco("*env-report*", 0, argc);
+  stack_report(rls);
+  tos(rls) = NUL; // dummy return value
   goto fetch;
 
  op_dis:
@@ -1158,17 +1168,16 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
   fx = as_fun_s("*dis*", x);
   disassemble(fx);
   tos(rls) = NUL; // dummy return value
+  goto fetch;
 
  op_load:
   // compile the file and begin executing
   require_argco("load", 1, argc);
-
   x = pop(rls);
   sx = as_str_s("load", x);
   fx = compile_file(rls, sx->val);
   save_frame(rls);
   install_fun(rls, fx, 0);
-
   goto fetch;
 }
 

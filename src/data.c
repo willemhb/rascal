@@ -16,6 +16,7 @@ void print_str(Port* ios, Expr x);
 void print_num(Port* ios, Expr x);
 void print_bool(Port* ios, Expr x);
 void print_glyph(Port* ios, Expr x);
+void print_fun(Port* ios, Expr x);
 void print_nul(Port* ios, Expr x);
 void print_none(Port* ios, Expr x);
 
@@ -32,6 +33,7 @@ void trace_ref(RlState* rls, void* ptr);
 void trace_upval(RlState* rls, void* ptr);
 void trace_env(RlState* rls, void* ptr);
 void trace_fun(RlState* rls, void* ptr);
+void trace_sym(RlState* rls, void* ptr);
 void trace_list(RlState* rls, void* ptr);
 
 void free_alist(void* ptr);
@@ -133,12 +135,14 @@ ExpTypeInfo Types[] = {
     .name     = "fun",
     .obsize   = sizeof(Fun),
     .trace_fn = trace_fun,
+    .print_fn = print_fun
   },
 
   [EXP_SYM] = {
     .type     = EXP_SYM,
     .name     = "sym",
     .obsize   = sizeof(Sym),
+    .trace_fn = trace_sym,
     .print_fn = print_sym,
     .hash_fn  = hash_sym,
     .egal_fn  = egal_syms
@@ -342,7 +346,7 @@ void dis_chunk(Chunk* chunk) {
   instr_t* instr = chunk->code->binary.vals;
   int offset     = 0, max_offset = chunk->code->binary.count;
 
-  printf("%-8s %-16s %-5s %-5s\n\n", "line", "instruction", "input", "input");
+  printf("%-8s %-16s %-5s %-5s %-8s\n\n", "line", "instruction", "input", "input", "constant");
 
   while ( offset < max_offset ) {
     OpCode op  = instr[offset];
@@ -353,14 +357,21 @@ void dis_chunk(Chunk* chunk) {
    
       case 1: { 
         instr_t arg = instr[offset+1];
-        printf("%.8d %-16s %.5d -----\n", offset, name, arg);
-        offset += 2;                                           // advance past argument
+        printf("%.8d %-16s %.5d ----- ", offset, name, arg);
+
+        if ( op == OP_GET_VALUE )
+          print_exp(&Outs, chunk->vals->exprs.vals[arg]);
+        else
+          printf("--------");
+
+        printf("\n");
+        offset += 2; // advance past argument
         break;
       }
 
       case -2: { // variadic
         int arg = instr[offset+1];
-        printf("%.8d %-16s %.5d -----\n", offset, name, arg);
+        printf("%.8d %-16s %.5d ----- --------\n", offset, name, arg);
         offset++;
 
         for ( int i=0; i < arg; i++, offset += 2 ) {
@@ -372,7 +383,22 @@ void dis_chunk(Chunk* chunk) {
       }
 
       default:
-        printf("%.8d %-16s ----- -----\n", offset, name);
+        printf("%.8d %-16s ----- ----- ", offset, name);
+
+        if ( op == OP_TRUE )
+          printf("%-8s", "true");
+
+        else if ( op == OP_FALSE )
+          printf("%-8s", "false");
+
+        else if ( op == OP_NUL )
+          printf("%-8s", "nul");
+
+        else
+          printf("--------");
+
+        printf("\n");
+        
         offset++;
         break;
     }
@@ -448,6 +474,7 @@ Ref* mk_ref(RlState* rls, Sym* n, int o) {
   ref->name = n;
   ref->ref_type = REF_UNDEF; // filled in by env_put, env_resolve, &c
   ref->offset = o;
+  ref->val = NONE;
 
   return ref;
 }
@@ -461,6 +488,7 @@ void print_ref(Port* ios, Expr x) {
 void trace_ref(RlState* rls, void* ptr) {
   Ref* r = ptr;
 
+  mark_obj(rls, r->captures);
   mark_obj(rls, r->name);
 }
 
@@ -556,12 +584,14 @@ Ref* env_define(Env* e, Sym* n) {
   Ref* ref = emap_intern(&Main, &e->vars, n, intern_in_env);
 
   if ( ref->ref_type == REF_UNDEF ) {
+    e->arity++;
+
     if ( is_local_env(e) )
       ref->ref_type = REF_LOCAL;
 
     else {
       ref->ref_type = REF_GLOBAL;
-      exprs_push(&e->vals, NONE); // reserve space for value
+      objs_push(&e->vals, ref); // reserve space for value
     }
   }
 
@@ -574,8 +604,10 @@ void toplevel_env_def(Env* e, Sym* n, Expr x) {
   assert(!is_keyword(n));
 
   Ref* r = env_define(e, n);
+  r->val = x;
 
-  e->vals.vals[r->offset] = x;
+  if ( is_fun(x) ) // fill in function name for better debugging
+    as_fun(x)->name = r->name;
 }
 
 void toplevel_env_set(Env* e, Sym* n, Expr x) {
@@ -585,14 +617,20 @@ void toplevel_env_set(Env* e, Sym* n, Expr x) {
   Ref* r = toplevel_env_find(e, n);
 
   assert(r != NULL);
+  r->val = x;
 
-  e->vals.vals[r->offset] = x;
+  if ( is_fun(x) ) // fill in function name for better debugging
+    as_fun(x)->name = r->name;
 }
 
 void toplevel_env_refset(Env* e, int n, Expr x) {
   assert(is_global_env(e));
   assert(n >= 0 && n < e->vals.count);
-  e->vals.vals[n] = x;
+  Ref* r = e->vals.vals[n];
+  r->val = x;
+
+  if ( is_fun(x) ) // fill in function name for better debugging
+    as_fun(x)->name = r->name;
 }
 
 Ref* toplevel_env_find(Env* e, Sym* n) {
@@ -609,7 +647,9 @@ Expr toplevel_env_ref(Env* e, int n) {
   assert(is_global_env(e));
   assert(n >= 0 && n < e->vals.count);
 
-  return e->vals.vals[n];
+  Ref* r = e->vals.vals[n];
+
+  return r->val;
 }
 
 Expr toplevel_env_get(Env* e, Sym* n) {
@@ -618,7 +658,7 @@ Expr toplevel_env_get(Env* e, Sym* n) {
   Ref* ref = toplevel_env_find(e, n);
 
   if ( ref !=  NULL )
-    x = e->vals.vals[ref->offset];
+    x = ref->val;
 
   return x;
 }
@@ -646,7 +686,7 @@ void trace_env(RlState* rls, void* ptr) {
     trace_emap(rls, &e->upvs);
 
   else
-    trace_exprs(rls, &e->vals);
+    trace_objs(rls, &e->vals);
 }
 
 void free_env(void* ptr) {
@@ -658,7 +698,7 @@ void free_env(void* ptr) {
     free_emap(&e->upvs);
 
   else
-    free_exprs(&e->vals);
+    free_objs(&e->vals);
 }
 
 // port API -------------------------------------------------------------------
@@ -825,11 +865,18 @@ void upval_set(Fun* fun, int i, Expr x) {
   *deref(upv) = x;
 }
 
+void print_fun(Port* ios, Expr x) {
+  Fun* fun = as_fun(x);
+
+  pprintf(ios, "<fun @ %s>", fun->name->val->val);
+}
+
 void trace_fun(RlState* rls, void* ptr) {
   Fun* fun = ptr;
 
   mark_obj(rls, fun->name);
   mark_obj(rls, fun->chunk);
+  trace_objs(rls, &fun->upvs);
 }
 
 // symbol API
@@ -850,6 +897,12 @@ Sym* mk_sym(RlState* rls, char* val) {
 
 bool sym_val_eql(Sym* s, char* v) {
   return streq(s->val->val, v);
+}
+
+void trace_sym(RlState* rls, void* ptr) {
+  Sym* s = ptr;
+
+  mark_obj(rls, s->val);
 }
 
 void print_sym(Port* ios, Expr x) {

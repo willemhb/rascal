@@ -12,20 +12,20 @@
 
 // utility typedefs -----------------------------------------------------------
 typedef unsigned short ushort_t;
-typedef unsigned char  byte_t;
-typedef unsigned int   flags_t;
+typedef unsigned char byte_t;
+typedef unsigned int flags_t;
 typedef unsigned short instr_t;
-typedef uintptr_t      hash_t;
+typedef uintptr_t hash_t;
 typedef void (*funcptr_t)(void);
 
 // rascal typedefs ------------------------------------------------------------
 // Expression types -----------------------------------------------------------
-typedef uintptr_t        Expr;
-typedef nullptr_t        Nul;
-typedef double           Num;
-typedef bool             Bool;
-typedef char32_t         Glyph;
-typedef struct    Obj    Obj;
+typedef uintptr_t Expr;
+typedef nullptr_t Nul;
+typedef double Num;
+typedef bool Bool;
+typedef char32_t Glyph;
+typedef struct Obj Obj;
 
 // Object types ---------------------------------------------------------------
 typedef struct    Chunk  Chunk;
@@ -73,7 +73,7 @@ typedef void   (*FreeFn)(void* ob);
 #define WELCOME "Welcome to rascal version "VERSION"!"
 #define MAJOR   0
 #define MINOR   9
-#define PATCH   2
+#define PATCH   3
 #define RELEASE "a"
 
 // miscellaneous

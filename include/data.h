@@ -116,10 +116,11 @@ typedef enum {
 struct Ref {
   HEAD;
 
-  Ref*    captures;
-  Sym*    name;
+  Ref* captures;
+  Sym* name;
   RefType ref_type;
-  int     offset;
+  int offset;
+  Expr val; // only used at Global scope
 };
 
 // special indirecting containers for closure variables
@@ -139,16 +140,15 @@ struct UpVal {
 struct Env {
   HEAD;
 
-  Env*   parent;
+  Env* parent;
+  int arity;
+  int ncap; // number of captured *local* upvalues
 
-  int    arity;
-  int    ncap; // number of captured *local* upvalues
-
-  EMap  vars; // personal namespace
+  EMap vars; // personal namespace
 
   union {
-    EMap  upvs;
-    Exprs vals;
+    EMap upvs;
+    Objs vals;
   };
 };
 

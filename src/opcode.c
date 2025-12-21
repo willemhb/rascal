@@ -68,6 +68,8 @@ char* op_name(OpCode op) {
     case OP_STR_REF:     out = "STR-REF";     break;
     case OP_STR_LEN:     out = "STR-LEN";     break;
     case OP_HEAP_REPORT: out = "HEAP-REPORT"; break;
+    case OP_STACK_REPORT:out = "STACK-REPORT";break;
+    case OP_ENV_REPORT:  out = "ENV-REPORT";  break;
     case OP_DIS:         out = "DIS";         break;
     case OP_LOAD:        out = "LOAD";        break;
     default:             out = "????";        break;

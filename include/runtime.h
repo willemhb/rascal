@@ -8,7 +8,7 @@
 #define EXPR_STACK_SIZE 65536
 #define CALL_STACK_SIZE 16384
 #define BUFFER_MAX  2046
-#define INIT_HEAP   (65536 * sizeof(uintptr_t))
+#define INIT_HEAP   (2048 * sizeof(uintptr_t))
 
 // Internal types -------------------------------------------------------------
 typedef enum {
@@ -109,6 +109,7 @@ void   gc_save(RlState* rls, void* ob);
 void   run_gc(RlState* rls);
 void   heap_report(RlState* rls);
 void   stack_report(RlState* rls);
+void   env_report(RlState* rls);
 
 void   save_ctx(RlState* rls);    // save execution state
 void   restore_ctx(RlState* rls); // restore saved execution state

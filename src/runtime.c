@@ -330,6 +330,9 @@ static void mark_globals(RlState* rls) {
   mark_obj(rls, IfStr);
   mark_obj(rls, DoStr);
   mark_obj(rls, FnStr);
+  mark_obj(rls, &Ins);
+  mark_obj(rls, &Outs);
+  mark_obj(rls, &Errs);
 }
 
 static void mark_upvals(RlState* rls) {
@@ -412,6 +415,7 @@ void run_gc(RlState* rls) {
 #ifdef RASCAL_DEBUG
   printf("\n\nINFO: entering gc.\n\n");
   heap_report(rls);
+  env_report(rls);
 #endif
 
   mark_phase(rls);
@@ -422,15 +426,16 @@ void run_gc(RlState* rls) {
 #ifdef RASCAL_DEBUG
   printf("\n\nINFO: exiting gc.\n\n");
   heap_report(rls);
+  env_report(rls);
 #endif
 
 }
 
 void heap_report(RlState* rls) {
   printf("\n\n==== heap report ====\n\%-16s %20zu\n%-16s %20zu\n\n",
-         "allocated",
-         rls->vm->heap_used,
          "used",
+         rls->vm->heap_used,
+         "available",
          rls->vm->heap_cap);
 }
 
@@ -441,6 +446,16 @@ void stack_report(RlState* rls) {
     printf("%4d ", i);
     print_exp(&Outs, rls->stack[i]);
     printf("\n");
+  }
+}
+
+void env_report(RlState* rls) {
+  Env* g = rls->vm->globals;
+  Ref** rs = (Ref**)g->vals.vals;
+  printf("\n\n==== env report (size = %4d) ====\n\n", g->arity);
+
+  for ( int i=0; i < g->arity; i++ ) {
+    printf("%4d = %s\n", i, rs[i]->name->val->val);
   }
 }
 

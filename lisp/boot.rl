@@ -29,6 +29,10 @@
   (fn (n)
     (- n 1)))
 
+(def sqr
+  (fn (x)
+    (* x x)))
+
 ;; list utilities
 (def empty?
   ;; empty list predicate
