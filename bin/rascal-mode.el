@@ -23,6 +23,7 @@
     ("\\_<nul\\_>" . font-lock-constant-face)
     ("\\_<true\\_>" . font-lock-constant-face)
     ("\\_<false\\_>" . font-lock-constant-face)
+    ("\\_<not\\_>" . font-lock-builtin-face)
     ;; types
     ("\\_<[A-Z][a-zA-Z0-9\\|]*\\_>" . font-lock-type-face)
     ;; syntax

@@ -12,6 +12,11 @@ typedef enum {
   OP_POP,
   OP_RPOP,
 
+  // constant loads
+  OP_TRUE,
+  OP_FALSE,
+  OP_NUL,
+
   // variable lookups
   OP_GET_VALUE,
   OP_GET_GLOBAL,
@@ -42,10 +47,16 @@ typedef enum {
   OP_TYPE,
 
   // basic list operations
+  OP_LIST,
   OP_CONS,
   OP_HEAD,
   OP_TAIL,
-  OP_NTH,
+  OP_LIST_REF,
+  OP_LIST_LEN,
+
+  // basic string operations
+  OP_STR_REF,
+  OP_STR_LEN,
 
   // system instructions
   OP_HEAP_REPORT,
@@ -53,7 +64,7 @@ typedef enum {
   OP_LOAD,
 } OpCode;
 
-int   op_arity(OpCode op);
+int op_arity(OpCode op);
 char* op_name(OpCode op);
 
 #endif

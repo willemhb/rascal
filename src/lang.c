@@ -621,9 +621,18 @@ void compile_sequence(RlState* rls, List* xprs, Env* vars, Alist* vals, Buf16* c
 
 void compile_literal(RlState* rls, Expr x, Env* vars, Alist* vals, Buf16* code) {
   (void)vars;
-  int n = alist_push(rls, vals, x);
 
-  emit_instr(code, OP_GET_VALUE, n-1);
+  if ( x == TRUE ) {
+    emit_instr(code, OP_TRUE);
+  } else if ( x == FALSE ) {
+    emit_instr(code, OP_FALSE);
+  } else if ( x == NUL ) {
+    emit_instr(code, OP_NUL);
+  } else {
+    int n = alist_push(rls, vals, x);
+
+    emit_instr(code, OP_GET_VALUE, n-1);
+  }
 }
 
 void compile_reference(Sym* s, Env* vars, Alist* vals, Buf16* code) {
@@ -767,6 +776,11 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
     [OP_POP]         = &&op_pop,
     [OP_RPOP]        = &&op_rpop,
 
+    // constant loads ---------------------------------------------------------
+    [OP_TRUE]        = &&op_true,
+    [OP_FALSE]       = &&op_false,
+    [OP_NUL]         = &&op_nul,
+
     // environment instructions -----------------------------------------------
     [OP_GET_VALUE]   = &&op_get_value,
     [OP_GET_GLOBAL]  = &&op_get_global,
@@ -796,14 +810,21 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
     [OP_EGAL]        = &&op_egal,
     [OP_TYPE]        = &&op_type,
 
-    // sequence operations ----------------------------------------------------
+    // list operations --------------------------------------------------------
+    [OP_LIST]        = &&op_list,
     [OP_CONS]        = &&op_cons,
     [OP_HEAD]        = &&op_head,
     [OP_TAIL]        = &&op_tail,
-    [OP_NTH]         = &&op_nth,
+    [OP_LIST_REF]    = &&op_list_ref,
+    [OP_LIST_LEN]    = &&op_list_len,
+
+    // string operations ------------------------------------------------------
+    [OP_STR_REF]     = &&op_str_ref,
+    [OP_STR_LEN]     = &&op_str_len,
 
     // system instructions ----------------------------------------------------
     [OP_HEAP_REPORT] = &&op_heap_report,
+    [OP_DIS]         = &&op_dis,
     [OP_LOAD]        = &&op_load,
   };
 
@@ -813,7 +834,7 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
   Num nx, ny, nz;
   List* lx, * ly;
   Fun* fx;
-  Str* name;
+  Str* sx;
 
   if ( !toplevel )
     save_frame(rls);
@@ -833,76 +854,73 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
   // stack manipulation instructions ------------------------------------------
  op_pop: // remove TOS
   pop(rls);
-
   goto fetch;
 
  op_rpop: // move TOS to TOS-1, then decrement sp
   rpop(rls);
-
   goto fetch;
 
+  // constant loads -----------------------------------------------------------
+ op_true:
+  push(rls, TRUE);
+  goto fetch;
+
+ op_false:
+  push(rls, FALSE);
+  goto fetch;
+
+ op_nul:
+  push(rls, NUL);
+  goto fetch;
+  
   // value/variable instructions ----------------------------------------------
  op_get_value: // load a value from the constant store
   argx = next_op(rls);
-  x    = alist_get(rls->fn->chunk->vals, argx);
-
+  x = alist_get(rls->fn->chunk->vals, argx);
   push(rls, x);
-
   goto fetch;
 
  op_get_global:
   argx = next_op(rls); // previously resolved index in global environment
-  x    = toplevel_env_ref(&Globals, argx);
-
+  x = toplevel_env_ref(&Globals, argx);
   require(x != NONE, "undefined reference");
   push(rls, x);
-
   goto fetch;
 
  op_set_global:
   argx = next_op(rls);
-  x    = pop(rls);
-
+  x = tos(rls);
   toplevel_env_refset(&Globals, argx, x);
-
   goto fetch;
 
  op_get_local:
   argx = next_op(rls);
-  x    = rls->stack[rls->bp+argx];
-
+  x = rls->stack[rls->bp+argx];
   push(rls, x);
-
   goto fetch;
 
  op_set_local:
   argx = next_op(rls);
-  x    = pop(rls);
+  x = tos(rls);
   rls->stack[rls->bp+argx] = x;
-
   goto fetch;
 
  op_get_upval:
   argx = next_op(rls);
-  x    = upval_ref(rls->fn, argx);
-
+  x = upval_ref(rls->fn, argx);
   push(rls, x);
-
   goto fetch;
 
  op_set_upval:
   argx = next_op(rls);
-  x    = pop(rls);
-
+  x = tos(rls);
   upval_set(rls->fn, argx, x);
-
   goto fetch;
 
   // branching instructions ---------------------------------------------------
  op_jump: // unconditional jumping
-  argx   = next_op(rls);
+  argx = next_op(rls);
   rls->pc += argx;
-
   goto fetch;
 
  op_jump_f: // jump if TOS is falsey
@@ -1044,82 +1062,110 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
  op_type:
   require_argco("type", 1, argc);
 
-  x      = pop(rls);
-  y      = tag_obj(exp_info(x)->repr);
-  tos(rls)  = y;
+  x = pop(rls);
+  y = tag_obj(exp_info(x)->repr);
+  tos(rls) = y;
+
+  goto fetch;
+
+ op_list:
+  lx = mk_list(rls, argc, &rls->stack[rls->sp-argc]);
+  popn(rls, argc);
+  tos(rls) = tag_obj(lx);
 
   goto fetch;
 
  op_cons:
   require_argco("cons", 2, argc);
-
   lx = as_list_s("cons", rls->stack[rls->sp-1]);
   ly = cons(rls, rls->stack[rls->sp-2], lx);
   z  = tag_obj(ly);
-
   popn(rls, 2);
-
   tos(rls) = z;
-
   goto fetch;
 
  op_head:
   require_argco("head", 1, argc);
-
-  x  = pop(rls);
+  x = pop(rls);
   lx = as_list_s("head", x);
-
   require(lx->count > 0, "can't call head on empty list");
-
   y  = lx->head;
-
-  push(rls, y);
-
+  tos(rls) = y;
   goto fetch;
 
  op_tail:
   require_argco("tail", 1, argc);
-
-  x  = pop(rls);
+  x = pop(rls);
   lx = as_list_s("tail", x);
-
   require(lx->count > 0, "can't call tail on empty list");
-
   ly = lx->tail;
-
   push(rls, tag_obj(ly));
 
   goto fetch;
 
- op_nth:
-  require_argco("nth", 2, argc);
-
-  x     = pop(rls);
-  argx  = as_num_s("nth", x);
-  x     = pop(rls);
-  lx    = as_list_s("nth", x);
-
+ op_list_ref:
+  require_argco("list-ref", 2, argc);
+  x = pop(rls);
+  argx = as_num_s("list-ref", x);
+  x = pop(rls);
+  lx = as_list_s("list-ref", x);
   require(argx < (int)lx->count, "index out of bounds");
-
-  x     = list_ref(lx, argx);
+  x = list_ref(lx, argx);
   tos(rls) = x;
 
   goto fetch;
 
+ op_list_len:
+  require_argco("list-len", 1, argc);
+  x = pop(rls);
+  lx = as_list_s("list-len", x);
+  tos(rls) = tag_num(lx->count);
+
+  goto fetch;
+
+ op_str_ref:
+  require_argco("str-ref", 2, argc);
+  x = pop(rls);
+  argx = as_num_s("str-ref", x);
+  y = pop(rls);
+  sx = as_str_s("str-ref", y);
+  require(argx < (int)sx->count, "index out of bounds");
+  argy = sx->val[argx];
+  x = tag_glyph(argy);
+  tos(rls) = x;
+
+  goto fetch;
+
+ op_str_len:
+  require_argco("str-len", 1, argc);
+  x = pop(rls);
+  sx = as_str_s("str-len", x);
+  tos(rls) = tag_num(sx->count);
+
+  goto fetch;
+
+
  op_heap_report:
   require_argco("*heap-report*", 0, argc);
   heap_report(rls);
-  tos(rls) = NUL; // dummy retunr value
+  tos(rls) = NUL; // dummy return value
 
   goto fetch;
+
+ op_dis:
+  require_argco("*dis*", 1, argc);
+  x = pop(rls);
+  fx = as_fun_s("*dis*", x);
+  disassemble(fx);
+  tos(rls) = NUL; // dummy return value
 
  op_load:
   // compile the file and begin executing
   require_argco("load", 1, argc);
 
   x = pop(rls);
-  name = as_str_s("load", x);
-  fx = compile_file(rls, name->val);
+  sx = as_str_s("load", x);
+  fx = compile_file(rls, sx->val);
   save_frame(rls);
   install_fun(rls, fx, 0);
 

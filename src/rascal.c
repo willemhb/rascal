@@ -63,11 +63,16 @@ void define_builtins(void) {
   def_builtin_fun(&Main, "/", OP_DIV);
   def_builtin_fun(&Main, "=", OP_EGAL);
   def_builtin_fun(&Main, "type", OP_TYPE);
+  def_builtin_fun(&Main, "list", OP_LIST);
   def_builtin_fun(&Main, "cons", OP_CONS);
   def_builtin_fun(&Main, "head", OP_HEAD);
   def_builtin_fun(&Main, "tail", OP_TAIL);
-  def_builtin_fun(&Main, "nth", OP_NTH);
+  def_builtin_fun(&Main, "list-ref", OP_LIST_REF);
+  def_builtin_fun(&Main, "list-len", OP_LIST_LEN);
+  def_builtin_fun(&Main, "str-ref", OP_STR_REF);
+  def_builtin_fun(&Main, "str-len", OP_STR_LEN);
   def_builtin_fun(&Main, "*heap-report*", OP_HEAP_REPORT);
+  def_builtin_fun(&Main, "*dis*", OP_DIS);
   def_builtin_fun(&Main, "load", OP_LOAD);
 
   // initialize other globals -------------------------------------------------
@@ -93,6 +98,11 @@ void initialize_types(void) {
   }
 }
 
+void initialize_standard_library(void) {
+  // load the standard library file
+  load_file(&Main, "lisp/boot.rl");
+}
+
 void print_welcome(void) {
   fprintf(stdout, WELCOME, MAJOR, MINOR, PATCH, RELEASE);
   fprintf(stdout, "\n\n");
@@ -103,6 +113,7 @@ void setup(void) {
   init_static_objects();
   define_builtins();
   initialize_types();
+  initialize_standard_library();
 }
 
 void teardown(void) {}

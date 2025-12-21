@@ -73,11 +73,11 @@ typedef void   (*FreeFn)(void* ob);
 #define WELCOME "Welcome to rascal version "VERSION"!"
 #define MAJOR   0
 #define MINOR   9
-#define PATCH   1
+#define PATCH   2
 #define RELEASE "a"
 
 // miscellaneous
-// #define RASCAL_DEBUG
+#define RASCAL_DEBUG
 
 // redefining annoyingly named builtins
 #define clz         __builtin_clzl

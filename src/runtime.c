@@ -5,6 +5,7 @@
 
 #include "runtime.h"
 #include "data.h"
+#include "lang.h"
 #include "collection.h"
 
 // magic numbers
@@ -145,6 +146,11 @@ void rascal_error(Status etype, char* fmt, ...) {
   pvprintf(&Errs, fmt, va);
   pprintf(&Errs, ".\n");
   va_end(va);
+
+#ifdef RASCAL_DEBUG
+  stack_report(&Main);
+#endif
+
   panic(etype);
 }
 
@@ -426,6 +432,16 @@ void heap_report(RlState* rls) {
          rls->vm->heap_used,
          "used",
          rls->vm->heap_cap);
+}
+
+void stack_report(RlState* rls) {
+  printf("\n\n==== stack report ====\n\n");
+
+  for ( int i=rls->sp-1; i>=0; i-- ) {
+    printf("%4d ", i);
+    print_exp(&Outs, rls->stack[i]);
+    printf("\n");
+  }
 }
 
 void save_ctx(RlState* rls) {

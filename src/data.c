@@ -257,9 +257,8 @@ Expr tag_obj(void* o) {
 
 void* mk_obj(RlState* rls, ExpType type, flags_t flags) {
   Obj* out = allocate(rls, Types[type].obsize);
-
-  out->type     = type;
-  out->bfields  = flags | FL_GRAY;
+  out->type = type;
+  out->bfields = flags | FL_GRAY;
   add_to_heap(rls, out);
 
   return out;
@@ -957,42 +956,6 @@ void free_str(void* ptr) {
 }
 
 // list API
-static List* new_lists(RlState* rls, size_t n) {
-  assert(n > 0);
-
-  size_t nb = (n+1) * sizeof(List);
-  List* xs  = allocate(rls, nb);
-
-  // initialize terminal empty list
-  for ( size_t i=0; i < n; i++ ) {
-    List* cell = &xs[i];
-
-    // initialize the list object
-    cell->heap   = (Obj*)(&cell+1);
-    cell->type   = EXP_LIST;
-    cell->black  = false;
-    cell->gray   = true;
-    cell->head   = NUL;
-    cell->tail   = cell + 1;
-    cell->count  = n - i;
-  }
-
-  // handle the terminal empty list specially
-  List* cell  = &xs[n];
-  cell->heap   = rls->vm->heap_live;
-  cell->type   = EXP_LIST;
-  cell->black  = false;
-  cell->gray   = true;
-  cell->head   = NUL;
-  cell->tail   = NULL;
-  cell->count  = 0;
-
-  // add it all to the heap
-  rls->vm->heap_live = (Obj*)xs;
-
-  return xs;
-}
-
 List* as_list_s(char* f, Expr x) {
   require_argtype(f, EXP_LIST, x);
 
@@ -1010,16 +973,15 @@ List* empty_list(RlState* rls) {
 }
 
 List* mk_list(RlState* rls, size_t n, Expr* xs) {
-  List* l;
+  List* l = empty_list(rls);
 
-  if ( n == 0 )
-    l = empty_list(rls);
+  if ( n > 0 ) {
+    preserve(1, tag_obj(l));
 
-  else {
-    l = new_lists(rls, n);
-
-    for ( size_t i=0; i<n; i++ )
-      l[i].head = xs[i];
+    for ( size_t i=n; i>0; i-- ) {
+      l = cons(rls, xs[i-1], l);
+      add_to_preserved(0, tag_obj(l));
+    }
   }
 
   return l;
