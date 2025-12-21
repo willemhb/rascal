@@ -141,6 +141,7 @@ struct Env {
   HEAD;
 
   Env* parent;
+  RefType etype;
   int arity;
   int ncap; // number of captured *local* upvalues
 
@@ -161,11 +162,12 @@ struct Port {
 
 struct Fun {
   HEAD;
-
-  Sym*   name;
+  int arity;
+  bool va;
+  Sym* name;
   OpCode label;
   Chunk* chunk;
-  Objs   upvs;
+  Objs upvs;
 };
 
 struct Sym {
@@ -197,20 +199,22 @@ struct List {
 #define XTMSK  0xffff000000000000ul
 #define XVMSK  0x0000fffffffffffful
 
-#define NONE_T  0x7ffd000000000000ul
-#define NUL_T   0x7ffe000000000000ul
-#define EOS_T   0x7fff000000000000ul
-#define BOOL_T  0xfffc000000000000ul
-#define GLYPH_T 0xfffd000000000000ul
+#define NONE_T  0x7ffc000000000000ul
+#define NUL_T   0x7ffd000000000000ul
+#define EOS_T   0x7ffe000000000000ul
+#define BOOL_T  0x7fff000000000000ul
+#define GLYPH_T 0xfffc000000000000ul
 #define FIX_T   0xfffe000000000000ul
 #define OBJ_T   0xffff000000000000ul
 
 // special values
-#define NONE   0x7ffd000000000000ul
-#define NUL    0x7ffe000000000000ul
-#define EOS    0x7fff0000fffffffful
-#define TRUE   0xfffc000000000001ul
-#define FALSE  0xfffc000000000000ul
+#define NONE    0x7ffc000000000000ul
+#define NUL     0x7ffd000000000000ul
+#define EOS     0x7ffe0000fffffffful
+#define TRUE    0x7fff000000000001ul
+#define FALSE   0x7fff000000000000ul
+#define RL_ZERO 0x0000000000000000ul
+#define RL_ONE  0x3ff0000000000000ul
 
 // forward declarations
 // expression APIs
@@ -279,11 +283,11 @@ int   pvprintf(Port* p, char* fmt, va_list va);
 
 // function API ---------------------------------------------------------------
 Fun* as_fun_s(char* f, Expr x);
-Fun* mk_fun(RlState* rls, Sym* name, OpCode op, Chunk* code);
+Fun* mk_fun(RlState* rls, Sym* name, int arity, bool va, OpCode op, Chunk* code);
 Fun* mk_closure(RlState* rls, Fun* proto);
-Fun* mk_builtin_fun(RlState* rls, Sym* name, OpCode op);
+Fun* mk_builtin_fun(RlState* rls, Sym* name, int arity, bool va, OpCode op);
 Fun* mk_user_fun(RlState* rls, Chunk* code);
-void def_builtin_fun(RlState* rls, char* name, OpCode op);
+void def_builtin_fun(RlState* rls, char* name, int arity, bool va, OpCode op);
 void disassemble(Fun* fun);
 Expr upval_ref(Fun* fun, int i);
 void upval_set(Fun* fun, int i, Expr x);
@@ -319,6 +323,7 @@ Expr tag_bool(Bool b);
 
 // glyph API
 Glyph as_glyph(Expr x);
+Glyph as_glyph_s(char* f, Expr x);
 Expr  tag_glyph(Glyph x);
 
 // convenience macros
@@ -338,8 +343,13 @@ Expr  tag_glyph(Glyph x);
 #define is_global_env(e)  ((e)->parent == NULL)
 #define is_user_fn(f)     ((f)->label == OP_NOOP)
 #define is_toplevel_fn(f) (!(f)->chunk->vars->local)
-#define user_fn_argc(f)   ((f)->chunk->vars->arity)
+#define fn_argc(f)        ((f)->arity)
+#define fn_va(f)          ((f)->va)
 #define user_fn_upvalc(f) ((f)->chunk->vars->upvs.count)
+#define env_type(e)       ((e)->etype)
+#define env_size(e)       ((e)->vars.count)
+#define is_glyph(x)       has_type(x, EXP_GLYPH)
+#define is_num(x)         has_type(x, EXP_NUM)
 #define is_sym(x)         has_type(x, EXP_SYM)
 #define is_fun(x)         has_type(x, EXP_FUN)
 #define is_list(x)        has_type(x, EXP_LIST)

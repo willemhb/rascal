@@ -1,11 +1,12 @@
 ;; rascal standard library (such as it is)
 
 ;; type predicates
-(def isa?  (fn (t x) (= t (type x))))
-(def list? (fn (x) (isa? :list x)))
-(def num?  (fn (x) (isa? :num x)))
-(def sym?  (fn (x) (isa? :sym x)))
-(def str?  (fn (x) (isa? :str x)))
+(def isa?   (fn (t x) (=? t (type x))))
+(def list?  (fn (x) (isa? :list x)))
+(def num?   (fn (x) (isa? :num x)))
+(def sym?   (fn (x) (isa? :sym x)))
+(def str?   (fn (x) (isa? :str x)))
+(def glyph? (fn (x) (isa? :glyph x)))
 
 ;; miscellaneous
 (def id
@@ -38,7 +39,7 @@
   ;; empty list predicate
   (fn (xs)
     (if (list? xs)
-      (= xs ())
+      (=? xs ())
       false)))
 
 (def map

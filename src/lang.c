@@ -60,7 +60,7 @@ void skip_space(Port* p) {
 
 // read -----------------------------------------------------------------------
 Expr read_exp(RlState* rls, Port *in) {
-  reset_token();
+  reset_token(rls);
   skip_space(in);
   Expr x;
   int c = ppeekc(in);
@@ -77,8 +77,10 @@ Expr read_exp(RlState* rls, Port *in) {
     x = read_string(rls, in);
   else if ( is_sym_char(c) )
     x = read_atom(rls, in);
-  else if ( c == ')' )
+  else if ( c == ')' ) {
+    pgetc(in); // clear dangling ')'
     eval_error("dangling ')'");
+  }
   else
     eval_error("unrecognized character %c", c);
 
@@ -86,7 +88,6 @@ Expr read_exp(RlState* rls, Port *in) {
 }
 
 Expr read_glyph(RlState* rls, Port* in) {
-  (void)rls; // will be used later, suppressing warning
   pgetc(in); // consume opening slash
 
   if ( peof(in) || isspace(ppeekc(in)) )
@@ -103,86 +104,86 @@ Expr read_glyph(RlState* rls, Port* in) {
 
   else {
     while (!peof(in) && !isspace(c=ppeekc(in)) && !is_delim_char(c) ) {
-      add_to_token(c);
+      add_to_token(rls, c);
       pgetc(in);
     }
 
-    if ( TOff == 1 )
-      g = Token[0];
+    if ( rls->toff == 1 )
+      g = rls->token[0];
 
     else
-      switch ( Token[0] ) {
+      switch ( rls->token[0] ) {
         case 'n':
-          if ( streq(Token+1, "ul") )
+          if ( streq(rls->token+1, "ul") )
             g = '\0';
-          
-          else if ( streq(Token+1, "ewline") )
+
+          else if ( streq(rls->token+1, "ewline") )
             g = '\n';
-          
+
           else
-            eval_error("unrecognized character name \\%s", Token);
-          
+            eval_error("unrecognized character name \\%s", rls->token);
+
           break;
-          
+
         case 'b':
-          if ( streq(Token+1, "el") )
+          if ( streq(rls->token+1, "el") )
             g = '\a';
 
-          else if ( streq(Token+1, "ackspace") )
+          else if ( streq(rls->token+1, "ackspace") )
             g = '\b';
-          
+
           else
-            eval_error("unrecognized character name \\%s", Token);
-          
+            eval_error("unrecognized character name \\%s", rls->token);
+
           break;
-          
+
         case 's':
-          if ( streq(Token+1, "pace") )
+          if ( streq(rls->token+1, "pace") )
             g = ' ';
-          
+
           else
-            eval_error("unrecognized character name \\%s", Token);
-          
+            eval_error("unrecognized character name \\%s", rls->token);
+
           break;
-          
+
         case 't':
-          if ( streq(Token+1, "ab") )
+          if ( streq(rls->token+1, "ab") )
             g = '\t';
-          
+
           else
-            eval_error("unrecognized character name \\%s", Token);
-          
+            eval_error("unrecognized character name \\%s", rls->token);
+
           break;
-          
+
         case 'r':
-          if ( streq(Token+1, "eturn") )
+          if ( streq(rls->token+1, "eturn") )
             g = '\r';
-          
+
           else
-            eval_error("unrecognized character name \\%s", Token);
-          
+            eval_error("unrecognized character name \\%s", rls->token);
+
           break;
-          
+
         case 'f':
-          if ( streq(Token+1, "ormfeed") )
+          if ( streq(rls->token+1, "ormfeed") )
             g = '\f';
-          
+
           else
-            eval_error("unrecognized character name \\%s", Token);
-          
+            eval_error("unrecognized character name \\%s", rls->token);
+
           break;
-          
+
         case 'v':
-          if ( streq(Token+1, "tab") )
+          if ( streq(rls->token+1, "tab") )
             g = '\v';
-          
+
           else
-            eval_error("unrecognized character name \\%s", Token);
-          
+            eval_error("unrecognized character name \\%s", rls->token);
+
           break;
-          
+
         default:
-          eval_error("unrecognized character name \\%s", Token);
+          eval_error("unrecognized character name \\%s", rls->token);
       }
   }
 
@@ -240,64 +241,63 @@ Expr read_string(RlState* rls, Port* in) {
     if ( peof(in) )
       runtime_error("unterminated string");
 
-    add_to_token(c); // accumulate
+    add_to_token(rls, c); // accumulate
     pgetc(in);   // advance
   }
 
   pgetc(in); // consume terminal '"'
 
-  out = mk_str(rls, Token);
+  out = mk_str(rls, rls->token);
 
   return tag_obj(out);
 }
 
 Expr read_atom(RlState* rls, Port* in) {
-  (void)rls; // will be used after refactor
   int c;
   Expr x;
-  
+
   while ( !peof(in) && is_sym_char(c=ppeekc(in)) ) {
-    add_to_token(c); // accumulate
+    add_to_token(rls, c); // accumulate
     pgetc(in);   // consume character
   }
 
-  assert(TOff > 0);
+  assert(rls->toff > 0);
 
-  if ( is_num_char(Token[0])) {
+  if ( is_num_char(rls->token[0])) {
     char* end;
 
-    Num n = strtod(Token, &end);
+    Num n = strtod(rls->token, &end);
 
     if ( end[0] != '\0' ) {   // Symbol that starts with numeric character like +, -, or digit
-      if ( TOff > MAX_INTERN )
-        runtime_error("symbol name '%s' too long", Token);
+      if ( rls->toff > MAX_INTERN )
+        runtime_error("symbol name '%s' too long", rls->token);
 
-      Sym* s = mk_sym(rls, Token);
+      Sym* s = mk_sym(rls, rls->token);
       x      = tag_obj(s);
     } else {
       x      = tag_num(n);
     }
   } else {
-    if ( strcmp(Token, "nul") == 0 )
+    if ( strcmp(rls->token, "nul") == 0 )
       x = NUL;
 
-    else if ( strcmp(Token, "none" ) == 0 )
+    else if ( strcmp(rls->token, "none" ) == 0 )
       x = NONE;
 
-    else if ( strcmp(Token, "true") == 0 )
+    else if ( strcmp(rls->token, "true") == 0 )
       x = TRUE;
 
-    else if ( strcmp(Token, "false") == 0 )
+    else if ( strcmp(rls->token, "false") == 0 )
       x = FALSE;
 
-    else if ( strcmp(Token, "<eos>" ) == 0 )
+    else if ( strcmp(rls->token, "<eos>" ) == 0 )
       x = EOS;
 
     else {
-      if ( TOff > MAX_INTERN )
-        runtime_error("symbol name '%s' too long", Token);
+      if ( rls->toff > MAX_INTERN )
+        runtime_error("symbol name '%s' too long", rls->token);
 
-      Sym* s = mk_sym(rls, Token);
+      Sym* s = mk_sym(rls, rls->token);
       x      = tag_obj(s);
     }
   }
@@ -622,13 +622,33 @@ void compile_sequence(RlState* rls, List* xprs, Env* vars, Alist* vals, Buf16* c
 void compile_literal(RlState* rls, Expr x, Env* vars, Alist* vals, Buf16* code) {
   (void)vars;
 
-  if ( x == TRUE ) {
+  if ( is_num(x) ) {
+    if ( x == RL_ZERO )
+      emit_instr(code, OP_ZERO);
+
+    else if ( x == RL_ONE )
+      emit_instr(code, OP_ONE);
+
+    else {
+      Num n = as_num(x);
+
+      if ( is_int(n) && n <= INT16_MAX && n >= INT16_MIN )
+        emit_instr(code, OP_SMALL, (short)n);
+
+      else
+        goto fallback;
+    }
+  } else if ( is_glyph(x) ) {
+    emit_instr(code, OP_GLYPH, as_glyph(x));
+  } else if ( x == TRUE ) {
     emit_instr(code, OP_TRUE);
   } else if ( x == FALSE ) {
     emit_instr(code, OP_FALSE);
   } else if ( x == NUL ) {
     emit_instr(code, OP_NUL);
   } else {
+
+  fallback:
     int n = alist_push(rls, vals, x);
 
     emit_instr(code, OP_GET_VALUE, n-1);
@@ -753,7 +773,7 @@ Fun* compile_file(RlState* rls, char* fname) {
   compile_sequence(rls, exprs, &Globals, vals, code);
   emit_instr(code, OP_RETURN);
 
-  Chunk* chunk = mk_chunk(rls, &Globals, vals, code); add_to_preserved(0, tag_obj(chunk));
+  Chunk* chunk = mk_chunk(rls, Vm.globals, vals, code); add_to_preserved(0, tag_obj(chunk));
   Fun* out = mk_user_fun(rls, chunk);
 
 #ifdef RASCAL_DEBUG
@@ -780,6 +800,12 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
     [OP_TRUE]        = &&op_true,
     [OP_FALSE]       = &&op_false,
     [OP_NUL]         = &&op_nul,
+    [OP_ZERO]        = &&op_zero,
+    [OP_ONE]         = &&op_one,
+
+    // inlined loads ----------------------------------------------------------
+    [OP_GLYPH]       = &&op_glyph,
+    [OP_SMALL]       = &&op_small,
 
     // environment instructions -----------------------------------------------
     [OP_GET_VALUE]   = &&op_get_value,
@@ -805,9 +831,14 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
     [OP_SUB]         = &&op_sub,
     [OP_MUL]         = &&op_mul,
     [OP_DIV]         = &&op_div,
+    [OP_REM]         = &&op_rem,
+    [OP_NEQ]         = &&op_neq,
+    [OP_NLT]         = &&op_nlt,
+    [OP_NGT]         = &&op_ngt,
 
     // miscellaneous builtins -------------------------------------------------
     [OP_EGAL]        = &&op_egal,
+    [OP_HASH]        = &&op_hash,
     [OP_TYPE]        = &&op_type,
 
     // list operations --------------------------------------------------------
@@ -819,6 +850,8 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
     [OP_LIST_LEN]    = &&op_list_len,
 
     // string operations ------------------------------------------------------
+    [OP_STR]         = &&op_str,
+    [OP_CHARS]       = &&op_chars,
     [OP_STR_REF]     = &&op_str_ref,
     [OP_STR_LEN]     = &&op_str_len,
 
@@ -834,6 +867,7 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
   OpCode op;
   Expr x, y, z;
   Num nx, ny, nz;
+  long ix, iy, iz;
   List* lx, * ly;
   Fun* fx;
   Str* sx;
@@ -874,6 +908,26 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
  op_nul:
   push(rls, NUL);
   goto fetch;
+
+ op_zero:
+  push(rls, RL_ZERO);
+  goto fetch;
+
+ op_one:
+  push(rls, RL_ONE);
+  goto fetch;
+
+ op_glyph:
+  argx = next_op(rls);
+  x = tag_glyph(argx);
+  push(rls, x);
+  goto fetch;
+
+ op_small:
+  argx = (short)next_op(rls);
+  x = tag_num(argx);
+  push(rls, x);
+  goto fetch;
   
   // value/variable instructions ----------------------------------------------
  op_get_value: // load a value from the constant store
@@ -884,7 +938,7 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
 
  op_get_global:
   argx = next_op(rls); // previously resolved index in global environment
-  x = toplevel_env_ref(&Globals, argx);
+  x = toplevel_env_ref(Vm.globals, argx);
   require(x != NONE, "undefined reference");
   push(rls, x);
   goto fetch;
@@ -948,7 +1002,7 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
   goto *labels[op];
 
  call_user_fn:
-  require_argco("fn", user_fn_argc(fun), argc);
+  require_argco(fun->name->val->val, fn_argc(fun), argc);
   save_frame(rls); // save caller state
   install_fun(rls, fun, argc);
 
@@ -1001,14 +1055,13 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
   // the future these will be inlineable --------------------------------------
  op_add:
   require_argco("+", 2, argc);
-
-  y      = pop(rls);
-  x      = pop(rls);
-  nx     = as_num_s("+", x);
-  ny     = as_num_s("+", y);
-  nz     = nx + ny;
-  z      = tag_num(nz);
-  tos(rls)  = z;           // combine push/pop
+  y = pop(rls);
+  x = pop(rls);
+  nx = as_num_s("+", x);
+  ny = as_num_s("+", y);
+  nz = nx + ny;
+  z = tag_num(nz);
+  tos(rls) = z;           // combine push/pop
 
   goto fetch;
 
@@ -1035,46 +1088,87 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
   nz     = nx * ny;
   z      = tag_num(nz);
   tos(rls)  = z;           // combine push/pop
-
   goto fetch;
 
  op_div:
   require_argco("/", 2, argc);
+  y = pop(rls);
+  x = pop(rls);
+  nx = as_num_s("/", x);
+  ny = as_num_s("/", y); require(ny != 0, "division by zero");
+  nz = nx / ny;
+  z  = tag_num(nz);
+  tos(rls) = z; // combine push/pop
+  goto fetch;
 
-  y      = pop(rls);
-  x      = pop(rls);
-  nx     = as_num_s("/", x);
-  ny     = as_num_s("/", y); require(ny != 0, "division by zero");
-  nz     = nx / ny;
-  z      = tag_num(nz);
-  tos(rls)  = z;           // combine push/pop
+ op_rem:
+  require_argco("rem", 2, argc);
+  y = pop(rls);
+  x = pop(rls);
+  ix = as_num_s("rem", x);
+  iy = as_num_s("rem", y); require(ny != 0, "division by zero");
+  iz = ix % iy;
+  z  = tag_num(iz);
+  tos(rls) = z; // combine push/pop
+  goto fetch;
 
+ op_neq:
+  require_argco("=", 2, argc);
+  y = pop(rls);
+  x = pop(rls);
+  nx = as_num_s("=", x);
+  ny = as_num_s("=", y);
+  z = nx == ny ? TRUE : FALSE;
+  tos(rls) = z; // combine push/pop
+  goto fetch;
+
+ op_nlt:
+  require_argco("<", 2, argc);
+  y = pop(rls);
+  x = pop(rls);
+  nx = as_num_s("<", x);
+  ny = as_num_s("<", y);
+  z = nx < ny ? TRUE : FALSE;
+  tos(rls) = z; // combine push/pop
+  goto fetch;
+
+ op_ngt:
+  require_argco(">", 2, argc);
+  y = pop(rls);
+  x = pop(rls);
+  nx = as_num_s(">", x);
+  ny = as_num_s(">", y);
+  z = nx > ny ? TRUE : FALSE;
+  tos(rls) = z; // combine push/pop
   goto fetch;
 
  op_egal:
-  require_argco("=", 2, argc);
+  require_argco("=?", 2, argc);
+  y = pop(rls);
+  x = pop(rls);
+  z = egal_exps(x, y) ? TRUE : FALSE;
+  tos(rls) = z;
+  goto fetch;
 
-  y      = pop(rls);
-  x      = pop(rls);
-  z      = egal_exps(x, y) ? TRUE : FALSE;
-  tos(rls)  = z;
-
+ op_hash:
+  require_argco("hash", 1, argc);
+  x = pop(rls);
+  ix = hash_exp(x) & XVMSK; // really this should be done consistently elsewhere
+  y = tag_num(ix);
+  tos(rls) = y;
   goto fetch;
 
  op_type:
   require_argco("type", 1, argc);
-
   x = pop(rls);
   y = tag_obj(exp_info(x)->repr);
   tos(rls) = y;
-
   goto fetch;
 
  op_list:
   lx = mk_list(rls, argc, &rls->stack[rls->sp-argc]);
   popn(rls, argc);
   tos(rls) = tag_obj(lx);
-
   goto fetch;
 
  op_cons:
@@ -1114,7 +1208,6 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
   require(argx < (int)lx->count, "index out of bounds");
   x = list_ref(lx, argx);
   tos(rls) = x;
-
   goto fetch;
 
  op_list_len:
@@ -1122,8 +1215,47 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
   x = pop(rls);
   lx = as_list_s("list-len", x);
   tos(rls) = tag_num(lx->count);
-
   goto fetch;
+
+ op_str:{ // string constructor (two modes, accepts characters or list of characters)
+  if ( argc == 1 && is_list(tos(rls)) ) {
+    x = pop(rls);
+    lx = as_list(x);
+    argc = lx->count;
+
+    // unpack onto stack (type verified later)
+    while ( lx->count > 0 ) {
+      push(rls, lx->head);
+      lx = lx->tail;
+    }
+  }
+
+  // create a buffer to hold the characters
+  char buf[argc+1] = {};
+
+  for ( int i=argc-1; i >=0; i-- ) {
+    x = pop(rls);
+    buf[i] = as_glyph_s("str", x);
+  }
+
+  sx = mk_str(rls, buf);
+  tos(rls) = tag_obj(sx);
+  goto fetch;
+  }
+
+ op_chars:
+  require_argco("chars", 1, argc);
+  x = pop(rls);
+  sx = as_str_s("chars", x);
+  argc = sx->count;
+
+  for ( int i=0; i<argc; i++ ) {
+    argx = sx->val[i];
+    x = tag_glyph(argx);
+    push(rls, x);
+  }
+
+  goto op_list;
 
  op_str_ref:
   require_argco("str-ref", 2, argc);
@@ -1158,7 +1290,7 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
 
  op_env_report:
   require_argco("*env-report*", 0, argc);
-  stack_report(rls);
+  env_report(rls);
   tos(rls) = NUL; // dummy return value
   goto fetch;
 

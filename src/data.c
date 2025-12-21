@@ -359,9 +359,19 @@ void dis_chunk(Chunk* chunk) {
         instr_t arg = instr[offset+1];
         printf("%.8d %-16s %.5d ----- ", offset, name, arg);
 
-        if ( op == OP_GET_VALUE )
+        if ( op == OP_GET_VALUE ) {
           print_exp(&Outs, chunk->vals->exprs.vals[arg]);
-        else
+
+        } else if ( op == OP_GLYPH ) {
+          if ( arg < CHAR_MAX && CharNames[arg])
+            printf("\\%s", CharNames[arg]);
+
+          else
+            printf("\\%c", arg);
+        } else if ( op == OP_SMALL ) {
+          printf("%d", (short)arg);
+
+        } else
           printf("--------");
 
         printf("\n");
@@ -393,6 +403,12 @@ void dis_chunk(Chunk* chunk) {
 
         else if ( op == OP_NUL )
           printf("%-8s", "nul");
+
+        else if ( op == OP_ZERO )
+          printf("%-8s", "0");
+
+        else if ( op == OP_ONE )
+          printf("%-8s", "1");
 
         else
           printf("--------");
@@ -490,6 +506,7 @@ void trace_ref(RlState* rls, void* ptr) {
 
   mark_obj(rls, r->captures);
   mark_obj(rls, r->name);
+  mark_exp(rls, r->val);
 }
 
 // upval API
@@ -526,8 +543,9 @@ Env* mk_env(RlState* rls, Env* parent) {
   Env* env = mk_obj(rls, EXP_ENV, 0);
 
   env->parent = parent;
-  env->arity  = 0;
-  env->ncap   = 0;
+  env->arity = 0;
+  env->ncap = 0;
+  env->etype = parent == NULL ? REF_GLOBAL : REF_LOCAL;
   init_emap(&env->vars);
   init_emap(&env->upvs);
 
@@ -584,8 +602,6 @@ Ref* env_define(Env* e, Sym* n) {
   Ref* ref = emap_intern(&Main, &e->vars, n, intern_in_env);
 
   if ( ref->ref_type == REF_UNDEF ) {
-    e->arity++;
-
     if ( is_local_env(e) )
       ref->ref_type = REF_LOCAL;
 
@@ -802,9 +818,11 @@ Fun* as_fun_s(char* f, Expr x) {
   return as_fun(x);
 }
 
-Fun* mk_fun(RlState* rls, Sym* name, OpCode op, Chunk* code) {
-  Fun* f   = mk_obj(rls, EXP_FUN, 0);
-  f->name  = name;
+Fun* mk_fun(RlState* rls, Sym* name, int arity, bool va, OpCode op, Chunk* code) {
+  Fun* f = mk_obj(rls, EXP_FUN, 0);
+  f->name = name;
+  f->arity = arity;
+  f->va = va;
   f->label = op;
   f->chunk = code;
 
@@ -827,22 +845,25 @@ Fun* mk_closure(RlState* rls, Fun* proto) {
   return cls;
 }
 
-Fun* mk_builtin_fun(RlState* rls, Sym* name, OpCode op) {
-  return mk_fun(rls, name, op, NULL);
+Fun* mk_builtin_fun(RlState* rls, Sym* name, int arity, bool va, OpCode op) {
+  return mk_fun(rls, name, arity, va, op, NULL);
 }
 
 Fun* mk_user_fun(RlState* rls, Chunk* code) {
   Sym* n = mk_sym(rls, "fn"); preserve(1, tag_obj(n));
-  Fun* f = mk_fun(rls, n, OP_NOOP, code);
+
+  int arity = code->vars->arity;
+  bool va = false;
+  Fun* f = mk_fun(rls, n, arity, va, OP_NOOP, code);
 
   return f;
 }
 
-void def_builtin_fun(RlState* rls, char* name, OpCode op) {
+void def_builtin_fun(RlState* rls, char* name, int arity, bool va, OpCode op) {
   Sym* sym = mk_sym(rls, name); preserve(1, tag_obj(sym));
-  Fun* fun = mk_builtin_fun(rls, sym, op);
+  Fun* fun = mk_builtin_fun(rls, sym, arity, va, op);
 
-  toplevel_env_def(&Globals, sym, tag_obj(fun));
+  toplevel_env_def(Vm.globals, sym, tag_obj(fun));
 }
 
 void disassemble(Fun* fun) {
@@ -868,7 +889,10 @@ void upval_set(Fun* fun, int i, Expr x) {
 void print_fun(Port* ios, Expr x) {
   Fun* fun = as_fun(x);
 
-  pprintf(ios, "<fun @ %s>", fun->name->val->val);
+  pprintf(ios, "<fun @ %s\\%d%s>",
+          fun->name->val->val,
+          fun->arity,
+          fun->va ? "+" : "");
 }
 
 void trace_fun(RlState* rls, void* ptr) {
@@ -1163,6 +1187,12 @@ void print_bool(Port* ios, Expr x) {
 // glyph APIs
 Glyph as_glyph(Expr x) {
   return x & XVMSK;
+}
+
+Glyph as_glyph_s(char* f, Expr x) {
+  ExpType t = exp_type(x);
+  require(t == EXP_GLYPH, "%s wanted type glyph, got %s", f, Types[t].name);
+  return as_glyph(x);
 }
 
 Expr tag_glyph(Glyph x) {

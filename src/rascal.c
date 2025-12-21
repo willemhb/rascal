@@ -57,25 +57,32 @@ void init_static_objects(void) {
 
 void define_builtins(void) {
   // initialize builtin functions ---------------------------------------------
-  def_builtin_fun(&Main, "+", OP_ADD);
-  def_builtin_fun(&Main, "-", OP_SUB);
-  def_builtin_fun(&Main, "*", OP_MUL);
-  def_builtin_fun(&Main, "/", OP_DIV);
-  def_builtin_fun(&Main, "=", OP_EGAL);
-  def_builtin_fun(&Main, "type", OP_TYPE);
-  def_builtin_fun(&Main, "list", OP_LIST);
-  def_builtin_fun(&Main, "cons", OP_CONS);
-  def_builtin_fun(&Main, "head", OP_HEAD);
-  def_builtin_fun(&Main, "tail", OP_TAIL);
-  def_builtin_fun(&Main, "list-ref", OP_LIST_REF);
-  def_builtin_fun(&Main, "list-len", OP_LIST_LEN);
-  def_builtin_fun(&Main, "str-ref", OP_STR_REF);
-  def_builtin_fun(&Main, "str-len", OP_STR_LEN);
-  def_builtin_fun(&Main, "*heap-report*", OP_HEAP_REPORT);
-  def_builtin_fun(&Main, "*stack-report*", OP_STACK_REPORT);
-  def_builtin_fun(&Main, "*env-report*", OP_ENV_REPORT);
-  def_builtin_fun(&Main, "*dis*", OP_DIS);
-  def_builtin_fun(&Main, "load", OP_LOAD);
+  def_builtin_fun(&Main, "+", 2, false, OP_ADD);
+  def_builtin_fun(&Main, "-", 2, false, OP_SUB);
+  def_builtin_fun(&Main, "*", 2, false, OP_MUL);
+  def_builtin_fun(&Main, "/", 2, false, OP_DIV);
+  def_builtin_fun(&Main, "rem", 2, false, OP_REM);
+  def_builtin_fun(&Main, "=", 2, false, OP_NEQ);
+  def_builtin_fun(&Main, "<", 2, false, OP_NLT);
+  def_builtin_fun(&Main, ">", 2, false, OP_NGT);
+  def_builtin_fun(&Main, "=?", 2, false, OP_EGAL);
+  def_builtin_fun(&Main, "hash", 1, false, OP_HASH);
+  def_builtin_fun(&Main, "type", 1, false, OP_TYPE);
+  def_builtin_fun(&Main, "list", 0, true, OP_LIST);
+  def_builtin_fun(&Main, "cons", 2, false, OP_CONS);
+  def_builtin_fun(&Main, "head", 1, false, OP_HEAD);
+  def_builtin_fun(&Main, "tail", 1, false, OP_TAIL);
+  def_builtin_fun(&Main, "list-ref", 2, false, OP_LIST_REF);
+  def_builtin_fun(&Main, "list-len", 1, false, OP_LIST_LEN);
+  def_builtin_fun(&Main, "str", 0, true, OP_STR);
+  def_builtin_fun(&Main, "chars", 1, false, OP_CHARS);
+  def_builtin_fun(&Main, "str-ref", 2, false, OP_STR_REF);
+  def_builtin_fun(&Main, "str-len", 1, false, OP_STR_LEN);
+  def_builtin_fun(&Main, "*heap-report*", 0, false, OP_HEAP_REPORT);
+  def_builtin_fun(&Main, "*stack-report*", 0, false, OP_STACK_REPORT);
+  def_builtin_fun(&Main, "*env-report*", 0, false, OP_ENV_REPORT);
+  def_builtin_fun(&Main, "*dis*", 1, false, OP_DIS);
+  def_builtin_fun(&Main, "load", 1, false, OP_LOAD);
 
   // initialize other globals -------------------------------------------------
   toplevel_env_def(Vm.globals, mk_sym(&Main, "&ins"), tag_obj(&Ins));

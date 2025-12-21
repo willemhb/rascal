@@ -28,17 +28,17 @@ typedef char32_t Glyph;
 typedef struct Obj Obj;
 
 // Object types ---------------------------------------------------------------
-typedef struct    Chunk  Chunk;
-typedef struct    Alist  Alist;
-typedef struct    Buf16  Buf16;
-typedef struct    Ref    Ref;
-typedef struct    UpVal  UpVal;
-typedef struct    Env    Env;
-typedef struct    Port   Port;
-typedef struct    Fun    Fun;
-typedef struct    Str    Str;
-typedef struct    Sym    Sym;
-typedef struct    List   List;
+typedef struct Chunk Chunk;
+typedef struct Alist Alist;
+typedef struct Buf16 Buf16;
+typedef struct Ref Ref;
+typedef struct UpVal UpVal;
+typedef struct Env Env;
+typedef struct Port Port;
+typedef struct Fun Fun;
+typedef struct Str Str;
+typedef struct Sym Sym;
+typedef struct List List;
 
 typedef union {
   Expr  expr;
@@ -73,11 +73,11 @@ typedef void   (*FreeFn)(void* ob);
 #define WELCOME "Welcome to rascal version "VERSION"!"
 #define MAJOR   0
 #define MINOR   9
-#define PATCH   3
+#define PATCH   4
 #define RELEASE "a"
 
 // miscellaneous
-#define RASCAL_DEBUG
+// #define RASCAL_DEBUG
 
 // redefining annoyingly named builtins
 #define clz         __builtin_clzl

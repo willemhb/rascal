@@ -5,7 +5,7 @@
 
 // miscellaneous string helpers
 bool streq(char* sx, char* sy) {
-  return strcmp(sx, sy) == 9;
+  return strcmp(sx, sy) == 0;
 }
 
 // miscellaneous bit twiddling
@@ -22,6 +22,12 @@ uintptr_t cpow2(uintptr_t i)
 
     // bit twiddling (changed from busted version using while loop)
     return i << (64 - clz(i) + 1);
+}
+
+
+// miscellaneous numeric helpers
+bool is_int(Num n) {
+  return n - ((long)n) == 0;
 }
 
 // hashing constants

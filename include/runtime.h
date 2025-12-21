@@ -37,7 +37,7 @@ typedef struct CallState {
 typedef struct RlVm {
   Env* globals; /* toplevel environment */
   Strings* strings; /* interned strings */
-  size_t heap_cap, heap_used;
+  size_t heap_cap, heap_used, gc_count;
   Obj* heap_live;
   Objs* grays;
 } RlVm;
@@ -51,6 +51,8 @@ typedef struct RlState {
   int sp, fp, bp, ep;
   CallState frames[CALL_STACK_SIZE];
   Expr stack[EXPR_STACK_SIZE];
+  char token[BUFFER_SIZE];
+  size_t toff;
 } RlState;
 
 // everything necessary to restore execution at a particular point
@@ -70,8 +72,6 @@ extern int ep;
 #define SaveState (SaveStates[ep-1])
 
 // forward declarations for global variables
-extern char Token[BUFFER_SIZE];
-extern size_t TOff;
 extern char* ErrorNames[];
 extern GcFrame* GcFrames;
 extern Env Globals;
@@ -85,8 +85,8 @@ void   panic(Status etype);
 void   recover(void);
 void   rascal_error(Status etype, char* fmt, ...);
 
-void   reset_token(void);
-size_t add_to_token(char c);
+void   reset_token(RlState* rls);
+size_t add_to_token(RlState* rls, char c);
 
 void   reset_stack(RlState* rls);
 Expr*  stack_ref(RlState* rls, int i);
@@ -97,40 +97,40 @@ Expr   rpop(RlState* rls);
 Expr   popn(RlState* rls, int n);
 
 UpVal* get_upv(RlState* rls, Expr* loc);
-void   close_upvs(RlState* rls, Expr* base);
+void close_upvs(RlState* rls, Expr* base);
 
-void   install_fun(RlState* rls, Fun* fun, int argc);
-void   save_frame(RlState* rls);
-void   restore_frame(RlState* rls);
-void   reset_vm(RlState* rls);
+void install_fun(RlState* rls, Fun* fun, int argc);
+void save_frame(RlState* rls);
+void restore_frame(RlState* rls);
+void reset_vm(RlState* rls);
 
-void   add_to_heap(RlState* rls, void* ptr);
-void   gc_save(RlState* rls, void* ob);
-void   run_gc(RlState* rls);
-void   heap_report(RlState* rls);
-void   stack_report(RlState* rls);
-void   env_report(RlState* rls);
+void add_to_heap(RlState* rls, void* ptr);
+void gc_save(RlState* rls, void* ob);
+void run_gc(RlState* rls);
+void heap_report(RlState* rls);
+void stack_report(RlState* rls);
+void env_report(RlState* rls);
 
-void   save_ctx(RlState* rls);    // save execution state
-void   restore_ctx(RlState* rls); // restore saved execution state
-void   discard_ctx(void); // discard saved execution state (presumably because we're exiting normally)
+void save_ctx(RlState* rls); // save execution state
+void restore_ctx(RlState* rls); // restore saved execution state
+void discard_ctx(void); // discard saved execution state (presumably because we're exiting normally)
 
-void*  allocate(RlState* rls, size_t n);
-char*  duplicates(RlState* rls, char* cs);
-void*  duplicate(RlState* rls, size_t n, void* ptr);
-void*  reallocate(RlState* rls, size_t n, size_t o, void* spc);
-void   release(RlState* rls, void* d, size_t n);
-void   next_gc_frame(GcFrame* gcf);
+void* allocate(RlState* rls, size_t n);
+char* duplicates(RlState* rls, char* cs);
+void* duplicate(RlState* rls, size_t n, void* ptr);
+void* reallocate(RlState* rls, size_t n, size_t o, void* spc);
+void  release(RlState* rls, void* d, size_t n);
+void  next_gc_frame(GcFrame* gcf);
 
 // convenience macros
 #define safepoint() setjmp(SaveState.Cstate)
 
-#define user_error(args...)    rascal_error(USER_ERROR, args)
+#define user_error(args...) rascal_error(USER_ERROR, args)
 #define runtime_error(args...) rascal_error(RUNTIME_ERROR, args)
-#define eval_error(args...)    rascal_error(EVAL_ERROR, args)
-#define system_error(args...)  rascal_error(SYSTEM_ERROR, args)
+#define eval_error(args...) rascal_error(EVAL_ERROR, args)
+#define system_error(args...) rascal_error(SYSTEM_ERROR, args)
 
-#define tos(rls)  (stack_ref(rls, -1)[0])
+#define tos(rls) (stack_ref(rls, -1)[0])
 
 #define next_op(rls) *((rls)->pc++)
 

@@ -9,6 +9,9 @@ bool streq(char* sx, char* sy);
 // miscellaneous bit twiddling
 uintptr_t cpow2(uintptr_t i);
 
+// miscellaneous numeric helpers
+bool is_int(Num n);
+
 // hashing functions
 hash_t hash_string(const char* chars);
 hash_t hash_word(uintptr_t word);

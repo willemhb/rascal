@@ -16,6 +16,12 @@ typedef enum {
   OP_TRUE,
   OP_FALSE,
   OP_NUL,
+  OP_ZERO,
+  OP_ONE,
+
+  // inlined loads
+  OP_GLYPH,
+  OP_SMALL,
 
   // variable lookups
   OP_GET_VALUE,
@@ -41,9 +47,14 @@ typedef enum {
   OP_SUB,
   OP_MUL,
   OP_DIV,
+  OP_REM,
+  OP_NEQ,
+  OP_NLT,
+  OP_NGT,
 
   // miscellaneous comparison instructions
   OP_EGAL,
+  OP_HASH,
   OP_TYPE,
 
   // basic list operations
@@ -55,6 +66,8 @@ typedef enum {
   OP_LIST_LEN,
 
   // basic string operations
+  OP_STR,
+  OP_CHARS,
   OP_STR_REF,
   OP_STR_LEN,
 

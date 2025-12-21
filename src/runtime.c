@@ -23,8 +23,6 @@ char* ErrorNames[] = {
 VmCtx SaveStates[MAX_SAVESTATES];
 int ep = 0;
 
-char Token[BUFFER_SIZE];
-size_t TOff = 0;
 GcFrame* GcFrames = NULL;
 
 extern Strings StringTable;
@@ -63,6 +61,7 @@ RlVm Vm = {
   .strings   = &StringTable,
   .heap_cap  = INIT_HEAP,
   .heap_used = 0,
+  .gc_count  = 0,
   .heap_live = NULL,
   .grays     = &GrayStack
 };
@@ -155,19 +154,19 @@ void rascal_error(Status etype, char* fmt, ...) {
 }
 
 // token API
-void reset_token(void) {
-  memset(Token, 0, BUFFER_SIZE);
-  TOff = 0;
+void reset_token(RlState* rls) {
+  memset(rls->token, 0, BUFFER_SIZE);
+  rls->toff = 0;
 }
 
-size_t add_to_token(char c) {
-  if ( TOff < BUFFER_MAX )
-    Token[TOff++] = c;
+size_t add_to_token(RlState* rls, char c) {
+  if ( rls->toff < BUFFER_MAX )
+    rls->token[rls->toff++] = c;
 
   else
     runtime_error("maximum token length exceeded");
 
-  return TOff;
+  return rls->toff;
 }
 
 // stack API ------------------------------------------------------------------
@@ -399,6 +398,8 @@ static void sweep_phase(RlState* rls) {
 static void cleanup_phase(RlState* rls) {
   if ( check_heap_grow(rls) )
     rls->vm->heap_cap <<= 1;
+
+  rls->vm->gc_count++;
 }
 
 void add_to_heap(RlState* rls, void* ptr) {
@@ -432,11 +433,13 @@ void run_gc(RlState* rls) {
 }
 
 void heap_report(RlState* rls) {
-  printf("\n\n==== heap report ====\n\%-16s %20zu\n%-16s %20zu\n\n",
+  printf("\n\n==== heap report ====\n\%-16s %20zu\n%-16s %20zu\n%-16s %20zu\n\n",
          "used",
          rls->vm->heap_used,
          "available",
-         rls->vm->heap_cap);
+         rls->vm->heap_cap,
+         "gc count",
+         rls->vm->gc_count);
 }
 
 void stack_report(RlState* rls) {
@@ -451,10 +454,11 @@ void stack_report(RlState* rls) {
 
 void env_report(RlState* rls) {
   Env* g = rls->vm->globals;
+  int n = env_size(g);
   Ref** rs = (Ref**)g->vals.vals;
-  printf("\n\n==== env report (size = %4d) ====\n\n", g->arity);
+  printf("\n\n==== env report (size = %4d) ====\n\n", n);
 
-  for ( int i=0; i < g->arity; i++ ) {
+  for ( int i=0; i < n; i++ ) {
     printf("%4d = %s\n", i, rs[i]->name->val->val);
   }
 }
