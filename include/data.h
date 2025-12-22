@@ -256,6 +256,7 @@ void  free_obj(RlState* rls, void *ptr);
 // chunk API
 Chunk* mk_chunk(RlState* rls, Env* vars, Alist* vals, Buf16* code);
 Chunk* mk_chunk_s(RlState* rls, Env* vars, Alist* vals, Buf16* code);
+void do_disassemble(Alist* vals, Buf16* code);
 void   dis_chunk(Chunk* chunk);
 
 // alist API
@@ -352,8 +353,8 @@ List*  mk_list(RlState* rls, size_t n, Expr* xs);
 List*  mk_list_s(RlState* rls, size_t n, Expr* xs);
 List*  cons(RlState* rls, Expr hd, List* tl);
 List*  cons_s(RlState* rls, Expr hd, List* tl);
-List*  cons_n(RlState* rls, size_t n);
-List*  cons_n_s(RlState* rls, size_t n);
+List*  cons_n(RlState* rls, int n);
+List*  cons_n_s(RlState* rls, int n);
 Expr   list_ref(List* xs, int n);
 
 // number API

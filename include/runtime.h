@@ -69,7 +69,8 @@ ErrorState* error_state(RlState* rls);
 void save_error_state(RlState* rls);
 void restore_error_state(RlState* rls);
 void discard_error_state(RlState* rls);
-int set_safe_point(RlState* rls);
+
+#define set_safe_point(rls) (setjmp((rls)->err_states[(rls)->ep-1].Cstate))
 
 // error function
 void rascal_error(RlState* rls, Status etype, char* fmt, ...);
@@ -103,6 +104,7 @@ void add_to_permanent(RlState* rls, void* ptr);
 void gc_save(RlState* rls, void* ob);
 void run_gc(RlState* rls);
 void heap_report(RlState* rls);
+void stack_report_slice(RlState* rls, char* msg, int n);
 void stack_report(RlState* rls);
 void env_report(RlState* rls);
 

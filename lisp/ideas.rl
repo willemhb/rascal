@@ -7,7 +7,10 @@
 
 (stx let
   (binds & body)
-  `((fun ~(map fst binds) ) ~@(map snd binds)))
+  (def parms   (map fst binds))
+  (def inits   (list-of nul (len binds)))
+  (def assigns (map* #`(put ~&1 ~&2) binds))
+  `((fn ~parms ~@assigns ~@body) ~@inits))
 
 (stx* and
   (()      true)
@@ -23,12 +26,32 @@
 
 (stx* cond
   ((clause)
-    (let ((test clause|head)
-          (csqt clause|tail))
+    (let ((test head|clause)
+          (csqt tail|clause))
       (if (=? test 'otherwise)
         `(do ~@csqt)
         `(if ~test (do ~@csqt) (error "unmatched condition")))))
   ((clause & more)
-    (let ((test clause|head)
-          (csqt clause|tail))
-      ())))
+    (let ((test head|clause)
+          (csqt tail|clause))
+      (if (=? test 'otherwise)
+        (error "'otherwise appears in non-final position")
+        `(if ~test
+           (do ~@csqt)
+           (cond ~@more))))))
+
+;; example of full multimethod implementation
+(fun pow: Num
+  (x: Num n: Num)
+  (label ((x x) (n n) (a 1))
+    (cond
+      ((zero? n) a)
+      ((even? n) (loop (sqr x) (/ n 2) a))
+      (otherwise (loop (* x x) (dec n) (* a x))))))
+
+(fun fib: Num
+  (n: Num)
+  (label ((n n) (a 0) (b 1))
+    (cond
+      ((zero? n) a)
+      (otherwise (loop (dec n) b (+ a b))))))

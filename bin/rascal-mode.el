@@ -12,9 +12,11 @@
   '( ;; special forms
     "quote" "def" "put" "if" "do" "fn" "def-stx" "c-call" "handle" "raise" "begin"
     ;; binding macros
-    "fun" "fun*" "stx" "stx*" "var" "val" "type" "let"
+    "fun" "fun*" "stx" "stx*" "var" "val" "type"
     ;; branching macros
     "cond" "case" "and" "or"
+    ;; looping and block macros
+    "label" "loop" "let"
     ;; module macros
     "require" "provide")
   '(("\\(?:[^-_a-zA-Z?*+0-9/:]:[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)

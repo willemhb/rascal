@@ -10,6 +10,7 @@
 
 // forward declarations
 void print_ref(Port* ios, Expr x);
+void print_env(Port* ios, Expr x);
 void print_list(Port* ios, Expr x);
 void print_sym(Port* ios, Expr x);
 void print_str(Port* ios, Expr x);
@@ -161,6 +162,7 @@ Type EnvType = {
   .bfields  = FL_GRAY,
   .tag      = EXP_ENV,
   .obsize   = sizeof(Env),
+  .print_fn = print_env,
   .trace_fn = trace_env,
   .free_fn  = free_env
 };
@@ -373,7 +375,7 @@ bool egal_exps(Expr x, Expr y) {
 
     else {
       EgalFn fn = tx->egal_fn;
-      out       = fn ? fn(x, y) : false;
+      out = fn ? fn(x, y) : false;
     }
   }
 
@@ -506,6 +508,85 @@ Chunk* mk_chunk_s(RlState* rls, Env* vars, Alist* vals, Buf16* code) {
   push(rls, tag_obj(out));
 
   return out;
+}
+
+void do_disassemble(Alist* vals, Buf16* code) {
+  instr_t* instr = code->binary.vals;
+  int offset     = 0, max_offset = code->binary.count;
+
+  printf("%-8s %-16s %-5s %-5s %-8s\n\n", "line", "instruction", "input", "input", "constant");
+
+  while ( offset < max_offset ) {
+    OpCode op  = instr[offset];
+    int argc   = op_arity(op);
+    char* name = op_name(op);
+
+    switch ( argc ) {
+   
+      case 1: { 
+        instr_t arg = instr[offset+1];
+        printf("%.8d %-16s %.5d ----- ", offset, name, arg);
+
+        if ( op == OP_GET_VALUE ) {
+          print_exp(&Outs, vals->exprs.vals[arg]);
+
+        } else if ( op == OP_GLYPH ) {
+          if ( arg < CHAR_MAX && CharNames[arg])
+            printf("\\%s", CharNames[arg]);
+
+          else
+            printf("\\%c", arg);
+        } else if ( op == OP_SMALL ) {
+          printf("%d", (short)arg);
+
+        } else
+          printf("--------");
+
+        printf("\n");
+        offset += 2; // advance past argument
+        break;
+      }
+
+      case -2: { // variadic
+        int arg = instr[offset+1];
+        printf("%.8d %-16s %.5d ----- --------\n", offset, name, arg);
+        offset++;
+
+        for ( int i=0; i < arg; i++, offset += 2 ) {
+          int x = instr[offset+1], y = instr[offset+2];
+          printf("%.8d ---------------- %.5d %.5d\n", offset, x, y);
+        }
+
+        break;
+      }
+
+      default:
+        printf("%.8d %-16s ----- ----- ", offset, name);
+
+        if ( op == OP_TRUE )
+          printf("%-8s", "true");
+
+        else if ( op == OP_FALSE )
+          printf("%-8s", "false");
+
+        else if ( op == OP_NUL )
+          printf("%-8s", "nul");
+
+        else if ( op == OP_ZERO )
+          printf("%-8s", "0");
+
+        else if ( op == OP_ONE )
+          printf("%-8s", "1");
+
+        else
+          printf("--------");
+
+        printf("\n");
+        
+        offset++;
+        break;
+    }
+  }
 }
 
 void dis_chunk(Chunk* chunk) {
@@ -904,6 +985,16 @@ static void trace_emap(RlState* rls, EMap* m) {
   }
 }
 
+void print_env(Port* ios, Expr x) {
+  Env* e = as_env(x);
+
+  if ( is_global_env(e) )
+    pprintf(ios, "<global env>");
+
+  else
+    pprintf(ios, "<local env>");
+}
+
 void trace_env(RlState* rls, void* ptr) {
   Env* e = ptr;
 
@@ -1155,13 +1246,20 @@ MethodTable* mk_mtable_s(RlState* rls) {
 
 void mtable_add(RlState* rls, MethodTable* mt, Method* m) {
   // check for duplicate signature
+  if ( method_va(m) ) {
+    if ( mt->variadic != NULL )
+      eval_error(rls, "varidic method already exists");
+
+    mt->variadic = m;
+  }
+  
   for (int i = 0; i < mt->methods.count; i++) {
     Method* existing = mt->methods.vals[i];
-    if (method_argc(existing) == method_argc(m) && method_va(existing) == method_va(m)) {
-      eval_error(rls, "method with arity %d%s already exists",
-                 method_argc(m), method_va(m) ? "+" : "");
-    }
+
+    if (method_argc(existing) == method_argc(m))
+      eval_error(rls, "method with arity %d already exists", method_argc(m));
   }
+
   objs_push(rls, &mt->methods, m);
 }
 
@@ -1483,29 +1581,39 @@ List* cons_s(RlState* rls, Expr hd, List* tl) {
   return out;
 }
 
-List* cons_n(RlState* rls, size_t n) {
+List* cons_n(RlState* rls, int n) {
   assert(n >= 2);
   Expr* xs = stack_ref(rls, -n);
-  Expr* buf = dup(rls);
-  assert(is_list(*buf));
   List* lx, * ly;
+  assert(is_list(xs[n-1]));
 
-  for ( size_t i=0; i < n-1; i++ ) {
+  if ( n == 2 ) {
+    ly = as_list(xs[n-1]);
+    lx = cons(rls, xs[0], ly);
+  } else {
+    Expr* buf = dup(rls);
+    for ( int i=n-2; i >= 0; i-- ) {
+      lx = as_list(*buf);
+      ly = mk_obj(rls, &ListType, 0);
+      ly->head = xs[i];
+      ly->tail = lx;
+      ly->count = lx->count+1;
+      *buf = tag_obj(ly);
+    }
+
     lx = as_list(*buf);
-    ly = mk_obj(rls, &ListType, 0);
-    lx->head = xs[i];
-    lx->tail = ly;
-    lx->count = ly->count+1;
-    *buf = tag_obj(lx);
+    pop(rls);
   }
 
-  lx = as_list(*buf);
-  pop(rls);
+#ifdef RASCAL_DEBUG
+  // printf("DEBUG - cons* result: ");
+  // print_exp(&Outs, tag_obj(lx));
+#endif
 
   return lx;
 }
 
-List* cons_n_s(RlState* rls, size_t n) {
+List* cons_n_s(RlState* rls, int n) {
   List* out = cons_n(rls, n);
   push(rls, tag_obj(out));
   return out;

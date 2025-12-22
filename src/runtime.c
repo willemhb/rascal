@@ -160,14 +160,6 @@ void discard_error_state(RlState* rls) {
   rls->ep--;
 }
 
-int set_safe_point(RlState* rls) {
-  assert(rls->ep > 0);
-
-  ErrorState* err_state = error_state(rls);
-
-  return setjmp(err_state->Cstate);
-}
-
 void rascal_error(RlState* rls, Status etype, char* fmt, ...) {
   va_list va;
   va_start(va, fmt);
@@ -177,7 +169,7 @@ void rascal_error(RlState* rls, Status etype, char* fmt, ...) {
   va_end(va);
 
 #ifdef RASCAL_DEBUG
-  stack_report(&Main);
+  // stack_report(&Main);
 #endif
 
   if ( etype == SYSTEM_ERROR )
@@ -238,8 +230,12 @@ void restore_sp(RlState* rls, int sp) {
 }
 
 Expr* dup(RlState* rls) {
+  // duplicate top of stack
   if ( rls->sp == 0 )
     runtime_error(rls, "stack underflow");
+
+  rls->sp++;
+  rls->stack[rls->sp-1] = rls->stack[rls->sp-2];
 
   return &rls->stack[rls->sp - 1];
 }
@@ -502,6 +498,17 @@ void heap_report(RlState* rls) {
          rls->vm->heap_cap,
          "gc count",
          rls->vm->gc_count);
+}
+
+void stack_report_slice(RlState* rls, char* msg, int n) {
+  printf("\n\n=== %s ===\n\n", msg);
+  Expr* base = &rls->stack[rls->sp-n];
+
+  for ( int i=n-1; i >= 0; i-- ) {
+    printf("%4d", i);
+    print_exp(&Outs, rls->stack[i]);
+    printf("\n");
+  }
 }
 
 void stack_report(RlState* rls) {
