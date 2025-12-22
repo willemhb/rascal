@@ -85,8 +85,8 @@ typedef bool (*HasFn)(Type* tx, Type* ty);
 #define VERSION "%.2d.%.2d.%.2d.%s"
 #define WELCOME "Welcome to rascal version "VERSION"!"
 #define MAJOR   0
-#define MINOR   9
-#define PATCH   4
+#define MINOR   11
+#define PATCH   1
 #define RELEASE "a"
 
 // miscellaneous

@@ -358,6 +358,8 @@ bool is_quote_form(List* form);
 void compile_quote(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code);
 bool is_def_form(List* form);
 void compile_def(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code);
+bool is_defstx_form(List* form);
+void compile_defstx(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code);
 bool is_put_form(List* form);
 void compile_put(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code);
 bool is_if_form(List* form);
@@ -365,6 +367,7 @@ void compile_if(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code);
 bool is_do_form(List* form);
 void compile_do(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code);
 bool is_fn_form(List* form);
+Fun* create_fun_from_form(RlState* rls, List* form, Env* vars, Sym* name, int* upvc_out, Env** lvars_out);
 void compile_fn(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code);
 void compile_closure(Buf16* c_code, Env* vars, Alist* vals, Buf16* code);
 
@@ -445,6 +448,49 @@ void compile_def(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code) 
 
   compile_expr(rls, form->tail->tail->head, vars, vals, code);
   emit_instr(rls, code, op, i);
+}
+
+bool is_defstx_form(List* form) {
+  Expr hd = form->head;
+
+  return is_sym(hd) && sym_val_eql(as_sym(hd), "def-stx");
+}
+
+void compile_defstx(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code) {
+  require_argco(rls, "def-stx", 2, form->count-1);
+
+  Sym* n = as_sym_s(rls, "def-stx", form->tail->head);
+  require(rls, !is_keyword(n), "can't assign to keyword %s", n->val->val);
+
+  // The second argument must be a fun form
+  Expr fun_form_expr = form->tail->tail->head;
+  require(rls, is_list(fun_form_expr), "def-stx: second argument must be a fun form");
+
+  List* fun_form = as_list(fun_form_expr);
+  require(rls, is_fn_form(fun_form), "def-stx: second argument must be a fun form");
+
+  // Ensure the fun form is anonymous (not named)
+  List* fun_rest = fun_form->tail;
+  require(rls, !is_sym(fun_rest->head), "def-stx: fun form must be anonymous (no name)");
+
+  // Define the macro in the environment and mark it as a macro
+  Ref* r = env_define(rls, vars, n);
+  r->is_macro = true;
+
+  // Only support global macros for now
+  require(rls, r->ref_type == REF_GLOBAL, "def-stx: only global macros are currently supported");
+
+  // Create the Fun object directly without emitting instructions
+  Fun* macro_fun = create_fun_from_form(rls, fun_form, vars, NULL, NULL, NULL);
+
+  // Store the macro function immediately in the global environment
+  // This makes it available for macro expansion during compilation
+  Expr fun_expr = tag_obj(macro_fun);
+  r->val = fun_expr;
+
+  // Emit instruction to also set it at runtime (for consistency)
+  compile_literal(rls, fun_expr, vars, vals, code);
+  emit_instr(rls, code, OP_SET_GLOBAL, r->offset);
 }
 
 bool is_put_form(List* form) {
@@ -560,23 +606,141 @@ void prepare_env(RlState* rls, List* argl, Env* vars) {
   }
 }
 
-void compile_fn(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code) {
+// Check if a form is a macro call and return the macro Ref if so
+Ref* is_macro_call(RlState* rls, List* form, Env* vars) {
+  if (form->count == 0)
+    return NULL;
+
+  Expr head = form->head;
+  if (!is_sym(head))
+    return NULL;
+
+  Sym* s = as_sym(head);
+  Ref* r = env_resolve(rls, vars, s, false);
+
+  if (r != NULL && r->is_macro)
+    return r;
+
+  return NULL;
+}
+
+// Expand a macro call at compile time
+Expr expand_macro(RlState* rls, List* form, Env* vars, Ref* macro_ref) {
+  int sp = save_sp(rls);
+
+  // Get the macro function
+  Expr macro_fun_expr;
+  if (macro_ref->ref_type == REF_GLOBAL) {
+    macro_fun_expr = macro_ref->val;
+  } else {
+    // For local macros, we'd need to get from the environment
+    // For now, only support global macros
+    eval_error(rls, "local macros not yet supported");
+  }
+
+  require(rls, is_fun(macro_fun_expr), "macro ref does not point to a function");
+
+  // Push macro_fun_expr immediately to protect it from GC
+  push(rls, macro_fun_expr);
+
+  // Build argument list: (macro-fun form env arg1 arg2 ...)
+  // The macro receives: whole form, environment, then individual arguments (all unevaluated)
+  List* args = form->tail; // The arguments without the macro name
+
+  // We need to build a form that when compiled will push:
+  // 1. The macro fun (as a literal)
+  // 2. The form (as a literal)
+  // 3. The environment (as a literal)
+  // 4-N. Each argument (as a literal)
+  // Then call with the right argc
+
+  // Build call_form as a list where all elements are quote expressions
+  List* call_form = empty_list(rls);
+  push(rls, tag_obj(call_form));  // Protect call_form as we build it
+
+  // Build a list of quoted arguments
+  // We want the result to be: (fun 'form 'env 'arg1 'arg2 'arg3)
+  // So we build from right to left: start with empty, add 'arg3, 'arg2, 'arg1, 'env, 'form
+
+  // First, iterate forward through args and quote each one, adding to call_form from the right
+  List* args_copy = args;
+  int nargs = args->count;
+
+  // Collect args into array for easier reverse iteration
+  Expr* arg_array = NULL;
+  if (nargs > 0) {
+    arg_array = (Expr*)malloc(nargs * sizeof(Expr));
+    for (int i = 0; i < nargs; i++) {
+      arg_array[i] = args_copy->head;
+      args_copy = args_copy->tail;
+    }
+
+    // Add arguments in reverse order (rightmost first)
+    for (int i = nargs - 1; i >= 0; i--) {
+      // Build (quote arg)
+      List* inner = cons(rls, arg_array[i], empty_list(rls));
+      push(rls, tag_obj(inner));
+      Sym* quote_sym = mk_sym(rls, "quote");
+      push(rls, tag_obj(quote_sym));
+      List* quoted_arg = cons(rls, tag_obj(quote_sym), inner);
+      popn(rls, 2);
+
+      call_form = cons(rls, tag_obj(quoted_arg), call_form);
+      tos(rls) = tag_obj(call_form);
+    }
+    free(arg_array);
+  }
+
+  // Add environment as (quote env) where env is the environment object
+  List* env_inner = cons(rls, tag_obj(vars), empty_list(rls));
+  push(rls, tag_obj(env_inner));
+  Sym* quote_sym1 = mk_sym(rls, "quote");
+  push(rls, tag_obj(quote_sym1));
+  List* quoted_env = cons(rls, tag_obj(quote_sym1), env_inner);
+  popn(rls, 2);
+  call_form = cons(rls, tag_obj(quoted_env), call_form);
+  tos(rls) = tag_obj(call_form);
+
+  // Add form as (quote form)
+  List* form_inner = cons(rls, tag_obj(form), empty_list(rls));
+  push(rls, tag_obj(form_inner));
+  Sym* quote_sym2 = mk_sym(rls, "quote");
+  push(rls, tag_obj(quote_sym2));
+  List* quoted_form = cons(rls, tag_obj(quote_sym2), form_inner);
+  popn(rls, 2);
+  call_form = cons(rls, tag_obj(quoted_form), call_form);
+  tos(rls) = tag_obj(call_form);
+
+  // Add macro function at the front (it's already on stack at position sp)
+  call_form = cons(rls, rls->stack[sp], call_form);
+  tos(rls) = tag_obj(call_form);
+
+  // Compile and execute the macro call
+  Fun* compiled = toplevel_compile(rls, call_form);
+
+  // Push compiled Fun to protect it during execution
+  push(rls, tag_obj(compiled));
+
+  // Execute macro with toplevel=true because we're in compilation context (no outer execution frame)
+  Expr result = exec_code(rls, compiled, true);
+
+  restore_sp(rls, sp);
+
+  return result;
+}
+
+// Helper to create a Fun object from a fun form without emitting load instructions
+// Returns the Fun, upvalue count, and environment via out parameters
+Fun* create_fun_from_form(RlState* rls, List* form, Env* vars, Sym* name, int* upvc_out, Env** lvars_out) {
   require_vargco(rls, "fun", 1, form->count-1);
 
   int sp = save_sp(rls);
   List* rest = form->tail;
-  Sym* name = NULL;
 
-  // check if first arg is a symbol (named form) or list (anonymous)
-  if (is_sym(rest->head)) {
-    name = as_sym(rest->head);
+  // Skip name if present (for named form)
+  if (name != NULL && is_sym(rest->head)) {
     rest = rest->tail;
     require(rls, rest->count >= 1, "fun: missing parameter list");
-
-    // bind name before compiling body so recursion works
-    if (toplevel_env_find(rls, Vm.globals, name) == NULL) {
-      toplevel_env_def(rls, Vm.globals, name, NONE);
-    }
   }
 
   List* argl = as_list_s(rls, "fun", rest->head);
@@ -587,7 +751,6 @@ void compile_fn(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code) {
   Buf16* lcode = mk_buf16_s(rls);
 
   // compile internal definitions first
-  // otherwise their values will get lost in the stack
   while ( body->count > 0 ) {
     Expr hd = body->head;
 
@@ -622,6 +785,40 @@ void compile_fn(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code) {
     fun->name = name;
     toplevel_env_set(rls, Vm.globals, name, tag_obj(fun));
   }
+
+  if (upvc_out != NULL)
+    *upvc_out = upvc;
+
+  if (lvars_out != NULL)
+    *lvars_out = lvars;
+
+  restore_sp(rls, sp);
+
+  return fun;
+}
+
+void compile_fn(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code) {
+  require_vargco(rls, "fun", 1, form->count-1);
+
+  int sp = save_sp(rls);
+  List* rest = form->tail;
+  Sym* name = NULL;
+
+  // check if first arg is a symbol (named form) or list (anonymous)
+  if (is_sym(rest->head)) {
+    name = as_sym(rest->head);
+    rest = rest->tail;
+    require(rls, rest->count >= 1, "fun: missing parameter list");
+
+    // bind name before compiling body so recursion works
+    if (toplevel_env_find(rls, Vm.globals, name) == NULL) {
+      toplevel_env_def(rls, Vm.globals, name, NONE);
+    }
+  }
+
+  int upvc = 0;
+  Env* lvars = NULL;
+  Fun* fun = create_fun_from_form(rls, form, vars, name, &upvc, &lvars);
 
 #ifdef RASCAL_DEBUG
   // disassemble(fun);
@@ -735,12 +932,25 @@ void compile_reference(RlState* rls, Sym* s, Env* vars, Alist* vals, Buf16* code
 void compile_funcall(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code) {
   assert(form->count > 0);
 
+  // Check for macro calls first - macros are expanded before other processing
+  Ref* macro_ref = is_macro_call(rls, form, vars);
+  if (macro_ref != NULL) {
+    Expr expanded = expand_macro(rls, form, vars, macro_ref);
+    compile_expr(rls, expanded, vars, vals, code);
+    return;
+  }
+
   if ( is_quote_form(form) )
     compile_quote(rls, form, vars, vals, code);
 
   else if ( is_def_form(form) ) {
     require(rls, !is_local_env(vars), "syntax error: local def in fn body");
     compile_def(rls, form, vars, vals, code);
+  }
+
+  else if ( is_defstx_form(form) ) {
+    require(rls, !is_local_env(vars), "syntax error: local def-stx in fn body");
+    compile_defstx(rls, form, vars, vals, code);
   }
 
   else if ( is_put_form(form) )
@@ -807,7 +1017,10 @@ Fun* toplevel_compile(RlState* rls, List* form) {
   // disassemble(out);
 #endif
 
-  restore_sp(rls, sp);
+  // Must keep Fun on stack to protect it from GC
+  // We push it, then restore sp to sp+1 (keeping just the Fun)
+  push(rls, tag_obj(out));
+  restore_sp(rls, sp + 1);
   return out;
 }
 
@@ -891,6 +1104,7 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
     // list operations --------------------------------------------------------
     [OP_LIST]        = &&op_list,
     [OP_CONS]        = &&op_cons,
+    [OP_CONSN]       = &&op_consn,
     [OP_HEAD]        = &&op_head,
     [OP_TAIL]        = &&op_tail,
     [OP_LIST_REF]    = &&op_list_ref,
@@ -1248,6 +1462,14 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
   z  = tag_obj(ly);
   popn(rls, 2);
   tos(rls) = z;
+  goto fetch;
+
+ op_consn:
+  require_vargco(rls, "cons*", 2, argc);
+  require_argtype(rls, "cons*", &ListType, tos(rls));
+  lx = cons_n(rls, argc);
+  popn(rls, argc);
+  tos(rls) = tag_obj(lx);
   goto fetch;
 
  op_head:

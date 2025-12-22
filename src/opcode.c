@@ -72,6 +72,7 @@ char* op_name(OpCode op) {
     case OP_TYPE:        out = "TYPE";         break;
     case OP_LIST:        out = "LIST";         break;
     case OP_CONS:        out = "CONS";         break;
+    case OP_CONSN:       out = "CONS-N";       break;
     case OP_HEAD:        out = "HEAD";         break;
     case OP_TAIL:        out = "TAIL";         break;
     case OP_LIST_REF:    out = "LIST-REF";     break;

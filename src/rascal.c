@@ -73,6 +73,7 @@ void define_builtins(void) {
   def_builtin_fun(&Main, "typeof", 1, false, OP_TYPE);
   def_builtin_fun(&Main, "list", 0, true, OP_LIST);
   def_builtin_fun(&Main, "cons", 2, false, OP_CONS);
+  def_builtin_fun(&Main, "cons*", 2, true, OP_CONSN);
   def_builtin_fun(&Main, "head", 1, false, OP_HEAD);
   def_builtin_fun(&Main, "tail", 1, false, OP_TAIL);
   def_builtin_fun(&Main, "list-ref", 2, false, OP_LIST_REF);
@@ -114,7 +115,7 @@ void setup(void) {
   init_static_objects();
   define_builtins();
   init_vm();
-  init_standard_library();
+  // init_standard_library();  // Disabled for now
 }
 
 void teardown(void) {}

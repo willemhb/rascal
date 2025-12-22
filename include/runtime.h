@@ -18,6 +18,7 @@ typedef struct CallState {
   int cntl_size; /* total size of stack enclosed by a control frame (-1 if no control frame exists) */
   int flags; /* idk but struct padding activates my autism */
   instr_t* savepc; /* caller's program counter */
+  Method* savefn; /* caller's method */
 } CallState;
 
 // everything necessary to restore execution at a particular point
@@ -83,6 +84,7 @@ Expr*  stack_ref(RlState* rls, int i);
 int    save_sp(RlState* rls);
 void   restore_sp(RlState* rls, int sp);
 Expr*  push(RlState* rls, Expr x);
+Expr*  dup(RlState* rls);
 Expr*  pushn(RlState* rls, int n);
 Expr   pop(RlState* rls);
 Expr   rpop(RlState* rls);

@@ -670,6 +670,7 @@ Ref* mk_ref(RlState* rls, Sym* n, int o) {
   ref->name = n;
   ref->ref_type = REF_UNDEF; // filled in by env_put, env_resolve, &c
   ref->offset = o;
+  ref->is_macro = false;
   ref->val = NONE;
 
   return ref;
@@ -1481,6 +1482,35 @@ List* cons_s(RlState* rls, Expr hd, List* tl) {
   push(rls, tag_obj(out));
   return out;
 }
+
+List* cons_n(RlState* rls, size_t n) {
+  assert(n >= 2);
+  Expr* xs = stack_ref(rls, -n);
+  Expr* buf = dup(rls);
+  assert(is_list(*buf));
+  List* lx, * ly;
+
+  for ( size_t i=0; i < n-1; i++ ) {
+    lx = as_list(*buf);
+    ly = mk_obj(rls, &ListType, 0);
+    lx->head = xs[i];
+    lx->tail = ly;
+    lx->count = ly->count+1;
+    *buf = tag_obj(lx);
+  }
+
+  lx = as_list(*buf);
+  pop(rls);
+
+  return lx;
+}
+
+List* cons_n_s(RlState* rls, size_t n) {
+  List* out = cons_n(rls, n);
+  push(rls, tag_obj(out));
+  return out;
+}
+
 
 Expr list_ref(List* xs, int n) {
   assert(n >= 0);

@@ -115,6 +115,7 @@ struct Ref {
   Sym* name;
   RefCode ref_type;
   int offset;
+  bool is_macro; // true if this ref points to a macro
   Expr val; // only used at Global scope
 };
 
@@ -351,6 +352,8 @@ List*  mk_list(RlState* rls, size_t n, Expr* xs);
 List*  mk_list_s(RlState* rls, size_t n, Expr* xs);
 List*  cons(RlState* rls, Expr hd, List* tl);
 List*  cons_s(RlState* rls, Expr hd, List* tl);
+List*  cons_n(RlState* rls, size_t n);
+List*  cons_n_s(RlState* rls, size_t n);
 Expr   list_ref(List* xs, int n);
 
 // number API

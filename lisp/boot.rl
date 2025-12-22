@@ -1,5 +1,22 @@
 ;; rascal standard library (such as it is)
 
+;; basic macros
+(def-stx
+  stx
+  (fun (&form &env name args & body)
+    (list 'def-stx
+          name
+          (cons* 'fun
+                (cons* '&form '&env args)
+                body))))
+
+(stx unless
+  ;; classic simple macro, good for testing that it works.
+  (test & exprs)
+  (list 'if
+        test
+        (cons 'do exprs)))
+
 ;; type predicates
 (fun isa? (t x)
   (=? t (typeof x)))
@@ -39,6 +56,9 @@
   (* x x))
 
 ;; list utilities
+(fun list-len=? (xs n)
+  (= n (list-len xs)))
+
 (fun empty? (xs)
   ;; empty list predicate
   (if (list? xs)

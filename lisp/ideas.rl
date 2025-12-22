@@ -4,3 +4,4 @@
 ;; Note: `fun` is now a builtin that supports both forms:
 ;;   (fun (args) body)        - anonymous function
 ;;   (fun name (args) body)   - named function, defines globally
+

@@ -60,6 +60,7 @@ typedef enum {
   // basic list operations
   OP_LIST,
   OP_CONS,
+  OP_CONSN,
   OP_HEAD,
   OP_TAIL,
   OP_LIST_REF,

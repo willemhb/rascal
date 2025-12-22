@@ -237,6 +237,13 @@ void restore_sp(RlState* rls, int sp) {
   rls->sp = sp;
 }
 
+Expr* dup(RlState* rls) {
+  if ( rls->sp == 0 )
+    runtime_error(rls, "stack underflow");
+
+  return &rls->stack[rls->sp - 1];
+}
+
 Expr* push(RlState* rls, Expr x) {
   if ( rls->sp == EXPR_STACK_SIZE )
     runtime_error(rls, "stack overflow");
@@ -328,18 +335,20 @@ void save_frame(RlState* rls) {
   if ( rls->fp == CALL_STACK_SIZE )
     runtime_error(rls, "runtime:save_frame", "stack overflow");
 
+
   CallState *frame = &rls->frames[rls->fp++];
   frame->frame_size = 1 + rls->sp - rls->bp;
   frame->cntl_off = -1; // not used until effects are implemented
   frame->flags = -1; // not used until effects are implemented
   frame->savepc = rls->pc;
+  frame->savefn = rls->fn;
 }
 
 void restore_frame(RlState* rls) {
   assert(rls->fp > 0);
   CallState* frame = &rls->frames[--rls->fp];
   rls->pc = frame->savepc;
-  rls->fn = as_method(rls->stack[rls->bp-1]);
+  rls->fn = frame->savefn;
   rls->bp = rls->sp - frame->frame_size + 1;
 }
 
@@ -366,6 +375,10 @@ static void mark_vm(RlState* rls) {
 
   for ( int i=0; i < rls->sp; i++ )
     mark_exp(rls, rls->stack[i]);
+
+  // Mark saved methods in call frames
+  for ( int i=0; i < rls->fp; i++ )
+    mark_obj(rls, rls->frames[i].savefn);
 }
 
 static void mark_globals(RlState* rls) {
