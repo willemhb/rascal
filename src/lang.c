@@ -655,18 +655,6 @@ Expr get_macro_expansion(RlState* rls, List* form, Env* vars, Ref* macro_ref) {
     args = args->tail;
   }
 
-#ifdef RASCAL_DEBUG
-  // TODO: refactor stack report to allow passing a section of the stack
-  printf("\n\n=== macro call for %s (DEBUG) ===\n\n", macro_ref->name->val->val);
-  Expr* buf = stack_ref(rls, -argc-1);
-  for ( int i=argc; i>=0; i-- ) {
-    printf("%4d ", i);
-    print_exp(&Outs, buf[i]);
-    printf("\n");
-  }
-  printf("\n");
-#endif
-
   Expr result = apply_cls(rls, argc, true);
   restore_sp(rls, sp);
 
@@ -879,34 +867,10 @@ void compile_funcall(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* co
   // Check for macro calls first - macros are expanded before other processing
   Ref* macro_ref = is_macro_call(rls, form, vars);
   if (macro_ref != NULL) {
-
-#ifdef RASCAL_DEBUG
-    printf("\n\n=== macro info (DEBUG) ===\n\n");
-    printf("macro name: ");
-    print_exp(&Outs, tag_obj(macro_ref));
-    printf("\nmacro call: ");
-    print_exp(&Outs, tag_obj(form));
-    printf("\nmacro expansion environment: ");
-    print_exp(&Outs, tag_obj(vars));
-#endif
-
     Expr expanded = get_macro_expansion(rls, form, vars, macro_ref);
     push(rls, expanded); // save expanded expression
-
-#ifdef RASCAL_DEBUG
-    printf("\nmacro expansion result: ");
-    print_exp(&Outs, expanded);
-#endif
-
     compile_expr(rls, expanded, vars, vals, code);
     pop(rls); // unsave expanded expression
-
-#ifdef RASCAL_DEBUG
-    printf("\n\n=== macro expansion compiled to ===\n\n");
-    do_disassemble(vals, code);
-    printf("\n\n");
-#endif
-
     return;
   }
 
@@ -1116,6 +1080,19 @@ Expr apply_cls(RlState* rls, int nargs, bool toplevel) {
     method = fun_lookup(fun, nargs);
     assert(method != NULL);
     install_method(rls, method, nargs);
+
+    // TODO: factor out this duplicated logic
+    if ( method_va(method) ) {
+      require_vargco(rls, method->name->val->val, method_argc(method), nargs);
+      // collect extra args into a list
+      int extra = nargs - method_argc(method);
+      List* rest = mk_list(rls, extra, &rls->stack[rls->sp - extra]);
+      popn(rls, extra);
+      push(rls, tag_obj(rest));
+      argc = nargs = method_argc(method) + 1;
+    } else {
+      require_argco(rls, method->name->val->val, method_argc(method), nargs);
+    }
   }
 
  fetch:
@@ -1249,14 +1226,7 @@ Expr apply_cls(RlState* rls, int nargs, bool toplevel) {
   goto *labels[op];
 
  call_user_method:
-#ifdef RASCAL_DEBUG
-  printf("\ncalling user method.\n");
-#endif
-
   if ( method_va(method) ) {
-#ifdef RASCAL_DEBUG
-    printf("\n%s is a variadic method.\n", method->name->val->val);
-#endif
     require_vargco(rls, method->name->val->val, method_argc(method), argc);
     // collect extra args into a list
     int extra = argc - method_argc(method);
@@ -1264,16 +1234,7 @@ Expr apply_cls(RlState* rls, int nargs, bool toplevel) {
     popn(rls, extra);
     push(rls, tag_obj(rest));
     argc = method_argc(method) + 1;
-
-#ifdef RASCAL_DEBUG
-    stack_report_slice(rls, "arguments after handling va", argc);
-#endif
   } else {
-
-#ifdef RASCAL_DEBUG
-    printf("\n%s is not a variadic method.\n", method->name->val->val);
-#endif
-
     require_argco(rls, method->name->val->val, method_argc(method), argc);
   }
   
