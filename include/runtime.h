@@ -9,7 +9,7 @@
 #define CALL_STACK_SIZE 16384
 #define ERROR_STACK_SIZE 512
 #define BUFFER_MAX  2046
-#define INIT_HEAP   (2048 * sizeof(uintptr_t))
+#define INIT_HEAP   (65536 * sizeof(uintptr_t))
 
 // Internal types -------------------------------------------------------------
 typedef struct CallState {

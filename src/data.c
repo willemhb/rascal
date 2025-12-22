@@ -30,6 +30,8 @@ bool egal_syms(Expr x, Expr y);
 bool egal_strs(Expr x, Expr y);
 bool egal_lists(Expr x, Expr y);
 
+void clone_method(RlState* rls, void* ptr);
+
 void trace_chunk(RlState* rls, void* ptr);
 void trace_alist(RlState* rls, void* ptr);
 void trace_ref(RlState* rls, void* ptr);
@@ -178,6 +180,7 @@ Type MethodType = {
   .bfields  = FL_GRAY,
   .tag      = EXP_METHOD,
   .obsize   = sizeof(Method),
+  .clone_fn = clone_method,
   .trace_fn = trace_method,
   .print_fn = print_method
 };
@@ -415,7 +418,7 @@ void* clone_obj(RlState* rls, void* ptr) {
   Obj* out = duplicate(rls, info->obsize, obj);
 
   if ( info->clone_fn )
-    info->clone_fn(out);
+    info->clone_fn(rls, out);
 
   return out;
 }
@@ -1118,6 +1121,13 @@ void print_method(Port* ios, Expr x) {
           m->name->val->val,
           m->arity,
           m->va ? "+" : "");
+}
+
+void clone_method(RlState* rls, void* ptr) {
+  Method* m = ptr;
+
+  if ( m->upvs.vals != NULL )
+    m->upvs.vals = duplicate(rls, m->upvs.max_count, m->upvs.vals);
 }
 
 void trace_method(RlState* rls, void* ptr) {

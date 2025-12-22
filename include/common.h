@@ -70,7 +70,7 @@ typedef struct RlState RlState;
 typedef void (*PrintFn)(Port* p, Expr x);
 typedef hash_t (*HashFn)(Expr x);
 typedef bool (*EgalFn)(Expr x, Expr y);
-typedef void (*CloneFn)(void* ob); // called to clone an object's owned pointers
+typedef void (*CloneFn)(RlState* rls, void* ob); // called to clone an object's owned pointers
 typedef void (*TraceFn)(RlState* rls, void* ob);
 typedef void (*FreeFn)(RlState* rls, void* ob);
 typedef bool (*HasFn)(Type* tx, Type* ty);
