@@ -1043,6 +1043,8 @@ Method* mk_method(RlState* rls, Sym* name, int arity, bool va, OpCode op, Chunk*
   m->label = op;
   m->chunk = code;
 
+  assert(code != NULL || op != OP_NOOP);
+
   init_objs(rls, &m->upvs);
 
   return m;
@@ -1213,6 +1215,8 @@ void fun_add_method(RlState* rls, Fun* fun, Method* m) {
     // should not happen, but handle it
     fun->singleton = m;
   }
+
+  fun->num_methods++;
 }
 
 Method* fun_lookup(Fun* fun, int argc) {
@@ -1255,7 +1259,7 @@ Fun* mk_user_fun_s(RlState* rls, Chunk* code) {
 void print_fun(Port* ios, Expr x) {
   Fun* fun = as_fun(x);
 
-  pprintf(ios, "<fun:%s>", fun->name->val->val);
+  pprintf(ios, "<fun:%s/%d>", fun->name->val->val, fun->num_methods);
 }
 
 void trace_fun(RlState* rls, void* ptr) {
@@ -1268,9 +1272,7 @@ void trace_fun(RlState* rls, void* ptr) {
 
 // symbol API
 Sym* as_sym_s(RlState* rls, char* f, Expr x) {
-  Type* t = type_of(x);
-  require(rls, t->tag == EXP_SYM, "%s wanted a Sym, got %s", f, type_name(t));
-
+  require_argtype(rls, f, &SymType, x);
   return as_sym(x);
 }
 
@@ -1344,9 +1346,7 @@ void string_intern(RlState* rls, Strings* t, StringsKV* kv, char* k, hash_t h) {
 }
 
 Str* as_str_s(RlState* rls, char* f, Expr x) {
-  Type* t = type_of(x);
-  require(rls, t->tag == EXP_STR, "%s wanted a str, got %s", f, type_name(t));
-
+  require_argtype(rls, f, &StrType, x);
   return as_str(x);
 }
 
