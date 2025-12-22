@@ -3,46 +3,91 @@
 
 #include "common.h"
 
-// forward declarations
-// macros for defining array and table types
-// API declarations go wherever they make sense, but implementations
-// go in collection.c because otherwise the macros are a pain in the ass to debug
+// Array types ----------------------------------------------------------------
+// Exprs - array of Expr values
+typedef struct Exprs {
+  Expr* vals;
+  int count, max_count;
+} Exprs;
 
-// array template
-#define ALIST_API(A, X, a)                      \
-  typedef struct A {                            \
-    X* vals;                                    \
-    int count, max_count;                       \
-  } A;                                          \
-                                                \
-  void init_##a(A* a);                          \
-  void free_##a(A* a);                          \
-  void grow_##a(A* a);                          \
-  void shrink_##a(A* a);                        \
-  void resize_##a(A* a, int n);                 \
-  void a##_push(A* a, X x);                     \
-  X    a##_pop(A* a);                           \
-  void a##_write(A* a, X* xs, int n)
+void init_exprs(RlState* rls, Exprs* a);
+void free_exprs(RlState* rls, Exprs* a);
+void grow_exprs(RlState* rls, Exprs* a);
+void shrink_exprs(RlState* rls, Exprs* a);
+void resize_exprs(RlState* rls, Exprs* a, int n);
+void exprs_push(RlState* rls, Exprs* a, Expr x);
+Expr exprs_pop(RlState* rls, Exprs* a);
+void exprs_write(RlState* rls, Exprs* a, Expr* xs, int n);
 
-// table template
-#define TABLE_API(T, K, V, t)                                    \
-  typedef struct {                                               \
-    K key;                                                       \
-    V val;                                                       \
-  } T##KV;                                                       \
-                                                                 \
-  typedef struct T {                                             \
-    T##KV* kvs;                                                  \
-    int count, max_count;                                        \
-  } T;                                                           \
-                                                                 \
-  typedef void (*T##InternFn)(RlState* rls, T* t, T##KV* kv, K k, hash_t h);   \
-                                                                 \
-  void init_##t(T* t);                                           \
-  void free_##t(T* t);                                           \
-  bool t##_get(T* t, K k, V* v);                                 \
-  bool t##_set(T* t, K k, V v);                                  \
-  bool t##_del(T* t, K k, V* v);                                 \
-  V    t##_intern(RlState* rls, T* t, K k, T##InternFn ifn)
+// Objs - array of void* values
+typedef struct Objs {
+  void** vals;
+  int count, max_count;
+} Objs;
+
+void  init_objs(RlState* rls, Objs* a);
+void  free_objs(RlState* rls, Objs* a);
+void  grow_objs(RlState* rls, Objs* a);
+void  shrink_objs(RlState* rls, Objs* a);
+void  resize_objs(RlState* rls, Objs* a, int n);
+void  objs_push(RlState* rls, Objs* a, void* x);
+void* objs_pop(RlState* rls, Objs* a);
+void  objs_write(RlState* rls, Objs* a, void** xs, int n);
+
+// Bin16 - array of ushort_t values
+typedef struct Bin16 {
+  ushort_t* vals;
+  int count, max_count;
+} Bin16;
+
+void     init_bin16(RlState* rls, Bin16* a);
+void     free_bin16(RlState* rls, Bin16* a);
+void     grow_bin16(RlState* rls, Bin16* a);
+void     shrink_bin16(RlState* rls, Bin16* a);
+void     resize_bin16(RlState* rls, Bin16* a, int n);
+void     bin16_push(RlState* rls, Bin16* a, ushort_t x);
+ushort_t bin16_pop(RlState* rls, Bin16* a);
+void     bin16_write(RlState* rls, Bin16* a, ushort_t* xs, int n);
+
+// Table types ----------------------------------------------------------------
+// Strings - hash table mapping char* to Str*
+typedef struct StringsKV {
+  char* key;
+  Str*  val;
+} StringsKV;
+
+typedef struct Strings {
+  StringsKV* kvs;
+  int count, max_count;
+} Strings;
+
+typedef void (*StringsInternFn)(RlState* rls, Strings* t, StringsKV* kv, char* k, hash_t h);
+
+void init_strings(RlState* rls, Strings* t);
+void free_strings(RlState* rls, Strings* t);
+bool strings_get(RlState* rls, Strings* t, char* k, Str** v);
+bool strings_set(RlState* rls, Strings* t, char* k, Str* v);
+bool strings_del(RlState* rls, Strings* t, char* k, Str** v);
+Str* strings_intern(RlState* rls, Strings* t, char* k, StringsInternFn ifn);
+
+// EMap - hash table mapping Sym* to Ref*
+typedef struct EMapKV {
+  Sym* key;
+  Ref* val;
+} EMapKV;
+
+typedef struct EMap {
+  EMapKV* kvs;
+  int count, max_count;
+} EMap;
+
+typedef void (*EMapInternFn)(RlState* rls, EMap* t, EMapKV* kv, Sym* k, hash_t h);
+
+void init_emap(RlState* rls, EMap* t);
+void free_emap(RlState* rls, EMap* t);
+bool emap_get(RlState* rls, EMap* t, Sym* k, Ref** v);
+bool emap_set(RlState* rls, EMap* t, Sym* k, Ref* v);
+bool emap_del(RlState* rls, EMap* t, Sym* k, Ref** v);
+Ref* emap_intern(RlState* rls, EMap* t, Sym* k, EMapInternFn ifn);
 
 #endif

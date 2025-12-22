@@ -1,61 +1,75 @@
 ;; rascal standard library (such as it is)
 
 ;; type predicates
-(def isa?   (fn (t x) (=? t (type x))))
-(def list?  (fn (x) (isa? :list x)))
-(def num?   (fn (x) (isa? :num x)))
-(def sym?   (fn (x) (isa? :sym x)))
-(def str?   (fn (x) (isa? :str x)))
-(def glyph? (fn (x) (isa? :glyph x)))
+(fun isa? (t x)
+  (=? t (typeof x)))
+
+(fun list? (x)
+  (isa? List x))
+
+(fun num? (x)
+  (isa? Num x))
+
+(fun sym? (x)
+  (isa? Sym x))
+
+(fun str? (x)
+  (isa? Str x))
+
+(fun glyph? (x)
+  (isa? Glyph x))
 
 ;; miscellaneous
-(def id
-  ;; identity
-  (fn (x) x))
+(fun id (x) x) ;; identity function
 
-(def not
-  ;; negation
-  (fn (x)
-    (if x false true)))
+(fun not (x)
+  ;; logical negation
+  (if x false true))
 
-(def atom?
-  (fn (x)
-    (not (list? x))))
+(fun atom? (x)
+  (not (list? x)))
 
-(def inc
-  (fn (n)
-    (+ n 1)))
+(fun inc (n)
+  (+ n 1))
 
-(def dec
-  (fn (n)
-    (- n 1)))
+(fun dec (n)
+  (- n 1))
 
-(def sqr
-  (fn (x)
-    (* x x)))
+(fun sqr (x)
+  (* x x))
 
 ;; list utilities
-(def empty?
+(fun empty? (xs)
   ;; empty list predicate
-  (fn (xs)
-    (if (list? xs)
-      (=? xs ())
-      false)))
+  (if (list? xs)
+    (=? xs ())
+    false))
 
-(def map
+(fun map (f xs)
   ;; return a list where `f` has been applied to the elements of `xs`.
-  (fn (f xs)
-    (if (empty? xs)
-      ()
-      (cons (f (head xs))
-            (map f (tail xs))))))
+  (if (empty? xs)
+    ()
+    (cons (f (head xs))
+          (map f (tail xs)))))
 
-(def filter
+(fun filter (p? xs)
   ;; return a list of all the elements from `xs` that satisfy `p?`.
-  (fn (p? xs)
-    (if (empty? xs)
-      ()
-      (if (p? (head xs))
-        (cons (head xs)
-              (filter p? (tail xs)))
-        (filter p? (tail xs))))))
+  (if (empty? xs)
+    ()
+    (if (p? (head xs))
+      (cons (head xs)
+            (filter p? (tail xs)))
+      (filter p? (tail xs)))))
+
+(fun reduce (f xs acc)
+  (if (empty? xs)
+    acc
+    (reduce f (tail xs) (f acc (head xs)))))
+
+(fun reduce (f xs)
+  ;; with two arguments automatically pass first element of xs as accumulator.
+  (reduce f (tail xs) (head xs)))
+
+;; testing multimethod + variadic functions
+(fun + (x & more)
+  (reduce + more x))

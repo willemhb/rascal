@@ -10,14 +10,13 @@
 #include "lang.h"
 
 // globals --------------------------------------------------------------------
-Str* QuoteStr, *DefStr, * PutStr, * IfStr, * DoStr, * FnStr;
-
 // Function prototypes --------------------------------------------------------
 // read helpers ---------------------------------------------------------------
 bool is_delim_char(int c);
 bool is_sym_char(int c);
 bool is_num_char(int c);
 void skip_space(Port* in);
+void clear_input(Port* in);
 Expr read_glyph(RlState* rls, Port* in);
 Expr read_quote(RlState* rls, Port* in);
 Expr read_list(RlState* rls, Port *in);
@@ -25,7 +24,7 @@ Expr read_string(RlState* rls, Port* in);
 Expr read_atom(RlState* rls, Port* in);
 
 // compile helpers ------------------------------------------------------------
-Expr exec_code(RlState* rls, Fun* code, bool toplevel);
+Expr exec_code(RlState* rls, Fun* fun, bool toplevel);
 Fun* compile_file(RlState* rls, char* fname);
 
 // read helpers ---------------------------------------------------------------
@@ -58,6 +57,12 @@ void skip_space(Port* p) {
   }
 }
 
+void clear_input(Port* in) {
+  int c;
+
+  while ((c=pgetc(in)) != '\n' && c != EOF);
+}
+
 // read -----------------------------------------------------------------------
 Expr read_exp(RlState* rls, Port *in) {
   reset_token(rls);
@@ -79,10 +84,10 @@ Expr read_exp(RlState* rls, Port *in) {
     x = read_atom(rls, in);
   else if ( c == ')' ) {
     pgetc(in); // clear dangling ')'
-    eval_error("dangling ')'");
+    eval_error(rls, "dangling ')'");
   }
   else
-    eval_error("unrecognized character %c", c);
+    eval_error(rls, "unrecognized character %c", c);
 
   return x;
 }
@@ -91,7 +96,7 @@ Expr read_glyph(RlState* rls, Port* in) {
   pgetc(in); // consume opening slash
 
   if ( peof(in) || isspace(ppeekc(in)) )
-    eval_error("invalid syntax: empty character");
+    eval_error(rls, "invalid syntax: empty character");
 
   Glyph g; int c;
 
@@ -99,7 +104,7 @@ Expr read_glyph(RlState* rls, Port* in) {
     g = pgetc(in);
     c = ppeekc(in);
 
-    require(isspace(c) || is_delim_char(c), "invalid character literal");
+    require(rls, isspace(c) || is_delim_char(c), "invalid character literal");
   }
 
   else {
@@ -121,7 +126,7 @@ Expr read_glyph(RlState* rls, Port* in) {
             g = '\n';
 
           else
-            eval_error("unrecognized character name \\%s", rls->token);
+            eval_error(rls, "unrecognized character name \\%s", rls->token);
 
           break;
 
@@ -133,7 +138,7 @@ Expr read_glyph(RlState* rls, Port* in) {
             g = '\b';
 
           else
-            eval_error("unrecognized character name \\%s", rls->token);
+            eval_error(rls, "unrecognized character name \\%s", rls->token);
 
           break;
 
@@ -142,7 +147,7 @@ Expr read_glyph(RlState* rls, Port* in) {
             g = ' ';
 
           else
-            eval_error("unrecognized character name \\%s", rls->token);
+            eval_error(rls, "unrecognized character name \\%s", rls->token);
 
           break;
 
@@ -151,7 +156,7 @@ Expr read_glyph(RlState* rls, Port* in) {
             g = '\t';
 
           else
-            eval_error("unrecognized character name \\%s", rls->token);
+            eval_error(rls, "unrecognized character name \\%s", rls->token);
 
           break;
 
@@ -160,7 +165,7 @@ Expr read_glyph(RlState* rls, Port* in) {
             g = '\r';
 
           else
-            eval_error("unrecognized character name \\%s", rls->token);
+            eval_error(rls, "unrecognized character name \\%s", rls->token);
 
           break;
 
@@ -169,7 +174,7 @@ Expr read_glyph(RlState* rls, Port* in) {
             g = '\f';
 
           else
-            eval_error("unrecognized character name \\%s", rls->token);
+            eval_error(rls, "unrecognized character name \\%s", rls->token);
 
           break;
 
@@ -178,12 +183,12 @@ Expr read_glyph(RlState* rls, Port* in) {
             g = '\v';
 
           else
-            eval_error("unrecognized character name \\%s", rls->token);
+            eval_error(rls, "unrecognized character name \\%s", rls->token);
 
           break;
 
         default:
-          eval_error("unrecognized character name \\%s", rls->token);
+          eval_error(rls, "unrecognized character name \\%s", rls->token);
       }
   }
 
@@ -194,11 +199,13 @@ Expr read_quote(RlState* rls, Port* in) {
   pgetc(in); // consume opening '
 
   if ( peof(in) || isspace(ppeekc(in)) )
-    eval_error("invalid syntax: quoted nothing");
+    eval_error(rls, "invalid syntax: quoted nothing");
 
-  Sym* hd  = mk_sym(rls, "quote"); preserve(2, tag_obj(hd), NUL);
-  Expr x   = read_exp(rls, in);    add_to_preserved(1, x);
-  List* qd = mk_list(rls, 2, preserved());
+  int sp = save_sp(rls);
+  mk_sym_s(rls, "quote");
+  Expr x = read_exp(rls, in); push(rls, x);
+  List* qd = mk_list(rls, 2, stack_ref(rls, -2));
+  restore_sp(rls, sp);
 
   return tag_obj(qd);
 }
@@ -207,12 +214,12 @@ Expr read_list(RlState* rls, Port* in) {
   List* out;
   pgetc(in); // consume the '('
   skip_space(in);
-  Expr* base = &rls->stack[rls->sp], x;
-  int n = 0, c;
+  Expr x;
+  int n = 0, c, sp = save_sp(rls);
 
   while ( (c=ppeekc(in)) != ')' ) {
     if ( peof(in) )
-      runtime_error("unterminated list");
+      runtime_error(rls, "unterminated list");
 
     x = read_exp(rls, in);
     push(rls, x);
@@ -221,11 +228,8 @@ Expr read_list(RlState* rls, Port* in) {
   }
 
   pgetc(in); // consume ')'
-
-  out = mk_list(rls, n, base);
-
-  if ( n > 0 )
-    popn(rls, n);
+  out = mk_list(rls, n, stack_ref(rls, -n));
+  restore_sp(rls, sp); // restore stack
 
   return tag_obj(out);
 }
@@ -239,7 +243,7 @@ Expr read_string(RlState* rls, Port* in) {
 
   while ( (c=ppeekc(in)) != '"' ) {
     if ( peof(in) )
-      runtime_error("unterminated string");
+      runtime_error(rls, "unterminated string");
 
     add_to_token(rls, c); // accumulate
     pgetc(in);   // advance
@@ -270,7 +274,7 @@ Expr read_atom(RlState* rls, Port* in) {
 
     if ( end[0] != '\0' ) {   // Symbol that starts with numeric character like +, -, or digit
       if ( rls->toff > MAX_INTERN )
-        runtime_error("symbol name '%s' too long", rls->token);
+        runtime_error(rls, "symbol name '%s' too long", rls->token);
 
       Sym* s = mk_sym(rls, rls->token);
       x      = tag_obj(s);
@@ -295,7 +299,7 @@ Expr read_atom(RlState* rls, Port* in) {
 
     else {
       if ( rls->toff > MAX_INTERN )
-        runtime_error("symbol name '%s' too long", rls->token);
+        runtime_error(rls, "symbol name '%s' too long", rls->token);
 
       Sym* s = mk_sym(rls, rls->token);
       x      = tag_obj(s);
@@ -307,12 +311,9 @@ Expr read_atom(RlState* rls, Port* in) {
 
 // load -----------------------------------------------------------------------
 List* read_file(RlState* rls, char* fname) {
-  Port* in = open_port(rls, fname, "r");
-  preserve(1, tag_obj(in));  // protect port from GC
-
-  Expr* base = &rls->stack[rls->sp];
+  int n = 0, sp = save_sp(rls);
+  Port* in = open_port_s(rls, fname, "r");
   Expr x;
-  int n = 0;
 
   while ( (x = read_exp(rls, in)) != EOS ) {
     push(rls, x);
@@ -320,26 +321,38 @@ List* read_file(RlState* rls, char* fname) {
   }
 
   close_port(in);
+  List* out = mk_list(rls, n, stack_ref(rls, -n));
+  restore_sp(rls, sp); // restore stack
+  return out;
+}
 
-  List* out = mk_list(rls, n, base);
-
-  if ( n > 0 )
-    popn(rls, n);
-
+List* read_file_s(RlState* rls, char* fname) {
+  List* out = read_file(rls, fname);
+  push(rls, tag_obj(out));
   return out;
 }
 
 Expr load_file(RlState* rls, char* fname) {
-  Fun* code = compile_file(rls, fname);
-  Expr v = exec_code(rls, code, true);
+  Expr v; Fun* code;
+  save_error_state(rls);
+
+  if ( set_safe_point(rls) ) {
+    restore_error_state(rls);
+    v = NUL;
+  } else {
+    code = compile_file(rls, fname);
+    v = exec_code(rls, code, true);
+  }
+
+  discard_error_state(rls);
 
   return v;
 }
 
 // compile --------------------------------------------------------------------
 // compile helpers ------------------------------------------------------------
-void emit_instr(Buf16* code, OpCode op, ...);
-void fill_instr(Buf16* code, int offset, int val);
+void emit_instr(RlState* rls, Buf16* code, OpCode op, ...);
+void fill_instr(RlState* rls, Buf16* code, int offset, int val);
 
 bool is_quote_form(List* form);
 void compile_quote(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code);
@@ -357,12 +370,12 @@ void compile_closure(Buf16* c_code, Env* vars, Alist* vals, Buf16* code);
 
 void compile_sequence(RlState* rls, List* exprs, Env* vars, Alist* vals, Buf16* code);
 void compile_literal(RlState* rls, Expr x, Env* vars, Alist* vals, Buf16* code);
-void compile_reference(Sym* s, Env* ref, Alist* vals, Buf16* code);
+void compile_reference(RlState* rls, Sym* s, Env* ref, Alist* vals, Buf16* code);
 void compile_funcall(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code);
 void compile_expr(RlState* rls, Expr x, Env* vars, Alist* vals, Buf16* code);
 Fun* toplevel_compile(RlState* rls, List* form);
 
-void emit_instr(Buf16* code, OpCode op, ...) {
+void emit_instr(RlState* rls, Buf16* code, OpCode op, ...) {
   // probably not very efficient, but easy to use
   instr_t buffer[3] = { op, 0, 0 };
   va_list va;
@@ -376,21 +389,23 @@ void emit_instr(Buf16* code, OpCode op, ...) {
 
   va_end(va);
 
-  buf16_write(code, buffer, b);
+  buf16_write(rls, code, buffer, b);
 }
 
-void fill_instr(Buf16* code, int offset, int val) {
+void fill_instr(RlState* rls, Buf16* code, int offset, int val) {
+  (void)rls;
+
   ((instr_t*)code->binary.vals)[offset] = val;
 }
 
 bool is_quote_form(List* form) {
   Expr hd = form->head;
 
-  return is_sym(hd) && as_sym(hd)->val == QuoteStr;
+  return is_sym(hd) && sym_val_eql(as_sym(hd), "quote");
 }
 
 void compile_quote(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code) {
-  require_argco("quote", 1, form->count-1);
+  require_argco(rls, "quote", 1, form->count-1);
 
   Expr x = form->tail->head;
 
@@ -400,17 +415,17 @@ void compile_quote(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code
 bool is_def_form(List* form) {
   Expr hd = form->head;
 
-  return is_sym(hd) && as_sym(hd)->val == DefStr;
+  return is_sym(hd) && sym_val_eql(as_sym(hd), "def");
 }
 
 void compile_def(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code) {
-  require_argco("def", 2, form->count-1);
+  require_argco(rls, "def", 2, form->count-1);
 
-  Sym* n = as_sym_s("def", form->tail->head);
+  Sym* n = as_sym_s(rls, "def", form->tail->head);
 
-  require(!is_keyword(n), "can't assign to keyword %s", n->val->val);
+  require(rls, !is_keyword(n), "can't assign to keyword %s", n->val->val);
 
-  Ref* r = env_define(vars, n);
+  Ref* r = env_define(rls, vars, n);
   int i  = r->offset;
 
   OpCode op;
@@ -429,25 +444,25 @@ void compile_def(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code) 
   }
 
   compile_expr(rls, form->tail->tail->head, vars, vals, code);
-  emit_instr(code, op, i);
+  emit_instr(rls, code, op, i);
 }
 
 bool is_put_form(List* form) {
   Expr hd = form->head;
 
-  return is_sym(hd) && as_sym(hd)->val == PutStr;
+  return is_sym(hd) && sym_val_eql(as_sym(hd), "put");
 }
 
 void compile_put(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code) {
-  require_argco("put", 2, form->count-1);
+  require_argco(rls, "put", 2, form->count-1);
 
-  Sym* n = as_sym_s("put", form->tail->head);
+  Sym* n = as_sym_s(rls, "put", form->tail->head);
 
-  require(!is_keyword(n), "can't assign to keyword %s", n->val->val);
+  require(rls, !is_keyword(n), "can't assign to keyword %s", n->val->val);
 
-  Ref* r = env_resolve(vars, n, false);
+  Ref* r = env_resolve(rls, vars, n, false);
 
-  require(r != NULL, "can't assign to %s before it's defined", n->val->val);
+  require(rls, r != NULL, "can't assign to %s before it's defined", n->val->val);
 
   OpCode op; int i = r->offset;
 
@@ -469,44 +484,44 @@ void compile_put(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code) 
   }
 
   compile_expr(rls, form->tail->tail->head, vars, vals, code);
-  emit_instr(code, op, i);
+  emit_instr(rls, code, op, i);
 }
 
 bool is_if_form(List* form) {
   Expr hd = form->head;
 
-  return is_sym(hd) && as_sym(hd)->val == IfStr;
+  return is_sym(hd) && sym_val_eql(as_sym(hd), "if");
 }
 
 void compile_if(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code) {
-    require_argco2("if", 2, 3, form->count-1);
-
-    Expr test = form->tail->head;
-    Expr then = form->tail->tail->head;
-    Expr alt  = form->count == 3 ? NUL : form->tail->tail->tail->head;
-
-    // compile different parts of the form, saving offsets to fill in later
-    compile_expr(rls, test, vars, vals, code);
-    emit_instr(code, OP_JUMP_F, 0);
-    int off1 = code->binary.count;
-    compile_expr(rls, then, vars, vals, code);
-    emit_instr(code, OP_JUMP, 0);
-    int off2 = code->binary.count;
-    compile_expr(rls, alt, vars, vals, code);
-    int off3 = code->binary.count;
-
-    fill_instr(code, off1-1, off2-off1);
-    fill_instr(code, off2-1, off3-off2);
+  require_argco2(rls, "if", 2, 3, form->count-1);
+  
+  Expr test = form->tail->head;
+  Expr then = form->tail->tail->head;
+  Expr alt  = form->count == 3 ? NUL : form->tail->tail->tail->head;
+  
+  // compile different parts of the form, saving offsets to fill in later
+  compile_expr(rls, test, vars, vals, code);
+  emit_instr(rls, code, OP_JUMP_F, 0);
+  int off1 = code->binary.count;
+  compile_expr(rls, then, vars, vals, code);
+  emit_instr(rls, code, OP_JUMP, 0);
+  int off2 = code->binary.count;
+  compile_expr(rls, alt, vars, vals, code);
+  int off3 = code->binary.count;
+  
+  fill_instr(rls, code, off1-1, off2-off1);
+  fill_instr(rls, code, off2-1, off3-off2);
 }
 
 bool is_do_form(List* form) {
   Expr hd = form->head;
 
-  return is_sym(hd) && as_sym(hd)->val == DoStr;
+  return is_sym(hd) && sym_val_eql(as_sym(hd), "do");
 }
 
 void compile_do(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code) {
-  require_vargco("do", 2, form->count-1);
+  require_vargco(rls, "do", 2, form->count-1);
 
   List* xprs = form->tail;
 
@@ -516,35 +531,60 @@ void compile_do(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code) {
 bool is_fn_form(List* form) {
   Expr hd = form->head;
 
-  return is_sym(hd) && as_sym(hd)->val == FnStr;
+  return is_sym(hd) && sym_val_eql(as_sym(hd), "fun");
 }
 
-void prepare_env(List* argl, Env* vars) {
+void prepare_env(RlState* rls, List* argl, Env* vars) {
   while ( argl->count > 0 ) {
     Expr x = argl->head;
-    Sym* n = as_sym_s("fn", x);
-    Ref* r = env_define(vars, n);
+    Sym* n = as_sym_s(rls, "fun", x);
+
+    // check for & rest parameter marker
+    if ( sym_val_eql(n, "&") ) {
+      argl = argl->tail;
+      require(rls, argl->count == 1, "& must be followed by exactly one parameter");
+      n = as_sym_s(rls, "fun", argl->head);
+      vars->va = true;
+    }
+
+    Ref* r = env_define(rls, vars, n);
     int  o = r->offset;
 
     // ensure uniqueness
-    require(o == vars->vars.count-1, "duplicate parameter name %s", n->val->val);
-    vars->arity++;
+    require(rls, o == vars->vars.count-1, "duplicate parameter name %s", n->val->val);
+
+    if ( !vars->va )
+      vars->arity++;
+
     argl = argl->tail;
   }
 }
 
 void compile_fn(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code) {
-  require_vargco("fn", 1, form->count-1);
+  require_vargco(rls, "fun", 1, form->count-1);
 
-  List* argl  = as_list_s("fn", form->tail->head);
-  List* body  = form->tail->tail;
-  Env*  lvars = mk_env(rls, vars);
+  int sp = save_sp(rls);
+  List* rest = form->tail;
+  Sym* name = NULL;
 
-  preserve(3, tag_obj(lvars), NUL, NUL);
-  prepare_env(argl, lvars);
+  // check if first arg is a symbol (named form) or list (anonymous)
+  if (is_sym(rest->head)) {
+    name = as_sym(rest->head);
+    rest = rest->tail;
+    require(rls, rest->count >= 1, "fun: missing parameter list");
 
-  Alist* lvals = mk_alist(rls); add_to_preserved(1, tag_obj(lvals));
-  Buf16* lcode = mk_buf16(rls); add_to_preserved(2, tag_obj(lcode));
+    // bind name before compiling body so recursion works
+    if (toplevel_env_find(rls, Vm.globals, name) == NULL) {
+      toplevel_env_def(rls, Vm.globals, name, NONE);
+    }
+  }
+
+  List* argl = as_list_s(rls, "fun", rest->head);
+  List* body = rest->tail;
+  Env* lvars = mk_env_s(rls, vars);
+  prepare_env(rls, argl, lvars);
+  Alist* lvals = mk_alist_s(rls);
+  Buf16* lcode = mk_buf16_s(rls);
 
   // compile internal definitions first
   // otherwise their values will get lost in the stack
@@ -569,13 +609,19 @@ void compile_fn(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code) {
   int ncap = lvars->ncap, upvc = lvars->upvs.count;
 
   if ( ncap )
-    emit_instr(lcode, OP_CAPTURE);
+    emit_instr(rls, lcode, OP_CAPTURE);
 
-  emit_instr(lcode, OP_RETURN);
+  emit_instr(rls, lcode, OP_RETURN);
 
   // create chunk object
-  Chunk* chunk = mk_chunk(rls, lvars, lvals, lcode); add_to_preserved(0, tag_obj(chunk));
-  Fun* fun     = mk_user_fun(rls, chunk);
+  Chunk* chunk = mk_chunk_s(rls, lvars, lvals, lcode);
+  Fun* fun = mk_user_fun(rls, chunk);
+
+  // for named form, update the binding with actual function
+  if (name != NULL) {
+    fun->name = name;
+    toplevel_env_set(rls, Vm.globals, name, tag_obj(fun));
+  }
 
 #ifdef RASCAL_DEBUG
   // disassemble(fun);
@@ -586,7 +632,7 @@ void compile_fn(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code) {
 
   // add instructions to capture upvalues in calling context
   if ( upvc > 0 ) {
-    emit_instr(code, OP_CLOSURE, upvc);
+    emit_instr(rls, code, OP_CLOSURE, upvc);
 
     instr_t buffer[upvc*2];
 
@@ -603,8 +649,10 @@ void compile_fn(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code) {
     }
 
     // write arguments to closure at once
-    buf16_write(code, buffer, upvc*2);
+    buf16_write(rls, code, buffer, upvc*2);
   }
+
+  restore_sp(rls, sp); // restore stack
 }
 
 void compile_sequence(RlState* rls, List* xprs, Env* vars, Alist* vals, Buf16* code) {
@@ -613,7 +661,7 @@ void compile_sequence(RlState* rls, List* xprs, Env* vars, Alist* vals, Buf16* c
     compile_expr(rls, x, vars, vals, code);
 
     if ( xprs->count > 1 )
-      emit_instr(code, OP_POP);
+      emit_instr(rls, code, OP_POP);
 
     xprs = xprs->tail;
   }
@@ -624,43 +672,43 @@ void compile_literal(RlState* rls, Expr x, Env* vars, Alist* vals, Buf16* code) 
 
   if ( is_num(x) ) {
     if ( x == RL_ZERO )
-      emit_instr(code, OP_ZERO);
+      emit_instr(rls, code, OP_ZERO);
 
     else if ( x == RL_ONE )
-      emit_instr(code, OP_ONE);
+      emit_instr(rls, code, OP_ONE);
 
     else {
       Num n = as_num(x);
 
       if ( is_int(n) && n <= INT16_MAX && n >= INT16_MIN )
-        emit_instr(code, OP_SMALL, (short)n);
+        emit_instr(rls, code, OP_SMALL, (short)n);
 
       else
         goto fallback;
     }
   } else if ( is_glyph(x) ) {
-    emit_instr(code, OP_GLYPH, as_glyph(x));
+    emit_instr(rls, code, OP_GLYPH, as_glyph(x));
   } else if ( x == TRUE ) {
-    emit_instr(code, OP_TRUE);
+    emit_instr(rls, code, OP_TRUE);
   } else if ( x == FALSE ) {
-    emit_instr(code, OP_FALSE);
+    emit_instr(rls, code, OP_FALSE);
   } else if ( x == NUL ) {
-    emit_instr(code, OP_NUL);
+    emit_instr(rls, code, OP_NUL);
   } else {
 
   fallback:
     int n = alist_push(rls, vals, x);
 
-    emit_instr(code, OP_GET_VALUE, n-1);
+    emit_instr(rls, code, OP_GET_VALUE, n-1);
   }
 }
 
-void compile_reference(Sym* s, Env* vars, Alist* vals, Buf16* code) {
+void compile_reference(RlState* rls, Sym* s, Env* vars, Alist* vals, Buf16* code) {
   (void)vals;
 
-  Ref* r = env_resolve(vars, s, false);
+  Ref* r = env_resolve(rls, vars, s, false);
 
-  require(r != NULL, "undefined variable %s", s->val->val);
+  require(rls, r != NULL, "undefined variable %s", s->val->val);
 
   OpCode op; int i = r->offset;
 
@@ -681,7 +729,7 @@ void compile_reference(Sym* s, Env* vars, Alist* vals, Buf16* code) {
       unreachable();
   }
 
-  emit_instr(code, op, i);
+  emit_instr(rls, code, op, i);
 }
 
 void compile_funcall(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* code) {
@@ -691,7 +739,7 @@ void compile_funcall(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* co
     compile_quote(rls, form, vars, vals, code);
 
   else if ( is_def_form(form) ) {
-    require(!is_local_env(vars), "syntax error: local def in fn body");
+    require(rls, !is_local_env(vars), "syntax error: local def in fn body");
     compile_def(rls, form, vars, vals, code);
   }
 
@@ -716,7 +764,7 @@ void compile_funcall(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* co
       form = form->tail;
     }
 
-    emit_instr(code, OP_CALL, argc);
+    emit_instr(rls, code, OP_CALL, argc);
   }
 }
 
@@ -730,7 +778,7 @@ void compile_expr(RlState* rls, Expr x, Env* vars, Alist* vals, Buf16* code) {
       compile_literal(rls, x, vars, vals, code);
 
     else
-      compile_reference(s, vars, vals, code);
+      compile_reference(rls, s, vars, vals, code);
 
   } else if ( t == EXP_LIST ) {
     List* l = as_list(x);
@@ -746,40 +794,39 @@ void compile_expr(RlState* rls, Expr x, Env* vars, Alist* vals, Buf16* code) {
 }
 
 Fun* toplevel_compile(RlState* rls, List* form) {
-  preserve(3, tag_obj(form), NUL, NUL);
+  Chunk* chunk; Fun* out; int sp = save_sp(rls);
 
-  Alist* vals  = mk_alist(rls); add_to_preserved(1, tag_obj(vals));
-  Buf16* code = mk_buf16(rls); add_to_preserved(2, tag_obj(code));
-
-  compile_funcall(rls, form, &Globals, vals, code);
-  emit_instr(code, OP_RETURN);
-
-  Chunk* chunk = mk_chunk(rls, &Globals, vals, code); add_to_preserved(0, tag_obj(chunk)); // reuse saved slot
-  Fun* out     = mk_user_fun(rls, chunk);
+  Alist* vals = mk_alist_s(rls);
+  Buf16* code = mk_buf16_s(rls);
+  compile_funcall(rls, form, Vm.globals, vals, code);
+  emit_instr(rls, code, OP_RETURN);
+  chunk = mk_chunk_s(rls, Vm.globals, vals, code);
+  out = mk_user_fun(rls, chunk);
 
 #ifdef RASCAL_DEBUG
-  disassemble(out);
+  // disassemble(out);
 #endif
 
+  restore_sp(rls, sp);
   return out;
 }
 
 Fun* compile_file(RlState* rls, char* fname) {
-  List* exprs = read_file(rls, fname);
-  preserve(4, tag_obj(exprs), NUL, NUL, NUL);
-  Alist* vals = mk_alist(rls); add_to_preserved(1, tag_obj(vals));
-  Buf16* code = mk_buf16(rls); add_to_preserved(2, tag_obj(code));
-
-  compile_sequence(rls, exprs, &Globals, vals, code);
-  emit_instr(code, OP_RETURN);
-
-  Chunk* chunk = mk_chunk(rls, Vm.globals, vals, code); add_to_preserved(0, tag_obj(chunk));
-  Fun* out = mk_user_fun(rls, chunk);
+  Chunk* chunk; Fun* out; int sp = save_sp(rls);
+  
+  List* exprs = read_file_s(rls, fname);
+  Alist* vals = mk_alist_s(rls);
+  Buf16* code = mk_buf16_s(rls);
+  compile_sequence(rls, exprs, Vm.globals, vals, code);
+  emit_instr(rls, code, OP_RETURN);
+  chunk = mk_chunk_s(rls, Vm.globals, vals, code);
+  out = mk_user_fun(rls, chunk);
 
 #ifdef RASCAL_DEBUG
-  disassemble(out);
+  // disassemble(out);
 #endif
 
+  restore_sp(rls, sp);
   return out;
 }
 
@@ -870,13 +917,18 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
   long ix, iy, iz;
   List* lx, * ly;
   Fun* fx;
+  Method* method;
   Str* sx;
+
+  // Extract the Method from the Fun
+  method = fun->singleton;
+  assert(method != NULL);
 
   if ( !toplevel )
     save_frame(rls);
 
   push(rls, tag_obj(fun));
-  install_fun(rls, fun, 0);
+  install_method(rls, method, 0);
 
  fetch:
   op = next_op(rls);
@@ -938,15 +990,15 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
 
  op_get_global:
   argx = next_op(rls); // previously resolved index in global environment
-  x = toplevel_env_ref(Vm.globals, argx);
-  require(x != NONE, "undefined reference");
+  x = toplevel_env_ref(rls, Vm.globals, argx);
+  require(rls, x != NONE, "undefined reference");
   push(rls, x);
   goto fetch;
 
  op_set_global:
   argx = next_op(rls);
   x = tos(rls);
-  toplevel_env_refset(&Globals, argx, x);
+  toplevel_env_refset(rls, Vm.globals, argx, x);
   goto fetch;
 
  op_get_local:
@@ -992,26 +1044,44 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
  op_call:
   argc = next_op(rls);
   x    = *stack_ref(rls, -argc-1);
-  fun  = as_fun_s(rls->fn->name->val->val, x);
 
-  if ( is_user_fn(fun) )
-    goto call_user_fn;
+  // Get the Fun and look up the appropriate Method
+  fx = as_fun_s(rls, rls->fn->name->val->val, x);
+  method = fun_lookup(fx, argc);
+  require(rls, method != NULL, "%s has no method for %d arguments",
+          fx->name->val->val, argc);
 
-  op = fun->label;
+  if ( is_user_method(method) )
+    goto call_user_method;
+
+  op = method->label;
 
   goto *labels[op];
 
- call_user_fn:
-  require_argco(fun->name->val->val, fn_argc(fun), argc);
+ call_user_method:
+  if ( method_va(method) ) {
+    require_vargco(rls, method->name->val->val, method_argc(method), argc);
+    // collect extra args into a list
+    int extra = argc - method_argc(method);
+    List* rest = mk_list_s(rls, extra, &rls->stack[rls->sp - extra]);
+    popn(rls, extra);
+    push(rls, tag_obj(rest));
+    argc = method_argc(method) + 1;
+  } else {
+    require_argco(rls, method->name->val->val, method_argc(method), argc);
+  }
   save_frame(rls); // save caller state
-  install_fun(rls, fun, argc);
+  install_method(rls, method, argc);
 
   goto fetch;
 
  op_closure:
-  fun   = as_fun(tos(rls));
-  fun   = mk_closure(rls, fun);
-  tos(rls) = tag_obj(fun);     // make sure new closure is visible to GC
+  // Get the Fun from TOS, extract its Method, create a closure
+  fx = as_fun(tos(rls));
+  method = mk_closure(rls, fx->singleton);
+  // Create a new Fun with the closure Method
+  fx = mk_fun(rls, fx->name, method);
+  tos(rls) = tag_obj(fx);     // make sure new Fun is visible to GC
   argc  = next_op(rls);
 
   for ( int i=0; i < argc; i++ ) {
@@ -1019,10 +1089,10 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
     argy = next_op(rls);
 
     if ( argx == 0 ) // nonlocal
-      fun->upvs.vals[i] = rls->fn->upvs.vals[argy];
+      method->upvs.vals[i] = rls->fn->upvs.vals[argy];
 
     else
-      fun->upvs.vals[i] = get_upv(rls, rls->stack+rls->bp+argy);
+      method->upvs.vals[i] = get_upv(rls, rls->stack+rls->bp+argy);
   }
 
   goto fetch;
@@ -1054,11 +1124,11 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
   // at some hypothetical point in --------------------------------------------
   // the future these will be inlineable --------------------------------------
  op_add:
-  require_argco("+", 2, argc);
+  require_argco(rls, "+", 2, argc);
   y = pop(rls);
   x = pop(rls);
-  nx = as_num_s("+", x);
-  ny = as_num_s("+", y);
+  nx = as_num_s(rls, "+", x);
+  ny = as_num_s(rls, "+", y);
   nz = nx + ny;
   z = tag_num(nz);
   tos(rls) = z;           // combine push/pop
@@ -1066,12 +1136,12 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
   goto fetch;
 
  op_sub:
-  require_argco("-", 2, argc);
+  require_argco(rls, "-", 2, argc);
 
   y      = pop(rls);
   x      = pop(rls);
-  nx     = as_num_s("-", x);
-  ny     = as_num_s("-", y);
+  nx     = as_num_s(rls, "-", x);
+  ny     = as_num_s(rls, "-", y);
   nz     = nx - ny;
   z      = tag_num(nz);
   tos(rls)  = z;           // combine push/pop
@@ -1079,71 +1149,71 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
   goto fetch;
 
  op_mul:
-  require_argco("*", 2, argc);
+  require_argco(rls, "*", 2, argc);
 
   y      = pop(rls);
   x      = pop(rls);
-  nx     = as_num_s("*", x);
-  ny     = as_num_s("*", y);
+  nx     = as_num_s(rls, "*", x);
+  ny     = as_num_s(rls, "*", y);
   nz     = nx * ny;
   z      = tag_num(nz);
   tos(rls)  = z;           // combine push/pop
   goto fetch;
 
  op_div:
-  require_argco("/", 2, argc);
+  require_argco(rls,"/", 2, argc);
   y = pop(rls);
   x = pop(rls);
-  nx = as_num_s("/", x);
-  ny = as_num_s("/", y); require(ny != 0, "division by zero");
+  nx = as_num_s(rls, "/", x);
+  ny = as_num_s(rls, "/", y); require(rls, ny != 0, "division by zero");
   nz = nx / ny;
   z  = tag_num(nz);
   tos(rls) = z; // combine push/pop
   goto fetch;
 
  op_rem:
-  require_argco("rem", 2, argc);
+  require_argco(rls,"rem", 2, argc);
   y = pop(rls);
   x = pop(rls);
-  ix = as_num_s("rem", x);
-  iy = as_num_s("rem", y); require(ny != 0, "division by zero");
+  ix = as_num_s(rls, "rem", x);
+  iy = as_num_s(rls, "rem", y); require(rls, ny != 0, "division by zero");
   iz = ix % iy;
   z  = tag_num(iz);
   tos(rls) = z; // combine push/pop
   goto fetch;
 
  op_neq:
-  require_argco("=", 2, argc);
+  require_argco(rls, "=", 2, argc);
   y = pop(rls);
   x = pop(rls);
-  nx = as_num_s("=", x);
-  ny = as_num_s("=", y);
+  nx = as_num_s(rls, "=", x);
+  ny = as_num_s(rls, "=", y);
   z = nx == ny ? TRUE : FALSE;
   tos(rls) = z; // combine push/pop
   goto fetch;
 
  op_nlt:
-  require_argco("<", 2, argc);
+  require_argco(rls, "<", 2, argc);
   y = pop(rls);
   x = pop(rls);
-  nx = as_num_s("<", x);
-  ny = as_num_s("<", y);
+  nx = as_num_s(rls, "<", x);
+  ny = as_num_s(rls, "<", y);
   z = nx < ny ? TRUE : FALSE;
   tos(rls) = z; // combine push/pop
   goto fetch;
 
  op_ngt:
-  require_argco(">", 2, argc);
+  require_argco(rls, ">", 2, argc);
   y = pop(rls);
   x = pop(rls);
-  nx = as_num_s(">", x);
-  ny = as_num_s(">", y);
+  nx = as_num_s(rls, ">", x);
+  ny = as_num_s(rls, ">", y);
   z = nx > ny ? TRUE : FALSE;
   tos(rls) = z; // combine push/pop
   goto fetch;
 
  op_egal:
-  require_argco("=?", 2, argc);
+  require_argco(rls, "=?", 2, argc);
   y = pop(rls);
   x = pop(rls);
   z = egal_exps(x, y) ? TRUE : FALSE;
@@ -1151,7 +1221,7 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
   goto fetch;
 
  op_hash:
-  require_argco("hash", 1, argc);
+  require_argco(rls, "hash", 1, argc);
   x = pop(rls);
   ix = hash_exp(x) & XVMSK; // really this should be done consistently elsewhere
   y = tag_num(ix);
@@ -1159,9 +1229,9 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
   goto fetch;
 
  op_type:
-  require_argco("type", 1, argc);
+  require_argco(rls, "type", 1, argc);
   x = pop(rls);
-  y = tag_obj(exp_info(x)->repr);
+  y = tag_obj(type_of(x));
   tos(rls) = y;
   goto fetch;
 
@@ -1172,8 +1242,8 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
   goto fetch;
 
  op_cons:
-  require_argco("cons", 2, argc);
-  lx = as_list_s("cons", rls->stack[rls->sp-1]);
+  require_argco(rls,"cons", 2, argc);
+  lx = as_list_s(rls, "cons", rls->stack[rls->sp-1]);
   ly = cons(rls, rls->stack[rls->sp-2], lx);
   z  = tag_obj(ly);
   popn(rls, 2);
@@ -1181,39 +1251,39 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
   goto fetch;
 
  op_head:
-  require_argco("head", 1, argc);
+  require_argco(rls,"head", 1, argc);
   x = pop(rls);
-  lx = as_list_s("head", x);
-  require(lx->count > 0, "can't call head on empty list");
+  lx = as_list_s(rls, "head", x);
+  require(rls, lx->count > 0, "can't call head on empty list");
   y  = lx->head;
   tos(rls) = y;
   goto fetch;
 
  op_tail:
-  require_argco("tail", 1, argc);
+  require_argco(rls,"tail", 1, argc);
   x = pop(rls);
-  lx = as_list_s("tail", x);
-  require(lx->count > 0, "can't call tail on empty list");
+  lx = as_list_s(rls, "tail", x);
+  require(rls, lx->count > 0, "can't call tail on empty list");
   ly = lx->tail;
   tos(rls) = tag_obj(ly);
 
   goto fetch;
 
  op_list_ref:
-  require_argco("list-ref", 2, argc);
+  require_argco(rls,"list-ref", 2, argc);
   x = pop(rls);
-  argx = as_num_s("list-ref", x);
+  argx = as_num_s(rls, "list-ref", x);
   x = pop(rls);
-  lx = as_list_s("list-ref", x);
-  require(argx < (int)lx->count, "index out of bounds");
+  lx = as_list_s(rls, "list-ref", x);
+  require(rls, argx < (int)lx->count, "index out of bounds");
   x = list_ref(lx, argx);
   tos(rls) = x;
   goto fetch;
 
  op_list_len:
-  require_argco("list-len", 1, argc);
+  require_argco(rls,"list-len", 1, argc);
   x = pop(rls);
-  lx = as_list_s("list-len", x);
+  lx = as_list_s(rls, "list-len", x);
   tos(rls) = tag_num(lx->count);
   goto fetch;
 
@@ -1235,7 +1305,7 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
 
   for ( int i=argc-1; i >=0; i-- ) {
     x = pop(rls);
-    buf[i] = as_glyph_s("str", x);
+    buf[i] = as_glyph_s(rls, "str", x);
   }
 
   sx = mk_str(rls, buf);
@@ -1244,9 +1314,9 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
   }
 
  op_chars:
-  require_argco("chars", 1, argc);
+  require_argco(rls,"chars", 1, argc);
   x = pop(rls);
-  sx = as_str_s("chars", x);
+  sx = as_str_s(rls, "chars", x);
   argc = sx->count;
 
   for ( int i=0; i<argc; i++ ) {
@@ -1258,58 +1328,60 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
   goto op_list;
 
  op_str_ref:
-  require_argco("str-ref", 2, argc);
+  require_argco(rls,"str-ref", 2, argc);
   x = pop(rls);
-  argx = as_num_s("str-ref", x);
+  argx = as_num_s(rls, "str-ref", x);
   y = pop(rls);
-  sx = as_str_s("str-ref", y);
-  require(argx < (int)sx->count, "index out of bounds");
+  sx = as_str_s(rls, "str-ref", y);
+  require(rls, argx < (int)sx->count, "index out of bounds");
   argy = sx->val[argx];
   x = tag_glyph(argy);
   tos(rls) = x;
   goto fetch;
 
  op_str_len:
-  require_argco("str-len", 1, argc);
+  require_argco(rls,"str-len", 1, argc);
   x = pop(rls);
-  sx = as_str_s("str-len", x);
+  sx = as_str_s(rls, "str-len", x);
   tos(rls) = tag_num(sx->count);
   goto fetch;
 
  op_heap_report:
-  require_argco("*heap-report*", 0, argc);
+  require_argco(rls,"*heap-report*", 0, argc);
   heap_report(rls);
   tos(rls) = NUL; // dummy return value
   goto fetch;
 
  op_stack_report:
-  require_argco("*stack-report*", 0, argc);
+  require_argco(rls,"*stack-report*", 0, argc);
   stack_report(rls);
   tos(rls) = NUL; // dummy return value
   goto fetch;
 
  op_env_report:
-  require_argco("*env-report*", 0, argc);
+  require_argco(rls, "*env-report*", 0, argc);
   env_report(rls);
   tos(rls) = NUL; // dummy return value
   goto fetch;
 
  op_dis:
-  require_argco("*dis*", 1, argc);
+  require_argco(rls, "*dis*", 1, argc);
   x = pop(rls);
-  fx = as_fun_s("*dis*", x);
-  disassemble(fx);
+  fx = as_fun_s(rls, "*dis*", x);
+  // Disassemble the singleton method (or first method if multimethod)
+  method = fx->singleton ? fx->singleton : fx->methods->methods.vals[0];
+  disassemble(method);
   tos(rls) = NUL; // dummy return value
   goto fetch;
 
  op_load:
   // compile the file and begin executing
-  require_argco("load", 1, argc);
+  require_argco(rls, "load", 1, argc);
   x = pop(rls);
-  sx = as_str_s("load", x);
+  sx = as_str_s(rls, "load", x);
   fx = compile_file(rls, sx->val);
   save_frame(rls);
-  install_fun(rls, fx, 0);
+  install_method(rls, fx->singleton, 0);
   goto fetch;
 }
 
@@ -1333,8 +1405,8 @@ Expr eval_exp(RlState* rls, Expr x) {
       v = x;
 
     else {
-      v = toplevel_env_get(&Globals, s);
-      require(v != NONE, "unbound symbol '%s'", s->val->val);
+      v = toplevel_env_get(rls, Vm.globals, s);
+      require(rls, v != NONE, "unbound symbol '%s'", s->val->val);
     }
   } else {
     List* l = as_list(x);
@@ -1355,13 +1427,13 @@ Expr eval_exp(RlState* rls, Expr x) {
 
 // print ----------------------------------------------------------------------
 void print_exp(Port* out, Expr x) {
-  ExpTypeInfo* info = exp_info(x);
+  Type* info = type_of(x);
 
   if ( info->print_fn )
     info->print_fn(out, x);
 
   else
-    pprintf(out, "<%s>", info->name);
+    pprintf(out, "<%s>", type_name(info));
 }
 
 // repl -----------------------------------------------------------------------
@@ -1369,22 +1441,33 @@ void repl(RlState* rls) {
   Expr x, v;
 
   // create a catch point
-  save_ctx(rls);
+  save_error_state(rls);
 
   for (;;) {
-    if ( safepoint() )
-      recover();
+    fprintf(stdout, PROMPT" ");
 
-    else {
-      fprintf(stdout, PROMPT" ");
+    // set safe point for read (so that errors can be handled properly)
+    if ( set_safe_point(rls) ) {
+      restore_error_state(rls);
+      clear_input(&Ins);
+      goto next_line;
+    } else {
       x = read_exp(rls, &Ins);
-      v = eval_exp(rls, x);
-      fprintf(stdout, "\n>>> ");
-      print_exp(&Outs, v);
-      fprintf(stdout, "\n\n");
     }
+
+    if ( set_safe_point(rls) ) {
+      restore_error_state(rls);
+      goto next_line;
+    } else {
+      v = eval_exp(rls, x);
+      pprintf(&Outs, "\n>>> ");
+      print_exp(&Outs, v);
+    }
+
+  next_line:
+    pprintf(&Outs, "\n\n");
   }
 
   // discard catch point
-  discard_ctx();
+  discard_error_state(rls);
 }

@@ -39,6 +39,10 @@ void print_version(void) {
 }
 
 // setup/teardown -------------------------------------------------------------
+void init_builtin_types(void) {
+  register_builtin_types(&Main);
+}
+
 void init_standard_streams(void) {
   // add FILE* objects to corresponding standard ports ------------------------
   Ins.ios  = stdin;
@@ -47,12 +51,11 @@ void init_standard_streams(void) {
 }
 
 void init_static_objects(void) {
-  // register static global objects in heap -----------------------------------
-  // so that they get unmarked during the sweep phase -------------------------
-  add_to_heap(&Main, &Globals);
-  add_to_heap(&Main, &Ins);
-  add_to_heap(&Main, &Outs);
-  add_to_heap(&Main, &Errs);
+  // register static global objects so they're handled correctly by gc
+  add_to_permanent(&Main, Vm.globals);
+  add_to_permanent(&Main, &Ins);
+  add_to_permanent(&Main, &Outs);
+  add_to_permanent(&Main, &Errs);
 }
 
 void define_builtins(void) {
@@ -67,7 +70,7 @@ void define_builtins(void) {
   def_builtin_fun(&Main, ">", 2, false, OP_NGT);
   def_builtin_fun(&Main, "=?", 2, false, OP_EGAL);
   def_builtin_fun(&Main, "hash", 1, false, OP_HASH);
-  def_builtin_fun(&Main, "type", 1, false, OP_TYPE);
+  def_builtin_fun(&Main, "typeof", 1, false, OP_TYPE);
   def_builtin_fun(&Main, "list", 0, true, OP_LIST);
   def_builtin_fun(&Main, "cons", 2, false, OP_CONS);
   def_builtin_fun(&Main, "head", 1, false, OP_HEAD);
@@ -85,30 +88,17 @@ void define_builtins(void) {
   def_builtin_fun(&Main, "load", 1, false, OP_LOAD);
 
   // initialize other globals -------------------------------------------------
-  toplevel_env_def(Vm.globals, mk_sym(&Main, "&ins"), tag_obj(&Ins));
-  toplevel_env_def(Vm.globals, mk_sym(&Main, "&outs"), tag_obj(&Outs));
-  toplevel_env_def(Vm.globals, mk_sym(&Main, "&errs"), tag_obj(&Errs));
-  toplevel_env_def(Vm.globals, mk_sym(&Main, "&globals"), tag_obj(Vm.globals));
-
-  // special forms and other syntactic markers --------------------------------
-  QuoteStr = mk_str(&Main, "quote");
-  DefStr   = mk_str(&Main, "def");
-  PutStr   = mk_str(&Main, "put");
-  IfStr    = mk_str(&Main, "if");
-  DoStr    = mk_str(&Main, "do");
-  FnStr    = mk_str(&Main, "fn");
+  toplevel_env_def(&Main, Vm.globals, mk_sym(&Main, "&ins"), tag_obj(&Ins));
+  toplevel_env_def(&Main, Vm.globals, mk_sym(&Main, "&outs"), tag_obj(&Outs));
+  toplevel_env_def(&Main, Vm.globals, mk_sym(&Main, "&errs"), tag_obj(&Errs));
+  toplevel_env_def(&Main, Vm.globals, mk_sym(&Main, "&globals"), tag_obj(Vm.globals));
 }
 
-void initialize_types(void) {
-  char buffer[256] = { ':' };
-
-  for ( int i=0; i < NUM_TYPES; i++ ) {
-    ExpTypeInfo* info = &Types[i]; strcpy(buffer+1, info->name);
-    info->repr        = mk_sym(&Main, buffer);
-  }
+void init_vm(void) {
+  Vm.initialized = true;
 }
 
-void initialize_standard_library(void) {
+void init_standard_library(void) {
   // load the standard library file
   load_file(&Main, "lisp/boot.rl");
 }
@@ -119,11 +109,12 @@ void print_welcome(void) {
 }
 
 void setup(void) {
+  init_builtin_types();
   init_standard_streams();
   init_static_objects();
   define_builtins();
-  initialize_types();
-  initialize_standard_library();
+  init_vm();
+  init_standard_library();
 }
 
 void teardown(void) {}

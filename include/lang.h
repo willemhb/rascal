@@ -5,11 +5,10 @@
 #include "runtime.h"
 
 // globals --------------------------------------------------------------------
-extern Str* QuoteStr, * DefStr, * PutStr, * IfStr, * DoStr, * FnStr;
-
 // forward declarations -------------------------------------------------------
 Expr  read_exp(RlState* rls, Port* in);
 List* read_file(RlState* rls, char* fname);
+List* read_file_s(RlState* rls, char* fname);
 Expr  load_file(RlState* rls, char* fname);
 Expr  eval_exp(RlState* rls, Expr x);
 void  print_exp(Port* out, Expr x);

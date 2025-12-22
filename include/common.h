@@ -19,6 +19,15 @@ typedef uintptr_t hash_t;
 typedef void (*funcptr_t)(void);
 
 // rascal typedefs ------------------------------------------------------------
+// enum types -----------------------------------------------------------------
+typedef enum {
+  OKAY,
+  USER_ERROR,
+  EVAL_ERROR,
+  RUNTIME_ERROR,
+  SYSTEM_ERROR
+} Status;
+
 // Expression types -----------------------------------------------------------
 typedef uintptr_t Expr;
 typedef nullptr_t Nul;
@@ -28,6 +37,7 @@ typedef char32_t Glyph;
 typedef struct Obj Obj;
 
 // Object types ---------------------------------------------------------------
+typedef struct Type Type;
 typedef struct Chunk Chunk;
 typedef struct Alist Alist;
 typedef struct Buf16 Buf16;
@@ -35,6 +45,8 @@ typedef struct Ref Ref;
 typedef struct UpVal UpVal;
 typedef struct Env Env;
 typedef struct Port Port;
+typedef struct Method Method;
+typedef struct MethodTable MethodTable;
 typedef struct Fun Fun;
 typedef struct Str Str;
 typedef struct Sym Sym;
@@ -55,12 +67,13 @@ typedef struct Objs Objs;
 typedef struct Exprs Exprs;
 typedef struct RlState RlState;
 
-typedef void   (*PrintFn)(Port* p, Expr x);
+typedef void (*PrintFn)(Port* p, Expr x);
 typedef hash_t (*HashFn)(Expr x);
-typedef bool   (*EgalFn)(Expr x, Expr y);
-typedef void   (*CloneFn)(void* ob); // called to clone an object's owned pointers
-typedef void   (*TraceFn)(RlState* rls, void* ob);
-typedef void   (*FreeFn)(void* ob);
+typedef bool (*EgalFn)(Expr x, Expr y);
+typedef void (*CloneFn)(void* ob); // called to clone an object's owned pointers
+typedef void (*TraceFn)(RlState* rls, void* ob);
+typedef void (*FreeFn)(RlState* rls, void* ob);
+typedef bool (*HasFn)(Type* tx, Type* ty);
 
 // limits ---------------------------------------------------------------------
 #define MAX_INTERN     512
@@ -77,7 +90,7 @@ typedef void   (*FreeFn)(void* ob);
 #define RELEASE "a"
 
 // miscellaneous
-// #define RASCAL_DEBUG
+#define RASCAL_DEBUG
 
 // redefining annoyingly named builtins
 #define clz         __builtin_clzl

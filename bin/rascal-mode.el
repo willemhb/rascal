@@ -26,6 +26,8 @@
     ("\\_<false\\_>" . font-lock-constant-face)
     ;; builtins
     ("\\_<not\\_>" . font-lock-builtin-face)
+    ("\\_<typeof\\_>" . font-lock-builtin-face)
+    ("\\_<error\\_>" . font-lock-warning-face)
     ;; types
     ("\\_<[A-Z][a-zA-Z0-9\\|]*\\_>" . font-lock-type-face)
     ;; syntax

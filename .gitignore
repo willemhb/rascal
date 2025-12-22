@@ -65,6 +65,9 @@ cores/
 *.el
 .#*
 
+# ignore claude
+.claude/
+
 # don't ignore core.rl
 !core.rl
 

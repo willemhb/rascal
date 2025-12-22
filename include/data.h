@@ -10,11 +10,12 @@
 // Types
 // Expression type codes
 typedef enum {
-  EXP_NONE,
+  EXP_NONE=1,
   EXP_NUL,
   EXP_EOS,
   EXP_BOOL,
   EXP_GLYPH,
+  EXP_TYPE,
   EXP_CHUNK,
   EXP_ALIST,
   EXP_BUF16,
@@ -22,33 +23,18 @@ typedef enum {
   EXP_UPV,
   EXP_ENV,
   EXP_PORT,
+  EXP_METHOD,
   EXP_FUN,
+  EXP_MTABLE,
   EXP_SYM,
   EXP_STR,
   EXP_LIST,
   EXP_NUM
 } ExpType;
 
-#define NUM_TYPES (EXP_NUM+1)
-
-typedef struct {
-  ExpType type;
-  char*   name;
-  Sym*    repr;       // rascal representation of the type (for now just a keyword)
-  size_t  obsize;
-  PrintFn print_fn;
-  HashFn  hash_fn;
-  EgalFn  egal_fn;
-  CloneFn clone_fn;
-  TraceFn trace_fn;
-  FreeFn  free_fn;
-} ExpTypeInfo;
-
-extern ExpTypeInfo Types[];
-
 #define HEAD                                     \
   Obj* heap;                                     \
-  ExpType type;                                  \
+  Type* type;                                    \
   union {                                        \
     flags_t bfields;                             \
     struct {                                     \
@@ -58,6 +44,22 @@ extern ExpTypeInfo Types[];
       flags_t flags    : 29;                     \
     };                                           \
   }
+
+// Type object - first class type representation
+struct Type {
+  HEAD;
+
+  ExpType tag; // for easy type comparison and hashing
+  Sym* name;
+  size_t obsize;
+  HasFn has_fn;
+  PrintFn print_fn;
+  HashFn hash_fn;
+  EgalFn egal_fn;
+  CloneFn clone_fn;
+  TraceFn trace_fn;
+  FreeFn free_fn;
+};
 
 typedef enum {
   FL_BLACK   = 0x80000000,
@@ -69,17 +71,10 @@ struct Obj {
   HEAD;
 };
 
-// Array types
-ALIST_API(Exprs, Expr, exprs);
-ALIST_API(Objs, void*, objs);
-ALIST_API(Bin16, ushort_t, bin16);
+// Array and table types are now declared in collection.h
 
 void trace_exprs(RlState* rls, Exprs* xs);
 void trace_objs(RlState* rls, Objs* os);
-
-// Table types
-TABLE_API(Strings, char*, Str*, strings);
-TABLE_API(EMap, Sym*, Ref*, emap);
 
 struct Chunk {
   HEAD;
@@ -111,14 +106,14 @@ typedef enum {
   REF_LOCAL,
   REF_LOCAL_UPVAL,
   REF_CAPTURED_UPVAL
-} RefType;
+} RefCode;
 
 struct Ref {
   HEAD;
 
   Ref* captures;
   Sym* name;
-  RefType ref_type;
+  RefCode ref_type;
   int offset;
   Expr val; // only used at Global scope
 };
@@ -141,8 +136,9 @@ struct Env {
   HEAD;
 
   Env* parent;
-  RefType etype;
+  RefCode etype;
   int arity;
+  bool va;
   int ncap; // number of captured *local* upvalues
 
   EMap vars; // personal namespace
@@ -160,7 +156,8 @@ struct Port {
   FILE* ios;
 };
 
-struct Fun {
+// represents a single callable function
+struct Method {
   HEAD;
   int arity;
   bool va;
@@ -168,6 +165,20 @@ struct Fun {
   OpCode label;
   Chunk* chunk;
   Objs upvs;
+};
+
+struct MethodTable {
+  HEAD;
+  Method* variadic;
+  Objs methods;
+};
+
+struct Fun {
+  HEAD;
+  Sym* name;
+  int num_methods;
+  Method* singleton;
+  MethodTable* methods;
 };
 
 struct Sym {
@@ -217,38 +228,48 @@ struct List {
 #define RL_ONE  0x3ff0000000000000ul
 
 // forward declarations
-// expression APIs
+// type API
+void init_builtin_type(RlState* rls, Type* type, char* name);
+void register_builtin_types(RlState* rls);
+Type* type_of(Expr x);
+bool has_type(Expr x, Type* t);
+char* type_name(Type* t);
 ExpType exp_type(Expr x);
-bool    has_type(Expr x, ExpType t);
-ExpTypeInfo* exp_info(Expr x);
+
+// expression APIs
 hash_t hash_exp(Expr x);
-bool   egal_exps(Expr x, Expr y);
-void   mark_exp(RlState* rls, Expr x);
+bool egal_exps(Expr x, Expr y);
+void mark_exp(RlState* rls, Expr x);
 
 // object API
 void* as_obj(Expr x);
 Expr  tag_obj(void* ptr);
-void* mk_obj(RlState* rls, ExpType type, flags_t flags);
+void* mk_obj(RlState* rls, Type* type, flags_t flags);
+void* mk_obj_s(RlState* rls, Type* type, flags_t flags);
 void* clone_obj(RlState* rls, void* ptr);
+void* clone_obj_s(RlState* rls, void* ptr);
 void  mark_obj(RlState* rls, void* ptr);
 void  unmark_obj(void* ptr);
-void  free_obj(void *ptr);
+void  free_obj(RlState* rls, void *ptr);
 
 // chunk API
 Chunk* mk_chunk(RlState* rls, Env* vars, Alist* vals, Buf16* code);
+Chunk* mk_chunk_s(RlState* rls, Env* vars, Alist* vals, Buf16* code);
 void   dis_chunk(Chunk* chunk);
 
 // alist API
 Alist* mk_alist(RlState* rls);
-void   free_alist(void* ptr);
+Alist* mk_alist_s(RlState* rls);
+void   free_alist(RlState* rls, void* ptr);
 int    alist_push(RlState* rls, Alist* a, Expr x);
-Expr   alist_pop(Alist* a);
+Expr   alist_pop(RlState* rls, Alist* a);
 Expr   alist_get(Alist* a, int n);
 
 // buf16 API
-Buf16*  mk_buf16(RlState* rls);
-void    free_buf16(void* ptr);
-int     buf16_write(Buf16* b, ushort_t *xs, int n);
+Buf16* mk_buf16(RlState* rls);
+Buf16* mk_buf16_s(RlState* rls);
+void   free_buf16(RlState* rls, void* ptr);
+int    buf16_write(RlState* rls, Buf16* b, ushort_t *xs, int n);
 
 // ref API
 Ref* mk_ref(RlState* rls, Sym* n, int o);
@@ -258,21 +279,24 @@ UpVal* mk_upval(RlState* rls, UpVal* next, Expr* loc);
 Expr*  deref(UpVal* upv);
 
 // environment API
-Env* mk_env(RlState* rls, Env* parent);
-Ref* env_capture(Env* e, Ref* r);
-Ref* env_resolve(Env* e, Sym* n, bool capture);
-Ref* env_define(Env* e, Sym* n);
-void toplevel_env_def(Env* e, Sym* n, Expr x);
-void toplevel_env_set(Env* e, Sym* n, Expr x);
-void toplevel_env_refset(Env* e, int n, Expr x);
-Ref* toplevel_env_find(Env* e, Sym* n);
-Expr toplevel_env_ref(Env* e, int n);
-Expr toplevel_env_get(Env* e, Sym* n);
+Env*   mk_env(RlState* rls, Env* parent);
+Env*   mk_env_s(RlState* rls, Env* parent);
+Ref*   env_capture(RlState* rls, Env* e, Ref* r);
+Ref*   env_resolve(RlState* rls, Env* e, Sym* n, bool capture);
+Ref*   env_define(RlState* rls, Env* e, Sym* n);
+void   toplevel_env_def(RlState* rls, Env* e, Sym* n, Expr x);
+void   toplevel_env_set(RlState* rls, Env* e, Sym* n, Expr x);
+void   toplevel_env_refset(RlState* rls, Env* e, int n, Expr x);
+Ref*   toplevel_env_find(RlState* rls, Env* e, Sym* n);
+Expr   toplevel_env_ref(RlState* rls, Env* e, int n);
+Expr   toplevel_env_get(RlState* rls, Env* e, Sym* n);
 
 // port API -------------------------------------------------------------------
-Port* mk_port(RlState* rls, FILE* ios);
-Port* open_port(RlState* rls, char* fname, char* mode);
-void  close_port(Port* port);
+Port*  mk_port(RlState* rls, FILE* ios);
+Port*  mk_port_s(RlState* rls, FILE* ios);
+Port*  open_port(RlState* rls, char* fname, char* mode);
+Port*  open_port_s(RlState* rls, char* fname, char* mode);
+void   close_port(Port* port);
 bool  peof(Port* p);
 int   pseek(Port* p, long off, int orig);
 Glyph pgetc(Port* p);
@@ -281,35 +305,56 @@ Glyph ppeekc(Port* p);
 int   pprintf(Port* p, char* fmt, ...);
 int   pvprintf(Port* p, char* fmt, va_list va);
 
+// method API -----------------------------------------------------------------
+Method* mk_method(RlState* rls, Sym* name, int arity, bool va, OpCode op, Chunk* code);
+Method* mk_method_s(RlState* rls, Sym* name, int arity, bool va, OpCode op, Chunk* code);
+Method* mk_closure(RlState* rls, Method* proto);
+Method* mk_builtin_method(RlState* rls, Sym* name, int arity, bool va, OpCode op);
+Method* mk_user_method(RlState* rls, Chunk* code);
+Method* mk_user_method_s(RlState* rls, Chunk* code);
+void    disassemble(Method* m);
+Expr    upval_ref(Method* m, int i);
+void    upval_set(Method* m, int i, Expr x);
+
+// method table API
+MethodTable* mk_mtable(RlState* rls);
+MethodTable* mk_mtable_s(RlState* rls);
+void         mtable_add(RlState* rls, MethodTable* mt, Method* m);
+Method*      mtable_lookup(MethodTable* mt, int argc);
+
 // function API ---------------------------------------------------------------
-Fun* as_fun_s(char* f, Expr x);
-Fun* mk_fun(RlState* rls, Sym* name, int arity, bool va, OpCode op, Chunk* code);
-Fun* mk_closure(RlState* rls, Fun* proto);
-Fun* mk_builtin_fun(RlState* rls, Sym* name, int arity, bool va, OpCode op);
-Fun* mk_user_fun(RlState* rls, Chunk* code);
-void def_builtin_fun(RlState* rls, char* name, int arity, bool va, OpCode op);
-void disassemble(Fun* fun);
-Expr upval_ref(Fun* fun, int i);
-void upval_set(Fun* fun, int i, Expr x);
+Fun*    as_fun_s(RlState* rls, char* f, Expr x);
+Fun*    mk_fun(RlState* rls, Sym* name, Method* m);
+Fun*    mk_fun_s(RlState* rls, Sym* name, Method* m);
+Fun*    mk_user_fun(RlState* rls, Chunk* code);
+Fun*    mk_user_fun_s(RlState* rls, Chunk* code);
+void    fun_add_method(RlState* rls, Fun* fun, Method* m);
+Method* fun_lookup(Fun* fun, int argc);
+void    def_builtin_fun(RlState* rls, char* name, int arity, bool va, OpCode op);
 
 // symbol API
-Sym* as_sym_s(char* f, Expr x);
-Sym* mk_sym(RlState* rls, char* cs);
-bool sym_val_eql(Sym* s, char* v);
+Sym*   as_sym_s(RlState* rls, char* f, Expr x);
+Sym*   mk_sym(RlState* rls, char* cs);
+Sym*   mk_sym_s(RlState* rls, char* cs);
+bool   sym_val_eql(Sym* s, char* v);
 
 // string API
-Str* as_str_s(char* f, Expr x);
-Str* mk_str(RlState* rls, char* cs);
+Str*   as_str_s(RlState* rls, char* f, Expr x);
+Str*   mk_str(RlState* rls, char* cs);
+Str*   mk_str_s(RlState* rls, char* cs);
 
 // list API
-List*  as_list_s(char* f, Expr x);
+List*  as_list_s(RlState* rls, char* f, Expr x);
 List*  empty_list(RlState* rls);
+List*  empty_list_s(RlState* rls);
 List*  mk_list(RlState* rls, size_t n, Expr* xs);
+List*  mk_list_s(RlState* rls, size_t n, Expr* xs);
 List*  cons(RlState* rls, Expr hd, List* tl);
+List*  cons_s(RlState* rls, Expr hd, List* tl);
 Expr   list_ref(List* xs, int n);
 
 // number API
-Num       as_num_s(char* f, Expr x);
+Num       as_num_s(RlState* rls, char* f, Expr x);
 Num       as_num(Expr x);
 Expr      tag_num(Num n);
 uintptr_t as_fix(Expr x);
@@ -323,14 +368,16 @@ Expr tag_bool(Bool b);
 
 // glyph API
 Glyph as_glyph(Expr x);
-Glyph as_glyph_s(char* f, Expr x);
+Glyph as_glyph_s(RlState* rls, char* f, Expr x);
 Expr  tag_glyph(Glyph x);
 
 // convenience macros
 #define exp_tag(x)     ((x) & XTMSK)
 #define exp_val(x)     ((x) & XVMSK)
 #define head(x)        ((Obj*)as_obj(x))
+#define as_method(x)   ((Method*)as_obj(x))
 #define as_fun(x)      ((Fun*)as_obj(x))
+#define as_mtable(x)   ((MethodTable*)as_obj(x))
 #define as_ref(x)      ((Ref*)as_obj(x))
 #define as_env(x)      ((Env*)as_obj(x))
 #define as_sym(x)      ((Sym*)as_obj(x))
@@ -341,17 +388,21 @@ Expr  tag_glyph(Glyph x);
 #define is_keyword(s)     (*(s)->val->val == ':')
 #define is_local_env(e)   ((e)->parent != NULL)
 #define is_global_env(e)  ((e)->parent == NULL)
-#define is_user_fn(f)     ((f)->label == OP_NOOP)
-#define is_toplevel_fn(f) (!(f)->chunk->vars->local)
-#define fn_argc(f)        ((f)->arity)
-#define fn_va(f)          ((f)->va)
-#define user_fn_upvalc(f) ((f)->chunk->vars->upvs.count)
+#define is_user_method(m) ((m)->label == OP_NOOP)
+#define method_argc(m)    ((m)->arity)
+#define method_va(m)      ((m)->va)
+#define method_upvalc(m)  ((m)->chunk->vars->upvs.count)
 #define env_type(e)       ((e)->etype)
 #define env_size(e)       ((e)->vars.count)
-#define is_glyph(x)       has_type(x, EXP_GLYPH)
-#define is_num(x)         has_type(x, EXP_NUM)
-#define is_sym(x)         has_type(x, EXP_SYM)
-#define is_fun(x)         has_type(x, EXP_FUN)
-#define is_list(x)        has_type(x, EXP_LIST)
+
+extern Type GlyphType, NumType, SymType, MethodType, FunType, MethodTableType, ListType;
+
+#define is_glyph(x)       has_type(x, &GlyphType)
+#define is_num(x)         has_type(x, &NumType)
+#define is_sym(x)         has_type(x, &SymType)
+#define is_method(x)      has_type(x, &MethodType)
+#define is_fun(x)         has_type(x, &FunType)
+#define is_mtable(x)      has_type(x, &MethodTableType)
+#define is_list(x)        has_type(x, &ListType)
 
 #endif

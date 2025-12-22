@@ -77,6 +77,7 @@ typedef enum {
   OP_ENV_REPORT,
   OP_DIS,
   OP_LOAD,
+  OP_ERROR,
 } OpCode;
 
 int op_arity(OpCode op);
