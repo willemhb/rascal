@@ -14,6 +14,16 @@
   (name init)
   (list 'def name init))
 
+(stx when
+  (test & body)
+  (list 'if test (cons 'do body)))
+
+(stx unless
+  (test & body)
+  (list 'if
+    (list 'not test)
+    (cons 'do body)))
+
 ;; type predicates
 (fun isa? (t x)
   (=? t (typeof x)))
