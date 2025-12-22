@@ -55,6 +55,7 @@ typedef enum {
   // miscellaneous comparison instructions
   OP_EGAL,
   OP_HASH,
+  OP_ISA,
   OP_TYPE,
 
   // basic list operations

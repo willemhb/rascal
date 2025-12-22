@@ -115,7 +115,7 @@ void setup(void) {
   init_static_objects();
   define_builtins();
   init_vm();
-  // init_standard_library();  // Disabled for now
+  init_standard_library();
 }
 
 void teardown(void) {}

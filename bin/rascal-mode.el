@@ -12,7 +12,7 @@
   '( ;; special forms
     "quote" "def" "put" "if" "do" "fn" "def-stx" "c-call" "handle" "raise" "begin"
     ;; binding macros
-    "fun" "stx" "var" "val" "type" "let"
+    "fun" "fun*" "stx" "stx*" "var" "val" "type" "let"
     ;; branching macros
     "cond" "case" "and" "or"
     ;; module macros
@@ -27,6 +27,8 @@
     ;; builtins
     ("\\_<not\\_>" . font-lock-builtin-face)
     ("\\_<typeof\\_>" . font-lock-builtin-face)
+    ("\\_<apply\\_>" . font-lock-builtin-face)
+    ("\\_<apply*\\_>" . font-lock-builtin-face)
     ("\\_<error\\_>" . font-lock-warning-face)
     ;; types
     ("\\_<[A-Z][a-zA-Z0-9\\|]*\\_>" . font-lock-type-face)

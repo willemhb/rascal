@@ -10,12 +10,9 @@
                 (cons* '&form '&env args)
                 body))))
 
-(stx unless
-  ;; classic simple macro, good for testing that it works.
-  (test & exprs)
-  (list 'if
-        test
-        (cons 'do exprs)))
+(stx val
+  (name init)
+  (list 'def name init))
 
 ;; type predicates
 (fun isa? (t x)

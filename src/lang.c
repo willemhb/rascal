@@ -25,6 +25,7 @@ Expr read_atom(RlState* rls, Port* in);
 
 // compile helpers ------------------------------------------------------------
 Expr exec_code(RlState* rls, Fun* fun, bool toplevel);
+Expr apply_cls(RlState* rls, int nargs, bool toplevel);
 Fun* compile_file(RlState* rls, char* fname);
 
 // read helpers ---------------------------------------------------------------
@@ -625,7 +626,7 @@ Ref* is_macro_call(RlState* rls, List* form, Env* vars) {
 }
 
 // Expand a macro call at compile time
-Expr expand_macro(RlState* rls, List* form, Env* vars, Ref* macro_ref) {
+Expr get_macro_expansion(RlState* rls, List* form, Env* vars, Ref* macro_ref) {
   int sp = save_sp(rls);
 
   // Get the macro function
@@ -640,90 +641,21 @@ Expr expand_macro(RlState* rls, List* form, Env* vars, Ref* macro_ref) {
 
   require(rls, is_fun(macro_fun_expr), "macro ref does not point to a function");
 
-  // Push macro_fun_expr immediately to protect it from GC
+  // prepare call state on stack
   push(rls, macro_fun_expr);
+  push(rls, tag_obj(form));
+  push(rls, tag_obj(vars));
 
-  // Build argument list: (macro-fun form env arg1 arg2 ...)
   // The macro receives: whole form, environment, then individual arguments (all unevaluated)
-  List* args = form->tail; // The arguments without the macro name
+  List* args = form->tail;
+  int argc = args->count+2;
 
-  // We need to build a form that when compiled will push:
-  // 1. The macro fun (as a literal)
-  // 2. The form (as a literal)
-  // 3. The environment (as a literal)
-  // 4-N. Each argument (as a literal)
-  // Then call with the right argc
-
-  // Build call_form as a list where all elements are quote expressions
-  List* call_form = empty_list(rls);
-  push(rls, tag_obj(call_form));  // Protect call_form as we build it
-
-  // Build a list of quoted arguments
-  // We want the result to be: (fun 'form 'env 'arg1 'arg2 'arg3)
-  // So we build from right to left: start with empty, add 'arg3, 'arg2, 'arg1, 'env, 'form
-
-  // First, iterate forward through args and quote each one, adding to call_form from the right
-  List* args_copy = args;
-  int nargs = args->count;
-
-  // Collect args into array for easier reverse iteration
-  Expr* arg_array = NULL;
-  if (nargs > 0) {
-    arg_array = (Expr*)malloc(nargs * sizeof(Expr));
-    for (int i = 0; i < nargs; i++) {
-      arg_array[i] = args_copy->head;
-      args_copy = args_copy->tail;
-    }
-
-    // Add arguments in reverse order (rightmost first)
-    for (int i = nargs - 1; i >= 0; i--) {
-      // Build (quote arg)
-      List* inner = cons(rls, arg_array[i], empty_list(rls));
-      push(rls, tag_obj(inner));
-      Sym* quote_sym = mk_sym(rls, "quote");
-      push(rls, tag_obj(quote_sym));
-      List* quoted_arg = cons(rls, tag_obj(quote_sym), inner);
-      popn(rls, 2);
-
-      call_form = cons(rls, tag_obj(quoted_arg), call_form);
-      tos(rls) = tag_obj(call_form);
-    }
-    free(arg_array);
+  while ( args->count > 0 ) {
+    push(rls, args->head);
+    args = args->tail;
   }
 
-  // Add environment as (quote env) where env is the environment object
-  List* env_inner = cons(rls, tag_obj(vars), empty_list(rls));
-  push(rls, tag_obj(env_inner));
-  Sym* quote_sym1 = mk_sym(rls, "quote");
-  push(rls, tag_obj(quote_sym1));
-  List* quoted_env = cons(rls, tag_obj(quote_sym1), env_inner);
-  popn(rls, 2);
-  call_form = cons(rls, tag_obj(quoted_env), call_form);
-  tos(rls) = tag_obj(call_form);
-
-  // Add form as (quote form)
-  List* form_inner = cons(rls, tag_obj(form), empty_list(rls));
-  push(rls, tag_obj(form_inner));
-  Sym* quote_sym2 = mk_sym(rls, "quote");
-  push(rls, tag_obj(quote_sym2));
-  List* quoted_form = cons(rls, tag_obj(quote_sym2), form_inner);
-  popn(rls, 2);
-  call_form = cons(rls, tag_obj(quoted_form), call_form);
-  tos(rls) = tag_obj(call_form);
-
-  // Add macro function at the front (it's already on stack at position sp)
-  call_form = cons(rls, rls->stack[sp], call_form);
-  tos(rls) = tag_obj(call_form);
-
-  // Compile and execute the macro call
-  Fun* compiled = toplevel_compile(rls, call_form);
-
-  // Push compiled Fun to protect it during execution
-  push(rls, tag_obj(compiled));
-
-  // Execute macro with toplevel=true because we're in compilation context (no outer execution frame)
-  Expr result = exec_code(rls, compiled, true);
-
+  Expr result = apply_cls(rls, argc, true);
   restore_sp(rls, sp);
 
   return result;
@@ -935,7 +867,7 @@ void compile_funcall(RlState* rls, List* form, Env* vars, Alist* vals, Buf16* co
   // Check for macro calls first - macros are expanded before other processing
   Ref* macro_ref = is_macro_call(rls, form, vars);
   if (macro_ref != NULL) {
-    Expr expanded = expand_macro(rls, form, vars, macro_ref);
+    Expr expanded = get_macro_expansion(rls, form, vars, macro_ref);
     compile_expr(rls, expanded, vars, vals, code);
     return;
   }
@@ -1049,6 +981,13 @@ bool is_falsey(Expr x) {
 }
 
 Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
+  push(rls, tag_obj(fun));
+  Expr out = apply_cls(rls, 0, toplevel);
+  pop(rls);
+  return out;
+}
+
+Expr apply_cls(RlState* rls, int nargs, bool toplevel) {
   void* labels[] = {
     [OP_NOOP]        = &&op_noop,
 
@@ -1134,15 +1073,16 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
   Method* method;
   Str* sx;
 
-  // Extract the Method from the Fun
-  method = fun->singleton;
-  assert(method != NULL);
-
-  if ( !toplevel )
+  // initialize
+  if ( !toplevel ) {
     save_frame(rls);
-
-  push(rls, tag_obj(fun));
-  install_method(rls, method, 0);
+    goto do_call;
+  } else {
+    Fun* fun = as_fun(*stack_ref(rls, -nargs-1));
+    method = fun_lookup(fun, nargs);
+    assert(method != NULL);
+    install_method(rls, method, nargs);
+  }
 
  fetch:
   op = next_op(rls);
@@ -1257,7 +1197,9 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
   // closures and function calls ----------------------------------------------
  op_call:
   argc = next_op(rls);
-  x    = *stack_ref(rls, -argc-1);
+
+ do_call:
+  x = *stack_ref(rls, -argc-1);
 
   // Get the Fun and look up the appropriate Method
   fx = as_fun_s(rls, rls->fn->name->val->val, x);
@@ -1277,7 +1219,7 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
     require_vargco(rls, method->name->val->val, method_argc(method), argc);
     // collect extra args into a list
     int extra = argc - method_argc(method);
-    List* rest = mk_list_s(rls, extra, &rls->stack[rls->sp - extra]);
+    List* rest = mk_list(rls, extra, &rls->stack[rls->sp - extra]);
     popn(rls, extra);
     push(rls, tag_obj(rest));
     argc = method_argc(method) + 1;
@@ -1308,17 +1250,15 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
     else
       method->upvs.vals[i] = get_upv(rls, rls->stack+rls->bp+argy);
   }
-
   goto fetch;
 
   // emmitted before a frame with local upvalues returns
  op_capture:
   close_upvs(rls, rls->stack+rls->bp);
-
   goto fetch;
 
  op_return:
-  x    = rls->sp > rls->fp ? pop(rls) : NUL;
+  x = rls->sp >= rls->bp ? pop(rls) : NUL;
 
   if ( rls->fp == 0 ) { // no calling frame, exit
     reset_vm(rls);
@@ -1326,12 +1266,9 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
   }
 
   argx  = rls->bp;       // adjust stack to here after restore
-
   restore_frame(rls);
-
   rls->sp = argx;
   tos(rls) = x;
-
   goto fetch;
 
   // builtin functions --------------------------------------------------------
@@ -1346,12 +1283,10 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
   nz = nx + ny;
   z = tag_num(nz);
   tos(rls) = z;           // combine push/pop
-
   goto fetch;
 
  op_sub:
   require_argco(rls, "-", 2, argc);
-
   y      = pop(rls);
   x      = pop(rls);
   nx     = as_num_s(rls, "-", x);
@@ -1364,7 +1299,6 @@ Expr exec_code(RlState* rls, Fun* fun, bool toplevel) {
 
  op_mul:
   require_argco(rls, "*", 2, argc);
-
   y      = pop(rls);
   x      = pop(rls);
   nx     = as_num_s(rls, "*", x);
