@@ -1,17 +1,11 @@
-#ifndef rl_lang_h
-#define rl_lang_h
+#ifndef rl_lang_all_h
+#define rl_lang_all_h
 
-#include "common.h"
-#include "runtime.h"
-
-// globals --------------------------------------------------------------------
-// forward declarations -------------------------------------------------------
-Expr  read_exp(RlState* rls, Port* in);
-List* read_file(RlState* rls, char* fname);
-List* read_file_s(RlState* rls, char* fname);
-Expr  load_file(RlState* rls, char* fname);
-Expr  eval_exp(RlState* rls, Expr x);
-void  print_exp(Port* out, Expr x);
-void  repl(RlState* rls);
+// omnibus header file, include this for convenience and maintainability
+#include "lang/read.h"
+#include "lang/compile.h"
+#include "lang/exec.h"
+#include "lang/eval.h"
+#include "lang/print.h"
 
 #endif

@@ -1,5 +1,5 @@
-#ifndef rl_collection_h
-#define rl_collection_h
+#ifndef rl_util_collection_h
+#define rl_util_collection_h
 
 #include "common.h"
 

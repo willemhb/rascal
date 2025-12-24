@@ -1,6 +1,6 @@
 #include <string.h>
 
-#include "util.h"
+#include "util/util.h"
 
 
 // miscellaneous string helpers

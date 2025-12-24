@@ -1,8 +1,8 @@
 #include "common.h"
-#include "collection.h"
-#include "util.h"
-#include "data.h"
-#include "runtime.h"
+#include "util/collection.h"
+#include "util/util.h"
+#include "val.h"
+#include "vm.h"
 #include "lang.h"
 
 #include <stdarg.h>

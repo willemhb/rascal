@@ -1,9 +1,9 @@
 #include <string.h>
 
-#include "collection.h"
-#include "runtime.h"
-#include "util.h"
-#include "data.h"
+#include "util/collection.h"
+#include "vm.h"
+#include "util/util.h"
+#include "val.h"
 
 // magic numbers
 #define MIN_CAP 8
