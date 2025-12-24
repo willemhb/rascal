@@ -64,6 +64,9 @@ extern Port Ins, Outs, Errs;
 extern char* CharNames[128];
 
 // function prototypes
+// miscellaneous state helpers
+char* current_fn_name(RlState* rls);
+
 // handling error state
 ErrorState* error_state(RlState* rls);
 void save_error_state(RlState* rls);
@@ -71,6 +74,7 @@ void restore_error_state(RlState* rls);
 void discard_error_state(RlState* rls);
 
 #define set_safe_point(rls) (setjmp((rls)->err_states[(rls)->ep-1].Cstate))
+#define rl_longjmp(rls, s) longjmp(error_state(rls)->Cstate, s)
 
 // error function
 void rascal_error(RlState* rls, Status etype, char* fmt, ...);
@@ -80,10 +84,14 @@ void reset_token(RlState* rls);
 size_t add_to_token(RlState* rls, char c);
 
 // stack helpers
-void   reset_stack(RlState* rls);
-Expr*  stack_ref(RlState* rls, int i);
-int    save_sp(RlState* rls);
-void   restore_sp(RlState* rls, int sp);
+void reset_stack(RlState* rls);
+void reset_exec_state(RlState* rls);
+void check_stack_limit(RlState* rls, int n);
+int check_stack_bounds(RlState* rls, int n);
+Expr* stack_ref(RlState* rls, int i);
+int save_sp(RlState* rls);
+void restore_sp(RlState* rls, int sp);
+Expr* preserve(RlState* rls, int n, ...);
 Expr*  push(RlState* rls, Expr x);
 Expr*  dup(RlState* rls);
 Expr*  pushn(RlState* rls, int n);
@@ -95,8 +103,8 @@ UpVal* get_upv(RlState* rls, Expr* loc);
 void close_upvs(RlState* rls, Expr* base);
 
 void install_method(RlState* rls, Method* method, int argc);
-void save_frame(RlState* rls);
-void restore_frame(RlState* rls);
+bool save_call_frame(RlState* rls, int offset);
+bool restore_call_frame(RlState* rls);
 void reset_vm(RlState* rls);
 
 void add_to_managed(RlState* rls, void* ptr);
@@ -104,7 +112,7 @@ void add_to_permanent(RlState* rls, void* ptr);
 void gc_save(RlState* rls, void* ob);
 void run_gc(RlState* rls);
 void heap_report(RlState* rls);
-void stack_report_slice(RlState* rls, char* msg, int n);
+void stack_report_slice(RlState* rls, int n, char* fmt, ...);
 void stack_report(RlState* rls);
 void env_report(RlState* rls);
 
@@ -160,6 +168,44 @@ void  release(RlState* rls, void* d, size_t n);
     if ( (e)->tag != _t->tag )                                          \
       eval_error( (rls), "%s wanted a %s, got a %s",                    \
                   (f), type_name(e), type_name(_t));                    \
+  } while ( false )
+
+#define syntax_require(rls, sf, fn, t, fmt, ...)            \
+  do {                                                      \
+    if ( !(t) )                                             \
+      eval_error( (rls),                                    \
+                  "bad syntax for %s in %s: " fmt,          \
+                  (sf), (fn) __VA_OPT__(,) __VA_ARGS__);    \
+  } while ( false )
+
+#define syntax_require_vargco(rls, sf, fn, e, f)                        \
+  do {                                                                  \
+    int __c = ((f) && (f)->tail) ? (int)((f)->tail->count) : -1;        \
+    if ( __c < (e) )                                                    \
+      eval_error( (rls),                                                \
+                  "bad syntax for %s in %s: "                           \
+                  "wanted at least %d expressions, got %d",             \
+                  (sf), (fn), (e), __c );                               \
+  } while ( false )
+
+#define syntax_require_argco(rls, sf, fn, e, f)                         \
+  do {                                                                  \
+    int __c = ((f) && (f)->tail) ? (int)((f)->tail->count) : -1;        \
+    if ( __c != (e) )                                                   \
+      eval_error( (rls),                                                \
+                  "bad syntax for %s in %s: "                           \
+                  "wanted %d expressions, got %d",                      \
+                  (sf), (fn), (e), __c );                               \
+  } while ( false )
+
+#define syntax_require_argco2(rls, sf, fn, e1, e2, f)                   \
+  do {                                                                  \
+    int __c = ((f) && (f)->tail) ? (int)((f)->tail->count) : -1;        \
+    if ( __c != (e1) && __c != (e2) )                                   \
+      eval_error( (rls),                                                \
+                  "bad syntax for %s in %s: "                           \
+                  "wanted %d or %d expressions, got %d",                \
+                  (sf), (fn), (e1), (e2), __c );                        \
   } while ( false )
 
 #endif

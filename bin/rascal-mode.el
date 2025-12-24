@@ -10,15 +10,9 @@
   'rascal-mode
   '(";" ("#|" . "|#"))
   '( ;; special forms
-    "quote" "def" "put" "if" "do" "fn" "def-stx" "c-call" "handle" "raise" "begin"
-    ;; binding macros
-    "fun" "fun*" "stx" "stx*" "var" "val" "type"
-    ;; branching macros
-    "cond" "case" "and" "or"
-    ;; looping and block macros
-    "label" "loop" "let"
-    ;; module macros
-    "require" "provide")
+    "quote" "def" "def-stx" "def-multi" "def-method" "put" "if" "and" "or" "do" "fn" "c-call"
+    ;; macros
+    "fun" "stx" "let" "cond" "case")
   '(("\\(?:[^-_a-zA-Z?*+0-9/:]:[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ("\\(?:[^~]@[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^@[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ;; special constants
@@ -30,7 +24,7 @@
     ("\\_<not\\_>" . font-lock-builtin-face)
     ("\\_<typeof\\_>" . font-lock-builtin-face)
     ("\\_<apply\\_>" . font-lock-builtin-face)
-    ("\\_<apply*\\_>" . font-lock-builtin-face)
+    ("\\_<load\\_>" . font-lock-builtin-face)
     ("\\_<error\\_>" . font-lock-warning-face)
     ;; types
     ("\\_<[A-Z][a-zA-Z0-9\\|]*\\_>" . font-lock-type-face)

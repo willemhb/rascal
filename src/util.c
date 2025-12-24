@@ -8,6 +8,15 @@ bool streq(char* sx, char* sy) {
   return strcmp(sx, sy) == 0;
 }
 
+bool endswith(char* str, char* substr) {
+  char* found = strstr(str, substr);
+
+  if ( found == NULL )
+    return false;
+
+  return strlen(found) == strlen(substr);
+}
+
 // miscellaneous bit twiddling
 #define TOP_BIT 0x8000000000000000ul
 
@@ -28,6 +37,33 @@ uintptr_t cpow2(uintptr_t i)
 // miscellaneous numeric helpers
 bool is_int(Num n) {
   return n - ((long)n) == 0;
+}
+
+// bitmap utilities
+#define BITMAP_MASK 0xfffffffffffffffful
+
+bool bitmap_has(uintptr_t map, int n) {
+  if ( n < 0 || n > MAX_FARGC )
+    return false;
+
+  return (1ul << n) & map;
+}
+
+void bitmap_set(uintptr_t* map, int n) {
+  assert(n >= 0 && n < MAX_FARGC);
+  *map |= 1ul << n;
+}
+
+void bitmap_unset(uintptr_t* map, int n) {
+  assert(n >= 0 && n < MAX_FARGC);
+  *map &= BITMAP_MASK & ~(1ul << n);
+}
+
+int bitmap_to_index(uintptr_t map, int n) {
+  if ( !bitmap_has(map, n) )
+    return -1;
+
+  return popc(((1ul << n) -1) & map);
 }
 
 // hashing constants

@@ -70,6 +70,7 @@ void define_builtins(void) {
   def_builtin_fun(&Main, ">", 2, false, OP_NGT);
   def_builtin_fun(&Main, "=?", 2, false, OP_EGAL);
   def_builtin_fun(&Main, "hash", 1, false, OP_HASH);
+  def_builtin_fun(&Main, "isa?", 2, false, OP_ISA);
   def_builtin_fun(&Main, "typeof", 1, false, OP_TYPE);
   def_builtin_fun(&Main, "list", 0, true, OP_LIST);
   def_builtin_fun(&Main, "cons", 2, false, OP_CONS);
@@ -82,17 +83,24 @@ void define_builtins(void) {
   def_builtin_fun(&Main, "chars", 1, false, OP_CHARS);
   def_builtin_fun(&Main, "str-ref", 2, false, OP_STR_REF);
   def_builtin_fun(&Main, "str-len", 1, false, OP_STR_LEN);
+  def_builtin_fun(&Main, "apply", 2, false, OP_APPLY);
+  def_builtin_fun(&Main, "compile", 1, false, OP_COMPILE);
+  def_builtin_fun(&Main, "exec", 1, false, OP_EXEC);
+  def_builtin_fun(&Main, "load", 1, false, OP_LOAD);
+  def_builtin_fun(&Main, "error", 1, false, OP_ERROR);
+  def_builtin_fun(&Main, "defined?", 2, false, OP_DEFINED);
+  def_builtin_fun(&Main, "local-env?", 1, false, OP_LOCAL_ENV);
+  def_builtin_fun(&Main, "global-env?", 1, false, OP_GLOBAL_ENV);
   def_builtin_fun(&Main, "*heap-report*", 0, false, OP_HEAP_REPORT);
   def_builtin_fun(&Main, "*stack-report*", 0, false, OP_STACK_REPORT);
   def_builtin_fun(&Main, "*env-report*", 0, false, OP_ENV_REPORT);
   def_builtin_fun(&Main, "*dis*", 1, false, OP_DIS);
-  def_builtin_fun(&Main, "load", 1, false, OP_LOAD);
 
   // initialize other globals -------------------------------------------------
-  toplevel_env_def(&Main, Vm.globals, mk_sym(&Main, "&ins"), tag_obj(&Ins));
-  toplevel_env_def(&Main, Vm.globals, mk_sym(&Main, "&outs"), tag_obj(&Outs));
-  toplevel_env_def(&Main, Vm.globals, mk_sym(&Main, "&errs"), tag_obj(&Errs));
-  toplevel_env_def(&Main, Vm.globals, mk_sym(&Main, "&globals"), tag_obj(Vm.globals));
+  toplevel_env_def(&Main, Vm.globals, mk_sym(&Main, "&ins"), tag_obj(&Ins), false, true);
+  toplevel_env_def(&Main, Vm.globals, mk_sym(&Main, "&outs"), tag_obj(&Outs), false, true);
+  toplevel_env_def(&Main, Vm.globals, mk_sym(&Main, "&errs"), tag_obj(&Errs), false, true);
+  toplevel_env_def(&Main, Vm.globals, mk_sym(&Main, "&globals"), tag_obj(Vm.globals), false, true);
 }
 
 void init_vm(void) {

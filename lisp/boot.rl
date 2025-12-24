@@ -1,102 +1,92 @@
 ;; rascal standard library (such as it is)
 
-;; basic macros
-(def-stx
-  stx
-  (fun (&form &env name args & body)
-    (list 'def-stx
-          name
-          (cons* 'fun
-                (cons* '&form '&env args)
-                body))))
+;; basic syntax
+(def-stx stx
+  (fn (&form &env name args & body)
+    (def fn-form (cons* 'fn (cons* '&form '&env args) body))
+     (if (defined? name &env)
+       (list 'def-method name fn-form)
+       (list 'def-stx name fn-form))))
 
-(stx val
-  (name init)
-  (list 'def name init))
-
-(stx when
-  (test & body)
-  (list 'if test (cons 'do body)))
-
-(stx unless
-  (test & body)
-  (list 'if
-    (list 'not test)
-    (cons 'do body)))
-
-;; type predicates
-(fun isa? (t x)
-  (=? t (typeof x)))
-
-(fun list? (x)
-  (isa? List x))
-
-(fun num? (x)
-  (isa? Num x))
-
-(fun sym? (x)
-  (isa? Sym x))
-
-(fun str? (x)
-  (isa? Str x))
-
-(fun glyph? (x)
-  (isa? Glyph x))
-
-;; miscellaneous
-(fun id (x) x) ;; identity function
-
-(fun not (x)
-  ;; logical negation
-  (if x false true))
-
-(fun atom? (x)
-  (not (list? x)))
-
-(fun inc (n)
-  (+ n 1))
-
-(fun dec (n)
-  (- n 1))
-
-(fun sqr (x)
-  (* x x))
+(stx fun
+  (name args & body)
+  (if (isa? name List) ;; unnamed variant, treat exactly like `fn` form.
+    (cons* 'fn name args body)
+    (if (local-env? &env)
+      (list 'def name (cons* 'fn args body))
+      (if (defined? name &env)
+        (list 'def-method name (cons* 'fn args body))
+        (list 'def-multi name (cons* 'fn args body))))))
 
 ;; list utilities
-(fun list-len=? (xs n)
-  (= n (list-len xs)))
-
 (fun empty? (xs)
-  ;; empty list predicate
-  (if (list? xs)
+  (if (isa? xs List)
     (=? xs ())
-    false))
+    (error "not a list")))
+
+(fun fst (xs)
+  (head xs))
+
+(fun snd (xs)
+  (head (tail xs)))
 
 (fun map (f xs)
-  ;; return a list where `f` has been applied to the elements of `xs`.
-  (if (empty? xs)
+  (if (=? xs ())
     ()
     (cons (f (head xs))
           (map f (tail xs)))))
 
 (fun filter (p? xs)
-  ;; return a list of all the elements from `xs` that satisfy `p?`.
-  (if (empty? xs)
+  (if (=? xs ())
     ()
-    (if (p? (head xs))
+    (if (p? xs)
       (cons (head xs)
             (filter p? (tail xs)))
       (filter p? (tail xs)))))
 
-(fun reduce (f xs acc)
-  (if (empty? xs)
-    acc
-    (reduce f (tail xs) (f acc (head xs)))))
+(stx let
+  (vars & body)
+  (def names (map fst vars))
+  (def binds (map snd vars))
+  (cons* (cons* 'fn names body) binds))
 
-(fun reduce (f xs)
-  ;; with two arguments automatically pass first element of xs as accumulator.
-  (reduce f (tail xs) (head xs)))
+;; miscellaneous utilities
+(fun not (x)
+  (if x false true))
 
-;; testing multimethod + variadic functions
-(fun + (x & more)
-  (reduce + more x))
+;; type predicates
+(fun list? (x)
+  (isa? x List))
+
+(fun sym? (x)
+  (isa? x Sym))
+
+(fun str? (x)
+  (isa? x Str))
+
+(fun fun? (x)
+  (isa? x Fun))
+
+(fun num? (x)
+  (isa? x Num))
+
+(fun atom? (x)
+  (if (list? x)
+    (=? x ())
+    true))
+
+;; number utilities
+(fun zero? (x)
+  (=? x 0))
+
+(fun one? (x)
+  (=? x 1))
+
+(fun inc (x)
+  (+ x 1))
+
+(fun dec (x)
+  (- x 1))
+
+(fun sqr (x)
+  (* x x))

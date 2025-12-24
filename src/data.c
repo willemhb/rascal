@@ -257,7 +257,7 @@ void init_builtin_type(RlState* rls, Type* type, char* name) {
   type->name = mk_sym(rls, name);
   type->has_fn = type->tag == EXP_NONE ? bottom_has : datatype_has;
   add_to_permanent(rls, type);
-  toplevel_env_def(rls, rls->vm->globals, type->name, tag_obj(type));
+  toplevel_env_def(rls, rls->vm->globals, type->name, tag_obj(type), false, true);
 }
 
 void register_builtin_types(RlState* rls) {
@@ -274,8 +274,8 @@ void register_builtin_types(RlState* rls) {
   init_builtin_type(rls, &UpValType, "UpVal");
   init_builtin_type(rls, &EnvType, "Env");
   init_builtin_type(rls, &PortType, "Port");
-  init_builtin_type(rls, &MethodType, "Method");
   init_builtin_type(rls, &FunType, "Fun");
+  init_builtin_type(rls, &MethodType, "Method");
   init_builtin_type(rls, &MethodTableType, "MethodTable");
   init_builtin_type(rls, &SymType, "Sym");
   init_builtin_type(rls, &StrType, "Str");
@@ -304,22 +304,6 @@ bool bottom_has(Type* tx, Type* ty) {
 
 bool datatype_has(Type* tx, Type* ty) {
   return tx->tag == ty->tag;
-}
-
-ExpType exp_type(Expr x) {
-  ExpType t;
-
-  switch ( x & XTMSK ) {
-    case NONE_T  : t = EXP_NONE;           break;
-    case NUL_T   : t = EXP_NUL;            break;
-    case EOS_T   : t = EXP_EOS;            break;
-    case BOOL_T  : t = EXP_BOOL;           break;
-    case GLYPH_T : t = EXP_GLYPH;          break;
-    case OBJ_T   : t = head(x)->type->tag; break;
-    default      : t = EXP_NUM;            break;
-  }
-
-  return t;
 }
 
 bool has_type(Expr x, Type* t) {
@@ -390,6 +374,17 @@ void mark_exp(RlState* rls, Expr x) {
 // object API
 void* as_obj(Expr x) {
   return (void*)(x & XVMSK);
+}
+
+void* as_obj_s(RlState* rls, char* fn, Type* t, Expr x) {
+  if ( !has_type(x, t) ) {
+    fprintf(stderr, "eval error in %s: wanted a %s, got ", fn, type_name(t));
+    print_exp(&Errs, x);
+    fprintf(stderr, ".\n");
+    rl_longjmp(rls, EVAL_ERROR);
+  }
+
+  return as_obj(x);
 }
 
 Expr tag_obj(void* o) {
@@ -510,9 +505,29 @@ Chunk* mk_chunk_s(RlState* rls, Env* vars, Alist* vals, Buf16* code) {
   return out;
 }
 
-void do_disassemble(Alist* vals, Buf16* code) {
+static Ref* local_ref(Env* vars, int o) {
+  assert(is_local_env(vars));
+
+  Ref* r = NULL;
+
+  for ( int i=0; i<vars->vars.max_count; i++ ) {
+    r = vars->vars.kvs[i].val;
+
+    if ( r == NULL || r->offset != o )
+      continue;
+
+    else
+      break;
+  }
+
+  assert(r != NULL);
+
+  return r;
+}
+
+void do_disassemble(Env* vars, Alist* vals, Buf16* code) {
   instr_t* instr = code->binary.vals;
-  int offset     = 0, max_offset = code->binary.count;
+  int offset = 0, max_offset = code->binary.count;
 
   printf("%-8s %-16s %-5s %-5s %-8s\n\n", "line", "instruction", "input", "input", "constant");
 
@@ -530,6 +545,10 @@ void do_disassemble(Alist* vals, Buf16* code) {
         if ( op == OP_GET_VALUE ) {
           print_exp(&Outs, vals->exprs.vals[arg]);
 
+        } else if ( op == OP_GET_GLOBAL || op == OP_SET_GLOBAL ) {
+          print_exp(&Outs, tag_obj(Vm.globals->vals.vals[arg]));
+        } else if ( op == OP_GET_LOCAL || op == OP_SET_LOCAL ) {
+          print_exp(&Outs, tag_obj(local_ref(vars, arg)));
         } else if ( op == OP_GLYPH ) {
           if ( arg < CHAR_MAX && CharNames[arg])
             printf("\\%s", CharNames[arg]);
@@ -589,83 +608,8 @@ void do_disassemble(Alist* vals, Buf16* code) {
   }
 }
 
-void dis_chunk(Chunk* chunk) {
-  instr_t* instr = chunk->code->binary.vals;
-  int offset     = 0, max_offset = chunk->code->binary.count;
-
-  printf("%-8s %-16s %-5s %-5s %-8s\n\n", "line", "instruction", "input", "input", "constant");
-
-  while ( offset < max_offset ) {
-    OpCode op  = instr[offset];
-    int argc   = op_arity(op);
-    char* name = op_name(op);
-
-    switch ( argc ) {
-   
-      case 1: { 
-        instr_t arg = instr[offset+1];
-        printf("%.8d %-16s %.5d ----- ", offset, name, arg);
-
-        if ( op == OP_GET_VALUE ) {
-          print_exp(&Outs, chunk->vals->exprs.vals[arg]);
-
-        } else if ( op == OP_GLYPH ) {
-          if ( arg < CHAR_MAX && CharNames[arg])
-            printf("\\%s", CharNames[arg]);
-
-          else
-            printf("\\%c", arg);
-        } else if ( op == OP_SMALL ) {
-          printf("%d", (short)arg);
-
-        } else
-          printf("--------");
-
-        printf("\n");
-        offset += 2; // advance past argument
-        break;
-      }
-
-      case -2: { // variadic
-        int arg = instr[offset+1];
-        printf("%.8d %-16s %.5d ----- --------\n", offset, name, arg);
-        offset++;
-
-        for ( int i=0; i < arg; i++, offset += 2 ) {
-          int x = instr[offset+1], y = instr[offset+2];
-          printf("%.8d ---------------- %.5d %.5d\n", offset, x, y);
-        }
-
-        break;
-      }
-
-      default:
-        printf("%.8d %-16s ----- ----- ", offset, name);
-
-        if ( op == OP_TRUE )
-          printf("%-8s", "true");
-
-        else if ( op == OP_FALSE )
-          printf("%-8s", "false");
-
-        else if ( op == OP_NUL )
-          printf("%-8s", "nul");
-
-        else if ( op == OP_ZERO )
-          printf("%-8s", "0");
-
-        else if ( op == OP_ONE )
-          printf("%-8s", "1");
-
-        else
-          printf("--------");
-
-        printf("\n");
-        
-        offset++;
-        break;
-    }
-  }
+void disassemble_chunk(Chunk* chunk) {
+  do_disassemble(chunk->vars, chunk->vals, chunk->code);
 }
 
 void trace_chunk(RlState* rls, void* ptr) {
@@ -751,7 +695,8 @@ Ref* mk_ref(RlState* rls, Sym* n, int o) {
   ref->name = n;
   ref->ref_type = REF_UNDEF; // filled in by env_put, env_resolve, &c
   ref->offset = o;
-  ref->is_macro = false;
+  ref->macro = false; // set elsewhere
+  ref->final = false; // set elsewhere
   ref->val = NONE;
 
   return ref;
@@ -805,9 +750,7 @@ Env* mk_env(RlState* rls, Env* parent) {
   Env* env = mk_obj(rls, &EnvType, 0);
 
   env->parent = parent;
-  env->arity = 0;
   env->ncap = 0;
-  env->va = false;
   env->etype = parent == NULL ? REF_GLOBAL : REF_LOCAL;
   init_emap(rls, &env->vars);
   init_emap(rls, &env->upvs);
@@ -868,10 +811,18 @@ Ref* env_resolve(RlState* rls, Env* e, Sym* n, bool capture) {
   return r;
 }
 
-Ref* env_define(RlState* rls, Env* e, Sym* n) {
+Ref* env_define(RlState* rls, Env* e, Sym* n, bool m, bool f, bool* a) {
+  assert(is_global_env(e) || !m);
   Ref* ref = emap_intern(&Main, &e->vars, n, intern_in_env);
+  bool new = ref->ref_type == REF_UNDEF;
 
-  if ( ref->ref_type == REF_UNDEF ) {
+  if ( a )
+    *a = new;
+
+  if ( new ) { // signals freshly created ref
+    ref->macro = m;
+    ref->final = f;
+
     if ( is_local_env(e) )
       ref->ref_type = REF_LOCAL;
 
@@ -885,15 +836,12 @@ Ref* env_define(RlState* rls, Env* e, Sym* n) {
 }
 
 // helpers for working with the global environment
-void toplevel_env_def(RlState* rls, Env* e, Sym* n, Expr x) {
+void toplevel_env_def(RlState* rls, Env* e, Sym* n, Expr x, bool m, bool f) {
   assert(is_global_env(e));
   assert(!is_keyword(n));
 
-  Ref* r = env_define(rls, e, n);
+  Ref* r = env_define(rls, e, n, m, f, NULL);
   r->val = x;
-
-  if ( exp_type(x) == EXP_FUN ) // fill in function name for better debugging
-    as_fun(x)->name = r->name;
 }
 
 void toplevel_env_set(RlState* rls, Env* e, Sym* n, Expr x) {
@@ -903,30 +851,11 @@ void toplevel_env_set(RlState* rls, Env* e, Sym* n, Expr x) {
   Ref* r = toplevel_env_find(rls, e, n);
   assert(r != NULL);
 
-  // handle function-to-function assignment: add method to existing Fun
-  if (is_fun(x)) {
-    Fun* new_fun = as_fun(x);
-
-    if (is_fun(r->val)) {
-      // add the new method to the existing function
-      Fun* existing = as_fun(r->val);
-      Method* new_method = new_fun->singleton;
-      assert(new_method != NULL);  // new Fun always has a singleton initially
-      fun_add_method(rls, existing, new_method);
-      new_fun->name = r->name;
-      return;  // don't overwrite r->val
-    }
-  }
-
-  // non-function assignment to function binding: error
-  if (is_fun(r->val)) {
-    eval_error(rls, "cannot assign non-function to %s", n->val->val);
-  }
+  // don't overwrite final bindings
+  if ( r->final && r->val != NONE )
+    eval_error(rls, "cannot assign to initialized final ref %s", n->val->val);
 
   r->val = x;
-
-  if (is_fun(x))
-    as_fun(x)->name = r->name;
 }
 
 void toplevel_env_refset(RlState* rls, Env* e, int n, Expr x) {
@@ -935,10 +864,12 @@ void toplevel_env_refset(RlState* rls, Env* e, int n, Expr x) {
   assert(is_global_env(e));
   assert(n >= 0 && n < e->vals.count);
   Ref* r = e->vals.vals[n];
-  r->val = x;
 
-  if ( is_fun(x) ) // fill in function name for better debugging
-    as_fun(x)->name = r->name;
+  // don't overwrite final bindings
+  if ( r->final && r->val != NONE )
+    eval_error(rls, "cannot assign to initialized final ref %s", r->name->val->val);
+
+  r->val = x;
 }
 
 Ref* toplevel_env_find(RlState* rls, Env* e, Sym* n) {
@@ -1022,15 +953,41 @@ void free_env(RlState* rls, void* ptr) {
 }
 
 // port API -------------------------------------------------------------------
-Port* mk_port(RlState* rls, FILE* ios) {
+static IOMode get_io_mode(char* fname, char* mode) {
+  // infer the right flags from the file name and the C style mode
+  IOMode out = 0;
+
+  if ( endswith(fname, ".rl") )
+    out |= TEXT_PORT | LISP_PORT;
+
+  else if ( strchr(mode, 'b') )
+    out |= BINARY_PORT;
+
+  else
+    out |= TEXT_PORT;
+
+  if ( strchr(mode, 'r') )
+    out |= INPUT_PORT;
+
+  else if ( strpbrk(mode, "aw") )
+    out |= OUTPUT_PORT;
+
+  else
+    out |= INPUT_PORT;
+
+  return out;
+}
+
+Port* mk_port(RlState* rls, FILE* ios, IOMode io_mode) {
   Port* p = mk_obj(rls, &PortType, 0);
   p->ios  = ios;
+  p->mode = io_mode;
 
   return p;
 }
 
-Port* mk_port_s(RlState* rls, FILE* ios) {
-  Port* out = mk_port(rls, ios);
+Port* mk_port_s(RlState* rls, FILE* ios, IOMode io_mode) {
+  Port* out = mk_port(rls, ios, io_mode);
   push(rls, tag_obj(out));
 
   return out;
@@ -1041,7 +998,9 @@ Port* open_port(RlState* rls, char* fname, char* mode) {
 
   require(rls, ios != NULL, "couldn't open %s: %s", fname, strerror(errno));
 
-  return mk_port(rls, ios);
+  IOMode io_mode = get_io_mode(fname, mode);
+
+  return mk_port(rls, ios, io_mode);
 }
 
 Port* open_port_s(RlState* rls, char* fname, char* mode) {
@@ -1129,10 +1088,89 @@ void free_port(RlState* rls, void* ptr) {
   close_port(p);
 }
 
+
+// function API
+Fun* mk_fun(RlState* rls, Sym* name, bool macro, bool generic) {
+  Fun* f = mk_obj(rls, &FunType, 0);
+  f->name = name;
+  f->macro = macro;
+  f->generic = generic;
+  f->method = NULL;
+
+  return f;
+}
+
+Fun* mk_fun_s(RlState* rls, Sym* name, bool macro, bool generic) {
+  Fun* out = mk_fun(rls, name, macro, generic);
+  push(rls, tag_obj(out));
+  return out;
+}
+
+void fun_add_method(RlState* rls, Fun* fun, Method* m) {
+  assert(fun->generic || fun->method == NULL);
+
+  if ( fn_method_count(fun) == 0 )
+    fun->method = m;
+
+  else {
+    fun->methods = mk_mtable(rls, fun);
+    mtable_add(rls, fun->methods, m);
+  }
+}
+
+void fun_add_method_s(RlState* rls, Fun* fun, Method* m) {
+  preserve(rls, 2, tag_obj(fun), tag_obj(m));
+  fun_add_method(rls, fun, m);
+  popn(rls, 2);
+}
+
+Method* fun_get_method(Fun* fun, int argc) {
+  assert(fun->method != NULL);
+
+  Method* out = NULL;
+
+  if ( is_singleton_fn(fun) && argc_match(fun->method, argc) )
+      out = fun->method;
+  else
+    out = mtable_lookup(fun->methods, argc);
+
+  return out;
+}
+
+Fun* def_builtin_fun(RlState* rls, char* name, int arity, bool va, OpCode op) {
+  int sp = save_sp(rls);
+  Sym* n = mk_sym_s(rls, name);
+  Fun* f = mk_fun_s(rls, n, false, true);
+  Method* m = mk_builtin_method_s(rls, f, arity, va, op);
+
+  fun_add_method(rls, f, m);
+  toplevel_env_def(rls, Vm.globals, n, tag_obj(f), false, true);
+  restore_sp(rls, sp);
+
+  return f;
+}
+
+void print_fun(Port* ios, Expr x) {
+  Fun* fun = as_fun(x);
+
+  if ( fun->macro )
+    pprintf(ios, "<macro:%s/%d>", fn_name(fun), fn_method_count(fun));
+
+  else
+    pprintf(ios, "<fun:%s/%d>", fn_name(fun), fn_method_count(fun));
+}
+
+void trace_fun(RlState* rls, void* ptr) {
+  Fun* fun = ptr;
+
+  mark_obj(rls, fun->name);
+  mark_obj(rls, fun->method);
+}
+
 // method API
-Method* mk_method(RlState* rls, Sym* name, int arity, bool va, OpCode op, Chunk* code) {
+Method* mk_method(RlState* rls, Fun* fun, int arity, bool va, OpCode op, Chunk* code) {
   Method* m = mk_obj(rls, &MethodType, 0);
-  m->name = name;
+  m->fun = fun;
   m->arity = arity;
   m->va = va;
   m->label = op;
@@ -1145,8 +1183,8 @@ Method* mk_method(RlState* rls, Sym* name, int arity, bool va, OpCode op, Chunk*
   return m;
 }
 
-Method* mk_method_s(RlState* rls, Sym* name, int arity, bool va, OpCode op, Chunk* code) {
-  Method* out = mk_method(rls, name, arity, va, op, code);
+Method* mk_method_s(RlState* rls, Fun* fun, int arity, bool va, OpCode op, Chunk* code) {
+  Method* out = mk_method(rls, fun, arity, va, op, code);
   push(rls, tag_obj(out));
   return out;
 }
@@ -1165,30 +1203,33 @@ Method* mk_closure(RlState* rls, Method* proto) {
   return cls;
 }
 
-Method* mk_builtin_method(RlState* rls, Sym* name, int arity, bool va, OpCode op) {
-  return mk_method(rls, name, arity, va, op, NULL);
+Method* mk_builtin_method(RlState* rls, Fun* fun, int arity, bool va, OpCode op) {
+  return mk_method(rls, fun, arity, va, op, NULL);
 }
 
-Method* mk_user_method(RlState* rls, Chunk* code) {
+Method* mk_builtin_method_s(RlState* rls, Fun* fun, int arity, bool va, OpCode op) {
+  Method* out = mk_builtin_method(rls, fun, arity, va, op);
+  push(rls, tag_obj(out));
+  return out;
+}
+
+Method* mk_user_method(RlState* rls, Fun* fun, int arity, bool va, Chunk* code) {
   int sp = save_sp(rls);
-  Sym* n = mk_sym_s(rls, "method");
-  int arity = code->vars->arity;
-  bool va = code->vars->va;
-  Method* m = mk_method(rls, n, arity, va, OP_NOOP, code);
+  Method* m = mk_method(rls, fun, arity, va, OP_NOOP, code);
   restore_sp(rls, sp);
 
   return m;
 }
 
-Method* mk_user_method_s(RlState* rls, Chunk* code) {
-  Method* out = mk_user_method(rls, code);
+Method* mk_user_method_s(RlState* rls, Fun* fun, int arity, bool va, Chunk* code) {
+  Method* out = mk_user_method(rls, fun, arity, va, code);
   push(rls, tag_obj(out));
   return out;
 }
 
-void disassemble(Method* m) {
-  printf("\n\n==== %s ====\n\n", m->name->val->val);
-  dis_chunk(m->chunk);
+void disassemble_method(Method* m) {
+  printf("\n\n==== %s ====\n\n", method_name(m));
+  disassemble_chunk(m->chunk);
   printf("\n\n");
 }
 
@@ -1210,7 +1251,7 @@ void print_method(Port* ios, Expr x) {
   Method* m = as_method(x);
 
   pprintf(ios, "<method:%s/%d%s>",
-          m->name->val->val,
+          method_name(m),
           m->arity,
           m->va ? "+" : "");
 }
@@ -1225,21 +1266,23 @@ void clone_method(RlState* rls, void* ptr) {
 void trace_method(RlState* rls, void* ptr) {
   Method* m = ptr;
 
-  mark_obj(rls, m->name);
+  mark_obj(rls, m->fun);
   mark_obj(rls, m->chunk);
   trace_objs(rls, &m->upvs);
 }
 
 // method table API
-MethodTable* mk_mtable(RlState* rls) {
+MethodTable* mk_mtable(RlState* rls, Fun* fun) {
   MethodTable* mt = mk_obj(rls, &MethodTableType, 0);
+  mt->fun = fun;
+  mt->bitmap = 0ul;
   mt->variadic = NULL;
   init_objs(rls, &mt->methods);
   return mt;
 }
 
-MethodTable* mk_mtable_s(RlState* rls) {
-  MethodTable* out = mk_mtable(rls);
+MethodTable* mk_mtable_s(RlState* rls, Fun* fun) {
+  MethodTable* out = mk_mtable(rls, fun);
   push(rls, tag_obj(out));
   return out;
 }
@@ -1252,139 +1295,44 @@ void mtable_add(RlState* rls, MethodTable* mt, Method* m) {
 
     mt->variadic = m;
   }
-  
-  for (int i = 0; i < mt->methods.count; i++) {
-    Method* existing = mt->methods.vals[i];
 
-    if (method_argc(existing) == method_argc(m))
-      eval_error(rls, "method with arity %d already exists", method_argc(m));
-  }
+  else if ( bitmap_has(mt->bitmap, m->arity) )
+    eval_error(rls, "method with arity %d already exists", m->arity);
 
+  bitmap_set(&mt->bitmap, m->arity); // mark the bitmap
   objs_push(rls, &mt->methods, m);
 }
 
 Method* mtable_lookup(MethodTable* mt, int argc) {
-  for (int i = 0; i < mt->methods.count; i++) {
-    Method* m = mt->methods.vals[i];
-    if (method_argc(m) == argc && !method_va(m))
-      return m;  // exact match
-  }
+  Method* out;
 
-  if ( mt->variadic != NULL && method_argc(mt->variadic) <= argc )
-    return mt->variadic;
+  int idx = bitmap_to_index(mt->bitmap, argc);
 
-  return NULL; // failure
+  if ( idx >= 0 )
+    out = mt->methods.vals[idx];
+
+  else if ( mt->variadic && argc >= mt->variadic->arity )
+    out = mt->variadic;
+
+  else
+    out = NULL; // failure
+
+  return out;
 }
 
 void print_mtable(Port* ios, Expr x) {
-  (void)x;
-  pprintf(ios, "<method-table>");
+  MethodTable* mt = as_mtable(x);
+  pprintf(ios, "<method-table:%s\%d>", mtable_name(mt), mtable_count(mt));
 }
 
 void trace_mtable(RlState* rls, void* ptr) {
   MethodTable* mt = ptr;
+  mark_obj(rls, mt->fun);
+  mark_obj(rls, mt->variadic);
   trace_objs(rls, &mt->methods);
 }
 
-// function API
-Fun* as_fun_s(RlState* rls, char* f, Expr x) {
-  require_argtype(rls, f, &FunType, x);
-
-  return as_fun(x);
-}
-
-Fun* mk_fun(RlState* rls, Sym* name, Method* m) {
-  Fun* f = mk_obj(rls, &FunType, 0);
-  f->name = name;
-  f->num_methods = 1;
-  f->singleton = m;
-  f->methods = NULL;
-
-  return f;
-}
-
-Fun* mk_fun_s(RlState* rls, Sym* name, Method* m) {
-  Fun* out = mk_fun(rls, name, m);
-  push(rls, tag_obj(out));
-  return out;
-}
-
-void fun_add_method(RlState* rls, Fun* fun, Method* m) {
-  if (fun->singleton != NULL && fun->methods == NULL) {
-    // convert from singleton to method table
-    Method* old = fun->singleton;
-    fun->methods = mk_mtable_s(rls);
-    mtable_add(rls, fun->methods, old);
-    fun->singleton = NULL;
-  }
-
-  if (fun->methods != NULL) {
-    mtable_add(rls, fun->methods, m);
-  } else {
-    // should not happen, but handle it
-    fun->singleton = m;
-  }
-
-  fun->num_methods++;
-}
-
-Method* fun_lookup(Fun* fun, int argc) {
-  if (fun->singleton != NULL) {
-    Method* m = fun->singleton;
-    if (method_argc(m) == argc && !method_va(m))
-      return m;
-    if (method_va(m) && argc >= method_argc(m))
-      return m;
-    return NULL;
-  }
-
-  if (fun->methods != NULL) {
-    return mtable_lookup(fun->methods, argc);
-  }
-
-  return NULL;
-}
-
-void def_builtin_fun(RlState* rls, char* name, int arity, bool va, OpCode op) {
-  int sp = save_sp(rls);
-  Sym* sym = mk_sym_s(rls, name);
-  Method* m = mk_builtin_method(rls, sym, arity, va, op);
-  Fun* fun = mk_fun(rls, sym, m);
-  toplevel_env_def(rls, Vm.globals, sym, tag_obj(fun));
-  restore_sp(rls, sp);
-}
-
-Fun* mk_user_fun(RlState* rls, Chunk* code) {
-  Method* m = mk_user_method(rls, code);
-  return mk_fun(rls, m->name, m);
-}
-
-Fun* mk_user_fun_s(RlState* rls, Chunk* code) {
-  Fun* out = mk_user_fun(rls, code);
-  push(rls, tag_obj(out));
-  return out;
-}
-
-void print_fun(Port* ios, Expr x) {
-  Fun* fun = as_fun(x);
-
-  pprintf(ios, "<fun:%s/%d>", fun->name->val->val, fun->num_methods);
-}
-
-void trace_fun(RlState* rls, void* ptr) {
-  Fun* fun = ptr;
-
-  mark_obj(rls, fun->name);
-  mark_obj(rls, fun->singleton);
-  mark_obj(rls, fun->methods);
-}
-
 // symbol API
-Sym* as_sym_s(RlState* rls, char* f, Expr x) {
-  require_argtype(rls, f, &SymType, x);
-  return as_sym(x);
-}
-
 Sym* mk_sym(RlState* rls, char* val) {
   int sp = save_sp(rls);
   Sym* s = mk_obj_s(rls, &SymType, 0);
@@ -1454,11 +1402,6 @@ void string_intern(RlState* rls, Strings* t, StringsKV* kv, char* k, hash_t h) {
   kv->key = s->val;
 }
 
-Str* as_str_s(RlState* rls, char* f, Expr x) {
-  require_argtype(rls, f, &StrType, x);
-  return as_str(x);
-}
-
 Str* mk_str(RlState* rls, char* cs) {
   size_t n = strlen(cs);
   Str* s;
@@ -1518,12 +1461,6 @@ void free_str(RlState* rls, void* ptr) {
 }
 
 // list API
-List* as_list_s(RlState* rls, char* f, Expr x) {
-  require_argtype(rls, f, &ListType, x);
-
-  return as_list(x);
-}
-
 List* empty_list(RlState* rls) {
   List* l = mk_obj(rls, &ListType, 0);
 
@@ -1628,6 +1565,18 @@ Expr list_ref(List* xs, int n) {
     xs = xs->tail;
 
   return xs->head;
+}
+
+int push_list(RlState* rls, List* xs) {
+  int out = xs->count;
+  check_stack_limit(rls, out);
+
+  while ( xs->count > 0 ) {
+    push(rls, xs->head);
+    xs = xs->tail;
+  }
+
+  return out;
 }
 
 void print_list(Port* ios, Expr x) {

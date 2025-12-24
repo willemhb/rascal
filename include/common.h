@@ -45,9 +45,9 @@ typedef struct Ref Ref;
 typedef struct UpVal UpVal;
 typedef struct Env Env;
 typedef struct Port Port;
+typedef struct Fun Fun;
 typedef struct Method Method;
 typedef struct MethodTable MethodTable;
-typedef struct Fun Fun;
 typedef struct Str Str;
 typedef struct Sym Sym;
 typedef struct List List;
@@ -78,6 +78,7 @@ typedef bool (*HasFn)(Type* tx, Type* ty);
 // limits ---------------------------------------------------------------------
 #define MAX_INTERN     512
 #define MAX_ARITY      0x40000000 // largest 32-bit power of 2
+#define MAX_FARGC      63         // largest number of fixed arguments supported
 #define MAX_SAVESTATES 512        // arbitrary, hard to imagine this many nested catch frames
 
 // Prompt/messages
@@ -90,7 +91,7 @@ typedef bool (*HasFn)(Type* tx, Type* ty);
 #define RELEASE "a"
 
 // miscellaneous
-#define RASCAL_DEBUG
+// #define RASCAL_DEBUG
 
 // redefining annoyingly named builtins
 #define clz         __builtin_clzl

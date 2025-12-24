@@ -30,7 +30,6 @@ Env Globals = {
   .nosweep = true,
 
   .parent = NULL,
-  .arity  = 0,
   .ncap   = 0,
 
   .vars = {
@@ -81,21 +80,24 @@ Port Ins = {
   .type    = &PortType,
   .black   = false,
   .gray    = true,
-  .nosweep = true
+  .nosweep = true,
+  .mode    = LISP_PORT | INPUT_PORT | TEXT_PORT
 };
 
 Port Outs = {
   .type    = &PortType,
   .black   = false,
   .gray    = true,
-  .nosweep = true  
+  .nosweep = true,
+  .mode    = LISP_PORT | OUTPUT_PORT | TEXT_PORT
 };
 
 Port Errs = {
   .type    = &PortType,
   .black   = false,
   .gray    = true,
-  .nosweep = true
+  .nosweep = true,
+  .mode    = OUTPUT_PORT | TEXT_PORT
 };
 
 // mostly whitespace and control characters
@@ -117,6 +119,19 @@ static void mark_phase(RlState* rls);
 static void trace_phase(RlState* rls);
 static void sweep_phase(RlState* rls);
 static void cleanup_phase(RlState* rls);
+
+// miscellaneous state helpers
+char* current_fn_name(RlState* rls) {
+  char* out;
+
+  if ( rls->fn == NULL )
+    out = "&toplevel";
+
+  else
+    out = method_name(rls->fn);
+
+  return out;
+}
 
 // error helpers
 ErrorState* error_state(RlState* rls) {
@@ -163,13 +178,13 @@ void discard_error_state(RlState* rls) {
 void rascal_error(RlState* rls, Status etype, char* fmt, ...) {
   va_list va;
   va_start(va, fmt);
-  pprintf(&Errs, "%s error: ", ErrorNames[etype]);
+  pprintf(&Errs, "%s error in %s: ", ErrorNames[etype], current_fn_name(rls));
   pvprintf(&Errs, fmt, va);
   pprintf(&Errs, ".\n");
   va_end(va);
 
 #ifdef RASCAL_DEBUG
-  // stack_report(&Main);
+  stack_report(&Main);
 #endif
 
   if ( etype == SYSTEM_ERROR )
@@ -181,7 +196,7 @@ void rascal_error(RlState* rls, Status etype, char* fmt, ...) {
   }
 
   ErrorState* state = error_state(rls);
-  longjmp(state->Cstate, 1);
+  longjmp(state->Cstate, etype);
 }
 
 // token API
@@ -206,6 +221,26 @@ void reset_stack(RlState* rls) {
   rls->sp = 0;
 }
 
+void check_stack_limit(RlState* rls, int n) {
+  require(rls,
+          rls->sp+n < EXPR_STACK_SIZE,
+          "stack overflow in %s",
+          current_fn_name(rls));
+}
+
+int check_stack_bounds(RlState* rls, int n) {
+  if ( n < 0 )
+    n += rls->sp;
+
+  require(rls,
+          n >= 0 && n < rls->sp,
+          "stack reference %d out of bounds in %s",
+          n,
+          current_fn_name(rls));
+
+  return n;
+}
+
 Expr* stack_ref(RlState* rls, int i) {
   int j = i;
 
@@ -227,6 +262,18 @@ void restore_sp(RlState* rls, int sp) {
   // intended for restoring an sp previously recorded with `save_sp`
   assert(sp >= 0 && sp <= EXPR_STACK_SIZE);
   rls->sp = sp;
+}
+
+Expr* preserve(RlState* rls, int n, ...) {
+  check_stack_limit(rls, n);
+  Expr* out = &rls->stack[rls->sp];
+  va_list va;
+  va_start(va, n);
+  for ( int i=0; i<n; i++ )
+    rls->stack[rls->sp++] = va_arg(va, Expr);
+
+  va_end(va);
+  return out;
 }
 
 Expr* dup(RlState* rls) {
@@ -327,25 +374,46 @@ void install_method(RlState* rls, Method* method, int argc) {
   rls->bp = rls->sp-argc;
 }
 
-void save_frame(RlState* rls) {
+bool save_call_frame(RlState* rls, int argc) {
+  bool out;
+  
   if ( rls->fp == CALL_STACK_SIZE )
     runtime_error(rls, "runtime:save_frame", "stack overflow");
 
+  if ( rls->fn == NULL )
+    out = false;
 
-  CallState *frame = &rls->frames[rls->fp++];
-  frame->frame_size = 1 + rls->sp - rls->bp;
-  frame->cntl_off = -1; // not used until effects are implemented
-  frame->flags = -1; // not used until effects are implemented
-  frame->savepc = rls->pc;
-  frame->savefn = rls->fn;
+  else {
+    CallState *frame = &rls->frames[rls->fp++];
+    frame->frame_size = (rls->sp-argc-1) - rls->bp;
+    frame->cntl_off = -1; // not used until effects are implemented
+    frame->flags = -1; // not used until effects are implemented
+    frame->savepc = rls->pc;
+    frame->savefn = rls->fn;
+    out = true;
+  }
+
+  return out;
 }
 
-void restore_frame(RlState* rls) {
-  assert(rls->fp > 0);
-  CallState* frame = &rls->frames[--rls->fp];
-  rls->pc = frame->savepc;
-  rls->fn = frame->savefn;
-  rls->bp = rls->sp - frame->frame_size + 1;
+bool restore_call_frame(RlState* rls) {
+  bool out;
+  
+  if ( rls->fp == 0 ) { // no frames to restore
+    rls->fn = NULL;     // zero out state to avoid fucked up shit
+    rls->pc = NULL;
+    rls->bp = 0;
+    out = false;
+  } else {
+    CallState* frame = &rls->frames[--rls->fp];
+    rls->sp = rls->bp-1; // exclude caller
+    rls->pc = frame->savepc;
+    rls->fn = frame->savefn;
+    rls->bp = rls->sp - frame->frame_size;
+    out = true;
+  }
+
+  return out;
 }
 
 void reset_vm(RlState* rls) {
@@ -500,13 +568,19 @@ void heap_report(RlState* rls) {
          rls->vm->gc_count);
 }
 
-void stack_report_slice(RlState* rls, char* msg, int n) {
-  printf("\n\n=== %s ===\n\n", msg);
-  Expr* base = &rls->stack[rls->sp-n];
+void stack_report_slice(RlState* rls, int n, char* fmt, ...) {
+  va_list va;
+  va_start(va, fmt);
+  printf("\n\n== ");
+  vprintf(fmt, va);
+  printf(" ==\n\n");
+  va_end(va);
+
+  Expr* base = stack_ref(rls, -n);
 
   for ( int i=n-1; i >= 0; i-- ) {
-    printf("%4d", i);
-    print_exp(&Outs, rls->stack[i]);
+    printf("%4d ", i);
+    print_exp(&Outs, base[i]);
     printf("\n");
   }
 }

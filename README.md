@@ -1,25 +1,26 @@
 # rascal
 A little lisp with big dreams.
 
-## next up
+## done
 * <strike>Closures</strike>
-* `load` (disk IO)
-* Exceptions
-* Variadic functions
-* Macros
-    - gensyms
-    - quasiquote
-    - `stx-def`
+* <strike>`load` (disk IO)</strike>
+* <strike>Variadic functions</strike>
+* <strike>First class types</strike>
+* <strike>Arity overloading (baby step toward generic functions)</strike>
+* <strike>Macros</strike>
+
+## next up
+* Gensyms
+* Quasiquote
 * Tail calls
 * `c-call` (basic FFI)
 
 ## medium term
+* Algebraic effects (should be surprisingly easy)
 * Fancy immutable collection types (Vec, Map, Bin)
-* Arity overloading (baby step toward generic functions)
 * Better variable semantics
 * Metadata maybe??
 * Actual debugging info
-* First class types
 * User-defined types
 * Union types
 * Module system
@@ -29,7 +30,6 @@ A little lisp with big dreams.
 
 ## far future
 * Julia style generic functions
-* Algebraic effects or something (ideally exceptions would be rewritten in terms of the whatever general control-flow construct I end up using)
 * New syntax
 * Standard library
 * Actually fast GC

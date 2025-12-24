@@ -1,57 +1,35 @@
 ;; right now this file is just for brainstorming desired syntax and whatnot. The code here
 ;; doesn't run and isn't intended to.
 
-;; Note: `fun` is now a builtin that supports both forms:
-;;   (fun (args) body)        - anonymous function
-;;   (fun name (args) body)   - named function, defines globally
+;; example of desired medium-term `def` semantics and definitions for basic binding macros.
+
+(def-stx stx
+  (fn (&form &env name args & body)
+    (def fn-form `(fn (&form &env ~@args) ~@body))
+     (if (defined? name &env)
+       `(def-method ~name ~fn-form)
+       `(def-stx ~name ~fn-form))))
+
+(stx fun
+  (name args & body)
+  (if (list? name) ;; unnamed version, treat exactly like `fn` form.
+    `(fn ~name ~args ~@body)
+    (if (local-env? &env)
+      `(def ~name (fn ~@args ~@body))
+      (if (defined? name &env)
+        `(def-method ~name (fn ~@args ~@body))
+        `(def-multi ~name (fn ~@args ~@body))))))
 
 (stx let
-  (binds & body)
-  (def parms   (map fst binds))
-  (def inits   (list-of nul (len binds)))
-  (def assigns (map* #`(put ~&1 ~&2) binds))
-  `((fn ~parms ~@assigns ~@body) ~@inits))
+  (vars & body)
+  (def names (map fst vars))
+  (def vals  (map snd vars))
+  `((fn ~names ~@body) ~vals))
 
-(stx* and
-  (()      true)
-  ((x)     x)
-  ((x & r) `(let ((x# ~x))
-              (if x# (and ~@r) x#))))
-
-(stx* or
-  (()      false)
-  ((x)     x)
-  ((x & r) `(let ((x# ~x))
-              (if x# x# (or ~@r)))))
-
-(stx* cond
-  ((clause)
-    (let ((test head|clause)
-          (csqt tail|clause))
-      (if (=? test 'otherwise)
-        `(do ~@csqt)
-        `(if ~test (do ~@csqt) (error "unmatched condition")))))
-  ((clause & more)
-    (let ((test head|clause)
-          (csqt tail|clause))
-      (if (=? test 'otherwise)
-        (error "'otherwise appears in non-final position")
-        `(if ~test
-           (do ~@csqt)
-           (cond ~@more))))))
-
-;; example of full multimethod implementation
-(fun pow: Num
-  (x: Num n: Num)
-  (label ((x x) (n n) (a 1))
-    (cond
-      ((zero? n) a)
-      ((even? n) (loop (sqr x) (/ n 2) a))
-      (otherwise (loop (* x x) (dec n) (* a x))))))
-
-(fun fib: Num
-  (n: Num)
-  (label ((n n) (a 0) (b 1))
-    (cond
-      ((zero? n) a)
-      (otherwise (loop (dec n) b (+ a b))))))
+(fun map
+  (f xs)
+  (label ((f f) (xs xs) (ac ac))
+    (if (empty? xs)
+      (reverse ac)
+      (let (((h & t) xs))
+        (loop f t (cons (f h) ac))))))

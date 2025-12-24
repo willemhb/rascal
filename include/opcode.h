@@ -27,6 +27,7 @@ typedef enum {
   OP_GET_VALUE,
   OP_GET_GLOBAL,
   OP_SET_GLOBAL,
+  OP_ADD_METHOD,
   OP_GET_LOCAL,
   OP_SET_LOCAL,
   OP_GET_UPVAL,
@@ -35,6 +36,8 @@ typedef enum {
   // branching instructions
   OP_JUMP,
   OP_JUMP_F,
+  OP_PJUMP_F,
+  OP_PJUMP_T,
 
   // closures and function calls
   OP_CLOSURE,
@@ -73,13 +76,23 @@ typedef enum {
   OP_STR_REF,
   OP_STR_LEN,
 
+  // interpreter builtins
+  OP_APPLY,
+  OP_COMPILE,
+  OP_EXEC,
+  OP_LOAD,
+  OP_ERROR,
+
+  // environment operations
+  OP_DEFINED,
+  OP_LOCAL_ENV,
+  OP_GLOBAL_ENV,
+  
   // system instructions
   OP_HEAP_REPORT,
   OP_STACK_REPORT,
   OP_ENV_REPORT,
   OP_DIS,
-  OP_LOAD,
-  OP_ERROR,
 } OpCode;
 
 int op_arity(OpCode op);
