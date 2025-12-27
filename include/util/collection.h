@@ -5,10 +5,10 @@
 
 // Array types ----------------------------------------------------------------
 // Exprs - array of Expr values
-typedef struct Exprs {
-  Expr* vals;
-  int count, max_count;
-} Exprs;
+struct Exprs {
+  Expr* data;
+  int count, maxc;
+};
 
 void init_exprs(RlState* rls, Exprs* a);
 void free_exprs(RlState* rls, Exprs* a);
@@ -20,34 +20,72 @@ Expr exprs_pop(RlState* rls, Exprs* a);
 void exprs_write(RlState* rls, Exprs* a, Expr* xs, int n);
 
 // Objs - array of void* values
-typedef struct Objs {
-  void** vals;
-  int count, max_count;
-} Objs;
+struct Objs {
+  void** data;
+  int count, maxc;
+};
 
-void  init_objs(RlState* rls, Objs* a);
-void  free_objs(RlState* rls, Objs* a);
-void  grow_objs(RlState* rls, Objs* a);
-void  shrink_objs(RlState* rls, Objs* a);
-void  resize_objs(RlState* rls, Objs* a, int n);
-void  objs_push(RlState* rls, Objs* a, void* x);
+void init_objs(RlState* rls, Objs* a);
+void free_objs(RlState* rls, Objs* a);
+void grow_objs(RlState* rls, Objs* a);
+void shrink_objs(RlState* rls, Objs* a);
+void resize_objs(RlState* rls, Objs* a, int n);
+void objs_push(RlState* rls, Objs* a, void* x);
 void* objs_pop(RlState* rls, Objs* a);
-void  objs_write(RlState* rls, Objs* a, void** xs, int n);
+void objs_write(RlState* rls, Objs* a, void** xs, int n);
 
-// Bin16 - array of ushort_t values
-typedef struct Bin16 {
-  ushort_t* vals;
-  int count, max_count;
-} Bin16;
+// CodeBuf - array of instr_t values
+struct CodeBuf {
+  instr_t* data;
+  int count, maxc;
+};
 
-void     init_bin16(RlState* rls, Bin16* a);
-void     free_bin16(RlState* rls, Bin16* a);
-void     grow_bin16(RlState* rls, Bin16* a);
-void     shrink_bin16(RlState* rls, Bin16* a);
-void     resize_bin16(RlState* rls, Bin16* a, int n);
-void     bin16_push(RlState* rls, Bin16* a, ushort_t x);
-ushort_t bin16_pop(RlState* rls, Bin16* a);
-void     bin16_write(RlState* rls, Bin16* a, ushort_t* xs, int n);
+void init_code_buf(RlState* rls, CodeBuf* a);
+void free_code_buf(RlState* rls, CodeBuf* a);
+void grow_code_buf(RlState* rls, CodeBuf* a);
+void shrink_code_buf(RlState* rls, CodeBuf* a);
+void resize_code_buf(RlState* rls, CodeBuf* a, int n);
+void code_buf_push(RlState* rls, CodeBuf* a, ushort_t x);
+instr_t code_buf_pop(RlState* rls, CodeBuf* a);
+void code_buf_write(RlState* rls, CodeBuf* a, instr_t* xs, int n);
+
+struct TextBuf {
+  char* data;
+  int count, maxc;
+};
+
+void init_text_buf(RlState* rls, TextBuf* a);
+void free_text_buf(RlState* rls, TextBuf* a);
+void grow_text_buf(RlState* rls, TextBuf* a);
+void shrink_text_buf(RlState* rls, TextBuf* a);
+void resize_text_buf(RlState* rls, TextBuf* a, int n);
+void text_buf_push(RlState* rls, TextBuf* a, char x);
+char text_buf_pop(RlState* rls, TextBuf* a);
+void text_buf_write(RlState* rls, TextBuf* a, char* xs, int n);
+
+struct LineInfo {
+  int* data;
+  int count, maxc;
+};
+
+void init_line_info(RlState* rls, LineInfo* li);
+void free_line_info(RlState* rls, LineInfo* li);
+void grow_line_info(RlState* rls, LineInfo* li);
+void add_to_line_info(RlState* rls, LineInfo* li, int line, int max_offset);
+
+// bitmapped vector, used to implement methoed tables and eventually HAMTs
+struct BitVec {
+  void** data;
+  int count, maxc;
+  uintptr_t bitmap;
+};
+
+void init_bit_vec(RlState* rls, BitVec* bv);
+void free_bit_vec(RlState* rls, BitVec* bv);
+void grow_bit_vec(RlState* rls, BitVec* bv);
+bool bit_vec_has(BitVec* bv, int n);
+void bit_vec_set(RlState* rls, BitVec* bv, int n, void* d);
+void* bit_vec_get(BitVec* bv, int n);
 
 // Table types ----------------------------------------------------------------
 // Strings - hash table mapping char* to Str*
@@ -58,7 +96,7 @@ typedef struct StringsKV {
 
 typedef struct Strings {
   StringsKV* kvs;
-  int count, max_count;
+  int count, maxc;
 } Strings;
 
 typedef void (*StringsInternFn)(RlState* rls, Strings* t, StringsKV* kv, char* k, hash_t h);
@@ -78,7 +116,7 @@ typedef struct EMapKV {
 
 typedef struct EMap {
   EMapKV* kvs;
-  int count, max_count;
+  int count, maxc;
 } EMap;
 
 typedef void (*EMapInternFn)(RlState* rls, EMap* t, EMapKV* kv, Sym* k, hash_t h);

@@ -24,18 +24,17 @@ Type SymType = {
 
 // symbol API
 Sym* mk_sym(RlState* rls, char* val) {
-  int sp = save_sp(rls);
+  StackRef top = rls->s_top;
   Sym* s = mk_obj_s(rls, &SymType, 0);
   s->val  = mk_str(rls, val);
   s->hash = hash_word(s->val->hash); // just munge the string hash
-  restore_sp(rls, sp);
-
+  rls->s_top = top;
   return s;
 }
 
 Sym* mk_sym_s(RlState* rls, char* val) {
   Sym* out = mk_sym(rls, val);
-  push(rls, tag_obj(out));
+  stack_push(rls, tag_obj(out));
   return out;
 }
 

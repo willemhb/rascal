@@ -6,11 +6,10 @@
 
 #include "val/val.h"
 #include "val/primitive.h"
-#include "val/alist.h"
-#include "val/buf.h"
 #include "val/str.h"
 #include "val/sym.h"
 #include "val/list.h"
+#include "val/tuple.h"
 #include "val/port.h"
 #include "val/env.h"
 #include "val/fun.h"

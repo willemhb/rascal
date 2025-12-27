@@ -5,16 +5,17 @@
 
 struct List {
   HEAD;
-  Expr   head;
-  List*  tail;
-  size_t count;
+  Expr head;
+  List* tail;
+  int count;
+  int line;
 };
 
 // list API
 List*  empty_list(RlState* rls);
 List*  empty_list_s(RlState* rls);
-List*  mk_list(RlState* rls, size_t n, Expr* xs);
-List*  mk_list_s(RlState* rls, size_t n, Expr* xs);
+List*  mk_list(RlState* rls, int n);
+List*  mk_list_s(RlState* rls, int n);
 List*  cons(RlState* rls, Expr hd, List* tl);
 List*  cons_s(RlState* rls, Expr hd, List* tl);
 List*  cons_n(RlState* rls, int n);
@@ -22,9 +23,9 @@ List*  cons_n_s(RlState* rls, int n);
 Expr   list_ref(List* xs, int n);
 int    push_list(RlState* rls, List* xs);
 
-// convenience macros
-#define as_list(x)           ((List*)as_obj(x))
-#define as_list_s(rls, f, x) ((List*)as_obj_s(rls, f, &ListType, x))
+// convenience macros and accessors
+#define as_list(x)        ((List*)as_obj(x))
+#define as_list_s(rls, x) ((List*)as_obj_s(rls, &ListType, x))
 
 #define list_fst(l) ((l)->head)
 #define list_snd(l) ((l)->tail->head)

@@ -113,7 +113,7 @@ Env* mk_env(RlState* rls, Env* parent) {
 
 Env* mk_env_s(RlState* rls, Env* parent) {
   Env* out = mk_env(rls, parent);
-  push(rls, tag_obj(out));
+  stack_push(rls, tag_obj(out));
 
   return out;
 }
@@ -216,7 +216,7 @@ void toplevel_env_refset(RlState* rls, Env* e, int n, Expr x) {
 
   assert(is_global_env(e));
   assert(n >= 0 && n < e->vals.count);
-  Ref* r = e->vals.vals[n];
+  Ref* r = e->vals.data[n];
 
   // don't overwrite final bindings
   if ( r->final && r->val != NONE )
@@ -241,7 +241,7 @@ Expr toplevel_env_ref(RlState* rls, Env* e, int n) {
   assert(is_global_env(e));
   assert(n >= 0 && n < e->vals.count);
 
-  Ref* r = e->vals.vals[n];
+  Ref* r = e->vals.data[n];
 
   return r->val;
 }
@@ -258,7 +258,7 @@ Expr toplevel_env_get(RlState* rls, Env* e, Sym* n) {
 }
 
 static void trace_emap(RlState* rls, EMap* m) {
-  for ( int i=0, j=0; i < m->max_count && j < m->count; i++ ) {
+  for ( int i=0, j=0; i < m->maxc && j < m->count; i++ ) {
     EMapKV* kv = &m->kvs[i];
 
     if ( kv->key != NULL ) {

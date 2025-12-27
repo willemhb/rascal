@@ -7,5 +7,6 @@
 #include "lang/exec.h"
 #include "lang/eval.h"
 #include "lang/print.h"
+#include "lang/builtin.h"
 
 #endif

@@ -3,15 +3,17 @@
 
 #include "val/val.h"
 #include "val/env.h"
-#include "val/alist.h"
-#include "val/buf.h"
 #include "val/sym.h"
+#include "util/collection.h"
 
 struct Chunk {
   HEAD;
-  Env*    vars;
-  Alist*  vals;
-  Buf16*  code;
+  Exprs vals;
+  CodeBuf code;
+  LineInfo lines;
+  Env* vars;
+  Sym* name;
+  Str* file;
 };
 
 // represents a callable function (with possible overloads)
@@ -35,15 +37,14 @@ struct Method {
   int arity; // number of arguments accepted (if va is true, this is the minimum number of arguments)
   OpCode label; // for builtins, set to OP_NOOP for user methods
   Chunk* chunk; // bytecode for closures
-  Objs upvs; // captured upvalues for closures
+  UpVal** upvs;
 };
 
 struct MethodTable {
   HEAD;
   Fun* fun; // the function object this is a method table for
-  uintptr_t bitmap; // bitmap of used arities (maps arity to actual index in methods)
   Method* variadic; // only one variadic method is currently supported
-  Objs methods; // the stored methods
+  BitVec methods; // bit vector of fixed arity methods
 };
 
 // inline helpers
@@ -66,9 +67,11 @@ static inline int fn_method_count(Fun* fn) {
 }
 
 // chunk API
-Chunk* mk_chunk(RlState* rls, Env* vars, Alist* vals, Buf16* code);
-Chunk* mk_chunk_s(RlState* rls, Env* vars, Alist* vals, Buf16* code);
-void do_disassemble(Env* vars, Alist* vals, Buf16* code);
+Chunk* mk_chunk(RlState* rls, Env* penv, Sym* name, Str* file);
+Chunk* mk_chunk_s(RlState* rls, Env* penv, Sym* name, Str* file);
+int get_line_number(Chunk* c, instr_t* off);
+void add_line_number(RlState* rls, Chunk* c, int line);
+void finalize_chunk(RlState* rls, Chunk* c, int line);
 void disassemble_chunk(Chunk* chunk);
 
 // function API
@@ -78,6 +81,7 @@ void fun_add_method(RlState* rls, Fun* fun, Method* m);
 void fun_add_method_s(RlState* rls, Fun* fun, Method* m);
 Method* fun_get_method(Fun* fun, int argc);
 Fun* def_builtin_fun(RlState* rls, char* name, int arity, bool va, OpCode op);
+void add_builtin_method(RlState* rls, Fun* fun, int arity, bool va, OpCode op);
 char* get_fn_name(void* ob, char* fallback);
 
 // method API
@@ -98,20 +102,52 @@ MethodTable* mk_mtable_s(RlState* rls, Fun* fun);
 void mtable_add(RlState* rls, MethodTable* mt, Method* m);
 Method* mtable_lookup(MethodTable* mt, int argc);
 
-// convenience macros
-#define as_method(x)   ((Method*)as_obj(x))
-#define as_fun(x)      ((Fun*)as_obj(x))
-#define as_mtable(x)   ((MethodTable*)as_obj(x))
-#define as_fun_s(rls, f, x)  ((Fun*)as_obj_s(rls, f, &FunType, x))
+// convenience macros and accessors
+#define as_method(x)     ((Method*)as_obj(x))
+#define as_fun(x)        ((Fun*)as_obj(x))
+#define as_mtable(x)     ((MethodTable*)as_obj(x))
+#define as_fun_s(rls, x) ((Fun*)as_obj_s(rls, &FunType, x))
 
-#define is_user_method(m)  ((m)->label == OP_NOOP)
-#define is_singleton_fn(f) ((f)->method->type->tag == EXP_METHOD)
-#define fn_name(f)         ((f)->name->val->val)
-#define method_argc(m)     ((m)->arity)
-#define method_va(m)       ((m)->va)
-#define method_upvalc(m)   ((m)->chunk->vars->upvs.count)
-#define method_name(m)     ((m)->fun->name->val->val)
-#define mtable_name(m)     ((m)->fun->name->val->val)
-#define mtable_count(m)    ((m)->methods.count)
+#define chunk_code(c)   ((c)->code.data)
+#define chunk_codec(c)  ((c)->code.count)
+#define chunk_vals(c)   ((c)->vals.data)
+#define chunk_valsc(c)  ((c)->vals.count)
+#define chunk_lines(c)  ((c)->lines.data)
+#define chunk_linesc(c) ((c)->lines.count)
+#define chunk_name(c)   ((c)->name->val->val)
+#define chunk_file(c)   ((c)->file->val)
+#define chunk_upvc(c)   (env_upvc((c)->vars))
+
+#define is_user_method(m)    ((m)->label == OP_NOOP)
+#define is_builtin_method(m) ((m)->label != OP_NOOP)
+#define is_singleton_fn(f)   ((f)->method->type->tag == EXP_METHOD)
+#define fn_name(f)           ((f)->name->val->val)
+#define method_argc(m)       ((m)->arity)
+#define method_va(m)         ((m)->va)
+#define method_name(m)       ((m)->fun->name->val->val)
+#define mtable_name(m)       ((m)->fun->name->val->val)
+#define mtable_count(m)      ((m)->methods.count)
+#define method_upvs(m)       ((m)->upvs)
+
+static inline int method_formalc(Method* m) {
+  return m->arity + m->va;
+}
+
+static inline int method_upvc(Method* m) {
+  return is_builtin_method(m) ? -1 : env_upvc(m->chunk->vars);
+}
+
+static inline char* method_file(Method* m) {
+  return is_builtin_method(m) ? "<builtin>" : m->chunk->file->val;
+}
+
+static inline Expr* method_vals(Method* m) {
+  return is_builtin_method(m) ? NULL : m->chunk->vals.data;
+}
+
+static inline instr_t* method_code(Method* m) {
+  return is_builtin_method(m) ? NULL : m->chunk->code.data;
+}
 
 #endif
+

@@ -23,27 +23,31 @@ struct Port {
   HEAD;
 
   IOMode mode;
-
   FILE* ios;
 };
 
 // port API
 Port* mk_port(RlState* rls, FILE* ios, IOMode io_mode);
 Port* mk_port_s(RlState* rls, FILE* ios, IOMode io_mode);
+Port* tmp_port(RlState* rls);
+Port* tmp_port_s(RlState* rls);
 Port* open_port(RlState* rls, char* fname, char* mode);
 Port* open_port_s(RlState* rls, char* fname, char* mode);
 void close_port(Port* port);
 bool peof(Port* p);
 int pseek(Port* p, long off, int orig);
+void prewind(Port* p);
 Glyph pgetc(Port* p);
 Glyph pungetc(Port* p, Glyph g);
 Glyph ppeekc(Port* p);
+char* pgets(char* buf, size_t bsize, Port* p);
 int pprintf(Port* p, char* fmt, ...);
 int pvprintf(Port* p, char* fmt, va_list va);
-void clear_input(Port* in);
+void port_newline(Port* out, int n);
+void clear_port(Port* in);
 
 // convenience macros
-#define as_port(x)     ((Port*)as_obj(x))
-#define as_port_s(rls, f, x) ((Port*)as_obj_s(rls, f, &PortType, x))
+#define as_port(x)        ((Port*)as_obj(x))
+#define as_port_s(rls, x) ((Port*)as_obj_s(rls, &PortType, x))
 
 #endif

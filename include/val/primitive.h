@@ -4,7 +4,7 @@
 #include "val/val.h"
 
 // number API
-Num as_num_s(RlState* rls, char* f, Expr x);
+Num as_num_s(RlState* rls, Expr x);
 Num as_num(Expr x);
 Expr tag_num(Num n);
 uintptr_t as_fix(Expr x);
@@ -17,8 +17,9 @@ Bool as_bool(Expr x);
 Expr tag_bool(Bool b);
 
 // glyph API
+char* char_name(Glyph g);
 Glyph as_glyph(Expr x);
-Glyph as_glyph_s(RlState* rls, char* f, Expr x);
+Glyph as_glyph_s(RlState* rls, Expr x);
 Expr  tag_glyph(Glyph x);
 
 #endif

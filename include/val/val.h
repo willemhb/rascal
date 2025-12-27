@@ -30,16 +30,14 @@
 enum {
   EXP_NONE=1,
   EXP_NUL,
-  EXP_EOS,
   EXP_BOOL,
   EXP_GLYPH,
   EXP_TYPE,
   EXP_CHUNK,
-  EXP_ALIST,
-  EXP_BUF16,
   EXP_REF,
   EXP_UPV,
   EXP_ENV,
+  EXP_CTL,
   EXP_PORT,
   EXP_FUN,
   EXP_METHOD,
@@ -47,6 +45,7 @@ enum {
   EXP_SYM,
   EXP_STR,
   EXP_LIST,
+  EXP_TUPLE,
   EXP_NUM
 };
 
@@ -85,8 +84,7 @@ struct Type {
 
 #define NONE_T  0x7ffc000000000000ul
 #define NUL_T   0x7ffd000000000000ul
-#define EOS_T   0x7ffe000000000000ul
-#define BOOL_T  0x7fff000000000000ul
+#define BOOL_T  0x7ffe000000000000ul
 #define GLYPH_T 0xfffc000000000000ul
 #define FIX_T   0xfffe000000000000ul
 #define OBJ_T   0xffff000000000000ul
@@ -94,7 +92,7 @@ struct Type {
 // special values
 #define NONE    0x7ffc000000000000ul
 #define NUL     0x7ffd000000000000ul
-#define EOS     0x7ffe0000fffffffful
+#define EOS     0xfffc0000fffffffful
 #define TRUE    0x7fff000000000001ul
 #define FALSE   0x7fff000000000000ul
 #define RL_ZERO 0x0000000000000000ul
@@ -124,7 +122,7 @@ void mark_exp(RlState* rls, Expr x);
 
 // object API
 void* as_obj(Expr x);
-void* as_obj_s(RlState* s, char* fn, Type* t, Expr x);
+void* as_obj_s(RlState* s, Type* t, Expr x);
 Expr  tag_obj(void* ptr);
 void* mk_obj(RlState* rls, Type* type, flags_t flags);
 void* mk_obj_s(RlState* rls, Type* type, flags_t flags);
@@ -135,13 +133,13 @@ void  unmark_obj(void* ptr);
 void  free_obj(RlState* rls, void *ptr);
 
 // Type extern declarations
-extern Type TypeType, NoneType, NulType, EosType, BoolType, GlyphType,
-  ChunkType, AlistType, Buf16Type, RefType, UpValType, EnvType,
-  PortType, FunType, MethodType, MethodTableType, SymType, StrType,
-  ListType, NumType;
+extern Type TypeType, NoneType, NulType, BoolType, GlyphType,
+  ChunkType, RefType, UpValType, EnvType, CtlType, PortType, FunType,
+  MethodType, MethodTableType, SymType, StrType, ListType, TupleType,
+  NumType;
 
 // safe cast macro
-#define as_type_s(rls, f, x) ((Type*)as_obj_s(rls, f, &TypeType, x))
+#define as_type_s(rls, x) ((Type*)as_obj_s(rls, &TypeType, x))
 
 // type predicates
 #define is_glyph(x)       has_type(x, &GlyphType)

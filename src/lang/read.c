@@ -12,28 +12,42 @@
 bool is_delim_char(int c);
 bool is_sym_char(int c);
 bool is_num_char(int c);
-void skip_space(Port* in);
+void skip_space(Port* in, int* line);
 Expr read_glyph(RlState* rls, Port* in);
-Expr read_quote(RlState* rls, Port* in);
-Expr read_list(RlState* rls, Port *in);
+Expr read_quote(RlState* rls, Port* in, int* line);
+Expr read_tick(RlState* rls, Port* in, int* line);
+Expr read_tilde(RlState* rls, Port* in, int* line);
+Expr read_list(RlState* rls, Port *in, int* line);
+Expr read_tuple(RlState* rls, Port* in, int* line);
 Expr read_string(RlState* rls, Port* in);
 Expr read_atom(RlState* rls, Port* in);
 
 // Function definitions -------------------------------------------------------
 // Helpers --------------------------------------------------------------------
+#define read_error(rls, args...) eval_error(rls, args)
+#define read_require(rls, t, args...)           \
+  do {                                          \
+    if ( !(t) )                                 \
+      read_error(rls, args);                    \
+  } while ( false )
+
 bool is_delim_char(int c) {
   return strchr("(){}[]", c);
 }
 
 bool is_sym_char(int c) {
-  return !isspace(c) && !strchr("(){}[];\"", c);
+  return !isspace(c) && !strchr("(){}[],;\"", c);
 }
 
 bool is_num_char(int c) {
   return isdigit(c) || strchr(".+-", c);
 }
 
-void skip_space(Port* p) {
+bool is_sep_char(int c) {
+  return isspace(c) || c == ',';
+}
+
+void skip_space(Port* p, int* line) {
   int c;
 
   while ( !peof(p) ) {
@@ -42,10 +56,13 @@ void skip_space(Port* p) {
     if ( c == ';' ) {
       // skip comment to end of line
       while ( !peof(p) && (c = pgetc(p)) != '\n' );
-    } else if ( !isspace(c) ) {
+    } else if ( !is_sep_char(c) ) {
       pungetc(p, c);
       break;
     }
+
+    if ( line && c == '\n' )
+      (*line)++;
   }
 }
 
@@ -54,7 +71,7 @@ Expr read_glyph(RlState* rls, Port* in) {
   pgetc(in); // consume opening slash
 
   if ( peof(in) || isspace(ppeekc(in)) )
-    eval_error(rls, "invalid syntax: empty character");
+    read_error(rls, "invalid syntax: empty character.");
 
   Glyph g; int c;
 
@@ -62,7 +79,8 @@ Expr read_glyph(RlState* rls, Port* in) {
     g = pgetc(in);
     c = ppeekc(in);
 
-    require(rls, isspace(c) || is_delim_char(c), "invalid character literal");
+    // TODO: need to handle character literals for delimiters and separators
+    read_require(rls, isspace(c) || is_delim_char(c), "invalid character literal.");
   }
 
   else {
@@ -71,145 +89,207 @@ Expr read_glyph(RlState* rls, Port* in) {
       pgetc(in);
     }
 
-    if ( rls->toff == 1 )
-      g = rls->token[0];
+    char* token = token_val(rls);
+
+    if ( token_size(rls) == 1 )
+      g = token[0];
 
     else
-      switch ( rls->token[0] ) {
+      switch ( token[0] ) {
         case 'n':
-          if ( streq(rls->token+1, "ul") )
+          if ( streq(token+1, "ul") )
             g = '\0';
-
-          else if ( streq(rls->token+1, "ewline") )
+          else if ( streq(token+1, "ewline") )
             g = '\n';
-
           else
-            eval_error(rls, "unrecognized character name \\%s", rls->token);
+            read_error(rls, "unrecognized character name \\%s", token);
+          break;
 
+        case 'e':
+          if ( streq(token+1, "os") )
+            g = (int)EOF;
+          else
+            read_error(rls, "unrecognized character name \\%s", token);
           break;
 
         case 'b':
-          if ( streq(rls->token+1, "el") )
+          if ( streq(token+1, "el") )
             g = '\a';
-
-          else if ( streq(rls->token+1, "ackspace") )
+          else if ( streq(token+1, "ackspace") )
             g = '\b';
-
           else
-            eval_error(rls, "unrecognized character name \\%s", rls->token);
-
+            read_error(rls, "unrecognized character name \\%s", token);
           break;
 
         case 's':
-          if ( streq(rls->token+1, "pace") )
+          if ( streq(token+1, "pace") )
             g = ' ';
-
           else
-            eval_error(rls, "unrecognized character name \\%s", rls->token);
-
+            eval_error(rls, "unrecognized character name \\%s", token);
           break;
 
         case 't':
-          if ( streq(rls->token+1, "ab") )
+          if ( streq(token+1, "ab") )
             g = '\t';
-
           else
-            eval_error(rls, "unrecognized character name \\%s", rls->token);
-
+            read_error(rls, "unrecognized character name \\%s", token);
           break;
 
         case 'r':
-          if ( streq(rls->token+1, "eturn") )
+          if ( streq(token+1, "eturn") )
             g = '\r';
-
           else
-            eval_error(rls, "unrecognized character name \\%s", rls->token);
-
+            read_error(rls, "unrecognized character name \\%s", token);
           break;
 
         case 'f':
-          if ( streq(rls->token+1, "ormfeed") )
+          if ( streq(token+1, "ormfeed") )
             g = '\f';
-
           else
-            eval_error(rls, "unrecognized character name \\%s", rls->token);
-
+            read_error(rls, "unrecognized character name \\%s", token);
           break;
 
         case 'v':
-          if ( streq(rls->token+1, "tab") )
+          if ( streq(token+1, "tab") )
             g = '\v';
-
           else
-            eval_error(rls, "unrecognized character name \\%s", rls->token);
-
+            read_error(rls, "unrecognized character name \\%s", token);
           break;
 
         default:
-          eval_error(rls, "unrecognized character name \\%s", rls->token);
+          read_error(rls, "unrecognized character name \\%s", token);
       }
   }
 
   return tag_glyph(g);
 }
 
-Expr read_quote(RlState* rls, Port* in) {
+Expr read_quote(RlState* rls, Port* in, int* line) {
   pgetc(in); // consume opening '
 
   if ( peof(in) || isspace(ppeekc(in)) )
-    eval_error(rls, "invalid syntax: quoted nothing");
+    read_error(rls, "invalid syntax: quoted nothing.");
 
-  int sp = save_sp(rls);
+  StackRef top = rls->s_top;
   mk_sym_s(rls, "quote");
-  Expr x = read_exp(rls, in); push(rls, x);
-  List* qd = mk_list(rls, 2, stack_ref(rls, -2));
-  restore_sp(rls, sp);
+  Expr x = read_exp(rls, in, line);
+  stack_push(rls, x);
+  List* qd = mk_list(rls, 2);
+  rls->s_top = top;
 
   return tag_obj(qd);
 }
 
-Expr read_list(RlState* rls, Port* in) {
+Expr read_tick(RlState* rls, Port* in, int* line) {
+  pgetc(in); // consume opening `
+
+  if ( peof(in) || isspace(ppeekc(in)) )
+    read_error(rls, "invalid syntax: quoted nothing.");
+
+  StackRef top = rls->s_top;
+  mk_sym_s(rls, "backquote");
+  Expr x = read_exp(rls, in, line);
+  stack_push(rls, x);
+  List* qd = mk_list(rls, 2);
+  rls->s_top = top;
+
+  return tag_obj(qd);
+}
+
+
+Expr read_tilde(RlState* rls, Port* in, int* line) {
+  pgetc(in); // consume opening ~
+  int c;
+
+  if ( peof(in) || isspace(c=ppeekc(in)) )
+    read_error(rls, "invalid syntax: unquoted nothing.");
+
+  char* macro_name = "unquote";
+
+  if ( c == '@' ) {
+    pgetc(in); // consume @
+
+    if ( peof(in) || isspace(ppeekc(in)) )
+      read_error(rls, "invalid syntax: unquoted nothing.");
+
+    macro_name = "unquote-splice";
+  }
+
+  StackRef top = rls->s_top;
+  mk_sym_s(rls, macro_name);
+  Expr x = read_exp(rls, in, line);
+  stack_push(rls, x);
+  List* qd = mk_list(rls, 2);
+  rls->s_top = top;
+
+  return tag_obj(qd);
+}
+
+Expr read_tuple(RlState* rls, Port* in, int* line) {
+  Tuple* out;
+  pgetc(in); // consume the '['
+  skip_space(in, line);
+  Expr x;
+  int n = 0, c;
+  StackRef top = rls->s_top;
+
+  while ( (c=ppeekc(in)) != ']' ) {
+    if ( peof(in) )
+      runtime_error(rls, "unterminated tuple.");
+
+    x = read_exp(rls, in, line);
+    stack_push(rls, x);
+    n++;
+    skip_space(in, line);
+  }
+
+  pgetc(in); // consume ']'
+  out = mk_tuple(rls, n);
+  rls->s_top = top; // restore stack
+
+  return tag_obj(out);
+}
+
+Expr read_list(RlState* rls, Port* in, int* line) {
   List* out;
   pgetc(in); // consume the '('
-  skip_space(in);
+  int n = 0, c;
+  skip_space(in, line);
   Expr x;
-  int n = 0, c, sp = save_sp(rls);
+  StackRef top = rls->s_top;
 
   while ( (c=ppeekc(in)) != ')' ) {
     if ( peof(in) )
-      runtime_error(rls, "unterminated list");
+      runtime_error(rls, "unterminated list.");
 
-    x = read_exp(rls, in);
-    push(rls, x);
+    x = read_exp(rls, in, line);
+    stack_push(rls, x);
     n++;
-    skip_space(in);
+    skip_space(in, line);
   }
 
   pgetc(in); // consume ')'
-  out = mk_list(rls, n, stack_ref(rls, -n));
-  restore_sp(rls, sp); // restore stack
+  out = mk_list(rls, n);
+  rls->s_top = top; // restore stack
 
   return tag_obj(out);
 }
 
 Expr read_string(RlState* rls, Port* in) {
   Str* out;
-
   int c;
-
   pgetc(in); // consume opening '"'
 
   while ( (c=ppeekc(in)) != '"' ) {
     if ( peof(in) )
-      runtime_error(rls, "unterminated string");
+      runtime_error(rls, "unterminated string.");
 
     add_to_token(rls, c); // accumulate
     pgetc(in);   // advance
   }
 
   pgetc(in); // consume terminal '"'
-
-  out = mk_str(rls, rls->token);
+  out = mk_str(rls, token_val(rls));
 
   return tag_obj(out);
 }
@@ -223,44 +303,43 @@ Expr read_atom(RlState* rls, Port* in) {
     pgetc(in);   // consume character
   }
 
-  assert(rls->toff > 0);
+  char* token = token_val(rls);
 
-  if ( is_num_char(rls->token[0])) {
+  assert(token_size(rls) > 0);
+
+  if ( is_num_char(token[0])) {
     char* end;
 
-    Num n = strtod(rls->token, &end);
+    Num n = strtod(token, &end);
 
     if ( end[0] != '\0' ) {   // Symbol that starts with numeric character like +, -, or digit
-      if ( rls->toff > MAX_INTERN )
-        runtime_error(rls, "symbol name '%s' too long", rls->token);
+      if ( token_size(rls) > MAX_INTERN )
+        read_error(rls, "symbol name '%s' too long", token);
 
-      Sym* s = mk_sym(rls, rls->token);
+      Sym* s = mk_sym(rls, token);
       x      = tag_obj(s);
     } else {
       x      = tag_num(n);
     }
   } else {
-    if ( strcmp(rls->token, "nul") == 0 )
+    if ( strcmp(token, "nul") == 0 )
       x = NUL;
 
-    else if ( strcmp(rls->token, "none" ) == 0 )
+    else if ( strcmp(token, "none" ) == 0 )
       x = NONE;
 
-    else if ( strcmp(rls->token, "true") == 0 )
+    else if ( strcmp(token, "true") == 0 )
       x = TRUE;
 
-    else if ( strcmp(rls->token, "false") == 0 )
+    else if ( strcmp(token, "false") == 0 )
       x = FALSE;
 
-    else if ( strcmp(rls->token, "<eos>" ) == 0 )
-      x = EOS;
-
     else {
-      if ( rls->toff > MAX_INTERN )
-        runtime_error(rls, "symbol name '%s' too long", rls->token);
+      if ( token_size(rls) > MAX_INTERN )
+        read_error(rls, "symbol name '%s' too long", token);
 
-      Sym* s = mk_sym(rls, rls->token);
-      x      = tag_obj(s);
+      Sym* s = mk_sym(rls, token);
+      x = tag_obj(s);
     }
   }
 
@@ -268,9 +347,10 @@ Expr read_atom(RlState* rls, Port* in) {
 }
 
 // External -------------------------------------------------------------------
-Expr read_exp(RlState* rls, Port *in) {
+Expr read_exp(RlState* rls, Port *in, int* line) {
   reset_token(rls);
-  skip_space(in);
+  skip_space(in, line);
+  int line1 = line ? *line : -1;
   Expr x;
   int c = ppeekc(in);
 
@@ -279,42 +359,28 @@ Expr read_exp(RlState* rls, Port *in) {
   else if ( c == '\\' )
     x = read_glyph(rls, in);
   else if ( c == '\'' )
-    x = read_quote(rls, in);
+    x = read_quote(rls, in, line);
+  else if ( c == '`' )
+    x = read_tick(rls, in, line);
+  else if ( c == '~' )
+    x = read_tilde(rls, in, line);
   else if ( c == '(' )
-    x = read_list(rls, in);
+    x = read_list(rls, in, line);
   else if ( c == '"')
     x = read_string(rls, in);
+  else if ( c == '[' )
+    x = read_tuple(rls, in, line);
   else if ( is_sym_char(c) )
     x = read_atom(rls, in);
-  else if ( c == ')' ) {
-    pgetc(in); // clear dangling ')'
-    eval_error(rls, "dangling ')'");
+  else if ( strchr(")]", c) ) {
+    pgetc(in); // clear dangling delimiter
+    read_error(rls, "dangling '%c'", c);
   }
   else
-    eval_error(rls, "unrecognized character %c", c);
+    read_error(rls, "unrecognized character %c", c);
+
+  if ( is_list(x) ) // set line info
+    as_list(x)->line = line1;
 
   return x;
-}
-
-List* read_file(RlState* rls, char* fname) {
-  int n = 0, sp = save_sp(rls);
-  Port* in = open_port_s(rls, fname, "r");
-  Expr x;
-
-  while ( (x = read_exp(rls, in)) != EOS ) {
-    push(rls, x);
-    n++;
-  }
-
-  close_port(in);
-  List* out = mk_list(rls, n, stack_ref(rls, -n));
-  restore_sp(rls, sp); // restore stack
-  return out;
-}
-
-
-List* read_file_s(RlState* rls, char* fname) {
-  List* out = read_file(rls, fname);
-  push(rls, tag_obj(out));
-  return out;
 }

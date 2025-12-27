@@ -58,45 +58,8 @@ void init_static_objects(void) {
   add_to_permanent(&Main, &Errs);
 }
 
-void define_builtins(void) {
-  // initialize builtin functions ---------------------------------------------
-  def_builtin_fun(&Main, "+", 2, false, OP_ADD);
-  def_builtin_fun(&Main, "-", 2, false, OP_SUB);
-  def_builtin_fun(&Main, "*", 2, false, OP_MUL);
-  def_builtin_fun(&Main, "/", 2, false, OP_DIV);
-  def_builtin_fun(&Main, "rem", 2, false, OP_REM);
-  def_builtin_fun(&Main, "=", 2, false, OP_NEQ);
-  def_builtin_fun(&Main, "<", 2, false, OP_NLT);
-  def_builtin_fun(&Main, ">", 2, false, OP_NGT);
-  def_builtin_fun(&Main, "=?", 2, false, OP_EGAL);
-  def_builtin_fun(&Main, "hash", 1, false, OP_HASH);
-  def_builtin_fun(&Main, "isa?", 2, false, OP_ISA);
-  def_builtin_fun(&Main, "typeof", 1, false, OP_TYPE);
-  def_builtin_fun(&Main, "list", 0, true, OP_LIST);
-  def_builtin_fun(&Main, "cons", 2, false, OP_CONS);
-  def_builtin_fun(&Main, "cons*", 2, true, OP_CONSN);
-  def_builtin_fun(&Main, "head", 1, false, OP_HEAD);
-  def_builtin_fun(&Main, "tail", 1, false, OP_TAIL);
-  def_builtin_fun(&Main, "list-ref", 2, false, OP_LIST_REF);
-  def_builtin_fun(&Main, "list-len", 1, false, OP_LIST_LEN);
-  def_builtin_fun(&Main, "str", 0, true, OP_STR);
-  def_builtin_fun(&Main, "chars", 1, false, OP_CHARS);
-  def_builtin_fun(&Main, "str-ref", 2, false, OP_STR_REF);
-  def_builtin_fun(&Main, "str-len", 1, false, OP_STR_LEN);
-  def_builtin_fun(&Main, "apply", 2, false, OP_APPLY);
-  def_builtin_fun(&Main, "compile", 1, false, OP_COMPILE);
-  def_builtin_fun(&Main, "exec", 1, false, OP_EXEC);
-  def_builtin_fun(&Main, "load", 1, false, OP_LOAD);
-  def_builtin_fun(&Main, "error", 1, false, OP_ERROR);
-  def_builtin_fun(&Main, "defined?", 2, false, OP_DEFINED);
-  def_builtin_fun(&Main, "local-env?", 1, false, OP_LOCAL_ENV);
-  def_builtin_fun(&Main, "global-env?", 1, false, OP_GLOBAL_ENV);
-  def_builtin_fun(&Main, "*heap-report*", 0, false, OP_HEAP_REPORT);
-  def_builtin_fun(&Main, "*stack-report*", 0, false, OP_STACK_REPORT);
-  def_builtin_fun(&Main, "*env-report*", 0, false, OP_ENV_REPORT);
-  def_builtin_fun(&Main, "*dis*", 1, false, OP_DIS);
-
-  // initialize other globals -------------------------------------------------
+void define_globals(void) {
+  // initialize other globals
   toplevel_env_def(&Main, Vm.globals, mk_sym(&Main, "&ins"), tag_obj(&Ins), false, true);
   toplevel_env_def(&Main, Vm.globals, mk_sym(&Main, "&outs"), tag_obj(&Outs), false, true);
   toplevel_env_def(&Main, Vm.globals, mk_sym(&Main, "&errs"), tag_obj(&Errs), false, true);
@@ -108,8 +71,30 @@ void init_vm(void) {
 }
 
 void init_standard_library(void) {
+#ifdef RASCAL_DEBUG
+  save_error_state(&Main, 0);
+
+  if ( rl_setjmp(&Main) ) {
+    printf("failed to load lisp/test.rl");
+    restore_error_state(&Main);
+  } else {
+    load_file(&Main, "lisp/test.rl");
+  }
+
+  discard_error_state(&Main);
+#endif
+  
   // load the standard library file
-  load_file(&Main, "lisp/boot.rl");
+  save_error_state(&Main, 0);
+
+  if ( rl_setjmp(&Main) ) {
+    printf("failed to load lisp/boot.rl");
+    restore_error_state(&Main);
+  } else {
+    load_file(&Main, "lisp/boot.rl");
+  }
+
+  discard_error_state(&Main);
 }
 
 void print_welcome(void) {
@@ -121,7 +106,9 @@ void setup(void) {
   init_builtin_types();
   init_standard_streams();
   init_static_objects();
+  init_vm_error();
   define_builtins();
+  define_globals();
   init_vm();
   init_standard_library();
 }
@@ -155,7 +142,7 @@ int main(int argc, char* argv[]) {
   } else {
     // Enter REPL
     print_welcome();
-    repl(&Main);
+    toplevel_repl(&Main);
   }
 
   teardown();

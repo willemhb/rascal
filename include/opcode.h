@@ -16,6 +16,7 @@ typedef enum {
   OP_TRUE,
   OP_FALSE,
   OP_NUL,
+  OP_EOS,
   OP_ZERO,
   OP_ONE,
 
@@ -45,6 +46,11 @@ typedef enum {
   OP_CALL,
   OP_RETURN,
 
+  // error handling
+  OP_CATCH,
+  OP_RAISE,
+  OP_ECATCH,
+
   // arithmetic instructions
   OP_ADD,
   OP_SUB,
@@ -63,8 +69,8 @@ typedef enum {
 
   // basic list operations
   OP_LIST,
-  OP_CONS,
-  OP_CONSN,
+  OP_CONS_2,
+  OP_CONS_N,
   OP_HEAD,
   OP_TAIL,
   OP_LIST_REF,
@@ -76,12 +82,20 @@ typedef enum {
   OP_STR_REF,
   OP_STR_LEN,
 
+  // tuple operations
+  OP_TUPLE,
+  OP_TUPLE_REF,
+  OP_TUPLE_LEN,
+
   // interpreter builtins
+  OP_READ,
+  OP_EVAL,
+  OP_PRINT,
+  OP_REPL,
   OP_APPLY,
   OP_COMPILE,
   OP_EXEC,
   OP_LOAD,
-  OP_ERROR,
 
   // environment operations
   OP_DEFINED,
@@ -92,6 +106,7 @@ typedef enum {
   OP_HEAP_REPORT,
   OP_STACK_REPORT,
   OP_ENV_REPORT,
+  OP_STACK_TRACE,
   OP_DIS,
 } OpCode;
 

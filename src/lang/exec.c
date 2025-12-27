@@ -1,12 +1,15 @@
-#include "lang/exec.h"
-#include "lang/compile.h"
+#include "lang.h"
 #include "val.h"
 #include "vm.h"
 
 // Globals --------------------------------------------------------------------
+enum {
+  EF_TCALL = 0x01, // don't save caller
+};
 // Prototypes -----------------------------------------------------------------
 // Helpers
 bool is_falsey(Expr x);
+Expr do_load(RlState* rls, char* fname);
 
 // Implementations ------------------------------------------------------------
 // Helpers
@@ -16,25 +19,19 @@ bool is_falsey(Expr x) {
 
 // External
 Expr load_file(RlState* rls, char* fname) {
-  Expr v; Fun* code;
-  save_error_state(rls);
+  // wrapper that pushes and invokes the builtin load function (for stack consistency)
+  Expr v;
 
-  if ( set_safe_point(rls) ) {
-    restore_error_state(rls);
-    v = NUL;
-  } else {
-    code = compile_file(rls, fname);
-    push(rls, tag_obj(code));
-    v = exec_code(rls, 0, 0);
-  }
-
-  discard_error_state(rls);
-
+  stack_push(rls, tag_obj(LoadFun));
+  mk_str_s(rls, fname);
+  v = exec_code(rls, 1, 0);
   return v;
 }
 
-
 Expr exec_code(RlState* rls, int nargs, int flags) {
+  #define ARGS rls->base
+  #define EXEC rls->exec
+
   void* labels[] = {
     [OP_NOOP]        = &&op_noop,
 
@@ -46,6 +43,7 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
     [OP_TRUE]        = &&op_true,
     [OP_FALSE]       = &&op_false,
     [OP_NUL]         = &&op_nul,
+    [OP_EOS]         = &&op_eos,
     [OP_ZERO]        = &&op_zero,
     [OP_ONE]         = &&op_one,
 
@@ -75,6 +73,11 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
     [OP_CALL]        = &&op_call,
     [OP_RETURN]      = &&op_return,
 
+    // error handling ---------------------------------------------------------
+    [OP_CATCH]       = &&op_catch,
+    [OP_RAISE]       = &&op_raise,
+    [OP_ECATCH]      = &&op_end_catch,
+
     // arithmetic instructions ------------------------------------------------
     [OP_ADD]         = &&op_add,
     [OP_SUB]         = &&op_sub,
@@ -93,8 +96,8 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
 
     // list operations --------------------------------------------------------
     [OP_LIST]        = &&op_list,
-    [OP_CONS]        = &&op_cons,
-    [OP_CONSN]       = &&op_consn,
+    [OP_CONS_2]      = &&op_cons_2,
+    [OP_CONS_N]      = &&op_cons_n,
     [OP_HEAD]        = &&op_head,
     [OP_TAIL]        = &&op_tail,
     [OP_LIST_REF]    = &&op_list_ref,
@@ -106,12 +109,20 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
     [OP_STR_REF]     = &&op_str_ref,
     [OP_STR_LEN]     = &&op_str_len,
 
+    // tuple operations -------------------------------------------------------
+    [OP_TUPLE]       = &&op_tuple,
+    [OP_TUPLE_REF]   = &&op_tuple_ref,
+    [OP_TUPLE_LEN]   = &&op_tuple_len,
+
     // interpreter builtins ---------------------------------------------------
+    [OP_READ]        = &&op_read,
+    [OP_EVAL]        = &&op_eval,
+    [OP_PRINT]       = &&op_print,
+    [OP_REPL]        = &&op_repl,
     [OP_APPLY]       = &&op_apply,
     [OP_COMPILE]     = &&op_compile,
     [OP_EXEC]        = &&op_exec,
     [OP_LOAD]        = &&op_load,
-    [OP_ERROR]       = &&op_error,
 
     // environment operations -------------------------------------------------
     [OP_DEFINED]     = &&op_defined,
@@ -122,19 +133,29 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
     [OP_HEAP_REPORT] = &&op_heap_report,
     [OP_STACK_REPORT]= &&op_stack_report,
     [OP_ENV_REPORT]  = &&op_env_report,
+    [OP_STACK_TRACE] = &&op_stack_trace,
     [OP_DIS]         = &&op_dis,
   };
-
-  (void)flags; // not used yet
+  (void)flags;
+  flags = 0;
+  // StackRef s_top = rls->s_top;
+  FrameRef f_top = rls->f_top;
+  StackRef s_base = rls->s_top - nargs;
   int argc=nargs, argx, argy;
-  OpCode op;
-  Expr x, y, z;
-  Num nx, ny, nz;
-  long ix, iy, iz;
+    OpCode op;
+  Expr x, y;
+  Num rx, ry;
+  long ix, iy;
   List* lx, * ly;
   Fun* fx;
   Method* method;
   Str* sx;
+  Ctl* cx;
+  Tuple* tx;
+
+#ifdef RASCAL_DEBUG
+  // print_call_stack(rls, -1, "call stack on entry to exec");
+#endif
 
   // initialize
   goto do_call;
@@ -150,58 +171,61 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
 
   // stack manipulation instructions ------------------------------------------
  op_pop: // remove TOS
-  pop(rls);
+  stack_pop(rls);
   goto fetch;
 
  op_rpop: // move TOS to TOS-1, then decrement sp
-  rpop(rls);
+  stack_rpop(rls);
   goto fetch;
 
   // constant loads -----------------------------------------------------------
  op_true:
-  push(rls, TRUE);
+  stack_push(rls, TRUE);
   goto fetch;
 
  op_false:
-  push(rls, FALSE);
+  stack_push(rls, FALSE);
   goto fetch;
 
  op_nul:
-  push(rls, NUL);
+  stack_push(rls, NUL);
   goto fetch;
 
+ op_eos:
+  stack_push(rls, EOS);
+
  op_zero:
-  push(rls, RL_ZERO);
+  stack_push(rls, RL_ZERO);
   goto fetch;
 
  op_one:
-  push(rls, RL_ONE);
+  stack_push(rls, RL_ONE);
   goto fetch;
 
  op_glyph:
   argx = next_op(rls);
   x = tag_glyph(argx);
-  push(rls, x);
+  stack_push(rls, x);
   goto fetch;
 
  op_small:
   argx = (short)next_op(rls);
   x = tag_num(argx);
-  push(rls, x);
+  stack_push(rls, x);
   goto fetch;
   
   // value/variable instructions ----------------------------------------------
  op_get_value: // load a value from the constant store
   argx = next_op(rls);
-  x = alist_get(rls->fn->chunk->vals, argx);
-  push(rls, x);
+  x = method_vals(rls->exec)[argx];
+  stack_push(rls, x);
   goto fetch;
 
  op_get_global:
   argx = next_op(rls); // previously resolved index in global environment
   x = toplevel_env_ref(rls, Vm.globals, argx);
-  require(rls, x != NONE, "undefined reference");
-  push(rls, x);
+  require(rls, x != NONE, "undefined reference.");
+  stack_push(rls, x);
   goto fetch;
 
  op_set_global:
@@ -219,26 +243,26 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
 
  op_get_local:
   argx = next_op(rls);
-  x = rls->stack[rls->bp+argx];
-  push(rls, x);
+  x = ARGS[argx];
+  stack_push(rls, x);
   goto fetch;
 
  op_set_local:
   argx = next_op(rls);
   x = tos(rls);
-  rls->stack[rls->bp+argx] = x;
+  ARGS[argx] = x;
   goto fetch;
 
  op_get_upval:
   argx = next_op(rls);
-  x = upval_ref(rls->fn, argx);
-  push(rls, x);
+  x = upval_ref(rls->exec, argx);
+  stack_push(rls, x);
   goto fetch;
 
  op_set_upval:
   argx = next_op(rls);
   x = tos(rls);
-  upval_set(rls->fn, argx, x);
+  upval_set(rls->exec, argx, x);
   goto fetch;
 
   // branching instructions ---------------------------------------------------
@@ -249,7 +273,7 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
 
  op_jump_f: // jump if TOS is falsey
   argx   = next_op(rls);
-  x      = pop(rls);
+  x      = stack_pop(rls);
 
   if ( is_falsey(x) )
     rls->pc += argx;
@@ -265,7 +289,7 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
     rls->pc += argx;
 
   else
-    pop(rls);
+    stack_pop(rls);
 
   goto fetch;
 
@@ -276,7 +300,7 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
     rls->pc += argx;
 
   else
-    pop(rls);
+    stack_pop(rls);
 
   goto fetch;
 
@@ -285,48 +309,44 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
   argc = next_op(rls);
 
  do_call:
-  x = *stack_ref(rls, -argc-1);
+  x = rls->s_top[-argc-1];
 
-  // Get the Fun and look up the appropriate Method
-  fx = as_fun_s(rls, current_fn_name(rls), x);
+  // Dispatch to appropriate method
+  fx = as_fun_s(rls, x);
   method = fun_get_method(fx, argc);
-  require(rls, method != NULL, "%s has no method for %d arguments", fn_name(fx), argc);
+  require(rls, method != NULL,
+          "%s has no method for %d arguments", fn_name(fx), argc);
 
   if ( is_user_method(method) )
     goto call_user_method;
 
-  if ( method_va(method) )
-    require_vargco(rls, method_name(method), method_argc(method), argc);
-
-  else
-    require_argco(rls, method_name(method), method_argc(method), argc);
-
+  // At present builtin methods save caller state and install themselves in the
+  // call frame just like user methods. This helps to make error reporting more
+  // consistent
+  save_call_frame(rls);
+  install_method(rls, method);
   op = method->label;
 
   goto *labels[op];
 
  call_user_method:
-#ifdef RASCAL_DEBUG
-   if ( !method->fun->macro )
-    stack_report_slice(rls, argc+1, "calling user method %s", method_name(method));
-#endif
-
   if ( method_va(method) ) {
-    require_vargco(rls, method_name(method), method_argc(method), argc);
     // collect extra args into a list
     int extra = argc - method_argc(method);
-    List* rest = mk_list(rls, extra, &rls->stack[rls->sp - extra]);
-    popn(rls, extra);
-    push(rls, tag_obj(rest));
+    List* rest = mk_list(rls, extra);
+    stack_popn(rls, extra);
+    stack_push(rls, tag_obj(rest));
     argc = method_argc(method) + 1;
-  } else {
-    require_argco(rls, method_name(method), method_argc(method), argc);
   }
 
-  save_call_frame(rls, argc); // save caller state
-  install_method(rls, method, argc);
+  save_call_frame(rls); // save caller state
+  install_method(rls, method);
 
   goto fetch;
+
+  install_method(rls, method);
+  op = method->label;
+  goto *labels[op];
 
  op_closure:
   // Get the Fun from TOS, extract its Method, create a closure
@@ -339,354 +359,365 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
     argx = next_op(rls);
     argy = next_op(rls);
 
-    if ( argx == 0 ) // nonlocal
-      method->upvs.vals[i] = rls->fn->upvs.vals[argy];
+    if ( argx == 0 ) // nonlocal, use existing upvalue
+      method->upvs[i] = rls->exec->upvs[argy];
 
-    else
-      method->upvs.vals[i] = get_upv(rls, rls->stack+rls->bp+argy);
+    else // local, capture from current scope
+      method->upvs[i] = get_upv(rls, rls->base+argy);
   }
   goto fetch;
 
   // emmitted before a frame with local upvalues returns
  op_capture:
-  close_upvs(rls, rls->stack+rls->bp);
+  close_upvs(rls, rls->base);
+
   goto fetch;
 
- op_return:{
-#ifdef RASCAL_DEBUG
-    char* returning = current_fn_name(rls);
-    stack_report_slice(rls, (rls->sp+1)-rls->bp, "before returning from %s", returning);
-#endif
+ op_return:
+  x = stack_pop(rls); // return value
+  restore_call_frame(rls);
 
-    x = pop(rls);
-
-    if ( restore_call_frame(rls) ) { // more work to do
-      push(rls, x);
-
-#ifdef RASCAL_DEBUG
-      stack_report_slice(rls, (rls->sp+1)-rls->bp, "after returning from %s", returning);
-#endif
-      goto fetch;
-    } else { // reached toplevel, exit
-      popn(rls, nargs+1); // remove caller and original arguments from stack
-      return x;
-    }
+  // function that we entered the VM to execute has returned, returned from exec
+  if ( rls->f_top == f_top ) {
+    if ( rls->f_top == rls->frames ) // special case of first function on the stack
+      rls->s_top = s_base-1;
+    return x;
   }
+
+  stack_push(rls, x);
+  
+  if ( is_builtin_method(rls->exec) )
+    goto op_return;
+
+  else
+    goto fetch;
+
+  // error handling -----------------------------------------------------------
+  op_catch:
+  // stack should be closures for handler and body, in that order
+  cx = mk_ctl(rls, as_fun(rls->s_top[-2])); // build control object
+  rls->s_top[-2] = tag_obj(cx); // replace handler on stack with control object
+  save_error_state(rls, 2); // set esc pointer
+
+  if ( !rl_setjmp(rls) ) {
+    // simple case, set up call and jump to body
+    argc = 0;
+    goto do_call;
+  } else {
+  // error was thrown
+    rls->pc++; // skip over 'op_end_catch' -- only for normal exit
+    x = stack_pop(rls); // error object
+    cx = restore_error_state(rls); // restore registers
+    rls->esc = cx->esc; // restore enclosing esc pointer
+    rls->s_top[-2] = tag_obj(cx->handler); // replace ctl object with handler
+    rls->s_top[-1] = x; // set up handler call
+    argc = 1;
+    goto do_call;
+  }
+
+ op_raise:
+  rl_longjmp(rls, EVAL_ERROR);
+
+ op_end_catch:
+  x = stack_pop(rls); // return value
+  cx = get_error_state(rls); // get current error frame
+  rls->s_top = rls->esc; // pop everything pushed by catch
+  rls->esc = cx->esc; // restore enclosing escape pointer
+  stack_push(rls, x); // push return value back onto stack
 
   // builtin functions --------------------------------------------------------
   // at some hypothetical point in --------------------------------------------
   // the future these will be inlineable --------------------------------------
  op_add:
-  y = pop(rls);
-  x = pop(rls);
-  nx = as_num_s(rls, "+", x);
-  ny = as_num_s(rls, "+", y);
-  nz = nx + ny;
-  z = tag_num(nz);
-  tos(rls) = z;           // combine push/pop
-  goto fetch;
+  rx = as_num_s(rls, ARGS[0]);
+  ry = as_num_s(rls, ARGS[1]);
+  stack_push(rls, tag_num(rx + ry));
+
+  goto op_return;
 
  op_sub:
-  y      = pop(rls);
-  x      = pop(rls);
-  nx     = as_num_s(rls, "-", x);
-  ny     = as_num_s(rls, "-", y);
-  nz     = nx - ny;
-  z      = tag_num(nz);
-  tos(rls)  = z;           // combine push/pop
+  rx = as_num_s(rls, ARGS[0]);
+  ry = as_num_s(rls, ARGS[1]);
+  stack_push(rls, tag_num(rx-ry));
 
-  goto fetch;
+  goto op_return;
 
  op_mul:
-  y      = pop(rls);
-  x      = pop(rls);
-  nx     = as_num_s(rls, "*", x);
-  ny     = as_num_s(rls, "*", y);
-  nz     = nx * ny;
-  z      = tag_num(nz);
-  tos(rls)  = z;           // combine push/pop
-  goto fetch;
+  rx = as_num_s(rls, ARGS[0]);
+  ry = as_num_s(rls, ARGS[1]);
+  stack_push(rls, tag_num(rx * ry));
+  goto op_return;
 
  op_div:
-  y = pop(rls);
-  x = pop(rls);
-  nx = as_num_s(rls, "/", x);
-  ny = as_num_s(rls, "/", y); require(rls, ny != 0, "division by zero");
-  nz = nx / ny;
-  z  = tag_num(nz);
-  tos(rls) = z; // combine push/pop
-  goto fetch;
+  rx = as_num_s(rls, ARGS[0]);
+  ry = as_num_s(rls, ARGS[1]);
+  require(rls, ry != 0, "division by zero");
+  stack_push(rls, tag_num(rx / ry));
+  goto op_return;
 
  op_rem:
-  y = pop(rls);
-  x = pop(rls);
-  ix = as_num_s(rls, "rem", x);
-  iy = as_num_s(rls, "rem", y); require(rls, ny != 0, "division by zero");
-  iz = ix % iy;
-  z  = tag_num(iz);
-  tos(rls) = z; // combine push/pop
-  goto fetch;
+  ix = as_num_s(rls, ARGS[0]);
+  iy = as_num_s(rls, ARGS[1]);
+  require(rls, ry != 0, "division by zero");
+  stack_push(rls, tag_num(ix % iy));
+  goto op_return;
 
  op_neq:
-  y = pop(rls);
-  x = pop(rls);
-  nx = as_num_s(rls, "=", x);
-  ny = as_num_s(rls, "=", y);
-  z = nx == ny ? TRUE : FALSE;
-  tos(rls) = z; // combine push/pop
-  goto fetch;
+  require_argtype(rls, &NumType, ARGS[0]);
+  require_argtype(rls, &NumType, ARGS[1]);
+  stack_push(rls, ARGS[0] == ARGS[1] ? TRUE : FALSE);
+  goto op_return;
 
  op_nlt:
-  y = pop(rls);
-  x = pop(rls);
-  nx = as_num_s(rls, "<", x);
-  ny = as_num_s(rls, "<", y);
-  z = nx < ny ? TRUE : FALSE;
-  tos(rls) = z; // combine push/pop
-  goto fetch;
+  rx = as_num_s(rls, ARGS[0]);
+  ry = as_num_s(rls, ARGS[1]);
+  stack_push(rls, rx < ry ? TRUE : FALSE);
+  goto op_return;
 
  op_ngt:
-  y = pop(rls);
-  x = pop(rls);
-  nx = as_num_s(rls, ">", x);
-  ny = as_num_s(rls, ">", y);
-  z = nx > ny ? TRUE : FALSE;
-  tos(rls) = z; // combine push/pop
-  goto fetch;
+  rx = as_num_s(rls, ARGS[0]);
+  ry = as_num_s(rls, ARGS[1]);
+  stack_push(rls, rx > ry ? TRUE : FALSE);
+  goto op_return;
 
  op_egal:
-  y = pop(rls);
-  x = pop(rls);
-  z = egal_exps(x, y) ? TRUE : FALSE;
-  tos(rls) = z;
-  goto fetch;
+  x = ARGS[0];
+  y = ARGS[1];
+  stack_push(rls, egal_exps(x, y) ? TRUE : FALSE);
+  goto op_return;
 
  op_hash:
-  x = pop(rls);
-  ix = hash_exp(x) & XVMSK; // really this should be done consistently elsewhere
-  y = tag_num(ix);
-  tos(rls) = y;
-  goto fetch;
+  ix = hash_exp(ARGS[0]) & XVMSK; // really this should be done consistently elsewhere
+  stack_push(rls, tag_num(ix));
+  goto op_return;
 
  op_isa:{
     Type* t;
-    y = pop(rls);
-    x = pop(rls);
-    t = as_type_s(rls, "isa?", y);
-    z = has_type(x, t) ? TRUE : FALSE;
-    tos(rls) = z;
-    goto fetch;
+    x = ARGS[0];
+    t = as_type_s(rls, ARGS[1]);
+    stack_push(rls, has_type(x, t) ? TRUE : FALSE);
+    goto op_return;
   }
 
  op_type:
-  x = pop(rls);
+  x = ARGS[0];
   y = tag_obj(type_of(x));
-  tos(rls) = y;
-  goto fetch;
+  stack_push(rls, y);
+  goto op_return;
 
  op_list:
-  lx = mk_list(rls, argc, &rls->stack[rls->sp-argc]);
-  popn(rls, argc);
-  tos(rls) = tag_obj(lx);
-  goto fetch;
+  lx = mk_list(rls, argc);
+  stack_push(rls, tag_obj(lx));
+  goto op_return;
 
- op_cons:
-  lx = as_list_s(rls, "cons", rls->stack[rls->sp-1]);
-  ly = cons(rls, rls->stack[rls->sp-2], lx);
-  z  = tag_obj(ly);
-  popn(rls, 2);
-  tos(rls) = z;
-  goto fetch;
+ op_cons_2:
+  lx = as_list_s(rls, ARGS[1]);
+  ly = cons(rls, ARGS[0], lx);
+  stack_push(rls, tag_obj(ly));
+  goto op_return;
 
- op_consn:
-  require_argtype(rls, "cons*", &ListType, tos(rls));
+ op_cons_n:
+  require_argtype(rls, &ListType, ARGS[argc-1]);
   lx = cons_n(rls, argc);
-  popn(rls, argc);
-  tos(rls) = tag_obj(lx);
-  goto fetch;
+  stack_push(rls, tag_obj(lx));
+  goto op_return;
 
  op_head:
-#ifdef RASCAL_DEBUG
-  // printf("\nargument to head: ");
-  // print_exp(&Outs, tos(rls));
-  // printf("\n");
-#endif
-  x = pop(rls);
-  lx = as_list_s(rls, "head", x);
-  require(rls, lx->count > 0, "can't call head on empty list");
+  x = ARGS[0];
+  lx = as_list_s(rls, x);
+  require(rls, lx->count > 0, "head", "can't call head on empty list.");
   y  = lx->head;
   tos(rls) = y;
-  goto fetch;
+  goto op_return;
 
  op_tail:
-
-#ifdef RASCAL_DEBUG
-  // stack_report_slice(rls, 2, "DEBUG - arguments to tail");
-#endif
-
-  x = pop(rls);
-  lx = as_list_s(rls, "tail", x);
-  require(rls, lx->count > 0, "can't call tail on empty list");
+  x = ARGS[0];
+  lx = as_list_s(rls, x);
+  require(rls, lx->count > 0, 0, "can't call tail on empty list.");
   ly = lx->tail;
-  tos(rls) = tag_obj(ly);
-  goto fetch;
+  stack_push(rls, tag_obj(ly));
+  goto op_return;
 
  op_list_ref:
-  x = pop(rls);
-  argx = as_num_s(rls, "list-ref", x);
-  x = pop(rls);
-  lx = as_list_s(rls, "list-ref", x);
+  argx = as_num_s(rls, ARGS[1]);
+  lx = as_list_s(rls, ARGS[0]);
   require(rls, argx < (int)lx->count, "index out of bounds");
   x = list_ref(lx, argx);
-  tos(rls) = x;
-  goto fetch;
+  stack_push(rls, x);
+  goto op_return;
 
  op_list_len:
-  x = pop(rls);
-  lx = as_list_s(rls, "list-len", x);
-  tos(rls) = tag_num(lx->count);
-  goto fetch;
+  lx = as_list_s(rls, ARGS[0]);
+  stack_push(rls, tag_num(lx->count));
+  goto op_return;
 
  op_str:{ // string constructor (two modes, accepts characters or list of characters)    
-  if ( argc == 1 && is_list(tos(rls)) ) {
-    x = pop(rls);
-    lx = as_list(x);
-    argc = lx->count;
-
-    // unpack onto stack (type verified later)
-    while ( lx->count > 0 ) {
-      push(rls, lx->head);
-      lx = lx->tail;
-    }
+    if ( argc == 1 && is_list(ARGS[0]) ) {
+      x = stack_pop(rls);
+      argc = push_list(rls, as_list(x)); // push list items onto stack (verified in next step)
   }
 
   // create a buffer to hold the characters
   char buf[argc+1] = {};
 
   for ( int i=argc-1; i >=0; i-- ) {
-    x = pop(rls);
-    buf[i] = as_glyph_s(rls, "str", x);
+    x = stack_pop(rls);
+    buf[i] = as_glyph_s(rls, x);
   }
-  
-  sx = mk_str(rls, buf);
-  tos(rls) = tag_obj(sx);
-  goto fetch;
+
+  sx = mk_str_s(rls, buf);
+  goto op_return;
   }
 
  op_chars:
-  x = pop(rls);
-  sx = as_str_s(rls, "chars", x);
+  x = stack_pop(rls);
+  sx = as_str_s(rls, x);
   argc = sx->count;
 
   for ( int i=0; i<argc; i++ ) {
     argx = sx->val[i];
     x = tag_glyph(argx);
-    push(rls, x);
+    stack_push(rls, x);
   }
 
   goto op_list;
 
  op_str_ref:
-  x = pop(rls);
-  argx = as_num_s(rls, "str-ref", x);
-  y = pop(rls);
-  sx = as_str_s(rls, "str-ref", y);
-  require(rls, argx < (int)sx->count, "index out of bounds");
+  argx = as_num_s(rls, ARGS[1]);
+  sx = as_str_s(rls, ARGS[0]);
+  require(rls, argx < (int)sx->count, "index out of bounds.");
   argy = sx->val[argx];
   x = tag_glyph(argy);
   tos(rls) = x;
-  goto fetch;
+  goto op_return;
 
  op_str_len:
-  x = pop(rls);
-  sx = as_str_s(rls, "str-len", x);
-  tos(rls) = tag_num(sx->count);
-  goto fetch;
+  sx = as_str_s(rls, ARGS[0]);
+  stack_push(rls, tag_num(sx->count));
+  goto op_return;
+
+ op_tuple:
+  mk_tuple_s(rls, argc);
+  goto op_return;
+
+ op_tuple_ref:
+  argx = as_num_s(rls, ARGS[1]);
+  tx = as_tuple_s(rls, ARGS[0]);
+  require(rls, argx < (int)tx->count, "index out of bounds.");
+  stack_push(rls, tx->data[argx]);
+  goto op_return;
+
+ op_tuple_len:
+  tx = as_tuple_s(rls, ARGS[0]);
+  stack_push(rls, tag_num(tx->count));
+  goto op_return;
+
+ op_read:
+  require_argtype(rls, &PortType, ARGS[0]);
+  x = read_exp(rls, as_port(ARGS[0]), NULL);
+  goto op_return;
+
+ op_eval:
+  x = eval_exp(rls, ARGS[0]);
+  stack_push(rls, x);
+  goto op_return;
+
+ op_print:
+  require_argtype(rls, &PortType, ARGS[0]);
+  print_exp(as_port(ARGS[0]), ARGS[1]);
+  stack_push(rls, NUL);
+  goto op_return;
+
+ op_repl:
+  repl(rls);
+  goto op_return; // unreachable at present but seems like good practice
 
  op_apply:
-  y = pop(rls); // arguments
-  x = rpop(rls); // function to apply (removes apply from the stuck)
-  ly = as_list_s(rls, "apply", y);
-  require_argtype(rls, "apply", &FunType, x);
-  argc = push_list(rls, ly);
-  goto do_call; // jump directly to do_call (all the right variables are and stack state is correct)
+  fx = as_fun_s(rls, ARGS[0]);
+  lx = as_list_s(rls, ARGS[1]);
+  // set up call and jump
+  stack_push(rls, ARGS[0]);
+  argc = push_list(rls, lx);
+  goto do_call;
 
  op_compile:
-  y = pop(rls); // expression to compile
+  y = ARGS[0]; // expression to compile
   fx = toplevel_compile(rls, y);
-  tos(rls) = tag_obj(fx);
-  goto fetch;
+  x = fx ? tag_obj(fx) : NUL;
+  stack_push(rls, x);
+  goto op_return;
 
  op_exec:
-  require_argtype(rls, "exec", &FunType, tos(rls));
-  rpop(rls); // remove call to exec, leaving the function to be executed on top of the stack
+  fx = as_fun_s(rls, ARGS[0]);
+  require(rls, is_singleton_fn(fx), "ambiguous call.");
+  require(rls, is_user_method(fx->method), "not a user function.");
+  // set up call and jump
+  stack_push(rls, ARGS[0]);
   argc = 0;
   goto do_call;
 
  op_load:
   // compile the file and begin executing
-  x = tos(rls); // needs to be preserved through GC
-  sx = as_str_s(rls, "load", x);
+  sx = as_str_s(rls, ARGS[0]);
   fx = compile_file(rls, sx->val);
-  pop(rls); // remove file name from stack
-  tos(rls) = tag_obj(fx); // replace `load` call with compiled code
-  save_call_frame(rls, 0);
-  install_method(rls, fx->method, 0);
-  goto fetch;
 
- op_error:
-  x = pop(rls);
-  sx = as_str_s(rls, "error", x);
-  user_error(rls, sx->val);
+  if ( fx == NULL ) { // compilation failed
+    stack_push(rls, NUL);
+    goto op_return;
+  } else {
+    stack_push(rls, tag_obj(fx));
+    argc = 0;
+    goto do_call;
+  }
 
  op_defined:{
-    y = pop(rls);
-    x = pop(rls);
-    Sym* n = as_sym_s(rls, "defined?", x);
-    Env* e = as_env_s(rls, "defined?", y);
+    Sym* n = as_sym_s(rls, ARGS[0]);
+    Env* e = as_env_s(rls, ARGS[1]);
     Ref* r = env_resolve(rls, e, n, false);
-    x = r == NULL ? FALSE : TRUE;
-    tos(rls) = x;
-    goto fetch;
+    stack_push(rls, r == NULL ? FALSE : TRUE);
+    goto op_return;
   }
 
  op_local_env:{
-    x = pop(rls);
-    Env* e = as_env_s(rls, "local-env?", x);
-    x = is_global_env(e) ? FALSE : TRUE;
-    tos(rls) = x;
-    goto fetch;    
+    Env* e = as_env_s(rls, ARGS[0]);
+    stack_push(rls, is_global_env(e) ? FALSE : TRUE);
+    goto op_return;    
   }
 
  op_global_env:{
-    x = pop(rls);
-    Env* e = as_env_s(rls, "global-env?", x);
-    x = is_global_env(e) ? TRUE : FALSE;
-    tos(rls) = x;
-    goto fetch;
+    Env* e = as_env_s(rls, ARGS[0]);
+    stack_push(rls, is_global_env(e) ? TRUE : FALSE);
+    goto op_return;
   }
 
  op_heap_report:
   heap_report(rls);
-  tos(rls) = NUL; // dummy return value
-  goto fetch;
+  stack_push(rls, NUL); // dummy return value
+  goto op_return;
 
  op_stack_report:
-  stack_report(rls);
-  tos(rls) = NUL; // dummy return value
-  goto fetch;
+  stack_report(rls, stack_size(rls), "stack report");
+  stack_push(rls, NUL); // dummy return value
+  goto op_return;
 
- op_env_report:
-  env_report(rls);
-  tos(rls) = NUL; // dummy return value
-  goto fetch;
+ op_env_report:{
+  env_report(rls, rls->vm->globals);
+  stack_push(rls, NUL); // dummy return value
+  goto op_return;
+  }
+
+ op_stack_trace:
+  print_stack_trace(rls);
+  stack_push(rls, NUL); // dummy return value
 
  op_dis:
-  x = pop(rls);
-  fx = as_fun_s(rls, "*dis*", x);
+  fx = as_fun_s(rls, ARGS[0]);
   // Disassemble the singleton method (or first method if multimethod)
-  method =  is_singleton_fn(fx) ? fx->methods : fx->methods->methods.vals[0];
+  method =  is_singleton_fn(fx) ? fx->methods : fx->methods->methods.data[0];
   disassemble_method(method);
-  tos(rls) = NUL; // dummy return value
-  goto fetch;
+  stack_push(rls, NUL); // dummy return value
+  goto op_return;
+
+  #undef ARGS
+  #undef EXEC
 }

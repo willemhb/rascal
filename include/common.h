@@ -22,11 +22,13 @@ typedef void (*funcptr_t)(void);
 // enum types -----------------------------------------------------------------
 typedef enum {
   OKAY,
-  USER_ERROR,
-  EVAL_ERROR,
-  RUNTIME_ERROR,
-  SYSTEM_ERROR
+  USER_ERROR, // error originating from user (an eval error, but alerts handler that there's an error object to handle)
+  EVAL_ERROR, // error originating in rascal code (eg type error, arity error, syntax error)
+  RUNTIME_ERROR, // error originating in the runtime (eg stack overflow)
+  SYSTEM_ERROR, // error originating in the OS (eg file not found, out of memory)
 } Status;
+
+#define NUM_ERRORS (SYSTEM_ERROR+1)
 
 // Expression types -----------------------------------------------------------
 typedef uintptr_t Expr;
@@ -39,18 +41,18 @@ typedef struct Obj Obj;
 // Object types ---------------------------------------------------------------
 typedef struct Type Type;
 typedef struct Chunk Chunk;
-typedef struct Alist Alist;
-typedef struct Buf16 Buf16;
 typedef struct Ref Ref;
 typedef struct UpVal UpVal;
 typedef struct Env Env;
 typedef struct Port Port;
+typedef struct Ctl Ctl;
 typedef struct Fun Fun;
 typedef struct Method Method;
 typedef struct MethodTable MethodTable;
 typedef struct Str Str;
 typedef struct Sym Sym;
 typedef struct List List;
+typedef struct Tuple Tuple;
 
 typedef union {
   Expr  expr;
@@ -65,8 +67,17 @@ typedef union {
 typedef struct Strings Strings;
 typedef struct Objs Objs;
 typedef struct Exprs Exprs;
+typedef struct CodeBuf CodeBuf;
+typedef struct TextBuf TextBuf;
+typedef struct BitVec BitVec;
+typedef struct LineInfo LineInfo;
 typedef struct RlState RlState;
+typedef struct RlVm RlVm;
+typedef struct Frame Frame;
+typedef Expr* StackRef;
+typedef Frame* FrameRef;
 
+typedef void (*NativeFn)(RlState* rls, int offset, int argc);
 typedef void (*PrintFn)(Port* p, Expr x);
 typedef hash_t (*HashFn)(Expr x);
 typedef bool (*EgalFn)(Expr x, Expr y);
@@ -86,12 +97,12 @@ typedef bool (*HasFn)(Type* tx, Type* ty);
 #define VERSION "%.2d.%.2d.%.2d.%s"
 #define WELCOME "Welcome to rascal version "VERSION"!"
 #define MAJOR   0
-#define MINOR   11
+#define MINOR   13
 #define PATCH   1
 #define RELEASE "a"
 
 // miscellaneous
-// #define RASCAL_DEBUG
+#define RASCAL_DEBUG
 
 // redefining annoyingly named builtins
 #define clz         __builtin_clzl

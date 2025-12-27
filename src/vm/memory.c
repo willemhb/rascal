@@ -32,14 +32,10 @@ static bool check_heap_grow(RlState* rls) {
 }
 
 static void mark_vm(RlState* rls) {
-  mark_obj(rls, rls->fn);
+  mark_obj(rls, rls->exec);
 
-  for ( int i=0; i < rls->sp; i++ )
-    mark_exp(rls, rls->stack[i]);
-
-  // Mark saved methods in call frames
-  for ( int i=0; i < rls->fp; i++ )
-    mark_obj(rls, rls->frames[i].savefn);
+  for ( StackRef s=rls->stack; s < rls->s_top; s++ )
+    mark_exp(rls, *s);
 }
 
 static void mark_globals(RlState* rls) {
@@ -71,8 +67,8 @@ static void mark_phase(RlState* rls) {
 }
 
 static void trace_phase(RlState* rls) {
-  while ( rls->vm->grays->count > 0 ) {
-    Obj* obj       = objs_pop(rls, rls->vm->grays);
+  while ( rls->vm->grays.count > 0 ) {
+    Obj* obj       = objs_pop(rls, &rls->vm->grays);
     Type* info     = obj->type;
     obj->gray      = false;
 
@@ -127,14 +123,14 @@ void add_to_permanent(RlState* rls, void* ptr) {
 }
 
 void gc_save(RlState* rls, void* ob) {
-  objs_push(rls, rls->vm->grays, ob);
+  objs_push(rls, &rls->vm->grays, ob);
 }
 
 void run_gc(RlState* rls) {
 #ifdef RASCAL_DEBUG
   printf("\n\nINFO: entering gc.\n\n");
   heap_report(rls);
-  env_report(rls);
+  env_report(rls, rls->vm->globals);
 #endif
 
   if ( rls->vm->initialized ) {
@@ -150,7 +146,7 @@ void run_gc(RlState* rls) {
 #ifdef RASCAL_DEBUG
   printf("\n\nINFO: exiting gc.\n\n");
   heap_report(rls);
-  env_report(rls);
+  env_report(rls, rls->vm->globals);
 #endif
 
 }
@@ -179,7 +175,7 @@ void* allocate(RlState* rls, size_t n) {
     out = calloc(n, 1);
 
   if ( out == NULL )
-    system_error(rls, "out of memory");
+    fatal_error(rls, "out of memory.");
 
   return out;
 }
@@ -189,7 +185,7 @@ char* duplicates(RlState* rls, char* cs) {
   char* out = strdup(cs);
 
   if ( out == NULL )
-    system_error(rls, "out of memory");
+    fatal_error(rls, "out of memory.");
 
   return out;
 }
@@ -219,7 +215,7 @@ void* reallocate(RlState* rls, size_t n, size_t o, void* spc) {
         out = realloc(spc, n);
 
         if ( out == NULL )
-          system_error(rls, "out of memory");
+          fatal_error(rls, "out of memory.");
 
         rls->vm->heap_used -= diff;
       } else if ( o < n ) {
@@ -231,7 +227,7 @@ void* reallocate(RlState* rls, size_t n, size_t o, void* spc) {
         out = realloc(spc, n);
 
         if ( out == NULL )
-          system_error(rls, "out of memory");
+          fatal_error(rls, "out of memory.");
 
         memset(out+o, 0, diff);
 
@@ -241,7 +237,7 @@ void* reallocate(RlState* rls, size_t n, size_t o, void* spc) {
       out = realloc(spc, n);
 
       if ( out == NULL )
-        system_error(rls, "out of memory");
+        fatal_error(rls, "out of memory.");
 
       if ( o < n )
         memset(out+o, 0, n-o);
@@ -256,4 +252,15 @@ void release(RlState* rls, void* spc, size_t n) {
 
   if ( rls != NULL )
     rls->vm->heap_used -= n;
+}
+
+// misc GC helpers
+void trace_expr_array(RlState* rls, Expr* exprs, int n) {
+  for ( int i=0; i<n; i++ )
+    mark_exp(rls, exprs[i]);
+}
+
+void trace_obj_array(RlState* rls, Obj** objs, int n) {
+  for ( int i=0; i<n; i++ )
+    mark_obj(rls, objs[i]);
 }

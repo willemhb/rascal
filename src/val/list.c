@@ -21,28 +21,32 @@ Type ListType = {
 };
 
 // list API
+static void init_list(List* lx, Expr hd, List* tl) {
+  lx->head = hd;
+  lx->tail = tl;
+  lx->count = tl ? tl->count+1 : 0;
+  lx->line = -1;
+}
+
 List* empty_list(RlState* rls) {
   List* l = mk_obj(rls, &ListType, 0);
-
-  l->head  = NUL;
-  l->tail  = NULL;
-  l->count = 0;
-
+  init_list(l, NUL, NULL);
   return l;
 }
 
 List* empty_list_s(RlState* rls) {
   List* out = empty_list(rls);
-  push(rls, tag_obj(out));
+  stack_push(rls, tag_obj(out));
   return out;
 }
 
-List* mk_list(RlState* rls, size_t n, Expr* xs) {
-  int sp = save_sp(rls);
+List* mk_list(RlState* rls, int n) {
+  StackRef top = rls->s_top;
   List* l = empty_list(rls);
+  StackRef xs = rls->s_top-n;
 
   if ( n > 0 ) {
-    push(rls, tag_obj(l));
+    stack_push(rls, tag_obj(l));
 
     for ( size_t i=n; i>0; i-- ) {
       l = cons(rls, xs[i-1], l);
@@ -50,37 +54,36 @@ List* mk_list(RlState* rls, size_t n, Expr* xs) {
     }
   }
 
-  restore_sp(rls, sp);
+  rls->s_top = top;
   return l;
 }
 
-List* mk_list_s(RlState* rls, size_t n, Expr* xs) {
-  List* out = mk_list(rls, n, xs);
-  push(rls, tag_obj(out));
+List* mk_list_s(RlState* rls, int n) {
+  List* out = mk_list(rls, n);
+  stack_push(rls, tag_obj(out));
   return out;
 }
 
 List* cons(RlState* rls, Expr hd, List* tl) {
   assert(tl != NULL);
-  int sp = save_sp(rls);
-  push(rls, tag_obj(tl));
+  StackRef top = rls->s_top;
+  stack_push(rls, tag_obj(tl));
   List* l = mk_obj(rls, &ListType, 0);
-  l->head = hd;
-  l->tail = tl;
-  l->count = tl->count+1;
-  restore_sp(rls, sp);
+  init_list(l, hd, tl);
+  rls->s_top = top;
   return l;
 }
 
 List* cons_s(RlState* rls, Expr hd, List* tl) {
   List* out = cons(rls, hd, tl);
-  push(rls, tag_obj(out));
+  stack_push(rls, tag_obj(out));
   return out;
 }
 
 List* cons_n(RlState* rls, int n) {
   assert(n >= 2);
-  Expr* xs = stack_ref(rls, -n);
+  StackRef top = rls->s_top;
+  Expr* xs = rls->s_top-n;
   List* lx, * ly;
   assert(is_list(xs[n-1]));
 
@@ -88,31 +91,25 @@ List* cons_n(RlState* rls, int n) {
     ly = as_list(xs[n-1]);
     lx = cons(rls, xs[0], ly);
   } else {
-    Expr* buf = dup(rls);
+    Expr* buf = stack_dup(rls);
+
     for ( int i=n-2; i >= 0; i-- ) {
       lx = as_list(*buf);
       ly = mk_obj(rls, &ListType, 0);
-      ly->head = xs[i];
-      ly->tail = lx;
-      ly->count = lx->count+1;
+      init_list(ly, xs[i], lx);
       *buf = tag_obj(ly);
     }
 
     lx = as_list(*buf);
-    pop(rls);
   }
-
-#ifdef RASCAL_DEBUG
-  // printf("DEBUG - cons* result: ");
-  // print_exp(&Outs, tag_obj(lx));
-#endif
+  rls->s_top = top;
 
   return lx;
 }
 
 List* cons_n_s(RlState* rls, int n) {
   List* out = cons_n(rls, n);
-  push(rls, tag_obj(out));
+  stack_push(rls, tag_obj(out));
   return out;
 }
 
@@ -129,10 +126,10 @@ Expr list_ref(List* xs, int n) {
 
 int push_list(RlState* rls, List* xs) {
   int out = xs->count;
-  check_stack_limit(rls, out);
+  stack_check_limit(rls, out);
 
   while ( xs->count > 0 ) {
-    push(rls, xs->head);
+    stack_push(rls, xs->head);
     xs = xs->tail;
   }
 

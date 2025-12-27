@@ -3,7 +3,7 @@
 ;; basic syntax
 (def-stx stx
   (fn (&form &env name args & body)
-    (def fn-form (cons* 'fn (cons* '&form '&env args) body))
+    (def fn-form (cons 'fn (cons '&form '&env args) body))
      (if (defined? name &env)
        (list 'def-method name fn-form)
        (list 'def-stx name fn-form))))
@@ -11,18 +11,18 @@
 (stx fun
   (name args & body)
   (if (isa? name List) ;; unnamed variant, treat exactly like `fn` form.
-    (cons* 'fn name args body)
+    (cons 'fn name args body)
     (if (local-env? &env)
-      (list 'def name (cons* 'fn args body))
+      (list 'def name (cons 'fn args body))
       (if (defined? name &env)
-        (list 'def-method name (cons* 'fn args body))
-        (list 'def-multi name (cons* 'fn args body))))))
+        (list 'def-method name (cons 'fn args body))
+        (list 'def-multi name (cons 'fn args body))))))
 
 ;; list utilities
 (fun empty? (xs)
   (if (isa? xs List)
     (=? xs ())
-    (error "not a list")))
+    (raise [:eval-error "not a list."])))
 
 (fun fst (xs)
   (head xs))
@@ -37,18 +37,15 @@
           (map f (tail xs)))))
 
 (fun filter (p? xs)
-  (if (=? xs ())
-    ()
-    (if (p? xs)
-      (cons (head xs)
-            (filter p? (tail xs)))
-      (filter p? (tail xs)))))
+  (if (empty? xs) ()
+      (p? xs)     (cons (head xs) (filter p? (tail xs)))
+      otherwise   (filter p? (tail xs))))
 
 (stx let
   (vars & body)
   (def names (map fst vars))
   (def binds (map snd vars))
-  (cons* (cons* 'fn names body) binds))
+  (cons (cons 'fn names body) binds))
 
 ;; miscellaneous utilities
 (fun not (x)

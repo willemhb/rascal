@@ -17,9 +17,9 @@ Sym* mk_module_name_s(RlState* rls, char* fname);
 bool sym_val_eql(Sym* s, char* v);
 
 // convenience macros
-#define as_sym(x)          ((Sym*)as_obj(x))
-#define as_sym_s(rls, f, x)  ((Sym*)as_obj_s(rls, f, &SymType, x))
-#define is_keyword(s)      (*(s)->val->val == ':')
-#define sym_val(s)         ((s)->val->val)
+#define as_sym(x)         ((Sym*)as_obj(x))
+#define as_sym_s(rls, x)  ((Sym*)as_obj_s(rls, &SymType, x))
+#define is_keyword(s)     (*(s)->val->val == ':')
+#define sym_val(s)        ((s)->val->val)
 
 #endif

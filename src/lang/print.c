@@ -11,3 +11,28 @@ void print_exp(Port* out, Expr x) {
   else
     pprintf(out, "<%s>", type_name(info));
 }
+
+
+void print_embed(Port* p, char* pre, char* sep, char* last, char* end, int n, ...) {
+  // print a mix of C strings and Rascal expressions (useful for debugging)
+  pprintf(p, pre);
+  va_list va;
+  va_start(va, n);
+
+  for ( int i=0; i < n; i++ ) {
+    Expr x = va_arg(va, Expr);
+    print_exp(p, x);
+
+    if ( sep != NULL && i+1 < n )
+      pprintf(p, sep);
+
+    else if ( last != NULL && i+1 == n )
+      pprintf(p, last);
+  }
+
+  if ( end != NULL )
+    pprintf(p, end);
+
+  va_end(va);
+}
+

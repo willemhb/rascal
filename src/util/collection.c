@@ -12,48 +12,45 @@
 // Exprs implementation -------------------------------------------------------
 void init_exprs(RlState* rls, Exprs* a) {
   (void)rls;
-  a->vals      = NULL;
-  a->count     = 0;
-  a->max_count = 0;
+  a->data = NULL;
+  a->count = 0;
+  a->maxc = 0;
 }
 
 void free_exprs(RlState* rls, Exprs* a) {
-  release(NULL, a->vals, 0);
+  release(NULL, a->data, 0);
   init_exprs(rls, a);
 }
 
 void grow_exprs(RlState* rls, Exprs* a) {
-  if ( a->max_count == MAX_ARITY )
-    runtime_error(rls, "maximum exprs size exceeded");
-
-  int new_maxc = a->max_count ? a->max_count << 1 : MIN_CAP;
+  assert(a->maxc < MAX_ARITY);
+  (void)rls;
+  int new_maxc = a->maxc ? a->maxc << 1 : MIN_CAP;
   Expr* new_spc = reallocate(NULL,
                              new_maxc * sizeof(Expr),
-                             a->max_count * sizeof(Expr),
-                             a->vals);
+                             a->maxc * sizeof(Expr),
+                             a->data);
 
-  a->vals = new_spc;
-  a->max_count = new_maxc;
+  a->data = new_spc;
+  a->maxc = new_maxc;
 }
 
 void shrink_exprs(RlState* rls, Exprs* a) {
-  assert(a->max_count > MIN_CAP);
+  assert(a->maxc > MIN_CAP);
   (void)rls;
 
-  size_t new_maxc = a->max_count >> 1;
+  size_t new_maxc = a->maxc >> 1;
   Expr* new_spc = reallocate(NULL,
                              new_maxc * sizeof(Expr),
-                             a->max_count * sizeof(Expr),
-                             a->vals);
+                             a->maxc * sizeof(Expr),
+                             a->data);
 
-  a->vals = new_spc;
-  a->max_count = new_maxc;
+  a->data = new_spc;
+  a->maxc = new_maxc;
 }
 
 void resize_exprs(RlState* rls, Exprs* a, int n) {
-  if ( n > MAX_ARITY )
-    runtime_error(rls, "maximum exprs size exceeded");
-
+  (void)rls;
   int new_maxc = cpow2(n);
 
   if ( new_maxc < MIN_CAP )
@@ -61,36 +58,36 @@ void resize_exprs(RlState* rls, Exprs* a, int n) {
 
   Expr* new_spc = reallocate(NULL,
                              new_maxc * sizeof(Expr),
-                             a->max_count * sizeof(Expr),
-                             a->vals);
-  a->vals = new_spc;
-  a->max_count = new_maxc;
+                             a->maxc * sizeof(Expr),
+                             a->data);
+  a->data = new_spc;
+  a->maxc = new_maxc;
 }
 
 void exprs_push(RlState* rls, Exprs* a, Expr x) {
-  if ( a->count == a->max_count )
+  if ( a->count == a->maxc )
     grow_exprs(rls, a);
 
-  a->vals[a->count++] = x;
+  a->data[a->count++] = x;
 }
 
 Expr exprs_pop(RlState* rls, Exprs* a) {
-  Expr out = a->vals[--a->count];
+  Expr out = a->data[--a->count];
 
   if ( a->count == 0 )
     free_exprs(rls, a);
-  else if ( a->max_count > MIN_CAP && a->count < (a->max_count >> 1) )
+  else if ( a->maxc > MIN_CAP && a->count < (a->maxc >> 1) )
     shrink_exprs(rls, a);
 
   return out;
 }
 
 void exprs_write(RlState* rls, Exprs* a, Expr* xs, int n) {
-  if ( a->count + n > a->max_count )
+  if ( a->count + n > a->maxc )
     resize_exprs(rls, a, a->count + n);
 
   if ( xs != NULL )
-    memcpy(a->vals + a->count, xs, n * sizeof(Expr));
+    memcpy(a->data + a->count, xs, n * sizeof(Expr));
 
   a->count += n;
 }
@@ -98,48 +95,44 @@ void exprs_write(RlState* rls, Exprs* a, Expr* xs, int n) {
 // Objs implementation --------------------------------------------------------
 void init_objs(RlState* rls, Objs* a) {
   (void)rls;
-  a->vals      = NULL;
+  a->data      = NULL;
   a->count     = 0;
-  a->max_count = 0;
+  a->maxc = 0;
 }
 
 void free_objs(RlState* rls, Objs* a) {
-  release(NULL, a->vals, 0);
+  release(NULL, a->data, 0);
   init_objs(rls, a);
 }
 
 void grow_objs(RlState* rls, Objs* a) {
-  if ( a->max_count == MAX_ARITY )
-    runtime_error(rls, "maximum objs size exceeded");
-
-  int new_maxc = a->max_count ? a->max_count << 1 : MIN_CAP;
+  (void)rls;
+  int new_maxc = a->maxc ? a->maxc << 1 : MIN_CAP;
   void** new_spc = reallocate(NULL,
                               new_maxc * sizeof(void*),
-                              a->max_count * sizeof(void*),
-                              a->vals);
+                              a->maxc * sizeof(void*),
+                              a->data);
 
-  a->vals = new_spc;
-  a->max_count = new_maxc;
+  a->data = new_spc;
+  a->maxc = new_maxc;
 }
 
 void shrink_objs(RlState* rls, Objs* a) {
-  assert(a->max_count > MIN_CAP);
+  assert(a->maxc > MIN_CAP);
   (void)rls;
 
-  size_t new_maxc = a->max_count >> 1;
+  size_t new_maxc = a->maxc >> 1;
   void** new_spc = reallocate(NULL,
                               new_maxc * sizeof(void*),
-                              a->max_count * sizeof(void*),
-                              a->vals);
+                              a->maxc * sizeof(void*),
+                              a->data);
 
-  a->vals = new_spc;
-  a->max_count = new_maxc;
+  a->data = new_spc;
+  a->maxc = new_maxc;
 }
 
 void resize_objs(RlState* rls, Objs* a, int n) {
-  if ( n > MAX_ARITY )
-    runtime_error(rls, "maximum objs size exceeded");
-
+  (void)rls;
   int new_maxc = cpow2(n);
 
   if ( new_maxc < MIN_CAP )
@@ -147,131 +140,325 @@ void resize_objs(RlState* rls, Objs* a, int n) {
 
   void** new_spc = reallocate(NULL,
                               new_maxc * sizeof(void*),
-                              a->max_count * sizeof(void*),
-                              a->vals);
-  a->vals = new_spc;
-  a->max_count = new_maxc;
+                              a->maxc * sizeof(void*),
+                              a->data);
+  a->data = new_spc;
+  a->maxc = new_maxc;
 }
 
 void objs_push(RlState* rls, Objs* a, void* x) {
-  if ( a->count == a->max_count )
+  if ( a->count == a->maxc )
     grow_objs(rls, a);
 
-  a->vals[a->count++] = x;
+  a->data[a->count++] = x;
 }
 
 void* objs_pop(RlState* rls, Objs* a) {
-  void* out = a->vals[--a->count];
+  void* out = a->data[--a->count];
 
   if ( a->count == 0 )
     free_objs(rls, a);
-  else if ( a->max_count > MIN_CAP && a->count < (a->max_count >> 1) )
+  else if ( a->maxc > MIN_CAP && a->count < (a->maxc >> 1) )
     shrink_objs(rls, a);
 
   return out;
 }
 
 void objs_write(RlState* rls, Objs* a, void** xs, int n) {
-  if ( a->count + n > a->max_count )
+  if ( a->count + n > a->maxc )
     resize_objs(rls, a, a->count + n);
 
   if ( xs != NULL )
-    memcpy(a->vals + a->count, xs, n * sizeof(void*));
+    memcpy(a->data + a->count, xs, n * sizeof(void*));
 
   a->count += n;
 }
 
-// Bin16 implementation -------------------------------------------------------
-void init_bin16(RlState* rls, Bin16* a) {
+// Text_Buf implementation -------------------------------------------------------
+void init_text_buf(RlState* rls, TextBuf* a) {
   (void)rls;
-  a->vals      = NULL;
+  a->data     = NULL;
   a->count     = 0;
-  a->max_count = 0;
+  a->maxc = 0;
 }
 
-void free_bin16(RlState* rls, Bin16* a) {
-  release(NULL, a->vals, 0);
-  init_bin16(rls, a);
+void free_text_buf(RlState* rls, TextBuf* a) {
+  release(NULL, a->data, 0);
+  init_text_buf(rls, a);
 }
 
-void grow_bin16(RlState* rls, Bin16* a) {
-  if ( a->max_count == MAX_ARITY )
-    runtime_error(rls, "maximum bin16 size exceeded");
+void grow_text_buf(RlState* rls, TextBuf* a) {
+  (void)rls;
+  int new_maxc = a->maxc ? a->maxc << 1 : MIN_CAP;
+  char* new_spc = reallocate(NULL,
+                                 new_maxc * sizeof(char),
+                                 a->maxc * sizeof(char),
+                                 a->data);
 
-  int new_maxc = a->max_count ? a->max_count << 1 : MIN_CAP;
-  ushort_t* new_spc = reallocate(NULL,
-                                 new_maxc * sizeof(ushort_t),
-                                 a->max_count * sizeof(ushort_t),
-                                 a->vals);
-
-  a->vals = new_spc;
-  a->max_count = new_maxc;
+  a->data = new_spc;
+  a->maxc = new_maxc;
 }
 
-void shrink_bin16(RlState* rls, Bin16* a) {
-  assert(a->max_count > MIN_CAP);
+void shrink_text_buf(RlState* rls, TextBuf* a) {
+  assert(a->maxc > MIN_CAP);
   (void)rls;
 
-  size_t new_maxc = a->max_count >> 1;
-  ushort_t* new_spc = reallocate(NULL,
-                                 new_maxc * sizeof(ushort_t),
-                                 a->max_count * sizeof(ushort_t),
-                                 a->vals);
+  size_t new_maxc = a->maxc >> 1;
+  char* new_spc = reallocate(NULL,
+                                 new_maxc * sizeof(char),
+                                 a->maxc * sizeof(char),
+                                 a->data);
 
-  a->vals = new_spc;
-  a->max_count = new_maxc;
+  a->data = new_spc;
+  a->maxc = new_maxc;
 }
 
-void resize_bin16(RlState* rls, Bin16* a, int n) {
-  if ( n > MAX_ARITY )
-    runtime_error(rls, "maximum bin16 size exceeded");
+void resize_text_buf(RlState* rls, TextBuf* a, int n) {
+  (void)rls;
+  int new_maxc = cpow2(n+1);
 
+  if ( new_maxc < MIN_CAP )
+    new_maxc = MIN_CAP;
+
+  char* new_spc = reallocate(NULL,
+                                 new_maxc * sizeof(char),
+                                 a->maxc * sizeof(char),
+                                 a->data);
+  a->data = new_spc;
+  a->maxc = new_maxc;
+}
+
+void text_buf_push(RlState* rls, TextBuf* a, char x) {
+  if ( a->count + 1 >= a->maxc )
+    grow_text_buf(rls, a);
+
+  a->data[a->count++] = x;
+}
+
+char text_buf_pop(RlState* rls, TextBuf* a) {
+  char out = a->data[--a->count];
+
+  if ( a->count == 0 )
+    free_text_buf(rls, a);
+  else if ( a->maxc > MIN_CAP && a->count-1 < (a->maxc >> 1) )
+    shrink_text_buf(rls, a);
+
+  return out;
+}
+
+void text_buf_write(RlState* rls, TextBuf* a, char* xs, int n) {
+  if ( a->count + n + 1 > a->maxc )
+    resize_text_buf(rls, a, a->count + n);
+
+  if ( xs != NULL )
+    memcpy(a->data + a->count, xs, n * sizeof(char));
+
+  a->count += n;
+}
+
+// Code_Buf implementation -------------------------------------------------------
+void init_code_buf(RlState* rls, CodeBuf* a) {
+  (void)rls;
+  a->data = NULL;
+  a->count = 0;
+  a->maxc = 0;
+}
+
+void free_code_buf(RlState* rls, CodeBuf* a) {
+  release(NULL, a->data, 0);
+  init_code_buf(rls, a);
+}
+
+void grow_code_buf(RlState* rls, CodeBuf* a) {
+  (void)rls;
+  int new_maxc = a->maxc ? a->maxc << 1 : MIN_CAP;
+  instr_t* new_spc = reallocate(NULL,
+                                 new_maxc * sizeof(instr_t),
+                                 a->maxc * sizeof(instr_t),
+                                 a->data);
+
+  a->data = new_spc;
+  a->maxc = new_maxc;
+}
+
+void shrink_code_buf(RlState* rls, CodeBuf* a) {
+  assert(a->maxc > MIN_CAP);
+  (void)rls;
+
+  size_t new_maxc = a->maxc >> 1;
+  instr_t* new_spc = reallocate(NULL,
+                                 new_maxc * sizeof(instr_t),
+                                 a->maxc * sizeof(instr_t),
+                                 a->data);
+
+  a->data = new_spc;
+  a->maxc = new_maxc;
+}
+
+void resize_code_buf(RlState* rls, CodeBuf* a, int n) {
+  (void)rls;
   int new_maxc = cpow2(n);
 
   if ( new_maxc < MIN_CAP )
     new_maxc = MIN_CAP;
 
-  ushort_t* new_spc = reallocate(NULL,
-                                 new_maxc * sizeof(ushort_t),
-                                 a->max_count * sizeof(ushort_t),
-                                 a->vals);
-  a->vals = new_spc;
-  a->max_count = new_maxc;
+  instr_t* new_spc = reallocate(NULL,
+                                 new_maxc * sizeof(instr_t),
+                                 a->maxc * sizeof(instr_t),
+                                 a->data);
+  a->data = new_spc;
+  a->maxc = new_maxc;
 }
 
-void bin16_push(RlState* rls, Bin16* a, ushort_t x) {
-  if ( a->count == a->max_count )
-    grow_bin16(rls, a);
+void code_buf_push(RlState* rls, CodeBuf* a, instr_t x) {
+  if ( a->count == a->maxc )
+    grow_code_buf(rls, a);
 
-  a->vals[a->count++] = x;
+  a->data[a->count++] = x;
 }
 
-ushort_t bin16_pop(RlState* rls, Bin16* a) {
-  ushort_t out = a->vals[--a->count];
+instr_t code_buf_pop(RlState* rls, CodeBuf* a) {
+  instr_t out = a->data[--a->count];
 
   if ( a->count == 0 )
-    free_bin16(rls, a);
-  else if ( a->max_count > MIN_CAP && a->count < (a->max_count >> 1) )
-    shrink_bin16(rls, a);
+    free_code_buf(rls, a);
+  else if ( a->maxc > MIN_CAP && a->count < (a->maxc >> 1) )
+    shrink_code_buf(rls, a);
 
   return out;
 }
 
-void bin16_write(RlState* rls, Bin16* a, ushort_t* xs, int n) {
-  if ( a->count + n > a->max_count )
-    resize_bin16(rls, a, a->count + n);
+void code_buf_write(RlState* rls, CodeBuf* a, instr_t* xs, int n) {
+  if ( a->count + n > a->maxc )
+    resize_code_buf(rls, a, a->count + n);
 
   if ( xs != NULL )
-    memcpy(a->vals + a->count, xs, n * sizeof(ushort_t));
+    memcpy(a->data + a->count, xs, n * sizeof(instr_t));
 
   a->count += n;
 }
 
-// Strings table implementation -----------------------------------------------
-#define check_grow(t) ((t)->count >= ((t)->max_count * LOADF))
+void init_line_info(RlState* rls, LineInfo* a) {
+  (void)rls;
+  a->data = NULL;
+  a->count = 0;
+  a->maxc = 0;
+}
 
-static void init_strings_kvs(StringsKV* kvs, int max_count) {
-  for ( int i = 0; i < max_count; i++ ) {
+void free_line_info(RlState* rls, LineInfo* a) {
+  release(NULL, a->data, 0);
+  init_line_info(rls, a);
+}
+
+void grow_line_info(RlState* rls, LineInfo* a) {
+  (void)rls;
+  int new_maxc = a->maxc ? a->maxc << 1 : MIN_CAP;
+  int* new_spc = reallocate(NULL,
+                            new_maxc * sizeof(int),
+                            a->maxc * sizeof(int),
+                            a->data);
+
+  a->data = new_spc;
+  a->maxc = new_maxc;
+}
+
+void add_to_line_info(RlState* rls, LineInfo* a, int line, int max_offset) {
+  if ( a->count + 2 >= a->maxc )
+    grow_line_info(rls, a);
+
+  a->data[a->count++] = line;
+  a->data[a->count++] = max_offset;
+}
+
+// BitVec implementation ------------------------------------------------------
+#define BITMAP_MASK 0xfffffffffffffffful
+
+static bool bitmap_has(uintptr_t map, int n) {
+  if ( n < 0 || n > MAX_FARGC )
+    return false;
+
+  return (1ul << n) & map;
+}
+
+static int bitmap_to_index(uintptr_t map, int n) {
+  if ( !bitmap_has(map, n) )
+    return -1;
+
+  return popc(((1ul << n) -1) & map);
+}
+
+
+static void bitmap_set(uintptr_t* map, int n) {
+  assert(n >= 0 && n < MAX_FARGC);
+  *map |= 1ul << n;
+}
+
+void init_bit_vec(RlState* rls, BitVec* bv) {
+  (void)rls;
+  bv->data = NULL;
+  bv->count = 0;
+  bv->maxc = 0;
+  bv->bitmap = 0;
+}
+
+void free_bit_vec(RlState* rls, BitVec* bv) {
+  release(NULL, bv->data, 0);
+  init_bit_vec(rls, bv);
+}
+
+void grow_bit_vec(RlState* rls, BitVec* bv) {
+  (void)rls;
+
+  int current_size = bv->maxc;
+  int new_size = current_size == 0 ? MIN_CAP : bv->maxc << 1;
+  assert(new_size < MAX_FARGC);
+
+  if ( current_size == 0 )
+    bv->data = allocate(NULL,
+                        new_size*sizeof(void*));
+
+  else
+    bv->data = reallocate(NULL,
+                          new_size*sizeof(void*),
+                          current_size*sizeof(void*),
+                          bv->data);
+
+  bv->maxc = new_size;
+}
+
+bool bit_vec_has(BitVec* bv, int n) {
+  return bitmap_has(bv->bitmap, n);
+}
+
+void bit_vec_set(RlState* rls, BitVec* bv, int n, void* d) {
+  assert(!bit_vec_has(bv, n));
+
+  if ( bv->count + 1 > bv->maxc )
+    grow_bit_vec(rls, bv);
+
+  int i = bitmap_to_index(bv->bitmap, n);
+
+  if ( i < bv->count )
+    memmove(bv->data+i, bv->data+i+1, bv->count-i);
+
+  bv->data[i] = d;
+  bitmap_set(&bv->bitmap, n);
+}
+
+void* bit_vec_get(BitVec* bv, int n) {
+  int i = bitmap_to_index(bv->bitmap, n);
+
+  if ( i < 0 )
+    return NULL;
+
+  return bv->data[i];
+}
+
+// Strings table implementation -----------------------------------------------
+#define check_grow(t) ((t)->count >= ((t)->maxc * LOADF))
+
+static void init_strings_kvs(StringsKV* kvs, int maxc) {
+  for ( int i = 0; i < maxc; i++ ) {
     kvs[i].key = NULL;
     kvs[i].val = NULL;
   }
@@ -291,7 +478,7 @@ static StringsKV* strings_find(Strings* t, char* k, hash_t h) {
   StringsKV* kvs = t->kvs;
   StringsKV* kv;
   StringsKV* ts = NULL;
-  int msk = t->max_count - 1;
+  int msk = t->maxc - 1;
   int idx = h & msk;
 
   for (;;) {
@@ -333,13 +520,13 @@ static int rehash_strings(StringsKV* old, int omc, StringsKV* new, int nmc) {
 static void grow_strings(RlState* rls, Strings* t) {
   (void)rls;
 
-  int nmc = t->max_count < MIN_CAP ? MIN_CAP : t->max_count << 1;
+  int nmc = t->maxc < MIN_CAP ? MIN_CAP : t->maxc << 1;
   StringsKV* nkv = allocate(NULL, nmc * sizeof(StringsKV));
 
   init_strings_kvs(nkv, nmc);
 
   if ( t->kvs != NULL ) {
-    int omc = t->max_count;
+    int omc = t->maxc;
     StringsKV* okv = t->kvs;
     int nc = rehash_strings(okv, omc, nkv, nmc);
     t->count = nc;
@@ -347,14 +534,14 @@ static void grow_strings(RlState* rls, Strings* t) {
   }
 
   t->kvs = nkv;
-  t->max_count = nmc;
+  t->maxc = nmc;
 }
 
 void init_strings(RlState* rls, Strings* t) {
   (void)rls;
   t->kvs       = NULL;
   t->count     = 0;
-  t->max_count = 0;
+  t->maxc = 0;
 }
 
 void free_strings(RlState* rls, Strings* t) {
@@ -430,8 +617,8 @@ Str* strings_intern(RlState* rls, Strings* t, char* k, StringsInternFn ifn) {
 }
 
 // EMap table implementation --------------------------------------------------
-static void init_emap_kvs(EMapKV* kvs, int max_count) {
-  for ( int i = 0; i < max_count; i++ ) {
+static void init_emap_kvs(EMapKV* kvs, int maxc) {
+  for ( int i = 0; i < maxc; i++ ) {
     kvs[i].key = NULL;
     kvs[i].val = NULL;
   }
@@ -455,7 +642,7 @@ static EMapKV* emap_find(EMap* t, Sym* k, hash_t h) {
   EMapKV* kvs = t->kvs;
   EMapKV* kv;
   EMapKV* ts = NULL;
-  int msk = t->max_count - 1;
+  int msk = t->maxc - 1;
   int idx = h & msk;
 
   for (;;) {
@@ -496,13 +683,13 @@ static int rehash_emap(EMapKV* old, int omc, EMapKV* new, int nmc) {
 
 static void grow_emap(RlState* rls, EMap* t) {
   (void)rls;
-  int nmc = t->max_count < MIN_CAP ? MIN_CAP : t->max_count << 1;
+  int nmc = t->maxc < MIN_CAP ? MIN_CAP : t->maxc << 1;
   EMapKV* nkv = allocate(NULL, nmc * sizeof(EMapKV));
 
   init_emap_kvs(nkv, nmc);
 
   if ( t->kvs != NULL ) {
-    int omc = t->max_count;
+    int omc = t->maxc;
     EMapKV* okv = t->kvs;
     int nc = rehash_emap(okv, omc, nkv, nmc);
     t->count = nc;
@@ -510,14 +697,14 @@ static void grow_emap(RlState* rls, EMap* t) {
   }
 
   t->kvs = nkv;
-  t->max_count = nmc;
+  t->maxc = nmc;
 }
 
 void init_emap(RlState* rls, EMap* t) {
   (void)rls;
-  t->kvs       = NULL;
-  t->count     = 0;
-  t->max_count = 0;
+  t->kvs   = NULL;
+  t->count = 0;
+  t->maxc  = 0;
 }
 
 void free_emap(RlState* rls, EMap* t) {

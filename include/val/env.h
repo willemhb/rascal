@@ -73,14 +73,30 @@ Ref*   toplevel_env_find(RlState* rls, Env* e, Sym* n);
 Expr   toplevel_env_ref(RlState* rls, Env* e, int n);
 Expr   toplevel_env_get(RlState* rls, Env* e, Sym* n);
 
-// convenience macros
-#define as_ref(x)      ((Ref*)as_obj(x))
-#define as_env(x)      ((Env*)as_obj(x))
-#define as_env_s(rls, f, x)  ((Env*)as_obj_s(rls, f, &EnvType, x))
+// convenience macros & accessors
+#define as_ref(x)        ((Ref*)as_obj(x))
+#define as_env(x)        ((Env*)as_obj(x))
+#define as_env_s(rls, x) ((Env*)as_obj_s(rls, &EnvType, x))
 
 #define is_local_env(e)    ((e)->parent != NULL)
 #define is_global_env(e)   ((e)->parent == NULL)
 #define env_type(e)        ((e)->etype)
-#define env_size(e)        ((e)->vars.count)
+#define env_upval_maxc(e)  ((e)->upvs.maxc)
+#define env_upval_refs(e)  ((e)->upvs.kvs)
+
+
+static inline int env_size(Env* e) {
+  if ( is_global_env(e) )
+    return e->vars.count;
+
+  return e->vars.count + e->upvs.count;
+}
+
+static inline int env_upvc(Env* e) {
+  if ( is_global_env(e) )
+    return 0;
+
+  return e->upvs.count;
+}
 
 #endif

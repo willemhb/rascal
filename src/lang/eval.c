@@ -3,6 +3,7 @@
 #include "lang/compile.h"
 #include "lang/exec.h"
 #include "lang/print.h"
+#include "lang/builtin.h"
 #include "val.h"
 #include "vm.h"
 
@@ -37,42 +38,53 @@ Expr eval_exp(RlState* rls, Expr x) {
 
   } else {
     Fun* fun = toplevel_compile(rls, x);
-    push(rls, tag_obj(fun));
-    v = exec_code(rls, 0, 0);
+
+    if ( fun == NULL ) // compilation failed
+      v = NUL;
+
+    else {
+      stack_push(rls, tag_obj(fun));
+      v = exec_code(rls, 0, 0);
+    }
   }
 
   return v;
+}
+
+void toplevel_repl(RlState* rls) {
+  // pushes the builtin repl function and invokes the interpreter
+  // ensures stack consistency
+  stack_push(rls, tag_obj(ReplFun));
+  exec_code(rls, 0, 0);
 }
 
 void repl(RlState* rls) {
   Expr x, v = NUL;
 
   // create a catch point
-  save_error_state(rls);
+  save_error_state(rls, 0);
 
   for (;;) {
     fprintf(stdout, PROMPT" ");
 
     // set safe point for read (so that errors can be handled properly)
-    if ( set_safe_point(rls) ) {
+    if ( rl_setjmp(rls) ) {
       restore_error_state(rls);
-      clear_input(&Ins);
-      goto next_line;
+      clear_port(&Ins);
+      port_newline(&Outs, 2);
     } else {
-      x = read_exp(rls, &Ins);
+      x = read_exp(rls, &Ins, NULL);
     }
 
-    if ( set_safe_point(rls) ) {
+    if ( rl_setjmp(rls) ) {
       restore_error_state(rls);
-      goto next_line;
+      port_newline(&Outs, 2);
     } else {
       v = eval_exp(rls, x);
       pprintf(&Outs, "\n>>> ");
       print_exp(&Outs, v);
+      port_newline(&Outs, 2);
     }
-
-  next_line:
-    pprintf(&Outs, "\n\n");
   }
 
   // discard catch point

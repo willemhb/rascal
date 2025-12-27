@@ -10,9 +10,12 @@
   'rascal-mode
   '(";" ("#|" . "|#"))
   '( ;; special forms
-    "quote" "def" "def-stx" "def-multi" "def-method" "put" "if" "and" "or" "do" "fn" "c-call"
+    "quote" "def" "def-stx" "def-multi" "def-method"
+    "put" "if" "and" "or" "do" "fn" "c-call"
+    "control" "raise"
     ;; macros
-    "fun" "stx" "let" "cond" "case")
+    "fun" "stx" "fun*" "stx*" "let" "cond" "case"
+    "label" "loop" "label*" "require" "provide")
   '(("\\(?:[^-_a-zA-Z?*+0-9/:]:[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ("\\(?:[^~]@[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^@[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ;; special constants

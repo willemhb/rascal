@@ -1,11 +1,16 @@
 #ifndef rl_util_util_h
 #define rl_util_util_h
 
+#include <stdio.h>
+
 #include "common.h"
 
+// miscellaneous file utilities
+long filesize(FILE* ios);
+
 // miscellaneous string helpers
-bool streq(char* sx, char* sy);
-bool endswith(char* str, char* substr);
+bool streq(const char* sx, const char* sy);
+bool endswith(const char* str, const char* substr);
 
 // miscellaneous bit twiddling
 uintptr_t cpow2(uintptr_t i);
@@ -13,15 +18,9 @@ uintptr_t cpow2(uintptr_t i);
 // miscellaneous numeric helpers
 bool is_int(Num n);
 
-// bitmap utilities
-bool bitmap_has(uintptr_t map, int n);
-void bitmap_set(uintptr_t* map, int n);
-void bitmap_unset(uintptr_t* map, int n);
-int bitmap_to_index(uintptr_t map, int n);
-
 // hashing functions
 hash_t hash_string(const char* chars);
 hash_t hash_word(uintptr_t word);
-hash_t hash_pointer(void* ptr);
+hash_t hash_pointer(const void* ptr);
 
 #endif

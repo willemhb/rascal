@@ -2,99 +2,101 @@
 #define rl_vm_error_h
 
 #include "vm/vm.h"
+#include "val/ctl.h"
 
 // handling error state
-ErrorState* error_state(RlState* rls);
-void save_error_state(RlState* rls);
-void restore_error_state(RlState* rls);
-void discard_error_state(RlState* rls);
+Ctl* save_error_state(RlState* rls, int o);
+Ctl* get_error_state(RlState* rls);
+Ctl* restore_error_state(RlState* rls);
+Ctl* discard_error_state(RlState* rls);
 
-#define set_safe_point(rls) (setjmp((rls)->err_states[(rls)->ep-1].Cstate))
-#define rl_longjmp(rls, s) longjmp(error_state(rls)->Cstate, s)
+#define rl_setjmp(rls)     setjmp(get_error_state(rls)->Cstate)
+#define rl_longjmp(rls, s) longjmp(get_error_state(rls)->Cstate, s)
 
-// error function
-void rascal_error(RlState* rls, Status etype, char* fmt, ...);
+// error functions
+void rascal_error(RlState* rls, Status etype, bool fatal, Str* message);
 
-// convenience macros
-#define user_error(rls, args...) rascal_error(rls, USER_ERROR, args)
-#define runtime_error(rls, args...) rascal_error(rls, RUNTIME_ERROR, args)
-#define eval_error(rls, args...) rascal_error(rls, EVAL_ERROR, args)
-#define system_error(rls, args...) rascal_error(rls, SYSTEM_ERROR, args)
+void runtime_error(RlState* rls, char* fmt, ...);
+void eval_error(RlState* rls, char* fmt, ...);
+void type_error(RlState* rls, Type* e, Expr g);
+void arity_error(RlState* rls, bool va, int e, int g);
+void syntax_error(RlState* rls, List* form, char* fmt, ...);
+void syntax_type_error(RlState* rls, List* form, Type* e, Expr g);
+void syntax_arity_error(RlState* rls, List* form, bool va, int e);
+void system_error(RlState* rls, char* fmt, ...);
+void fatal_error(RlState* rls, char* fmt, ...);
 
-#define require(rls, test, args...)             \
+// require helpers
+#define system_require(rls, t, args...)                         \
+  do {                                                          \
+    if ( !(t) )                                                 \
+      system_error((rls), args);                                \
+  } while ( false )
+
+#define fatal_require(rls, t, args...)                          \
+  do {                                                          \
+    if ( !(t) )                                                 \
+      fatal_error((rls), args);                                 \
+  } while ( false )
+
+#define runtime_require(rls, t, args...)        \
   do {                                          \
-    if ( !(test) )                              \
+    if ( !(t) )                                 \
+      runtime_error((rls), args);               \
+  } while ( false )
+
+#define require(rls, t, args...)                \
+  do {                                          \
+    if ( !(t) )                                 \
       eval_error((rls), args);                  \
   } while ( false )
 
-#define require_argco(rls, f, e, g)                                     \
-  do {                                                                  \
-    if ( (e) != (g) )                                                   \
-      eval_error((rls), "%s wants %d inputs, got %d", (f), (e), (g));   \
+#define require_argco(rls, e, g)                \
+  do {                                          \
+    if ( (e) != (g) )                           \
+      arity_error((rls), false, (e), (g));      \
   } while ( false )
 
-#define require_argco2(rls, f, e1, e2, g)                               \
-  do {                                                                  \
-    if ( (e1) != (g) && (e2) != (g) )                                   \
-      eval_error( (rls),                                                \
-                  "%s wants %d or %d inputs, got %d",                   \
-                  (f),                                                  \
-                  (e1),                                                 \
-                  (e2),                                                 \
-                  (g));                                                 \
+#define require_vargco(rls, e, g)               \
+  do {                                          \
+    if ( (g) < (e) )                            \
+      arity_error((rls), true, (e), (g));       \
   } while ( false )
 
-#define require_vargco(rls, f, e, g)                                    \
-  do {                                                                  \
-    if ( (g) < (e) )                                                    \
-      eval_error( (rls), "%s wants at least %d inputs, got %d",         \
-                  (f), (e), (g) );                                      \
+#define require_argtype(rls, e, g)              \
+  do {                                          \
+    if ( !has_type(g, e) )                      \
+      type_error(rls, e, g);                    \
   } while ( false )
 
-#define require_argtype(rls, f, e, x)                                   \
-  do {                                                                  \
-    Type* _t = type_of(x);                                              \
-    if ( (e)->tag != _t->tag )                                          \
-      eval_error( (rls), "%s wanted a %s, got a %s",                    \
-                  (f), type_name(e), type_name(_t));                    \
+#define syntax_require(rls, t, sf, args...)     \
+  do {                                          \
+    if ( !(t) )                                 \
+      syntax_error(rls, sf, args);              \
   } while ( false )
 
-#define syntax_require(rls, sf, fn, t, fmt, ...)            \
-  do {                                                      \
-    if ( !(t) )                                             \
-      eval_error( (rls),                                    \
-                  "bad syntax for %s in %s: " fmt,          \
-                  (sf), (fn) __VA_OPT__(,) __VA_ARGS__);    \
+#define syntax_require_argco(rls, sf, e)        \
+  do {                                          \
+    if ( (sf)->count - 1 != (e) )               \
+      syntax_arity_error(rls, sf, false, e);    \
   } while ( false )
 
-#define syntax_require_vargco(rls, sf, fn, e, f)                        \
-  do {                                                                  \
-    int __c = ((f) && (f)->tail) ? (int)((f)->tail->count) : -1;        \
-    if ( __c < (e) )                                                    \
-      eval_error( (rls),                                                \
-                  "bad syntax for %s in %s: "                           \
-                  "wanted at least %d expressions, got %d",             \
-                  (sf), (fn), (e), __c );                               \
+#define syntax_require_vargco(rls, sf, e)       \
+  do {                                          \
+    if ( (sf)->count - 1 < (e) )                \
+      syntax_arity_error(rls, sf, true, e);     \
   } while ( false )
 
-#define syntax_require_argco(rls, sf, fn, e, f)                         \
-  do {                                                                  \
-    int __c = ((f) && (f)->tail) ? (int)((f)->tail->count) : -1;        \
-    if ( __c != (e) )                                                   \
-      eval_error( (rls),                                                \
-                  "bad syntax for %s in %s: "                           \
-                  "wanted %d expressions, got %d",                      \
-                  (sf), (fn), (e), __c );                               \
+#define syntax_require_argtype(rls, sf, e, g)   \
+  do {                                          \
+    if ( !has_type(g, e) )                      \
+      syntax_type_error(rls, sf, e, g);         \
   } while ( false )
 
-#define syntax_require_argco2(rls, sf, fn, e1, e2, f)                   \
-  do {                                                                  \
-    int __c = ((f) && (f)->tail) ? (int)((f)->tail->count) : -1;        \
-    if ( __c != (e1) && __c != (e2) )                                   \
-      eval_error( (rls),                                                \
-                  "bad syntax for %s in %s: "                           \
-                  "wanted %d or %d expressions, got %d",                \
-                  (sf), (fn), (e1), (e2), __c );                        \
-  } while ( false )
+// miscellaneous helpers
+void print_stack_trace(RlState* rls);
+char* error_name(Status etype);
+Sym* error_sym(Status etype);
+void init_vm_error(void);
 
 #endif

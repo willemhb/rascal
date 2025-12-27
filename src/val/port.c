@@ -53,7 +53,7 @@ Port* mk_port(RlState* rls, FILE* ios, IOMode io_mode) {
 
 Port* mk_port_s(RlState* rls, FILE* ios, IOMode io_mode) {
   Port* out = mk_port(rls, ios, io_mode);
-  push(rls, tag_obj(out));
+  stack_push(rls, tag_obj(out));
 
   return out;
 }
@@ -61,7 +61,7 @@ Port* mk_port_s(RlState* rls, FILE* ios, IOMode io_mode) {
 Port* open_port(RlState* rls, char* fname, char* mode) {
   FILE* ios = fopen(fname, mode);
 
-  require(rls, ios != NULL, "couldn't open %s: %s", fname, strerror(errno));
+  require(rls, ios != NULL, "couldn't open %s: %s.", fname, strerror(errno));
 
   IOMode io_mode = get_io_mode(fname, mode);
 
@@ -70,7 +70,7 @@ Port* open_port(RlState* rls, char* fname, char* mode) {
 
 Port* open_port_s(RlState* rls, char* fname, char* mode) {
   Port* out = open_port(rls, fname, mode);
-  push(rls, tag_obj(out));
+  stack_push(rls, tag_obj(out));
 
   return out;
 }
@@ -80,6 +80,19 @@ void  close_port(Port* port) {
     fclose(port->ios);
     port->ios = NULL;
   }
+}
+
+Port* tmp_port(RlState* rls) {
+  FILE* ios = tmpfile();
+  Port* out = mk_port(rls, ios, INPUT_PORT | OUTPUT_PORT | LISP_PORT | TEXT_PORT);
+  return out;
+}
+
+Port* tmp_port_s(RlState* rls) {
+  Port* out = tmp_port(rls);
+  stack_push(rls, tag_obj(out));
+
+  return out;
 }
 
 // stdio.h wrappers
@@ -100,6 +113,12 @@ int pseek(Port* p, long off, int orig) {
 
   return fseek(p->ios, off, orig);
 }
+
+void prewind(Port* p) {
+  assert(p->ios != NULL);
+  rewind(p->ios);
+}
+
 
 Glyph pgetc(Port* p) {
   // don't call on a closed port
@@ -127,6 +146,13 @@ Glyph ppeekc(Port* p) {
   return c;
 }
 
+char* pgets(char* buf, size_t bsize, Port* p) {
+  assert(p->ios != NULL);
+
+  return fgets(buf, bsize, p->ios);
+}
+
+
 int pprintf(Port* p, char* fmt, ...) {
   // don't call on a closed port
   assert(p->ios != NULL);
@@ -145,10 +171,15 @@ int pvprintf(Port* p, char* fmt, va_list va) {
   return o;
 }
 
-void clear_input(Port* in) {
+void clear_port(Port* in) {
   int c;
 
   while ((c=pgetc(in)) != '\n' && c != EOF);
+}
+
+void port_newline(Port* out, int n) {
+  for ( int i=0; i<n; i++ )
+    pprintf(out, "\n");
 }
 
 // lifetime methods

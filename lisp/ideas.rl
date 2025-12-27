@@ -26,10 +26,40 @@
   (def vals  (map snd vars))
   `((fn ~names ~@body) ~vals))
 
+;; ideas for pattern matching syntax and limited infix reader macros.
+;; who knows how pattern matching will work with generic functions.
+(fun* reduce
+  ((_ ()) nul)
+  ((f (h & t))
+    (reduce f t h))
+  ((_ () a) a)
+  ((f (h & t) a)
+    (reduce f t (f a h))))
+
 (fun map
   (f xs)
-  (label ((f f) (xs xs) (ac ac))
-    (if (empty? xs)
-      (reverse ac)
-      (let (((h & t) xs))
-        (loop f t (cons (f h) ac))))))
+  (label* (f f, xs xs, ac ())
+    ((_ () ac)
+      (reverse ac))
+    ((f (h & t) ac)
+      (loop f t (cons f|h ac)))))
+
+(fun filter
+  (p? xs)
+  (label* (p? p?, xs xs, ac ())
+    ((_ () ac)
+      (reverse ac))
+    ((p? (h & t) ac) :when (p? h)
+      (loop p? t h|ac))
+    ((p? (h & t) ac)
+      (loop p? t ac))))
+
+(fun pow (x: Num n: Int)
+  (label* (x x, n n, a 1)
+    ((_ 0 a) a)
+    ((x n a) :when (even? n)
+      (loop sqr|x (/ n 2) a))
+    ((x n a)
+      (loop x dec|n (* x a)))))
+
+;; messing around with ideas for self-hosted compiler/interpreter.

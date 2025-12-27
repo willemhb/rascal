@@ -47,14 +47,6 @@ Type NulType = {
   .print_fn = print_nul
 };
 
-Type EosType = {
-  .heap     = NULL,
-  .type     = &TypeType,
-  .bfields  = FL_GRAY,
-  .tag      = EXP_EOS,
-  .obsize   = 0
-};
-
 // type APIs
 bool bottom_has(Type* tx, Type* ty) {
   (void)tx;
@@ -79,7 +71,6 @@ Type* type_of(Expr x) {
   switch ( x & XTMSK ) {
     case NONE_T  : t = &NoneType;     break;
     case NUL_T   : t = &NulType;      break;
-    case EOS_T   : t = &EosType;      break;
     case BOOL_T  : t = &BoolType;     break;
     case GLYPH_T : t = &GlyphType;    break;
     case OBJ_T   : t = head(x)->type; break;
@@ -105,15 +96,13 @@ void register_builtin_types(RlState* rls) {
   init_builtin_type(rls, &TypeType, "Type");
   init_builtin_type(rls, &NoneType, "None");
   init_builtin_type(rls, &NulType, "Nul");
-  init_builtin_type(rls, &EosType, "Eos");
   init_builtin_type(rls, &BoolType, "Bool");
   init_builtin_type(rls, &GlyphType, "Glyph");
   init_builtin_type(rls, &ChunkType, "Chunk");
-  init_builtin_type(rls, &AlistType, "Alist");
-  init_builtin_type(rls, &Buf16Type, "Buf-16");
   init_builtin_type(rls, &RefType, "Ref");
   init_builtin_type(rls, &UpValType, "UpVal");
   init_builtin_type(rls, &EnvType, "Env");
+  init_builtin_type(rls, &CtlType, "Ctl");
   init_builtin_type(rls, &PortType, "Port");
   init_builtin_type(rls, &FunType, "Fun");
   init_builtin_type(rls, &MethodType, "Method");
@@ -121,18 +110,19 @@ void register_builtin_types(RlState* rls) {
   init_builtin_type(rls, &SymType, "Sym");
   init_builtin_type(rls, &StrType, "Str");
   init_builtin_type(rls, &ListType, "List");
+  init_builtin_type(rls, &TupleType, "Tuple");
   init_builtin_type(rls, &NumType, "Num");
 }
 
 // utility array APIs
 void trace_exprs(RlState* rls, Exprs* xs) {
   for ( int i=0; i < xs->count; i++ )
-    mark_exp(rls, xs->vals[i]);
+    mark_exp(rls, xs->data[i]);
 }
 
 void trace_objs(RlState* rls, Objs* os) {
   for ( int i=0; i < os->count; i++ )
-    mark_obj(rls, os->vals[i]);
+    mark_obj(rls, os->data[i]);
 }
 
 // expression APIs
@@ -180,14 +170,8 @@ void* as_obj(Expr x) {
   return (void*)(x & XVMSK);
 }
 
-void* as_obj_s(RlState* rls, char* fn, Type* t, Expr x) {
-  if ( !has_type(x, t) ) {
-    fprintf(stderr, "eval error in %s: wanted a %s, got ", fn, type_name(t));
-    print_exp(&Errs, x);
-    fprintf(stderr, ".\n");
-    rl_longjmp(rls, EVAL_ERROR);
-  }
-
+void* as_obj_s(RlState* rls, Type* t, Expr x) {
+  require_argtype(rls, t, x);
   return as_obj(x);
 }
 
@@ -206,7 +190,7 @@ void* mk_obj(RlState* rls, Type* type, flags_t flags) {
 
 void* mk_obj_s(RlState* rls, Type* type, flags_t flags) {
   Obj* out = mk_obj(rls, type, flags);
-  push(rls, tag_obj(out));
+  stack_push(rls, tag_obj(out));
 
   return out;
 }
@@ -226,7 +210,7 @@ void* clone_obj(RlState* rls, void* ptr) {
 
 void* clone_obj_s(RlState* rls, void* ptr) {
   void* out = clone_obj(rls, ptr);
-  push(rls, tag_obj(out));
+  stack_push(rls, tag_obj(out));
 
   return out;
 }

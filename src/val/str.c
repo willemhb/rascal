@@ -26,9 +26,9 @@ Type StrType = {
 
 // string table
 Strings StringTable = {
-  .kvs       = NULL,
-  .count     = 0,
-  .max_count = 0
+  .kvs   = NULL,
+  .count = 0,
+  .maxc  = 0
 };
 
 Str* new_str(RlState* rls, char* cs, hash_t h, bool interned) {
@@ -54,7 +54,7 @@ Str* mk_str(RlState* rls, char* cs) {
   Str* s;
 
   if ( n <= MAX_INTERN )
-    s = strings_intern(rls, rls->vm->strings, cs, string_intern);
+    s = strings_intern(rls, &rls->vm->strings, cs, string_intern);
 
   else
     s = new_str(rls, cs, hash_string(cs), false);
@@ -64,7 +64,7 @@ Str* mk_str(RlState* rls, char* cs) {
 
 Str* mk_str_s(RlState* rls, char* cs) {
   Str* out = mk_str(rls, cs);
-  push(rls, tag_obj(out));
+  stack_push(rls, tag_obj(out));
   return out;
 }
 
@@ -76,6 +76,9 @@ void print_str(Port* ios, Expr x) {
 
 hash_t hash_str(Expr x) {
   Str* s = as_str(x);
+
+  if ( s->hash == 0 )
+    s->hash = hash_string(s->val);
 
   return s->hash;
 }

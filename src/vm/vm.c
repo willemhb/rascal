@@ -10,16 +10,8 @@
 #include "lang.h"
 
 // Global declarations --------------------------------------------------------
-char* ErrorNames[] = {
-  [OKAY]          = "okay",
-  [USER_ERROR]    = "user",
-  [EVAL_ERROR]    = "eval",
-  [RUNTIME_ERROR] = "runtime",
-  [SYSTEM_ERROR]  = "sytem"
-};
-
-extern Strings StringTable;
-extern Type EnvType;
+Expr Stack[STACK_SIZE];
+Frame CallStack[NUM_FRAMES];
 
 Env Globals = {
   .type    = &EnvType,
@@ -33,47 +25,52 @@ Env Globals = {
   .vars = {
     .kvs       = NULL,
     .count     = 0,
-    .max_count = 0
+    .maxc = 0
   },
 
   .vals = {
-    .vals      = NULL,
-    .count     = 0,
-    .max_count = 0
+    .data = NULL,
+    .count = 0,
+    .maxc = 0
   }
 };
 
-Objs GrayStack = {
-  .vals      = NULL,
-  .count     = 0,
-  .max_count = 0
-};
-
 RlVm Vm = {
-  .globals = &Globals,
-  .strings = &StringTable,
-  .heap_cap  = INIT_HEAP,
-  .heap_used = 0,
-  .gc_count  = 0,
-  .gc = false,
+  .globals   = &Globals,
+  .strings   = {
+    .kvs       = NULL,
+    .count     = 0,
+    .maxc = 0
+  },
+  .heap_cap    = INIT_HEAP,
+  .heap_used   = 0,
+  .gc_count    = 0,
+  .gc          = false,
   .initialized = false,
   .managed_objects = NULL,
-  .grays = &GrayStack
+  .grays = {
+    .data = NULL,
+    .count = 0,
+    .maxc = 0
+  }
 };
 
 RlState Main = {
-  .vm   = &Vm,
+  .vm = &Vm,
   .upvs = NULL,
-  .fn   = NULL,
-  .pc   = NULL,
-  .sp   = 0,
-  .fp   = 0,
-  .bp   = 0
+  .exec = NULL,
+  .pc = NULL,
+  .stack = Stack,
+  .s_end = Stack+STACK_SIZE,
+  .s_top = Stack,
+  .base = Stack,
+  .esc = NULL,
+  .frames = CallStack,
+  .f_end = CallStack+NUM_FRAMES,
+  .f_top = CallStack
 };
 
 // static wrapper objects for standard streams
-extern Type PortType;
-
 Port Ins = {
   .type    = &PortType,
   .black   = false,
@@ -95,166 +92,193 @@ Port Errs = {
   .black   = false,
   .gray    = true,
   .nosweep = true,
-  .mode    = OUTPUT_PORT | TEXT_PORT
+  .mode    = LISP_PORT | OUTPUT_PORT | TEXT_PORT
 };
-
-// mostly whitespace and control characters
-char* CharNames[128] = {
-  ['\0'] = "nul",      ['\n'] = "newline",
-  [' ']  = "space",    ['\a'] = "bel",
-  ['\t'] = "tab",      ['\r'] = "return",
-  ['\f'] = "formfeed", ['\v'] = "vtab",
-  ['\b'] = "backspace"
-};
-
-// miscellaneous state helpers
-char* current_fn_name(RlState* rls) {
-  char* out;
-
-  if ( rls->fn == NULL )
-    out = "&toplevel";
-
-  else
-    out = method_name(rls->fn);
-
-  return out;
-}
 
 // token API
 void reset_token(RlState* rls) {
-  memset(rls->token, 0, BUFFER_SIZE);
-  rls->toff = 0;
+  free_text_buf(rls, &rls->token);
 }
 
-size_t add_to_token(RlState* rls, char c) {
-  if ( rls->toff < BUFFER_MAX )
-    rls->token[rls->toff++] = c;
+int add_to_token(RlState* rls, char c) {
+  text_buf_push(rls, &rls->token, c);
 
-  else
-    runtime_error(rls, "maximum token length exceeded");
+  return rls->token.count;
+}
 
-  return rls->toff;
+char* token_val(RlState* rls) {
+  return rls->token.data;
+}
+
+int token_size(RlState* rls) {
+  return rls->token.count;
 }
 
 // stack API ------------------------------------------------------------------
-void reset_stack(RlState* rls) {
-  memset(rls->stack, 0, EXPR_STACK_SIZE * sizeof(Expr));
-  rls->sp = 0;
+int stack_size(RlState* rls) {
+  return rls->s_top - rls->stack;
 }
 
-void check_stack_limit(RlState* rls, int n) {
-  require(rls,
-          rls->sp+n < EXPR_STACK_SIZE,
-          "stack overflow in %s",
-          current_fn_name(rls));
+int call_stack_size(RlState* rls) {
+  return rls->f_top - rls->frames;
 }
 
-int check_stack_bounds(RlState* rls, int n) {
-  if ( n < 0 )
-    n += rls->sp;
+void stack_check_limit(RlState* rls, int n) {
+  if ( n > 0 ) {
+    if ( rls->s_top + n > rls->s_end )
+      runtime_error(rls, "stack overflow");
+  } else {
+    if ( rls->s_top - n < rls->stack )
+      runtime_error(rls, "stack underflow");
+  }
+}
 
-  require(rls,
-          n >= 0 && n < rls->sp,
-          "stack reference %d out of bounds in %s",
-          n,
-          current_fn_name(rls));
+int stack_check_bounds(RlState* rls, int n) {
+  int ss = rls->s_top - rls->stack;
+  
+  if ( n < 0 ) {
+    if ( rls->s_top - n < rls->stack )
+      runtime_error(rls, "%d out of bounds for stack of size %d", n, ss);
+  } else {
+    if ( rls->stack + n > rls->s_top )
+      runtime_error(rls, "%d out of bounds for stack of size %d", n, ss);
+  }
 
   return n;
 }
 
-Expr* stack_ref(RlState* rls, int i) {
-  int j = i;
-
-  if ( j < 0 )
-    j += rls->sp;
-
-  if ( j < 0 || j > rls->sp ) {
-    runtime_error(rls, "stack reference %d out of bounds", i);
+void frames_check_limit(RlState* rls, int n) {
+  if ( n > 0 ) {
+    if ( rls->f_top + n > rls->f_end )
+      runtime_error(rls, "call stack overflow");
+  } else {
+    if ( rls->f_top - n < rls->frames )
+      runtime_error(rls, "call stack underflow");
   }
-
-  return &rls->stack[j];
 }
 
-int save_sp(RlState* rls) {
-  return rls->sp;
+void stack_swap(RlState* rls, int ox, int oy) {
+  Expr tmp = rls->s_top[-ox];
+  rls->s_top[-ox] = rls->s_top[-oy];
+  rls->s_top[-oy] = tmp;
 }
 
-void restore_sp(RlState* rls, int sp) {
-  // intended for restoring an sp previously recorded with `save_sp`
-  assert(sp >= 0 && sp <= EXPR_STACK_SIZE);
-  rls->sp = sp;
-}
-
-Expr* preserve(RlState* rls, int n, ...) {
-  check_stack_limit(rls, n);
-  Expr* out = &rls->stack[rls->sp];
+Expr* stack_preserve(RlState* rls, int n, ...) {
+  Expr* out = rls->s_top;
   va_list va;
   va_start(va, n);
   for ( int i=0; i<n; i++ )
-    rls->stack[rls->sp++] = va_arg(va, Expr);
+    *(rls->s_top++) = va_arg(va, Expr);
 
   va_end(va);
   return out;
 }
 
-Expr* dup(RlState* rls) {
+Expr* stack_dup(RlState* rls) {
   // duplicate top of stack
-  if ( rls->sp == 0 )
-    runtime_error(rls, "stack underflow");
+  rls->s_top++;
+  rls->s_top[-1] = rls->s_top[-2];
 
-  rls->sp++;
-  rls->stack[rls->sp-1] = rls->stack[rls->sp-2];
-
-  return &rls->stack[rls->sp - 1];
+  return rls->s_top-1;
 }
 
-Expr* push(RlState* rls, Expr x) {
-  if ( rls->sp == EXPR_STACK_SIZE )
-    runtime_error(rls, "stack overflow");
+Expr* stack_push(RlState* rls, Expr x) {
+  *rls->s_top = x;
 
-  rls->stack[rls->sp] = x;
-
-  return &rls->stack[rls->sp++];
+  return rls->s_top++;
 }
 
-Expr* pushn(RlState* rls, int n) {
-  if ( rls->sp + n >= EXPR_STACK_SIZE )
-    runtime_error(rls, "stack overflow");
-
-  Expr* base = &rls->stack[rls->sp]; rls->sp += n;
-
+Expr* stack_pushn(RlState* rls, int n) {
+  Expr* base = rls->s_top;
+  rls->s_top += n;
   return base;
 }
 
-Expr pop(RlState* rls) {
-  if ( rls->sp == 0 )
-    runtime_error(rls, "stack underflow");
-
-  return rls->stack[--rls->sp];
+Expr stack_pop(RlState* rls) {
+  return *(--rls->s_top);
 }
 
-Expr rpop(RlState* rls) {
-  if ( rls->sp < 2 )
-    runtime_error(rls, "stack underflow");
-
-  Expr out            = rls->stack[rls->sp-2];
-  rls->stack[rls->sp-2] = rls->stack[rls->sp-1];
-
-  rls->sp--;
+Expr stack_popn(RlState* rls, int n) {
+  Expr out = rls->s_top[-n];
+  rls->s_top -= n;
 
   return out;
 }
 
-Expr popn(RlState* rls, int n) {
-  if ( n > rls->sp )
-    runtime_error(rls, "stack underflow");
-
-  Expr out = rls->stack[rls->sp-1]; rls->sp -= n;
-
+Expr stack_rpop(RlState* rls) {
+  Expr out = rls->s_top[-2];
+  rls->s_top[-2] = rls->s_top[-1];
+  rls->s_top--;
   return out;
 }
 
-// return an UpVal object corresponding to the given stack location
+Expr stack_rpopn(RlState* rls, int n) {
+  assert(n > 0);
+  Expr out = rls->s_top[-n-1];
+  rls->s_top[-n-1] = rls->s_top[-1];
+  rls->s_top -= n;
+  assert(rls->s_top > rls->stack);
+  return out;
+}
+
+void stack_swap_s(RlState* rls, int ox, int oy) {
+  stack_check_bounds(rls, -ox);
+  stack_check_bounds(rls, -oy);
+  return stack_swap(rls, ox, oy);
+}
+
+Expr* stack_preserve_s(RlState* rls, int n, ...) {
+  stack_check_limit(rls, n);
+  Expr* out = rls->s_top;
+  va_list va;
+  va_start(va, n);
+  for ( int i=0; i<n; i++ )
+    *(rls->s_top++) = va_arg(va, Expr);
+
+  va_end(va);
+  return out;
+}
+
+Expr* stack_dup_s(RlState* rls) {
+  // duplicate top of stack
+  stack_check_limit(rls, 1);
+
+  return stack_dup(rls);
+}
+
+Expr* stack_push_s(RlState* rls, Expr x) {
+  stack_check_limit(rls, 1);
+  return stack_push(rls, x);
+}
+
+Expr* stack_pushn_s(RlState* rls, int n) {
+  stack_check_limit(rls, n);
+  return stack_pushn(rls, n);
+}
+
+Expr stack_pop_s(RlState* rls) {
+  stack_check_limit(rls, -1);
+  return stack_pop(rls);
+}
+
+Expr stack_popn_s(RlState* rls, int n) {
+  stack_check_limit(rls, -n);
+  return stack_popn(rls, n);
+}
+
+Expr stack_rpop_s(RlState* rls) {
+  stack_check_limit(rls, -2);
+
+  return stack_rpop(rls);
+}
+
+Expr stack_rpopn_s(RlState* rls, int n) {
+  stack_check_limit(rls, -n-1);
+
+  return stack_rpopn(rls, n);
+}
+
+// return an UpVal object correspondig to the given stack location
 UpVal* get_upv(RlState* rls, Expr* loc) {
   UpVal** spc = &rls->upvs;
   UpVal* out = NULL;
@@ -289,73 +313,63 @@ void close_upvs(RlState* rls, Expr* base) {
 }
 
 // frame manipulation
-void install_method(RlState* rls, Method* method, int argc) {
-  rls->fn = method;
-  rls->pc = method->chunk->code->binary.vals;
-  rls->bp = rls->sp-argc;
+void install_method(RlState* rls, Method* method) {
+  rls->exec = method;
+  rls->pc = method_code(method);
+  rls->base = rls->s_top - method_formalc(method);
 }
 
-bool save_call_frame(RlState* rls, int argc) {
-  bool out;
+void save_call_frame(RlState* rls) {
+  assert(rls->f_top < rls->f_end);
 
-  if ( rls->fp == CALL_STACK_SIZE )
-    runtime_error(rls, "runtime:save_frame", "stack overflow");
-
-  if ( rls->fn == NULL )
-    out = false;
-
-  else {
-    CallState *frame = &rls->frames[rls->fp++];
-    frame->frame_size = (rls->sp-argc-1) - rls->bp;
-    frame->cntl_off = -1; // not used until effects are implemented
-    frame->flags = -1; // not used until effects are implemented
-    frame->savepc = rls->pc;
-    frame->savefn = rls->fn;
-    out = true;
+  if ( rls->exec == NULL ) { // don't save empty call state
+    assert(rls->f_top == rls->frames);
+    return;
   }
 
-  return out;
+  FrameRef frame = rls->f_top++;
+
+  frame->exec = rls->exec;
+  frame->pc = rls->pc;
+  frame->base = rls->base;
+  frame->esc = rls->esc;
+
+#ifdef RASCAL_DEBUG
+  // print_call_stack(rls, -1, "call stack on saving call frame");
+#endif
 }
 
-bool restore_call_frame(RlState* rls) {
-  bool out;
+void restore_call_frame(RlState* rls) {
+  assert(rls->f_top > rls->frames);
 
-  if ( rls->fp == 0 ) { // no frames to restore
-    rls->fn = NULL;     // zero out state to avoid fucked up shit
-    rls->pc = NULL;
-    rls->bp = 0;
-    out = false;
-  } else {
-    CallState* frame = &rls->frames[--rls->fp];
-    rls->sp = rls->bp-1; // exclude caller
-    rls->pc = frame->savepc;
-    rls->fn = frame->savefn;
-    rls->bp = rls->sp - frame->frame_size;
-    out = true;
-  }
+  FrameRef caller = --rls->f_top;
 
-  return out;
-}
+  rls->s_top = rls->base - 1;
+  rls->exec = caller->exec;
+  rls->pc = caller->pc;
+  rls->esc = caller->esc;
+  rls->base = caller->base;
 
-void reset_vm(RlState* rls) {
-  rls->upvs = NULL;
-  rls->pc = NULL;
-  rls->fn = NULL;
-  rls->fp =  0;
-  rls->bp =  0;
-  rls->sp =  0;
+#ifdef RASCAL_DEBUG
+  // print_call_stack(rls, -1, "call stack on restoring call frame");
+#endif
 }
 
 // report helpers
-void stack_report_slice(RlState* rls, int n, char* fmt, ...) {
+void stack_report(RlState* rls, int n, char* fmt, ...) {
   va_list va;
   va_start(va, fmt);
-  printf("\n\n== ");
+  printf("\n\n=== ");
   vprintf(fmt, va);
-  printf(" ==\n\n");
+  printf(" ===\n\n");
   va_end(va);
 
-  Expr* base = stack_ref(rls, -n);
+  if ( n == -1 )
+    n = stack_size(rls);
+
+  assert(n <= stack_size(rls));
+
+  Expr* base = rls->s_top-n;
 
   for ( int i=n-1; i >= 0; i-- ) {
     printf("%4d ", i);
@@ -364,23 +378,102 @@ void stack_report_slice(RlState* rls, int n, char* fmt, ...) {
   }
 }
 
-void stack_report(RlState* rls) {
-  printf("\n\n==== stack report ====\n\n");
+void print_call_stack(RlState* rls, int n, char* fmt, ...) {
+  va_list va;
+  va_start(va, fmt);
+  printf("\n=== ");
+  vprintf(fmt, va);
+  printf(" ===\n");
+  va_end(va);
 
-  for ( int i=rls->sp-1; i>=0; i-- ) {
-    printf("%4d ", i);
-    print_exp(&Outs, rls->stack[i]);
-    printf("\n");
+  if ( n == -1 )
+    n = call_stack_size(rls);
+
+  assert(n <= stack_size(rls));
+
+  StackRef top = rls->s_top;
+  StackRef base = rls->base-1;
+  FrameRef frame = rls->f_top-n;
+
+  if ( rls->exec != NULL ) {
+    printf("=== frame %2d ===\n", n+1);
+    printf("method: %s\n", method_name(rls->exec));
+    printf("base:   %p\n", rls->base);
+    printf("pc:     %p\n", rls->pc);
+    printf("esc:    %p\n", rls->esc);
+    printf("=== values ===\n");
+
+    for ( int j=(top - base); j >= 0; j-- ) {
+      printf("%-4d ", j);
+      print_exp(&Outs, base[j]);
+      printf("\n");
+    }
+
+    top = base;
+  }
+
+  for ( int i=n; frame > rls->frames; i--, frame-- ) {
+    base = frame->base-1;
+    printf("=== frame %2d ===\n", i);
+    printf("method: %s\n", frame->exec ? method_name(frame->exec) : "<toplevel>");
+    printf("base:   %p\n", frame->base);
+    printf("pc:     %p\n", frame->pc);
+    printf("esc:    %p\n", frame->esc);
+    printf("=== values ===\n");
+
+    for ( int j=(top - base); j >= 0; j-- ) {
+      printf("%-4d ", j);
+      print_exp(&Outs, base[j]);
+      printf("\n");
+    }
+
+    top = base;
   }
 }
 
-void env_report(RlState* rls) {
-  Env* g = rls->vm->globals;
-  int n = env_size(g);
-  Ref** rs = (Ref**)g->vals.vals;
-  printf("\n\n==== env report (size = %4d) ====\n\n", n);
+void env_report(RlState* rls, Env* vars) {
+  (void)rls;
+  int n = env_size(vars);
 
-  for ( int i=0; i < n; i++ ) {
-    printf("%4d = %s\n", i, rs[i]->name->val->val);
+  printf("\n\n=== env report (size = %4d) ====\n\n", n);
+
+  if ( is_global_env(vars) ) {
+
+    Ref** rs = (Ref**)vars->vals.data;
+    for ( int i=0; i < n; i++ ) {
+      printf("%4d = %s\n", i, rs[i]->name->val->val);
+    }
+  } else {
+    EMapKV* kvs = vars->vars.kvs;
+    int n = vars->vars.count;
+    int m = vars->vars.maxc;
+
+    printf("\n\n=== local vars (size = %4d) ===\n\n", n);
+
+    for ( int i=0, j=0; i < m && j < n; i++ ) {
+      Ref* r = kvs[i].val;
+
+      if ( r == NULL )
+        continue;
+
+      j++;
+      printf("%4d = %s\n", r->offset, sym_val(r->name));
+    }
+
+    kvs = vars->upvs.kvs;
+    n = vars->upvs.count;
+    m = vars->upvs.maxc;
+
+    printf("\n\n=== captured vars (size = %4d) ===\n\n", n);
+
+   for ( int i=0, j=0; i < m && j < n; i++ ) {
+      Ref* r = kvs[i].val;
+
+      if ( r == NULL )
+        continue;
+
+      j++;
+      printf("%4d = %s\n", r->offset, sym_val(r->name));
+    }
   }
 }
