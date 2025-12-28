@@ -97,6 +97,9 @@ typedef enum {
   OP_EXEC,
   OP_LOAD,
 
+  // IO helpers
+  OP_NEWLINE,
+
   // environment operations
   OP_DEFINED,
   OP_LOCAL_ENV,

@@ -1,4 +1,6 @@
 ;; test file for load
-(def x 42)
-(def y (+ x 10))
-y
+;; (control
+;;   (fn () (/ 2 0))
+;;   (fn (err)
+;;     (print &outs err)
+;;     (newline &outs) err))

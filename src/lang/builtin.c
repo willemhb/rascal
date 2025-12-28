@@ -51,10 +51,13 @@ void define_builtins(void) {
   def_builtin_fun(&Main, "eval", 1, false, OP_EVAL);
   def_builtin_fun(&Main, "print", 2, false, OP_PRINT);
   ReplFun = def_builtin_fun(&Main, "repl", 0, false, OP_REPL);
-  def_builtin_fun(&Main, "apply", 2, false, OP_APPLY);
+  def_builtin_fun(&Main, "apply", 2, true, OP_APPLY);
   def_builtin_fun(&Main, "compile", 1, false, OP_COMPILE);
   def_builtin_fun(&Main, "exec", 1, false, OP_EXEC);
   LoadFun = def_builtin_fun(&Main, "load", 1, false, OP_LOAD);
+
+  // IO
+  def_builtin_fun(&Main, "newline", 1, false, OP_NEWLINE);
 
   // environment
   def_builtin_fun(&Main, "defined?", 2, false, OP_DEFINED);

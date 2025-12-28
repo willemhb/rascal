@@ -15,7 +15,7 @@
     "control" "raise"
     ;; macros
     "fun" "stx" "fun*" "stx*" "let" "cond" "case"
-    "label" "loop" "label*" "require" "provide")
+    "label" "loop" "label*" "handle" "require" "provide")
   '(("\\(?:[^-_a-zA-Z?*+0-9/:]:[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ("\\(?:[^~]@[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^@[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ;; special constants

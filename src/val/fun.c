@@ -251,6 +251,7 @@ Fun* mk_fun(RlState* rls, Sym* name, bool macro, bool generic) {
   f->macro = macro;
   f->generic = generic;
   f->method = NULL;
+  f->mcount = 0;
 
   return f;
 }
@@ -264,13 +265,22 @@ Fun* mk_fun_s(RlState* rls, Sym* name, bool macro, bool generic) {
 void fun_add_method(RlState* rls, Fun* fun, Method* m) {
   assert(fun->generic || fun->method == NULL);
 
-  if ( fn_method_count(fun) == 0 )
+  int count = fun->mcount;
+
+  if ( count == 0 )
     fun->method = m;
 
   else {
-    fun->methods = mk_mtable(rls, fun);
+    if ( count == 1 ) {
+      Method* sm = fun->method;
+      fun->methods = mk_mtable(rls, fun);
+      mtable_add(rls, fun->methods, sm);
+    }
+
     mtable_add(rls, fun->methods, m);
   }
+
+  fun->mcount++;
 }
 
 void fun_add_method_s(RlState* rls, Fun* fun, Method* m) {
@@ -284,10 +294,12 @@ Method* fun_get_method(Fun* fun, int argc) {
 
   Method* out = NULL;
 
-  if ( is_singleton_fn(fun) && argc_match(fun->method, argc) )
+  if ( is_singleton_fn(fun) ) {
+    if ( argc_match(fun->method, argc) )
       out = fun->method;
-  else
+  } else {
     out = mtable_lookup(fun->methods, argc);
+  }
 
   return out;
 }
@@ -320,10 +332,10 @@ void print_fun(Port* ios, Expr x) {
   Fun* fun = as_fun(x);
 
   if ( fun->macro )
-    pprintf(ios, "<macro:%s/%d>", fn_name(fun), fn_method_count(fun));
+    pprintf(ios, "<macro:%s/%d>", fn_name(fun), fun->mcount);
 
   else
-    pprintf(ios, "<fun:%s/%d>", fn_name(fun), fn_method_count(fun));
+    pprintf(ios, "<fun:%s/%d>", fn_name(fun), fun->mcount);
 }
 
 void trace_fun(RlState* rls, void* ptr) {
@@ -458,7 +470,9 @@ void mtable_add(RlState* rls, MethodTable* mt, Method* m) {
   else if ( bit_vec_has(&mt->methods, m->arity) )
     eval_error(rls, "method %s/%d already exists", fname, m->arity);
 
-  bit_vec_set(rls, &mt->methods, m->arity, m); // mark the bitmap
+  else {
+    bit_vec_set(rls, &mt->methods, m->arity, m); // add to bitmap
+  }
 }
 
 Method* mtable_lookup(MethodTable* mt, int argc) {

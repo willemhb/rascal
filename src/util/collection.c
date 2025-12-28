@@ -381,9 +381,6 @@ static bool bitmap_has(uintptr_t map, int n) {
 }
 
 static int bitmap_to_index(uintptr_t map, int n) {
-  if ( !bitmap_has(map, n) )
-    return -1;
-
   return popc(((1ul << n) -1) & map);
 }
 
@@ -443,14 +440,14 @@ void bit_vec_set(RlState* rls, BitVec* bv, int n, void* d) {
 
   bv->data[i] = d;
   bitmap_set(&bv->bitmap, n);
+  bv->count++;
 }
 
 void* bit_vec_get(BitVec* bv, int n) {
-  int i = bitmap_to_index(bv->bitmap, n);
-
-  if ( i < 0 )
+  if ( !bit_vec_has(bv, n))
     return NULL;
 
+  int i = bitmap_to_index(bv->bitmap, n);
   return bv->data[i];
 }
 

@@ -18,34 +18,11 @@
         (list 'def-method name (cons 'fn args body))
         (list 'def-multi name (cons 'fn args body))))))
 
-;; list utilities
-(fun empty? (xs)
-  (if (isa? xs List)
-    (=? xs ())
-    (raise [:eval-error "not a list."])))
-
-(fun fst (xs)
-  (head xs))
-
-(fun snd (xs)
-  (head (tail xs)))
-
-(fun map (f xs)
-  (if (=? xs ())
-    ()
-    (cons (f (head xs))
-          (map f (tail xs)))))
-
-(fun filter (p? xs)
-  (if (empty? xs) ()
-      (p? xs)     (cons (head xs) (filter p? (tail xs)))
-      otherwise   (filter p? (tail xs))))
-
-(stx let
-  (vars & body)
-  (def names (map fst vars))
-  (def binds (map snd vars))
-  (cons (cons 'fn names body) binds))
+(stx handle
+  ;; slightly prettier try/catch form
+  (handler & body)
+  (list (cons 'fn () body)
+        (cons 'fn handler)))
 
 ;; miscellaneous utilities
 (fun not (x)
@@ -54,6 +31,9 @@
 ;; type predicates
 (fun list? (x)
   (isa? x List))
+
+(fun tuple? (x)
+  (isa? x Tuple))
 
 (fun sym? (x)
   (isa? x Sym))
@@ -72,12 +52,62 @@
     (=? x ())
     true))
 
+;; list utilities
+(fun empty? (xs)
+  (if (isa? xs List)
+    (=? xs ())
+    (raise [:eval-error "not a list."])))
+
+(fun append (xs ys)
+  (if (empty? xs)
+    ys
+    (cons (head xs) (append (tail xs) ys))))
+
+(fun concat (xss)
+  (if (empty? xss)
+    ()
+    (append (head xss) (concat (tail xss)))))
+
+(fun fst (xs)
+  (head xs))
+
+(fun snd (xs)
+  (head (tail xs)))
+
+(fun map (f xs)
+  ;; you know this one.
+  (if (=? xs ())
+    ()
+    (cons (f (head xs))
+          (map f (tail xs)))))
+
+(fun filter (p? xs)
+  (if
+    (empty? xs)
+      ()
+    (p? (head xs))
+      (cons (head xs) (filter p? (tail xs)))
+    otherwise
+      (filter p? (tail xs))))
+
+(stx let
+  (vars & body)
+  (def names (map fst vars))
+  (def binds (map snd vars))
+  (cons (cons 'fn names body) binds))
+
 ;; number utilities
 (fun zero? (x)
   (=? x 0))
 
 (fun one? (x)
   (=? x 1))
+
+(fun even? (n)
+  (zero? (rem n 2)))
+
+(fun odd? (n)
+  (one? (rem n 2)))
 
 (fun inc (x)
   (+ x 1))
@@ -87,3 +117,25 @@
 
 (fun sqr (x)
   (* x x))
+
+;; IO helpers
+(fun print (x)
+  (print &outs x))
+
+(fun print (io & xs)
+  (if
+    (empty? xs)
+      nul
+    otherwise
+      (do (print io (head xs))
+          (apply print io xs))))
+
+(fun newline ()
+  (newline &outs))
+
+(fun println (io x)
+  (print io x)
+  (newline io))
+
+(fun println (x)
+  (println &outs x))

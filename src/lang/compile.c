@@ -743,6 +743,10 @@ Fun* toplevel_compile(RlState* rls, Expr x) {
   }
 
   discard_error_state(rls);
+#ifdef RASCAL_DEBUG
+  if ( f )
+    disassemble_method(f->method);
+#endif
   return f;
 }
 

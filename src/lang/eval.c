@@ -60,6 +60,7 @@ void toplevel_repl(RlState* rls) {
 
 void repl(RlState* rls) {
   Expr x, v = NUL;
+  Status s;
 
   // create a catch point
   save_error_state(rls, 0);
@@ -68,7 +69,11 @@ void repl(RlState* rls) {
     fprintf(stdout, PROMPT" ");
 
     // set safe point for read (so that errors can be handled properly)
-    if ( rl_setjmp(rls) ) {
+    if ( (s=rl_setjmp(rls)) ) {
+      if ( s == USER_ERROR ) {
+        print_embed(&Errs, "eval error: ", 0, 0, ".\n", 1, tos(rls));
+      }
+
       restore_error_state(rls);
       clear_port(&Ins);
       port_newline(&Outs, 2);
@@ -76,8 +81,12 @@ void repl(RlState* rls) {
       x = read_exp(rls, &Ins, NULL);
     }
 
-    if ( rl_setjmp(rls) ) {
+    if ( (s=rl_setjmp(rls)) ) {
+      if ( s == USER_ERROR ) {
+        print_embed(&Errs, "eval error: ", 0, 0, ".\n", 1, tos(rls));
+      }
       restore_error_state(rls);
+      clear_port(&Ins);
       port_newline(&Outs, 2);
     } else {
       v = eval_exp(rls, x);

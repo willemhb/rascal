@@ -124,6 +124,9 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
     [OP_EXEC]        = &&op_exec,
     [OP_LOAD]        = &&op_load,
 
+    // IO helpers -------------------------------------------------------------
+    [OP_NEWLINE]     = &&op_newline,
+
     // environment operations -------------------------------------------------
     [OP_DEFINED]     = &&op_defined,
     [OP_LOCAL_ENV]   = &&op_local_env,
@@ -385,7 +388,7 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
   }
 
   stack_push(rls, x);
-  
+
   if ( is_builtin_method(rls->exec) )
     goto op_return;
 
@@ -398,6 +401,10 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
   cx = mk_ctl(rls, as_fun(rls->s_top[-2])); // build control object
   rls->s_top[-2] = tag_obj(cx); // replace handler on stack with control object
   save_error_state(rls, 2); // set esc pointer
+
+#ifdef RASCAL_DEBUG
+  // stack_report(rls, -1, "stack after installing catch");
+#endif
 
   if ( !rl_setjmp(rls) ) {
     // simple case, set up call and jump to body
@@ -416,7 +423,7 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
   }
 
  op_raise:
-  rl_longjmp(rls, EVAL_ERROR);
+  rl_longjmp(rls, USER_ERROR);
 
  op_end_catch:
   x = stack_pop(rls); // return value
@@ -424,6 +431,7 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
   rls->s_top = rls->esc; // pop everything pushed by catch
   rls->esc = cx->esc; // restore enclosing escape pointer
   stack_push(rls, x); // push return value back onto stack
+  goto fetch;
 
   // builtin functions --------------------------------------------------------
   // at some hypothetical point in --------------------------------------------
@@ -511,13 +519,20 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
   goto op_return;
 
  op_cons_2:
+#ifdef RASCAL_DEBUG
+  // stack_report(rls, argc, "arguments to cons/2 (%d arguments)", argc);
+#endif
   lx = as_list_s(rls, ARGS[1]);
   ly = cons(rls, ARGS[0], lx);
   stack_push(rls, tag_obj(ly));
   goto op_return;
 
  op_cons_n:
-  require_argtype(rls, &ListType, ARGS[argc-1]);
+#ifdef RASCAL_DEBUG
+  // stack_report(rls, argc, "arguments to cons/2+ (%d arguments)", argc);
+#endif
+
+  require_argtype(rls, &ListType, tos(rls));
   lx = cons_n(rls, argc);
   stack_push(rls, tag_obj(lx));
   goto op_return;
@@ -634,10 +649,19 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
 
  op_apply:
   fx = as_fun_s(rls, ARGS[0]);
-  lx = as_list_s(rls, ARGS[1]);
-  // set up call and jump
   stack_push(rls, ARGS[0]);
-  argc = push_list(rls, lx);
+  argx = 0;
+  // set up call arguments
+  for ( int i=1; i<argc; i++ ) {
+    if ( is_list(ARGS[i]) ) {
+      argx += push_list(rls, as_list(ARGS[i]));
+    } else {
+      stack_push(rls, ARGS[i]);
+      argx++;
+    }
+  }
+
+  argc = argx;
   goto do_call;
 
  op_compile:
@@ -668,6 +692,13 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
     stack_push(rls, tag_obj(fx));
     argc = 0;
     goto do_call;
+  }
+
+ op_newline:{
+    Port* px = as_port_s(rls, ARGS[0]);
+    port_newline(px, 1);
+    stack_push(rls, NUL); // dummy return value
+    goto op_return;
   }
 
  op_defined:{

@@ -102,6 +102,7 @@ char* op_name(OpCode op) {
     case OP_COMPILE:      out = "COMPILE";      break;
     case OP_EXEC:         out = "EXEC";         break;
     case OP_LOAD:         out = "LOAD";         break;
+    case OP_NEWLINE:      out = "NEWLINE";      break;
     case OP_DEFINED:      out = "DEFINED";      break;
     case OP_LOCAL_ENV:    out = "LOCAL-ENV";    break;
     case OP_GLOBAL_ENV:   out = "GLOBAL-ENV";   break;

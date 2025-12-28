@@ -378,59 +378,6 @@ void stack_report(RlState* rls, int n, char* fmt, ...) {
   }
 }
 
-void print_call_stack(RlState* rls, int n, char* fmt, ...) {
-  va_list va;
-  va_start(va, fmt);
-  printf("\n=== ");
-  vprintf(fmt, va);
-  printf(" ===\n");
-  va_end(va);
-
-  if ( n == -1 )
-    n = call_stack_size(rls);
-
-  assert(n <= stack_size(rls));
-
-  StackRef top = rls->s_top;
-  StackRef base = rls->base-1;
-  FrameRef frame = rls->f_top-n;
-
-  if ( rls->exec != NULL ) {
-    printf("=== frame %2d ===\n", n+1);
-    printf("method: %s\n", method_name(rls->exec));
-    printf("base:   %p\n", rls->base);
-    printf("pc:     %p\n", rls->pc);
-    printf("esc:    %p\n", rls->esc);
-    printf("=== values ===\n");
-
-    for ( int j=(top - base); j >= 0; j-- ) {
-      printf("%-4d ", j);
-      print_exp(&Outs, base[j]);
-      printf("\n");
-    }
-
-    top = base;
-  }
-
-  for ( int i=n; frame > rls->frames; i--, frame-- ) {
-    base = frame->base-1;
-    printf("=== frame %2d ===\n", i);
-    printf("method: %s\n", frame->exec ? method_name(frame->exec) : "<toplevel>");
-    printf("base:   %p\n", frame->base);
-    printf("pc:     %p\n", frame->pc);
-    printf("esc:    %p\n", frame->esc);
-    printf("=== values ===\n");
-
-    for ( int j=(top - base); j >= 0; j-- ) {
-      printf("%-4d ", j);
-      print_exp(&Outs, base[j]);
-      printf("\n");
-    }
-
-    top = base;
-  }
-}
-
 void env_report(RlState* rls, Env* vars) {
   (void)rls;
   int n = env_size(vars);

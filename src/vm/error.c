@@ -12,6 +12,7 @@
 
 // globals
 char* ErrorNames[NUM_ERRORS] = {
+  [USER_ERROR]    = "eval",
   [EVAL_ERROR]    = "eval",
   [RUNTIME_ERROR] = "runtime",
   [SYSTEM_ERROR]  = "system"
@@ -138,21 +139,22 @@ void rascal_error(RlState* rls, Status etype, bool fatal, Str* message) {
 
   if ( !is_user_ctl(ctl) ) {
     pprintf(&Errs, "%s\n\n", str_val(message));
-
-#ifdef RASCAL_DEBUG
     print_stack_trace(rls);
+#ifdef RASCAL_DEBUG
     stack_report(rls, -1, "full stack at error");
 #endif
+
   } else {
 #ifdef RASCAL_DEBUG
-    pprintf(&Errs, "%s\n\n", str_val(message));
-    print_stack_trace(rls);
-    stack_report(rls, -1, "full stack at error");
+    //pprintf(&Errs, "%s\n\n", str_val(message));
+    //print_stack_trace(rls);
+    //stack_report(rls, -1, "full stack at error");
 #endif
     // prepare a standard error object on the stack
     stack_preserve(rls, 2, tag_obj(error_sym(etype)), tag_obj(message));
     mk_tuple_s(rls, 2);
     stack_rpopn(rls, 2);
+    stack_report(rls, -1, "full stack at user error");
   }
 
   rl_longjmp(rls, etype);
@@ -185,6 +187,7 @@ void type_error(RlState* rls, Type* e, Expr g) {
   print_error_header(tmp, EVAL_ERROR);
   print_type_error(tmp, e, g);
   Str* msg = get_error_message(rls, tmp);
+
   rascal_error(rls, EVAL_ERROR, false, msg);
 }
 
@@ -247,9 +250,14 @@ void fatal_error(RlState* rls, char* fmt, ...) {
 static void print_method_trace(Port* ios, Method* m, instr_t* pc) {
   static char* user_fmt = "in file %s, in %s, near line %d.\n";
   static char* builtin_fmt = "in <builtin> %s.\n";
-  
+  static char* macro_fmt = "in file %s, in macro %s.\n"; // line information can be unreliable for macros
+
   if ( is_builtin_method(m) )
     pprintf(ios, builtin_fmt, method_name(m));
+
+  else if ( m->fun->macro )
+    pprintf(&Errs, macro_fmt,
+            method_file(m), method_name(m));
 
   else
     pprintf(&Errs, user_fmt,
@@ -307,6 +315,7 @@ void init_vm_error(void) {
   // add to permanent heap and ErrorSyms array
   add_to_permanent(&Main, &EvalError);
   ErrorSyms[EVAL_ERROR] = &EvalError;
+  ErrorSyms[USER_ERROR] = &EvalError;
 
   // initialize RuntimeError
   RuntimeError.val  = mk_str(&Main, ":runtime-error");

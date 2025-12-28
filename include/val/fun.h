@@ -22,6 +22,7 @@ struct Fun {
   Sym* name;
   bool macro;
   bool generic;
+  int mcount;
 
   union {
     MethodTable* methods;
@@ -55,15 +56,8 @@ static inline bool argc_match(Method* m, int argc) {
   return argc == m->arity;
 }
 
-static inline int fn_method_count(Fun* fn) {
-  if ( fn->method == NULL )
-    return 0;
-
-  else if ( fn->method->type->tag == EXP_METHOD )
-    return 1;
-
-  else
-    return fn->methods->methods.count;
+static inline int mtable_count(MethodTable* m) {
+  return m->methods.count + (m->variadic != NULL);    
 }
 
 // chunk API
@@ -120,13 +114,12 @@ Method* mtable_lookup(MethodTable* mt, int argc);
 
 #define is_user_method(m)    ((m)->label == OP_NOOP)
 #define is_builtin_method(m) ((m)->label != OP_NOOP)
-#define is_singleton_fn(f)   ((f)->method->type->tag == EXP_METHOD)
+#define is_singleton_fn(f)   ((f)->mcount == 1)
 #define fn_name(f)           ((f)->name->val->val)
 #define method_argc(m)       ((m)->arity)
 #define method_va(m)         ((m)->va)
 #define method_name(m)       ((m)->fun->name->val->val)
 #define mtable_name(m)       ((m)->fun->name->val->val)
-#define mtable_count(m)      ((m)->methods.count)
 #define method_upvs(m)       ((m)->upvs)
 
 static inline int method_formalc(Method* m) {
