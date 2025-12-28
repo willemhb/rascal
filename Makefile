@@ -20,7 +20,7 @@ DEPS := $(OBJS:.o=.d)
 # Add a prefix to INC_DIRS. So moduleA would become -ImoduleA. GCC understands this -I flag
 INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 
-LDFLAGS := -g -lm
+LDFLAGS := -g -lm -lffi -ldl
 
 # The -MMD and -MP flags together generate Makefiles for us!
 # These files will have .d instead of .o as the output.

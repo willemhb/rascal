@@ -6,6 +6,7 @@
 #include "vm/vm.h"
 #include "vm/error.h"
 #include "vm/memory.h"
+#include "util/util.h"
 #include "val.h"
 #include "lang.h"
 
@@ -333,10 +334,26 @@ void save_call_frame(RlState* rls) {
   frame->pc = rls->pc;
   frame->base = rls->base;
   frame->esc = rls->esc;
+}
 
-#ifdef RASCAL_DEBUG
-  // print_call_stack(rls, -1, "call stack on saving call frame");
-#endif
+void save_call_frame_s(RlState* rls) {
+  if ( rls->f_top == rls->f_end ) {
+    int count = 100;
+    stack_report(rls, count, "stack state on overflow");
+    runtime_error(rls, "stack overflow.");
+  }
+
+  if ( rls->exec == NULL ) { // don't save empty call state
+    assert(rls->f_top == rls->frames);
+    return;
+  }
+
+  FrameRef frame = rls->f_top++;
+
+  frame->exec = rls->exec;
+  frame->pc = rls->pc;
+  frame->base = rls->base;
+  frame->esc = rls->esc;
 }
 
 void restore_call_frame(RlState* rls) {
@@ -349,10 +366,18 @@ void restore_call_frame(RlState* rls) {
   rls->pc = caller->pc;
   rls->esc = caller->esc;
   rls->base = caller->base;
+}
 
-#ifdef RASCAL_DEBUG
-  // print_call_stack(rls, -1, "call stack on restoring call frame");
-#endif
+void restore_call_frame_s(RlState* rls) {
+  assert(rls->f_top > rls->frames);
+
+  FrameRef caller = --rls->f_top;
+
+  rls->s_top = rls->base - 1;
+  rls->exec = caller->exec;
+  rls->pc = caller->pc;
+  rls->esc = caller->esc;
+  rls->base = caller->base;
 }
 
 // report helpers

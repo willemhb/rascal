@@ -147,7 +147,6 @@ Ref* env_resolve(RlState* rls, Env* e, Sym* n, bool capture) {
         r = env_capture(rls, e, r);
         e->ncap++;             // so we know to emit the capture instruction
       }
-
     } else {
       // check already captured upvalues
       found = emap_get(rls, &e->upvs, n, &r);
@@ -166,7 +165,7 @@ Ref* env_resolve(RlState* rls, Env* e, Sym* n, bool capture) {
 
 Ref* env_define(RlState* rls, Env* e, Sym* n, bool m, bool f, bool* a) {
   assert(is_global_env(e) || !m);
-  Ref* ref = emap_intern(&Main, &e->vars, n, intern_in_env);
+  Ref* ref = emap_intern(rls, &e->vars, n, intern_in_env);
   bool new = ref->ref_type == REF_UNDEF;
 
   if ( a )

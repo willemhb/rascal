@@ -28,6 +28,7 @@ Sym* mk_sym(RlState* rls, char* val) {
   Sym* s = mk_obj_s(rls, &SymType, 0);
   s->val  = mk_str(rls, val);
   s->hash = hash_word(s->val->hash); // just munge the string hash
+  s->idno = 0;
   rls->s_top = top;
   return s;
 }
@@ -36,6 +37,28 @@ Sym* mk_sym_s(RlState* rls, char* val) {
   Sym* out = mk_sym(rls, val);
   stack_push(rls, tag_obj(out));
   return out;
+}
+
+Sym* mk_gensym(RlState* rls, char* val) {
+  static uintptr_t counter = 0;
+
+  if ( val == NULL )
+    val = "symbol";
+
+  StackRef top = rls->s_top;
+  Sym* s = mk_obj_s(rls, &SymType, 0);
+  s->val  = mk_str(rls, val);
+  s->idno = counter++;
+  // mix common symbol hash with idno hash
+  s->hash = mix_hashes(hash_word(s->idno), hash_word(s->val->hash));
+  rls->s_top = top;
+  return s;  
+}
+
+Sym* mk_gensym_s(RlState* rls, char* val) {
+  Sym* s = mk_gensym(rls, val);
+  stack_push(rls, tag_obj(s));
+  return s;
 }
 
 bool sym_val_eql(Sym* s, char* v) {
@@ -51,7 +74,11 @@ void trace_sym(RlState* rls, void* ptr) {
 void print_sym(Port* ios, Expr x) {
   Sym* s = as_sym(x);
 
-  pprintf(ios, "%s", s->val->val);
+  if ( is_gensym(s) )
+    pprintf(ios, "%s#%lu", sym_val(s), s->idno);
+
+  else
+    pprintf(ios, "%s", s->val->val);
 }
 
 hash_t hash_sym(Expr x) {
@@ -63,5 +90,5 @@ hash_t hash_sym(Expr x) {
 bool egal_syms(Expr x, Expr y) {
   Sym* sx = as_sym(x), * sy = as_sym(y);
 
-  return sx->val == sy->val;
+  return sx->val == sy->val && sx->idno == sy->idno;
 }

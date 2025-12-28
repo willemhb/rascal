@@ -16,11 +16,26 @@ bool endswith(const char* str, const char* substr);
 uintptr_t cpow2(uintptr_t i);
 
 // miscellaneous numeric helpers
+#define max(x, y)                               \
+  ({                                            \
+    typeof(x) __x__ = (x);                      \
+    typeof(y) __y__ = (y);                      \
+    __x__ < __y__ ? __y__ : __x__;              \
+  })
+
+#define min(x, y)                               \
+  ({                                            \
+    typeof(x) __x__ = (x);                      \
+    typeof(y) __y__ = (y);                      \
+    __x__ > __y__ ? __y__ : __x__;              \
+  })
+
 bool is_int(Num n);
 
 // hashing functions
 hash_t hash_string(const char* chars);
 hash_t hash_word(uintptr_t word);
 hash_t hash_pointer(const void* ptr);
+hash_t mix_hashes(hash_t hx, hash_t hy);
 
 #endif

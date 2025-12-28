@@ -6,6 +6,7 @@
 #include "val/sym.h"
 #include "val/env.h"
 #include "val/port.h"
+#include "val/ffi.h"
 #include "vm.h"
 #include "lang.h"
 
@@ -112,6 +113,8 @@ void register_builtin_types(RlState* rls) {
   init_builtin_type(rls, &ListType, "List");
   init_builtin_type(rls, &TupleType, "Tuple");
   init_builtin_type(rls, &NumType, "Num");
+  init_builtin_type(rls, &LibHandleType, "LibHandle");
+  init_builtin_type(rls, &ForeignFnType, "ForeignFn");
 }
 
 // utility array APIs

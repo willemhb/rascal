@@ -1,5 +1,8 @@
+#include <dlfcn.h>
+
 #include "lang.h"
 #include "val.h"
+#include "val/ffi.h"
 #include "vm.h"
 
 // Globals --------------------------------------------------------------------
@@ -34,6 +37,7 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
 
   void* labels[] = {
     [OP_NOOP]        = &&op_noop,
+    [OP_DUMMY_REF]   = &&op_dummy_ref,
 
     // stack manipulation -----------------------------------------------------
     [OP_POP]         = &&op_pop,
@@ -103,6 +107,10 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
     [OP_LIST_REF]    = &&op_list_ref,
     [OP_LIST_LEN]    = &&op_list_len,
 
+    // symbol operations ------------------------------------------------------
+    [OP_GENSYM_0]    = &&op_gensym_0,
+    [OP_GENSYM_1]    = &&op_gensym_1,
+
     // string operations ------------------------------------------------------
     [OP_STR]         = &&op_str,
     [OP_CHARS]       = &&op_chars,
@@ -137,7 +145,14 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
     [OP_STACK_REPORT]= &&op_stack_report,
     [OP_ENV_REPORT]  = &&op_env_report,
     [OP_STACK_TRACE] = &&op_stack_trace,
+    [OP_METHODS]     = &&op_methods,
     [OP_DIS]         = &&op_dis,
+
+    // FFI operations ---------------------------------------------------------
+    [OP_FFI_OPEN]    = &&op_ffi_open,
+    [OP_FFI_SYM]     = &&op_ffi_sym,
+    [OP_FFI_CALL]    = &&op_ffi_call,
+    [OP_FFI_CLOSE]   = &&op_ffi_close,
   };
   (void)flags;
   flags = 0;
@@ -152,13 +167,13 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
   List* lx, * ly;
   Fun* fx;
   Method* method;
+  MethodTable* mtx;
+  Sym* nx;
   Str* sx;
   Ctl* cx;
   Tuple* tx;
-
-#ifdef RASCAL_DEBUG
-  // print_call_stack(rls, -1, "call stack on entry to exec");
-#endif
+  LibHandle* lhx;
+  ForeignFn* ffx;
 
   // initialize
   goto do_call;
@@ -171,6 +186,9 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
   // miscellaneous instructions -----------------------------------------------
  op_noop:
   goto fetch;
+
+ op_dummy_ref: // should never leak into completed code
+  unreachable();
 
   // stack manipulation instructions ------------------------------------------
  op_pop: // remove TOS
@@ -326,10 +344,9 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
   // At present builtin methods save caller state and install themselves in the
   // call frame just like user methods. This helps to make error reporting more
   // consistent
-  save_call_frame(rls);
+  save_call_frame_s(rls);
   install_method(rls, method);
   op = method->label;
-
   goto *labels[op];
 
  call_user_method:
@@ -342,7 +359,7 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
     argc = method_argc(method) + 1;
   }
 
-  save_call_frame(rls); // save caller state
+  save_call_frame_s(rls); // save caller state
   install_method(rls, method);
 
   goto fetch;
@@ -566,6 +583,15 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
   stack_push(rls, tag_num(lx->count));
   goto op_return;
 
+ op_gensym_0:
+  mk_gensym_s(rls, "symbol");
+  goto op_return;
+
+ op_gensym_1:
+  sx = as_str_s(rls, ARGS[0]);
+  mk_gensym_s(rls, str_val(sx));
+  goto op_return;
+
  op_str:{ // string constructor (two modes, accepts characters or list of characters)    
     if ( argc == 1 && is_list(ARGS[0]) ) {
       x = stack_pop(rls);
@@ -740,14 +766,125 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
  op_stack_trace:
   print_stack_trace(rls);
   stack_push(rls, NUL); // dummy return value
+  goto op_return;
+
+ op_methods:
+  // return a list of all of a function's methods
+  fx = as_fun_s(rls, ARGS[0]);
+  argx = 0;
+
+  assert(fx->mcount > 0);
+
+  if ( is_singleton_fn(fx) ) {
+    stack_push(rls, tag_obj(fx->method));
+    argx = 1;
+  } else {
+    mtx = fx->methods;
+
+    for ( int i=0; i<mtx->methods.count; i++ ) {
+      Method* mx = mtx->methods.data[i];
+      stack_push(rls, tag_obj(mx));
+      argx++;
+    }
+
+    if ( mtx->variadic ) {
+      stack_push(rls, tag_obj(mtx->variadic));
+      argx++;
+    }
+  }
+
+  mk_list_s(rls, argx);
+
+  goto op_return;
 
  op_dis:
   fx = as_fun_s(rls, ARGS[0]);
+  ix = as_num_s(rls, ARGS[1]);
   // Disassemble the singleton method (or first method if multimethod)
-  method =  is_singleton_fn(fx) ? fx->methods : fx->methods->methods.data[0];
+  method =  fun_get_method(fx, ix);
+  require(rls, method != NULL, "no method for %s/%d", fn_name(fx), ix);
+  require(rls, is_user_method(method),
+          "can't disassemble builtin method for %s/%d", fn_name(fx), ix);
   disassemble_method(method);
   stack_push(rls, NUL); // dummy return value
   goto op_return;
+
+  // FFI operations -----------------------------------------------------------
+ op_ffi_open: {
+    sx = as_str_s(rls, ARGS[0]);
+    char* path = str_val(sx);
+
+    void* handle = dlopen(path, RTLD_NOW | RTLD_LOCAL);
+    if (handle == NULL) {
+      eval_error(rls, "ffi-open failed: %s", dlerror());
+    }
+
+    lhx = mk_lib_handle_s(rls, handle, sx);
+    goto op_return;
+  }
+
+ op_ffi_sym: {
+    lhx = as_lib_handle_s(rls, ARGS[0]);
+    sx = as_str_s(rls, ARGS[1]);
+
+    require(rls, lhx->handle != NULL, "library handle is closed");
+
+    dlerror(); // Clear any existing error
+    void* fn = dlsym(lhx->handle, str_val(sx));
+    char* error = dlerror();
+
+    if (error != NULL) {
+      eval_error(rls, "ffi-sym failed: %s", error);
+    }
+
+    ffx = mk_foreign_fn_s(rls, fn, sx, lhx);
+    goto op_return;
+  }
+
+ op_ffi_call: {
+    // ARGS[0] = ForeignFn
+    // ARGS[1] = return type symbol (:int, :double, :ptr, :void, :str)
+    // ARGS[2] = arg types list ([:int :str ...])
+    // ARGS[3..] = actual arguments
+
+    ffx = as_foreign_fn_s(rls, ARGS[0]);
+    Sym* ret_sym = as_sym_s(rls, ARGS[1]);
+    List* arg_types_list = as_list_s(rls, ARGS[2]);
+
+    FfiTypeCode ret_type = sym_to_ffi_type(rls, ret_sym);
+    int ffi_argc = arg_types_list->count;
+
+    require(rls, argc - 3 == ffi_argc,
+            "ffi-call: argument count mismatch, expected %d, got %d",
+            ffi_argc, argc - 3);
+
+    // Parse argument types
+    FfiTypeCode* arg_types = NULL;
+    if (ffi_argc > 0) {
+      arg_types = allocate(rls, ffi_argc * sizeof(FfiTypeCode));
+      List* tl = arg_types_list;
+      for (int i = 0; i < ffi_argc; i++) {
+        Sym* tsym = as_sym_s(rls, tl->head);
+        arg_types[i] = sym_to_ffi_type(rls, tsym);
+        tl = tl->tail;
+      }
+    }
+
+    // Call
+    x = ffi_do_call(rls, ffx, ret_type, ffi_argc, arg_types, &ARGS[3]);
+
+    if (arg_types) release(rls, arg_types, ffi_argc * sizeof(FfiTypeCode));
+
+    stack_push(rls, x);
+    goto op_return;
+  }
+
+ op_ffi_close: {
+    lhx = as_lib_handle_s(rls, ARGS[0]);
+    close_lib_handle(rls, lhx);
+    stack_push(rls, NUL);
+    goto op_return;
+  }
 
   #undef ARGS
   #undef EXEC

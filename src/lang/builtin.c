@@ -41,6 +41,10 @@ void define_builtins(void) {
   def_builtin_fun(&Main, "str-ref", 2, false, OP_STR_REF);
   def_builtin_fun(&Main, "str-len", 1, false, OP_STR_LEN);
 
+  // symbol
+  fun = def_builtin_fun(&Main, "gensym", 0, false, OP_GENSYM_0);
+  add_builtin_method(&Main, fun, 1, false, OP_GENSYM_1);
+
   // tuple
   def_builtin_fun(&Main, "tuple", 0, true, OP_TUPLE);
   def_builtin_fun(&Main, "tuple-ref", 2, false, OP_TUPLE_REF);
@@ -69,5 +73,12 @@ void define_builtins(void) {
   def_builtin_fun(&Main, "*stack-report*", 0, false, OP_STACK_REPORT);
   def_builtin_fun(&Main, "*env-report*", 0, false, OP_ENV_REPORT);
   def_builtin_fun(&Main, "*stack-trace*", 0, false, OP_STACK_TRACE);
-  def_builtin_fun(&Main, "*dis*", 1, false, OP_DIS);
+  def_builtin_fun(&Main, "*methods*", 1, false, OP_METHODS);
+  def_builtin_fun(&Main, "*dis*", 2, false, OP_DIS);
+
+  // FFI
+  def_builtin_fun(&Main, "ffi-open", 1, false, OP_FFI_OPEN);
+  def_builtin_fun(&Main, "ffi-sym", 2, false, OP_FFI_SYM);
+  def_builtin_fun(&Main, "ffi-call", 3, true, OP_FFI_CALL);
+  def_builtin_fun(&Main, "ffi-close", 1, false, OP_FFI_CLOSE);
 }

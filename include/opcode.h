@@ -7,6 +7,8 @@
 typedef enum {
   // miscellaneous instructions
   OP_NOOP,
+  OP_DUMMY_REF, // not a real instruction, used to hold the place of unresolved
+                // references until they can (hopefully) be resolved
 
   // stack manipulation
   OP_POP,
@@ -76,6 +78,10 @@ typedef enum {
   OP_LIST_REF,
   OP_LIST_LEN,
 
+  // symbol operations
+  OP_GENSYM_0,
+  OP_GENSYM_1,
+
   // basic string operations
   OP_STR,
   OP_CHARS,
@@ -110,7 +116,14 @@ typedef enum {
   OP_STACK_REPORT,
   OP_ENV_REPORT,
   OP_STACK_TRACE,
+  OP_METHODS,
   OP_DIS,
+
+  // FFI operations
+  OP_FFI_OPEN,
+  OP_FFI_SYM,
+  OP_FFI_CALL,
+  OP_FFI_CLOSE,
 } OpCode;
 
 int op_arity(OpCode op);

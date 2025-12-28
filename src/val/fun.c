@@ -65,18 +65,35 @@ Type FunType = {
 Chunk* mk_chunk(RlState* rls, Env* penv, Sym* name, Str* file) {
   Chunk* out = mk_obj_s(rls, &ChunkType, 0);
 
-  out->name = name;
-  out->file = file;
-  out->vars = penv == NULL ? rls->vm->globals : mk_env(rls, penv);
+  // initialize internal arrays
+  init_exprs(rls, &out->vals);
+  init_code_buf(rls, &out->code);
+  init_line_info(rls, &out->lines);
 
+  // initialize other fields
+  out->name  = name;
+  out->file  = file;
+  out->vars  = penv == NULL ? rls->vm->globals : mk_env(rls, penv);
+
+  // remove chunk from the stack
   stack_pop(rls);
 
   return out;
 }
 
 Chunk* mk_chunk_s(RlState* rls, Env* penv, Sym* name, Str* file) {
-  Chunk* out = mk_chunk(rls, penv, name, file);
-  stack_push(rls, tag_obj(out));
+  Chunk* out = mk_obj_s(rls, &ChunkType, 0);
+
+  // initialize internal arrays
+  init_exprs(rls, &out->vals);
+  init_code_buf(rls, &out->code);
+  init_line_info(rls, &out->lines);
+
+  // initialize other fields
+  out->name  = name;
+  out->file  = file;
+  out->vars  = penv == NULL ? rls->vm->globals : mk_env(rls, penv);
+
   return out;
 }
 
@@ -272,9 +289,10 @@ void fun_add_method(RlState* rls, Fun* fun, Method* m) {
 
   else {
     if ( count == 1 ) {
-      Method* sm = fun->method;
-      fun->methods = mk_mtable(rls, fun);
-      mtable_add(rls, fun->methods, sm);
+      MethodTable* mt = mk_mtable_s(rls, fun);
+      mtable_add(rls, mt, fun->method);
+      fun->methods = mt;
+      stack_pop(rls);
     }
 
     mtable_add(rls, fun->methods, m);

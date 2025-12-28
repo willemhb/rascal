@@ -13,5 +13,6 @@
 #include "val/port.h"
 #include "val/env.h"
 #include "val/fun.h"
+#include "val/ffi.h"
 
 #endif

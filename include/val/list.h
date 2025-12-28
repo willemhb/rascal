@@ -24,6 +24,18 @@ Expr   list_ref(List* xs, int n);
 int    push_list(RlState* rls, List* xs);
 
 // convenience macros and accessors
+static inline Expr list_hd(List* xs) {
+  return xs ? xs->head : NONE;
+}
+
+static inline List* list_tl(List* xs) {
+  return xs ? xs->tail : NULL;
+}
+
+static inline int list_count(List* xs) {
+  return xs ? xs->count : 0;
+}
+
 #define as_list(x)        ((List*)as_obj(x))
 #define as_list_s(rls, x) ((List*)as_obj_s(rls, &ListType, x))
 

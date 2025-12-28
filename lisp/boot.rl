@@ -41,7 +41,7 @@
 (fun str? (x)
   (isa? x Str))
 
-(fun fun? (x)
+(fun func? (x)
   (isa? x Fun))
 
 (fun num? (x)
@@ -96,12 +96,33 @@
   (def binds (map snd vars))
   (cons (cons 'fn names body) binds))
 
-;; number utilities
+;; number utilities and extended arity arithmetic builtins
 (fun zero? (x)
   (=? x 0))
 
 (fun one? (x)
   (=? x 1))
+
+(fun + (x) x)
+(fun + (x y & more)
+  (apply + (+ x y) more))
+
+(fun - (x) (* -1 x))
+(fun - (x y & more)
+  (apply - (- x y) more))
+
+(fun * (x y & more)
+  (if (or (= x 0)
+          (= y 0))
+      0
+      (apply * (* x y) more)))
+
+(fun / (x) (/ 1 x))
+
+(fun / (x y & more)
+  (if (zero? y)
+    (raise [:eval-error "division by zero."])
+    (apply / (/ x y) more)))
 
 (fun even? (n)
   (zero? (rem n 2)))
@@ -117,6 +138,9 @@
 
 (fun sqr (x)
   (* x x))
+
+(fun cub (x)
+  (* x x x))
 
 ;; IO helpers
 (fun print (x)

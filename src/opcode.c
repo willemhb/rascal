@@ -10,6 +10,7 @@ int op_arity(OpCode op) {
       n = -2;
       break;
 
+    case OP_DUMMY_REF:
     case OP_GET_VALUE:
     case OP_GET_GLOBAL:
     case OP_SET_GLOBAL:
@@ -40,6 +41,7 @@ char* op_name(OpCode op) {
 
   switch ( op ) {
     case OP_NOOP:         out = "NOOP";         break;
+    case OP_DUMMY_REF:    out = "OP-DUMMY-REF"; break;
     case OP_POP:          out = "POP";          break;
     case OP_RPOP:         out = "RPOP";         break;
     case OP_TRUE:         out = "TRUE";         break;
@@ -87,6 +89,8 @@ char* op_name(OpCode op) {
     case OP_TAIL:         out = "TAIL";         break;
     case OP_LIST_REF:     out = "LIST-REF";     break;
     case OP_LIST_LEN:     out = "LIST-LEN";     break;
+    case OP_GENSYM_0:     out = "GENSYM-0";     break;
+    case OP_GENSYM_1:     out = "GENSYM-1";     break;
     case OP_STR:          out = "STR";          break;
     case OP_CHARS:        out = "CHARS";        break;
     case OP_STR_REF:      out = "STR-REF";      break;
@@ -110,7 +114,12 @@ char* op_name(OpCode op) {
     case OP_STACK_REPORT: out = "STACK-REPORT"; break;
     case OP_ENV_REPORT:   out = "ENV-REPORT";   break;
     case OP_STACK_TRACE:  out = "STACK-TRACE";  break;
+    case OP_METHODS:      out = "METHODS";      break;
     case OP_DIS:          out = "DIS";          break;
+    case OP_FFI_OPEN:     out = "FFI-OPEN";     break;
+    case OP_FFI_SYM:      out = "FFI-SYM";      break;
+    case OP_FFI_CALL:     out = "FFI-CALL";     break;
+    case OP_FFI_CLOSE:    out = "FFI-CLOSE";    break;
     default:              out = "????";         break;
   }
 

@@ -80,3 +80,7 @@ hash_t hash_word(uintptr_t word) {
 hash_t hash_pointer(const void* ptr) {
   return hash_word((uintptr_t)ptr);
 }
+
+hash_t mix_hashes(hash_t hx, hash_t hy) {
+  return hash_word(hx ^ hy);
+}

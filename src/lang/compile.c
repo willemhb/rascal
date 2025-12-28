@@ -12,7 +12,9 @@
 enum {
   CF_NO_POP  = 0x01,
   CF_ALLOW_DEF = 0x02,
-  CF_TAIL_POS = 0x04,
+  CF_DEF_FORM = 0x04,
+  CF_MACRO_BODY = 0x08,
+  CF_TAIL_POSITION = 0x10,
 };
 
 // Prototypes -----------------------------------------------------------------
@@ -22,37 +24,41 @@ Sym* syntax_as_sym_s(RlState* rls, List* form, Expr x);
 List* syntax_as_list_s(RlState* rls, List* form, Expr x);
 Fun* syntax_as_fun_s(RlState* rls, List* form, Expr x);
 
-void emit_instr(RlState* rls, Chunk* code, OpCode op, ...);
-void fill_instr(RlState* rls, Chunk* code, int offset, int val);
-int add_chunk_constant(RlState* rls, Chunk* code, Expr c);
+void emit_instr(RlState* rls, Chunk* chunk, OpCode op, ...);
+void get_ref_instr(Ref* r, OpCode* op, int* arg);
+void fill_instr(RlState* rls, Chunk* chunk, int offset, int val);
+void add_udef_name(RlState* rls, Chunk* chunk, Sym* n);
+void add_unres_fun(RlState* rls, Chunk* chunk, Fun* f);
+int add_chunk_constant(RlState* rls, Chunk* chunk, Expr c);
 bool is_special_form(List* form, char* form_name);
 bool is_syntax(Expr x, char* stx_kw);
-void prepare_env(RlState* rls, List* form, Chunk* code, int* argc, bool* va);
+void prepare_env(RlState* rls, List* form, Chunk* chunk, int* argc, bool* va);
 Ref* is_macro_call(RlState* rls, List* form, Env* vars);
 Expr get_macro_expansion(RlState* rls, List* form, Env* vars, Ref* macro_ref);
 Sym* get_assignment(RlState* rls, List* form);
 
 // Dispatch -------------------------------------------------------------------
-void compile_quote(RlState* rls, List* form, Chunk* code, int* flags, int* line);
-void compile_def(RlState* rls, List* form, Chunk* code, int* flags, int* line);
-void compile_def_stx(RlState* rls, List* form, Chunk* code, int* flags, int* line);
-void compile_def_multi(RlState* rls, List* form, Chunk* code, int* flags, int* line);
-void compile_def_method(RlState* rls, List* form, Chunk* code, int* flags, int* line);
-void compile_put(RlState* rls, List* form, Chunk* code, int* flags, int* line);
-void compile_if(RlState* rls, List* form, Chunk* code, int* flags, int* line);
-void compile_and(RlState* rls, List* form, Chunk* code, int* flags, int* line);
-void compile_or(RlState* rls, List* form, Chunk* code, int* flags, int* line);
-void compile_do(RlState* rls, List* form, Chunk* code, int* flags, int* line);
-void compile_control(RlState* rls, List* form, Chunk* code, int* flags, int* line);
-void compile_raise(RlState* rls, List* form, Chunk* code, int* flags, int* line);
-void compile_fn(RlState* rls, List* form, Chunk* code, int* flags, int* line);
+void compile_quote(RlState* rls, List* form, Chunk* chunk, int* flags, int* line);
+void compile_module(RlState* rls, List* form, Chunk* chunk, int* flags, int* line);
+void compile_def(RlState* rls, List* form, Chunk* chunk, int* flags, int* line);
+void compile_def_stx(RlState* rls, List* form, Chunk* chunk, int* flags, int* line);
+void compile_def_multi(RlState* rls, List* form, Chunk* chunk, int* flags, int* line);
+void compile_def_method(RlState* rls, List* form, Chunk* chunk, int* flags, int* line);
+void compile_put(RlState* rls, List* form, Chunk* chunk, int* flags, int* line);
+void compile_if(RlState* rls, List* form, Chunk* chunk, int* flags, int* line);
+void compile_and(RlState* rls, List* form, Chunk* chunk, int* flags, int* line);
+void compile_or(RlState* rls, List* form, Chunk* chunk, int* flags, int* line);
+void compile_do(RlState* rls, List* form, Chunk* chunk, int* flags, int* line);
+void compile_control(RlState* rls, List* form, Chunk* chunk, int* flags, int* line);
+void compile_raise(RlState* rls, List* form, Chunk* chunk, int* flags, int* line);
+void compile_fn(RlState* rls, List* form, Chunk* chunk, int* flags, int* line);
 
-void compile_closure(RlState* rls, List* form, Chunk* pcode, Fun* fun, int* flags, int* line);
-void compile_sequence(RlState* rls, List* exprs, Chunk* code, int* flags, int* line);
-void compile_literal(RlState* rls, Expr x, Chunk* code, int* flags, int* line);
-void compile_reference(RlState* rls, Sym* s, Chunk* code, int* flags, int* line);
-void compile_funcall(RlState* rls, List* form, Chunk* code, int* flags, int* line);
-void compile_expr(RlState* rls, Expr x, Chunk* code, int* flags, int* line);
+void compile_closure(RlState* rls, List* form, Chunk* pchunk, Fun* fun, int* flags, int* line);
+void compile_sequence(RlState* rls, List* exprs, Chunk* chunk, int* flags, int* line);
+void compile_literal(RlState* rls, Expr x, Chunk* chunk, int* flags, int* line);
+void compile_reference(RlState* rls, Sym* s, Chunk* chunk, int* flags, int* line);
+void compile_funcall(RlState* rls, List* form, Chunk* chunk, int* flags, int* line);
+void compile_expr(RlState* rls, Expr x, Chunk* chunk, int* flags, int* line);
 
 // Implementations ------------------------------------------------------------
 // Helpers --------------------------------------------------------------------
@@ -90,16 +96,78 @@ void emit_instr(RlState* rls, Chunk* chunk, OpCode op, ...) {
   code_buf_write(rls, &chunk->code, buffer, b);
 }
 
-void fill_instr(RlState* rls, Chunk* code, int offset, int val) {
-  (void)rls;
+void get_ref_instr(Ref* ref, OpCode* op, int* arg) {
+  assert(ref->ref_type != REF_UNRES);
 
-  chunk_code(code)[offset] = val;
+  *arg = ref->offset;
+  
+  switch ( ref->ref_type ) {
+    case REF_LOCAL:          *op = OP_GET_GLOBAL; break;
+    case REF_LOCAL_UPVAL:    *op = OP_GET_UPVAL; break;
+    case REF_CAPTURED_UPVAL: *op = OP_GET_UPVAL; break;
+    case REF_GLOBAL:         *op = OP_GET_GLOBAL; break;
+    case REF_UNRES:
+      unreachable();
+  }
 }
 
-int add_chunk_constant(RlState* rls, Chunk* code, Expr c) {
-  exprs_push(rls, &code->vals, c);
+void fill_instr(RlState* rls, Chunk* chunk, int offset, int val) {
+  (void)rls;
 
-  return chunk_valsc(code) - 1;
+  chunk_code(chunk)[offset] = val;
+}
+
+void add_unres_name(RlState* rls, Chunk* chunk, Sym* n) {
+  emit_instr(rls, chunk, OP_DUMMY_REF, 0);
+
+  if ( chunk->to_resolve == NULL )
+    chunk->to_resolve = empty_list(rls);
+
+  int offset = chunk_codec(chunk) - 2; // instruction that needs to be filled in
+                                       // when symbol can be resolved
+
+  chunk->to_resolve = cons(rls, tag_fix(offset), chunk->to_resolve);
+  chunk->to_resolve = cons(rls, tag_obj(n), chunk->to_resolve);
+}
+
+void add_unres_fun(RlState* rls, Chunk* chunk, Fun* f) {
+  if ( chunk->to_resolve == NULL )
+    chunk->to_resolve = empty_list(rls);
+
+  chunk->to_resolve = cons(rls, tag_obj(f), chunk->to_resolve);
+}
+
+void resolve_unres(RlState* rls, Chunk* chunk) {
+  if ( chunk->to_resolve == NULL ) // already resolved or never created
+    return;
+
+  List** undef = &chunk->to_resolve;
+
+  // resolve local undefined variables first
+  while ( (*undef)->count > 0 ) {
+    Sym* n = as_sym(list_fst(*undef));
+    int o = as_fix(list_snd(*undef));
+    Ref* r =  env_resolve(rls, chunk->vars, n, false);
+    require(rls, r != NULL, "unbound symbol %s.", sym_val(n));
+    instr_t* pc = chunk_code(chunk)+o;
+    int arg;
+    OpCode op;
+    get_ref_instr(r, &op, &arg);
+    pc[0] = op;
+    pc[1] = arg;
+
+    *undef = (*undef)->tail->tail;
+  }
+
+  // mark as completed
+  chunk->to_resolve = NULL;
+
+}
+
+int add_chunk_constant(RlState* rls, Chunk* chunk, Expr c) {
+  exprs_push(rls, &chunk->vals, c);
+
+  return chunk_valsc(chunk) - 1;
 }
 
 
@@ -113,11 +181,11 @@ bool is_syntax(Expr x, char* stx_kw) {
   return is_sym(x) && sym_val_eql(as_sym(x), stx_kw);
 }
 
-void prepare_env(RlState* rls, List* form, Chunk* code, int* argc, bool* va) {
+void prepare_env(RlState* rls, List* form, Chunk* chunk, int* argc, bool* va) {
   *va = false;
   *argc = 0;
 
-  Env* vars = code->vars;
+  Env* vars = chunk->vars;
   List* argl = syntax_as_list_s(rls, form, list_snd(form));
 
   while ( argl->count > 0 ) {
@@ -176,7 +244,7 @@ Expr get_macro_expansion(RlState* rls, List* form, Env* vars, Ref* macro_ref) {
   // The macro receives: whole form, environment, then individual arguments (all unevaluated)
   List* args = form->tail;
   int argc = 2 + push_list(rls, args);
-  Expr result = exec_code(rls, argc, 0);
+  Expr result = execchunk(rls, argc, 0);
   rls->s_top = top;
 
   return result;
@@ -191,19 +259,19 @@ Sym* get_assignment(RlState* rls, List* form) {
 }
 
 // Dispatch -------------------------------------------------------------------
-void compile_quote(RlState* rls, List* form, Chunk* code, int* flags, int* line) {
+void compile_quote(RlState* rls, List* form, Chunk* chunk, int* flags, int* line) {
   syntax_require_argco(rls, form, 1);
   Expr x = form->tail->head;
-  compile_literal(rls, x, code, flags, line);
+  compile_literal(rls, x, chunk, flags, line);
 }
 
-void compile_def(RlState* rls, List* form, Chunk* code, int* flags, int* line) {
+void compile_def(RlState* rls, List* form, Chunk* chunk, int* flags, int* line) {
   int candef = *flags & CF_ALLOW_DEF;
   syntax_require(rls, candef, form, "`def` not allowed in current context.");
   syntax_require_argco(rls, form, 2);
   bool a;
   Sym* n = get_assignment(rls, form);
-  Ref* r = env_define(rls, code->vars, n, false, false, &a);
+  Ref* r = env_define(rls, chunk->vars, n, false, false, &a);
   syntax_require(rls, a, form, "%s already bound in this environment", sym_val(n));
   int i  = r->offset;
   OpCode op;
@@ -228,17 +296,17 @@ void compile_def(RlState* rls, List* form, Chunk* code, int* flags, int* line) {
   if ( is_list(x) && is_special_form(as_list(x), "fn") ) {
     List* fn_form = as_list(x);
     Fun* def_fun = mk_fun_s(rls, n, false, false);
-    compile_closure(rls, fn_form, code, def_fun, flags, line);
+    compile_closure(rls, fn_form, chunk, def_fun, flags, line);
     stack_pop(rls);
   } else {
-    compile_expr(rls, x, code, flags, line);
+    compile_expr(rls, x, chunk, flags, line);
   }
-  emit_instr(rls, code, op, i);
-  *flags |= CF_ALLOW_DEF;
+  emit_instr(rls, chunk, op, i);
+  *flags |= CF_ALLOW_DEF |CF_DEF_FORM;
 }
 
-void compile_def_stx(RlState* rls, List* form, Chunk* code, int* flags, int* line) {
-  Env* vars = code->vars;
+void compile_def_stx(RlState* rls, List* form, Chunk* chunk, int* flags, int* line) {
+  Env* vars = chunk->vars;
   syntax_require(rls, is_global_env(vars), form, "local macros not supported.");
   syntax_require_argco(rls, form, 2);
   Sym* n = get_assignment(rls, form);
@@ -252,13 +320,13 @@ void compile_def_stx(RlState* rls, List* form, Chunk* code, int* flags, int* lin
   Fun* macro_fun = mk_fun(rls, n, true, true);
   r->val = tag_obj(macro_fun);
   // compile_closure handles adding the method based on what kind of fun it's passed
-  compile_closure(rls, fn_form, code, macro_fun, flags, line);
+  compile_closure(rls, fn_form, chunk, macro_fun, flags, line);
 
   *flags |= CF_NO_POP; // signal don't emit a pop instruction
 }
 
-void compile_def_multi(RlState* rls, List* form, Chunk* code, int* flags, int* line) {
-  Env* vars = code->vars;
+void compile_def_multi(RlState* rls, List* form, Chunk* chunk, int* flags, int* line) {
+  Env* vars = chunk->vars;
   syntax_require_argco(rls, form, 2);
   syntax_require(rls, is_global_env(vars), form, "local generics not supported." );
   Sym* n = get_assignment(rls, form);
@@ -274,13 +342,13 @@ void compile_def_multi(RlState* rls, List* form, Chunk* code, int* flags, int* l
   r->val = tag_obj(generic_fun);
 
   // compile_closure handles adding the method based on what kind of fun it's passed
-  compile_closure(rls, fn_form, code, generic_fun, flags, line);
+  compile_closure(rls, fn_form, chunk, generic_fun, flags, line);
 }
 
-void compile_def_method(RlState* rls, List* form, Chunk* code, int* flags, int* line) {
+void compile_def_method(RlState* rls, List* form, Chunk* chunk, int* flags, int* line) {
   Env* vars; Sym* n; List* fn_form; Ref* r; Fun* g_fun;
 
-  vars = code->vars;
+  vars = chunk->vars;
   syntax_require_argco(rls, form, 2);
   syntax_require(rls, is_global_env(vars), form, "local generics not supported.");
   n = get_assignment(rls, form);
@@ -292,14 +360,14 @@ void compile_def_method(RlState* rls, List* form, Chunk* code, int* flags, int* 
   g_fun = syntax_as_fun_s(rls, form, r->val);
   syntax_require(rls, g_fun->generic, form, "%s does not support overloads.", sym_val(n));
   // compile_closure handles adding the method based on what kind of fun it's passed
-  compile_closure(rls, fn_form, code, g_fun, flags, line);
+  compile_closure(rls, fn_form, chunk, g_fun, flags, line);
 }
 
-void compile_put(RlState* rls, List* form, Chunk* code, int* flags, int* line) {
+void compile_put(RlState* rls, List* form, Chunk* chunk, int* flags, int* line) {
   Sym* n; Ref* r; OpCode op; int i; Env* vars;
 
   syntax_require_argco(rls, form, 2);
-  vars = code->vars;
+  vars = chunk->vars;
   n = get_assignment(rls, form);
   r = env_resolve(rls, vars, n, false);
   syntax_require(rls, r != NULL, form, "can't assign to %s before it's defined.", sym_val(n));
@@ -322,16 +390,16 @@ void compile_put(RlState* rls, List* form, Chunk* code, int* flags, int* line) {
       unreachable();
   }
 
-  compile_expr(rls, list_thd(form), code, flags, line);
-  emit_instr(rls, code, op, i);
+  compile_expr(rls, list_thd(form), chunk, flags, line);
+  emit_instr(rls, chunk, op, i);
 }
 
-void compile_if(RlState* rls, List* form, Chunk* code, int* flags, int* line) {
+void compile_if(RlState* rls, List* form, Chunk* chunk, int* flags, int* line) {
   syntax_require_vargco(rls, form, 2);
   List* exprs = form->tail;
   int exprc = exprs->count;
   int testc = exprc / 2;
-  // keep track of offsets that need to be filled in once the total code size is known
+  // keep track of offsets that need to be filled in once the total Chunk size is known
   int then_offsets[testc], off1, off2, end;
   Expr last_expr = NUL;
 
@@ -351,93 +419,93 @@ void compile_if(RlState* rls, List* form, Chunk* code, int* flags, int* line) {
       break;
     } else {
       then = list_snd(exprs);
-      compile_expr(rls, test, code, flags, line);
-      emit_instr(rls, code, OP_JUMP_F, 0);
-      off1 = chunk_codec(code);
-      compile_expr(rls, then, code, flags, line);
-      emit_instr(rls, code, OP_JUMP, 0);
-      off2 = chunk_codec(code);
-      fill_instr(rls, code, off1-1, off2-off1);
-      then_offsets[i] = off2; // save to fill in once full code size is known
+      compile_expr(rls, test, chunk, flags, line);
+      emit_instr(rls, chunk, OP_JUMP_F, 0);
+      off1 = chunkchunkc(Chunk);
+      compile_expr(rls, then, chunk, flags, line);
+      emit_instr(rls, chunk, OP_JUMP, 0);
+      off2 = chunkchunkc(Chunk);
+      fill_instr(rls, chunk, off1-1, off2-off1);
+      then_offsets[i] = off2; // save to fill in once full Chunk size is known
     }
   }
   
-  compile_expr(rls, last_expr, code, flags, line);
-  end = chunk_codec(code);
+  compile_expr(rls, last_expr, chunk, flags, line);
+  end = chunkchunkc(Chunk);
 
   // fill in missing jump offsets
   for ( int i=0; i<testc; i++ ) {
     int off = then_offsets[i];
-    fill_instr(rls, code, off-1, end-off);
+    fill_instr(rls, chunk, off-1, end-off);
   }
 }
 
-void compile_and(RlState* rls, List* form, Chunk* code, int* flags, int* line) {
+void compile_and(RlState* rls, List* form, Chunk* chunk, int* flags, int* line) {
   List* exprs = form->tail;
   int exprc = exprs->count;
 
   if ( exprc == 0 )
-    emit_instr(rls, code, OP_TRUE);
+    emit_instr(rls, chunk, OP_TRUE);
 
   else {
-    // keep track of offsets that need to be filled in once the total code size is known
+    // keep track of offsets that need to be filled in once the total Chunk size is known
     int offsets[exprc-1];
 
     for ( int i=0; i<exprc-1; i++ ) {
-      compile_expr(rls, exprs->head, code, flags, line);
-      emit_instr(rls, code, OP_PJUMP_F, 0);
-      offsets[i] = chunk_codec(code);
+      compile_expr(rls, exprs->head, chunk, flags, line);
+      emit_instr(rls, chunk, OP_PJUMP_F, 0);
+      offsets[i] = chunkchunkc(Chunk);
       exprs = exprs->tail;
     }
 
-    compile_expr(rls, list_fst(exprs), code, flags, line);
+    compile_expr(rls, list_fst(exprs), chunk, flags, line);
 
-    int end = chunk_codec(code);
+    int end = chunkchunkc(Chunk);
 
     for ( int i=0; i<exprc-1; i++ ) {
       int offset = offsets[i];
 
-      fill_instr(rls, code, offset-1, end-offset);
+      fill_instr(rls, chunk, offset-1, end-offset);
     }
   }
 }
 
-void compile_or(RlState* rls, List* form, Chunk* code, int* flags, int* line) {
+void compile_or(RlState* rls, List* form, Chunk* chunk, int* flags, int* line) {
   List* exprs = form->tail;
   int exprc = exprs->count;
 
   if ( exprc == 0 )
-    emit_instr(rls, code, OP_FALSE);
+    emit_instr(rls, chunk, OP_FALSE);
 
   else {
-    // keep track of offsets that need to be filled in once the total code size is known
+    // keep track of offsets that need to be filled in once the total Chunk size is known
     int offsets[exprc-1];
 
     for ( int i=0; i<exprc-1; i++ ) {
-      compile_expr(rls, exprs->head, code, flags, line);
-      emit_instr(rls, code, OP_PJUMP_T, 0);
-      offsets[i] = chunk_codec(code);
+      compile_expr(rls, exprs->head, chunk, flags, line);
+      emit_instr(rls, chunk, OP_PJUMP_T, 0);
+      offsets[i] = chunkchunkc(Chunk);
       exprs = exprs->tail;
     }
 
-    compile_expr(rls, list_fst(exprs), code, flags, line);
+    compile_expr(rls, list_fst(exprs), chunk, flags, line);
 
-    int end = chunk_codec(code);
+    int end = chunkchunkc(Chunk);
 
     for ( int i=0; i<exprc-1; i++ ) {
       int offset = offsets[i];
 
-      fill_instr(rls, code, offset-1, end-offset);
+      fill_instr(rls, chunk, offset-1, end-offset);
     }
   }
 }
 
-void compile_do(RlState* rls, List* form, Chunk* code, int* flags, int* line) {
+void compile_do(RlState* rls, List* form, Chunk* chunk, int* flags, int* line) {
   syntax_require_vargco(rls, form, 1);
-  compile_sequence(rls, form->tail, code, flags, line);
+  compile_sequence(rls, form->tail, chunk, flags, line);
 }
 
-void compile_control(RlState* rls, List* form, Chunk* code, int* flags, int* line) {
+void compile_control(RlState* rls, List* form, Chunk* chunk, int* flags, int* line) {
   StackRef top = rls->s_top;
   syntax_require_argco(rls, form, 2);
   List* body_form = syntax_as_list_s(rls, form, list_snd(form));
@@ -453,56 +521,56 @@ void compile_control(RlState* rls, List* form, Chunk* code, int* flags, int* lin
 
   // compile both closures so that the final result is catch and body on stack
   // in that order
-  compile_closure(rls, catch_form, code, catch_fun, flags, line);
-  compile_closure(rls, body_form, code, body_fun, flags, line);
+  compile_closure(rls, catch_form, chunk, catch_fun, flags, line);
+  compile_closure(rls, body_form, chunk, body_fun, flags, line);
 
   // emit CATCH/ECATCH instructions
-  emit_instr(rls, code, OP_CATCH);
-  emit_instr(rls, code, OP_ECATCH);
+  emit_instr(rls, chunk, OP_CATCH);
+  emit_instr(rls, chunk, OP_ECATCH);
   rls->s_top = top;
 }
 
-void compile_raise(RlState* rls, List* form, Chunk* code, int* flags, int* line) {
+void compile_raise(RlState* rls, List* form, Chunk* chunk, int* flags, int* line) {
   syntax_require_argco(rls, form, 1);
-  compile_expr(rls, list_snd(form), code, flags, line);
-  emit_instr(rls, code, OP_RAISE);
+  compile_expr(rls, list_snd(form), chunk, flags, line);
+  emit_instr(rls, chunk, OP_RAISE);
 }
 
-void compile_fn(RlState* rls, List* form, Chunk* code, int* flags, int* line) {
+void compile_fn(RlState* rls, List* form, Chunk* chunk, int* flags, int* line) {
   syntax_require_vargco(rls, form, 2);
   StackRef top = rls->s_top;
   Sym* n = mk_sym_s(rls, "fn");
   Fun* cl_fun = mk_fun_s(rls, n, false, false);
-  compile_closure(rls, form, code, cl_fun, flags, line);
+  compile_closure(rls, form, chunk, cl_fun, flags, line);
   rls->s_top = top;
 }
 
-void compile_closure(RlState* rls, List* form, Chunk* code, Fun* fun, int* flags, int* line) {
+void compile_closure(RlState* rls, List* form, Chunk* chunk, Fun* fun, int* flags, int* line) {
   syntax_require_vargco(rls, form, 2);
 
   bool va;
   int argc, upvc, lflags = CF_ALLOW_DEF, linec  = line ? 1 : form->line,
     *linebuf = line ? &linec : NULL;
   StackRef top = rls->s_top;
-  Chunk* lcode = mk_chunk_s(rls, code->vars, fun->name, code->file);
+  Chunk* lchunk = mk_chunk_s(rls, chunk->vars, fun->name, chunk->file);
   List* body = form->tail->tail;
 
   // validate arguments and prepare environment
-  prepare_env(rls, form, lcode, &argc, &va);
+  prepare_env(rls, form, lchunk, &argc, &va);
 
   // compile definitions at the top of the function body
   for (; body->count > 0 &&
          is_list(body->head) &&
          is_special_form(as_list(body->head), "def"); body=body->tail )
-      compile_def(rls, as_list(body->head), lcode, &lflags, line);
+      compile_def(rls, as_list(body->head), lchunk, &lflags, line);
 
   // definitions only allowed at the top of a function body
   lflags &= ~CF_ALLOW_DEF;
 
-  compile_sequence(rls, body, lcode, &lflags, linebuf);
-  finalize_chunk(rls, lcode, linec);
+  compile_sequence(rls, body, lchunk, &lflags, linebuf);
+  finalize_chunk(rls, lchunk, linec);
 
-  Method* method = mk_user_method_s(rls, fun, argc, va, lcode);
+  Method* method = mk_user_method_s(rls, fun, argc, va, lchunk);
 
   // what to do with the compiled closure depends on the flags of fun
   if ( fun->macro ) { // macros should be evaluated immediately
@@ -510,17 +578,17 @@ void compile_closure(RlState* rls, List* form, Chunk* code, Fun* fun, int* flags
   }
 
   else { // closure must be handled at runtime, store method in constants
-    compile_literal(rls, tag_obj(method), code, flags, line);
+    compile_literal(rls, tag_obj(method), chunk, flags, line);
 
     upvc = method_upvc(method);
 
     if ( upvc > 0 ) {
-      emit_instr(rls, code, OP_CLOSURE, upvc);
+      emit_instr(rls, chunk, OP_CLOSURE, upvc);
 
       instr_t buffer[upvc*2];
 
-      for ( int i=0, j=0; i < env_upval_maxc(lcode->vars) && j < upvc; i++ ) {
-        EMapKV* kv = &env_upval_refs(lcode->vars)[i];
+      for ( int i=0, j=0; i < env_upval_maxc(lchunk->vars) && j < upvc; i++ ) {
+        EMapKV* kv = &env_upval_refs(lchunk->vars)[i];
         
         if ( kv->key == NULL )
           continue;
@@ -532,189 +600,193 @@ void compile_closure(RlState* rls, List* form, Chunk* code, Fun* fun, int* flags
       }
 
       // write arguments to closure at once
-      code_buf_write(rls, &lcode->code, buffer, upvc*2);
+      code_buf_write(rls, &lchunk->code, buffer, upvc*2);
     }
 
     // this handles binding the method to its corresponding function object
-    emit_instr(rls, code, OP_ADD_METHOD);
+    emit_instr(rls, chunk, OP_ADD_METHOD);
   }
 
   rls->s_top = top;
 }
 
-void compile_sequence(RlState* rls, List* xprs, Chunk* code, int* flags, int* line) {
+void compile_sequence(RlState* rls, List* xprs, Chunk* chunk, int* flags, int* line) {
   while ( xprs->count > 0 ) {
     *flags &= ~CF_NO_POP; // reset NO_POP flag if necessary
     Expr x = xprs->head;
-    compile_expr(rls, x, code, flags, line);
+    compile_expr(rls, x, chunk, flags, line);
 
     if ( xprs->count > 1 && (*flags & CF_NO_POP) != CF_NO_POP )
-      emit_instr(rls, code, OP_POP);
+      emit_instr(rls, chunk, OP_POP);
 
     xprs = xprs->tail;
   }
 }
 
-void compile_literal(RlState* rls, Expr x, Chunk* code, int* flags, int* line) {
+void compile_literal(RlState* rls, Expr x, Chunk* chunk, int* flags, int* line) {
   (void)line;
   (void)flags;
 
   if ( is_num(x) ) {
     if ( x == RL_ZERO )
-      emit_instr(rls, code, OP_ZERO);
+      emit_instr(rls, chunk, OP_ZERO);
 
     else if ( x == RL_ONE )
-      emit_instr(rls, code, OP_ONE);
+      emit_instr(rls, chunk, OP_ONE);
 
     else {
       Num n = as_num(x);
 
       if ( is_int(n) && n <= INT16_MAX && n >= INT16_MIN )
-        emit_instr(rls, code, OP_SMALL, (short)n);
+        emit_instr(rls, chunk, OP_SMALL, (short)n);
 
       else
         goto fallback;
     }
   } else if ( is_glyph(x) ) {
     if ( x == EOS )
-      emit_instr(rls, code, OP_EOS);
+      emit_instr(rls, chunk, OP_EOS);
 
     else
-      emit_instr(rls, code, OP_GLYPH, as_glyph(x));
+      emit_instr(rls, chunk, OP_GLYPH, as_glyph(x));
   } else if ( x == TRUE ) {
-    emit_instr(rls, code, OP_TRUE);
+    emit_instr(rls, chunk, OP_TRUE);
   } else if ( x == FALSE ) {
-    emit_instr(rls, code, OP_FALSE);
+    emit_instr(rls, chunk, OP_FALSE);
   } else if ( x == NUL ) {
-    emit_instr(rls, code, OP_NUL);
+    emit_instr(rls, chunk, OP_NUL);
   } else {
   fallback:
-    int n = add_chunk_constant(rls, code, x);
+    int n = add_chunk_constant(rls, chunk, x);
 
-    emit_instr(rls, code, OP_GET_VALUE, n);
+    emit_instr(rls, chunk, OP_GET_VALUE, n);
   }
 }
 
-void compile_reference(RlState* rls, Sym* s, Chunk* code, int* flags, int* line) {
+void compile_reference(RlState* rls, Sym* s, Chunk* chunk, int* flags, int* line) {
   (void)line;
   (void)flags;
 
-  Ref* r = env_resolve(rls, code->vars, s, false);
-  require(rls, r != NULL, "undefined variable %s", sym_val(s));
-  OpCode op; int i = r->offset;
+  Ref* r = env_resolve(rls, chunk->vars, s, false);
 
-  switch ( r->ref_type ) {
-    case REF_GLOBAL:
-      op = OP_GET_GLOBAL;
-      break;
+  if ( r == NULL ) {
+    add_unres_name(rls, chunk, s); // 
+  } else {
+    OpCode op; int i = r->offset;
 
-    case REF_LOCAL:
-      op = OP_GET_LOCAL;
-      break;
+    switch ( r->ref_type ) {
+      case REF_GLOBAL:
+        op = OP_GET_GLOBAL;
+        break;
 
-    case REF_CAPTURED_UPVAL:
-      op = OP_GET_UPVAL;
-      break;
+      case REF_LOCAL:
+        op = OP_GET_LOCAL;
+        break;
+        
+      case REF_CAPTURED_UPVAL:
+        op = OP_GET_UPVAL;
+        break;
+        
+      default:
+        unreachable();
+    }
 
-    default:
-      unreachable();
+    emit_instr(rls, chunk, op, i);
   }
-
-  emit_instr(rls, code, op, i);
 }
 
-void compile_funcall(RlState* rls, List* form, Chunk* code, int* flags, int* line) {
+void compile_funcall(RlState* rls, List* form, Chunk* chunk, int* flags, int* line) {
   assert(form->count > 0);
 
   if ( line != NULL && form->line > *line ) {
-    add_line_number(rls, code, *line);
+    add_line_number(rls, chunk, *line);
     *line = form->line;
   }
 
-  Env* vars = code->vars;
+  Env* vars = chunk->vars;
   // Check for macro calls first - macros are expanded before other processing
   Ref* macro_ref = is_macro_call(rls, form, vars);
 
   if (macro_ref != NULL) {
     Expr expanded = get_macro_expansion(rls, form, vars, macro_ref);
     stack_push(rls, expanded); // save expanded expression
-    compile_expr(rls, expanded, code, flags, line);
+    compile_expr(rls, expanded, chunk, flags, line);
     stack_pop(rls); // unsave expanded expression
   }
 
   else if ( is_special_form(form, "quote") )
-    compile_quote(rls, form, code, flags, line);
+    compile_quote(rls, form, chunk, flags, line);
 
   else if ( is_special_form(form, "def") )
-    compile_def(rls, form, code, flags, line);
+    compile_def(rls, form, chunk, flags, line);
 
   else if ( is_special_form(form, "def-stx") )
-    compile_def_stx(rls, form, code, flags, line);
+    compile_def_stx(rls, form, chunk, flags, line);
 
   else if ( is_special_form(form, "def-multi") )
-    compile_def_multi(rls, form, code, flags, line);
+    compile_def_multi(rls, form, chunk, flags, line);
 
   else if ( is_special_form(form, "def-method") )
-    compile_def_method(rls, form, code, flags, line);
+    compile_def_method(rls, form, chunk, flags, line);
 
   else if ( is_special_form(form, "put") )
-    compile_put(rls, form, code, flags, line);
+    compile_put(rls, form, chunk, flags, line);
 
   else if ( is_special_form(form, "if") )
-    compile_if(rls, form, code, flags, line);
+    compile_if(rls, form, chunk, flags, line);
 
   else if ( is_special_form(form, "and") )
-    compile_and(rls, form, code, flags, line);
+    compile_and(rls, form, chunk, flags, line);
 
   else if ( is_special_form(form, "or") )
-    compile_or(rls, form, code, flags, line);
+    compile_or(rls, form, chunk, flags, line);
 
   else if ( is_special_form(form, "do") )
-    compile_do(rls, form, code, flags, line);
+    compile_do(rls, form, chunk, flags, line);
 
   else if ( is_special_form(form, "control") )
-    compile_control(rls, form, code, flags, line);
+    compile_control(rls, form, chunk, flags, line);
 
   else if ( is_special_form(form, "raise") )
-    compile_raise(rls, form, code, flags, line);
+    compile_raise(rls, form, chunk, flags, line);
 
   else if ( is_special_form(form, "fn") )
-    compile_fn(rls, form, code, flags, line);
+    compile_fn(rls, form, chunk, flags, line);
 
   else {
     int argc = form->count-1;
 
     while ( form->count > 0 ) {
       Expr arg = form->head;
-      compile_expr(rls, arg, code, flags, line);
+      compile_expr(rls, arg, chunk, flags, line);
       form = form->tail;
     }
 
-    emit_instr(rls, code, OP_CALL, argc);
+    emit_instr(rls, chunk, OP_CALL, argc);
   }
 }
 
-void compile_expr(RlState* rls, Expr x, Chunk* code, int* flags, int* line) {
+void compile_expr(RlState* rls, Expr x, Chunk* chunk, int* flags, int* line) {
   if ( is_sym(x) ) {
     Sym* s = as_sym(x);
 
     if ( is_keyword(s) ) // keywords (symbols whose names begin with ':') are treated as literals
-      compile_literal(rls, x, code, flags, line);
+      compile_literal(rls, x, chunk, flags, line);
 
     else
-      compile_reference(rls, s, code, flags, line);
+      compile_reference(rls, s, chunk, flags, line);
 
   } else if ( is_list(x) ) {
     List* l = as_list(x);
 
     if ( l->count == 0 ) // empty list is treated as a literal
-      compile_literal(rls, x, code, flags, line);
+      compile_literal(rls, x, chunk, flags, line);
 
     else
-      compile_funcall(rls, l, code, flags, line);
+      compile_funcall(rls, l, chunk, flags, line);
 
   } else
-    compile_literal(rls, x, code, flags, line);
+    compile_literal(rls, x, chunk, flags, line);
 }
 
 // External -------------------------------------------------------------------
@@ -743,15 +815,11 @@ Fun* toplevel_compile(RlState* rls, Expr x) {
   }
 
   discard_error_state(rls);
-#ifdef RASCAL_DEBUG
-  if ( f )
-    disassemble_method(f->method);
-#endif
   return f;
 }
 
 Fun* compile_file(RlState* rls, char* fname) {
-  Str* file; Sym* name; Fun* fun; Chunk* code; Method* method;
+  Str* file; Sym* name; Fun* fun; Chunk* chunk; Method* method;
   int flags = CF_ALLOW_DEF, line = 1;
   Port* stream = NULL;
   Expr x;
@@ -770,27 +838,27 @@ Fun* compile_file(RlState* rls, char* fname) {
     stream = open_port_s(rls, fname, "r");
     file = mk_str_s(rls, strrchr(fname, '/')+1);
     name = mk_sym_s(rls, "<module>");
-    code = mk_chunk_s(rls, NULL, name, file);
+    chunk = mk_chunk_s(rls, NULL, name, file);
     fun = mk_fun_s(rls, name, false, false);
 
     while ( (x=read_exp(rls, stream, &line)) != EOS ) {
       // emit the pop instruction at the top of the loop since we can't tell
       // when the file has one more expression left
-      if ( chunk_codec(code) > 0 ) {
+      if ( chunkchunkc(chunk) > 0 ) {
         if ( flags & CF_NO_POP )
           flags &= ~CF_NO_POP;
 
         else
-          emit_instr(rls, code, OP_POP);
+          emit_instr(rls, chunk, OP_POP);
       }
 
       // compile the expression
-      compile_expr(rls, x, code, &flags, &line);
+      compile_expr(rls, x, chunk, &flags, &line);
     }
 
-    // finalize code
-    finalize_chunk(rls, code, line);
-    method = mk_user_method_s(rls, fun, 0, false, code);
+    // finalize Chunk
+    finalize_chunk(rls, chunk, line);
+    method = mk_user_method_s(rls, fun, 0, false, chunk);
     fun_add_method(rls, fun, method);
 
     // cleanup
@@ -798,10 +866,6 @@ Fun* compile_file(RlState* rls, char* fname) {
 
     // reset stack
     rls->s_top = top;
-
-#ifdef RASCAL_DEBUG
-    // disassemble_method(method);
-#endif
   }
 
   discard_error_state(rls);

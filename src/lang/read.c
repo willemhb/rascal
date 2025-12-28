@@ -384,3 +384,52 @@ Expr read_exp(RlState* rls, Port *in, int* line) {
 
   return x;
 }
+
+List* read_file(RlState* rls, char* fname) {
+  List* out = NULL;
+  int line = 1, argc=0;
+  Port* stream = NULL;
+  Expr x;
+
+  save_error_state(rls, 0);
+
+  if ( rl_setjmp(rls) ) {
+    restore_error_state(rls);
+
+    if ( stream != NULL )
+      close_port(stream);
+
+    out = NULL; // signal failure
+  } else {
+    StackRef top = rls->s_top;
+    stream = open_port_s(rls, fname, "r");
+    mk_sym_s(rls, "module"); // implicit form for files
+
+    while ( (x=read_exp(rls, stream, &line)) != EOS ) {
+      
+    }
+
+    // finalize code
+    finalize_chunk(rls, code, line);
+    method = mk_user_method_s(rls, fun, 0, false, code);
+    fun_add_method(rls, fun, method);
+
+    // cleanup
+    close_port(stream);
+
+    // reset stack
+    rls->s_top = top;
+  }
+
+  discard_error_state(rls);
+  return fun;
+}
+
+List* read_file_s(RlState* rls, char* fname) {
+  List* out = read_file(rls, fname);
+
+  if ( out != NULL )
+    stack_push(rls, tag_obj(out));
+
+  return out;
+}

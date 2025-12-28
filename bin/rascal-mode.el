@@ -11,7 +11,7 @@
   '(";" ("#|" . "|#"))
   '( ;; special forms
     "quote" "def" "def-stx" "def-multi" "def-method"
-    "put" "if" "and" "or" "do" "fn" "c-call"
+    "put" "if" "and" "or" "do" "fn"
     "control" "raise"
     ;; macros
     "fun" "stx" "fun*" "stx*" "let" "cond" "case"
@@ -28,7 +28,17 @@
     ("\\_<typeof\\_>" . font-lock-builtin-face)
     ("\\_<apply\\_>" . font-lock-builtin-face)
     ("\\_<load\\_>" . font-lock-builtin-face)
-    ("\\_<error\\_>" . font-lock-warning-face)
+    ("\\_<eval\\_>" . font-lock-builtin-face)
+    ("\\_<print\\_>" . font-lock-builtin-face)
+    ("\\_<read\\_>" . font-lock-builtin-face)
+    ("\\_<ffi-call\\_>" . font-lock-builtin-face)
+    ("\\_<ffi-open\\_>" . font-lock-builtin-face)
+    ("\\_<ffi-close\\_>" . font-lock-builtin-face)
+    ("\\_<ffi-sym\\_>" . font-lock-builtin-face)
+    ("\\_<list\\_>" . font-lock-builtin-face)
+    ("\\_<sym\\_>" . font-lock-builtin-face)
+    ("\\_<tuple\\_>" . font-lock-builtin-face)
+    ("\\_<str\\_>" . font-lock-builtin-face)
     ;; types
     ("\\_<[A-Z][a-zA-Z0-9\\|]*\\_>" . font-lock-type-face)
     ;; syntax
