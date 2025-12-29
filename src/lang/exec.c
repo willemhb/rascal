@@ -253,6 +253,7 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
 
  op_eos:
   stack_push(rls, EOS);
+  goto fetch;
 
  op_zero:
   stack_push(rls, RL_ZERO);
@@ -354,6 +355,7 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
 
  op_pjump_t:
   argx = next_op(rls);
+  x = tos(rls);
 
   if ( !is_falsey(x) )
     rls->pc += argx;
@@ -374,7 +376,7 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
   fx = as_fun_s(rls, x);
   method = fun_get_method(fx, argc);
   require(rls, method != NULL,
-          "%s has no method for %d arguments", fn_name(fx), argc);
+          "%s has no method for %d arguments", fun_name(fx), argc);
 
   if ( is_user_method(method) )
     goto call_user_method;
@@ -517,7 +519,7 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
  op_rem:
   ix = as_num_s(rls, ARGS[0]);
   iy = as_num_s(rls, ARGS[1]);
-  require(rls, ry != 0, "division by zero");
+  require(rls, iy != 0, "division by zero");
   stack_push(rls, tag_num(ix % iy));
   goto op_return;
 
@@ -542,11 +544,11 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
  op_egal:
   x = ARGS[0];
   y = ARGS[1];
-  stack_push(rls, egal_exps(x, y) ? TRUE : FALSE);
+  stack_push(rls, egal_exprs(x, y) ? TRUE : FALSE);
   goto op_return;
 
  op_hash:
-  ix = hash_exp(ARGS[0]) & XVMSK; // really this should be done consistently elsewhere
+  ix = hash_expr(ARGS[0]) & XVMSK; // really this should be done consistently elsewhere
   stack_push(rls, tag_num(ix));
   goto op_return;
 
@@ -591,15 +593,15 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
  op_head:
   x = ARGS[0];
   lx = as_list_s(rls, x);
-  require(rls, lx->count > 0, "head", "can't call head on empty list.");
+  require(rls, lx->count > 0, "can't call head on empty list.");
   y  = lx->head;
-  tos(rls) = y;
+  stack_push(rls, y);
   goto op_return;
 
  op_tail:
   x = ARGS[0];
   lx = as_list_s(rls, x);
-  require(rls, lx->count > 0, 0, "can't call tail on empty list.");
+  require(rls, lx->count > 0, "can't call tail on empty list.");
   ly = lx->tail;
   stack_push(rls, tag_obj(ly));
   goto op_return;
@@ -689,17 +691,17 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
 
  op_read:
   require_argtype(rls, &PortType, ARGS[0]);
-  x = read_exp(rls, as_port(ARGS[0]), NULL);
+  x = read_expr(rls, as_port(ARGS[0]), NULL);
   goto op_return;
 
  op_eval:
-  x = eval_exp(rls, ARGS[0]);
+  x = eval_expr(rls, ARGS[0]);
   stack_push(rls, x);
   goto op_return;
 
  op_print:
   require_argtype(rls, &PortType, ARGS[0]);
-  print_exp(as_port(ARGS[0]), ARGS[1]);
+  print_expr(as_port(ARGS[0]), ARGS[1]);
   stack_push(rls, NUL);
   goto op_return;
 
@@ -733,7 +735,7 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
 
  op_exec:
   fx = as_fun_s(rls, ARGS[0]);
-  require(rls, is_singleton_fn(fx), "ambiguous call.");
+  require(rls, is_singleton_fun(fx), "ambiguous call.");
   require(rls, is_user_method(fx->method), "not a user function.");
   // set up call and jump
   stack_push(rls, ARGS[0]);
@@ -809,7 +811,7 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
 
   assert(fx->mcount > 0);
 
-  if ( is_singleton_fn(fx) ) {
+  if ( is_singleton_fun(fx) ) {
     stack_push(rls, tag_obj(fx->method));
     argx = 1;
   } else {
@@ -836,9 +838,9 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
   ix = as_num_s(rls, ARGS[1]);
   // Disassemble the singleton method (or first method if multimethod)
   method =  fun_get_method(fx, ix);
-  require(rls, method != NULL, "no method for %s/%d", fn_name(fx), ix);
+  require(rls, method != NULL, "no method for %s/%d", fun_name(fx), ix);
   require(rls, is_user_method(method),
-          "can't disassemble builtin method for %s/%d", fn_name(fx), ix);
+          "can't disassemble builtin method for %s/%d", fun_name(fx), ix);
   disassemble_method(method);
   stack_push(rls, NUL); // dummy return value
   goto op_return;

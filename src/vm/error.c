@@ -33,7 +33,7 @@ static void print_syntax_error_header(Port* ios, List* form) {
 
 static void print_type_error(Port* ios, Type* e, Expr g) {
   pprintf(ios, "expected a %s, got ", type_name(e));
-  print_exp(ios, g);
+  print_expr(ios, g);
   pprintf(ios, ".");
 }
 

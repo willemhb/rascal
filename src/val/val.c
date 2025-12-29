@@ -120,7 +120,7 @@ void register_builtin_types(RlState* rls) {
 // utility array APIs
 void trace_exprs(RlState* rls, Exprs* xs) {
   for ( int i=0; i < xs->count; i++ )
-    mark_exp(rls, xs->data[i]);
+    mark_expr(rls, xs->data[i]);
 }
 
 void trace_objs(RlState* rls, Objs* os) {
@@ -129,7 +129,7 @@ void trace_objs(RlState* rls, Objs* os) {
 }
 
 // expression APIs
-hash_t hash_exp(Expr x) {
+hash_t hash_expr(Expr x) {
   hash_t out;
   Type* info = type_of(x);
 
@@ -142,7 +142,7 @@ hash_t hash_exp(Expr x) {
   return out;
 }
 
-bool egal_exps(Expr x, Expr y) {
+bool egal_exprs(Expr x, Expr y) {
   bool out;
 
   if ( x == y )
@@ -163,7 +163,7 @@ bool egal_exps(Expr x, Expr y) {
   return out;
 }
 
-void mark_exp(RlState* rls, Expr x) {
+void mark_expr(RlState* rls, Expr x) {
   if ( exp_tag(x) == OBJ_T )
     mark_obj(rls, as_obj(x));
 }

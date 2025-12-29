@@ -2,7 +2,7 @@
 #include "val.h"
 
 // Implementations ------------------------------------------------------------
-void print_exp(Port* out, Expr x) {
+void print_expr(Port* out, Expr x) {
   Type* info = type_of(x);
 
   if ( info->print_fn )
@@ -21,7 +21,7 @@ void print_embed(Port* p, char* pre, char* sep, char* last, char* end, int n, ..
 
   for ( int i=0; i < n; i++ ) {
     Expr x = va_arg(va, Expr);
-    print_exp(p, x);
+    print_expr(p, x);
 
     if ( sep != NULL && i+1 < n )
       pprintf(p, sep);

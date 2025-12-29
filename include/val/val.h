@@ -118,9 +118,9 @@ bool has_type(Expr x, Type* t);
 char* type_name(Type* t);
 
 // expression APIs
-hash_t hash_exp(Expr x);
-bool egal_exps(Expr x, Expr y);
-void mark_exp(RlState* rls, Expr x);
+hash_t hash_expr(Expr x);
+bool egal_exprs(Expr x, Expr y);
+void mark_expr(RlState* rls, Expr x);
 
 // object API
 void* as_obj(Expr x);

@@ -114,8 +114,8 @@ Method* mtable_lookup(MethodTable* mt, int argc);
 
 #define is_user_method(m)    ((m)->label == OP_NOOP)
 #define is_builtin_method(m) ((m)->label != OP_NOOP)
-#define is_singleton_fn(f)   ((f)->mcount == 1)
-#define fn_name(f)           ((f)->name->val->val)
+#define is_singleton_fun(f)   ((f)->mcount == 1)
+#define fun_name(f)           ((f)->name->val->val)
 #define method_argc(m)       ((m)->arity)
 #define method_va(m)         ((m)->va)
 #define method_name(m)       ((m)->fun->name->val->val)

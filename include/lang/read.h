@@ -5,6 +5,6 @@
 
 // globals --------------------------------------------------------------------
 // forward declarations -------------------------------------------------------
-Expr read_exp(RlState* rls, Port* in, int* line);
+Expr read_expr(RlState* rls, Port* in, int* line);
 
 #endif

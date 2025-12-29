@@ -172,7 +172,7 @@ Expr read_quote(RlState* rls, Port* in, int* line) {
 
   StackRef top = rls->s_top;
   mk_sym_s(rls, "quote");
-  Expr x = read_exp(rls, in, line);
+  Expr x = read_expr(rls, in, line);
   stack_push(rls, x);
   List* qd = mk_list(rls, 2);
   rls->s_top = top;
@@ -188,7 +188,7 @@ Expr read_tick(RlState* rls, Port* in, int* line) {
 
   StackRef top = rls->s_top;
   mk_sym_s(rls, "backquote");
-  Expr x = read_exp(rls, in, line);
+  Expr x = read_expr(rls, in, line);
   stack_push(rls, x);
   List* qd = mk_list(rls, 2);
   rls->s_top = top;
@@ -217,7 +217,7 @@ Expr read_tilde(RlState* rls, Port* in, int* line) {
 
   StackRef top = rls->s_top;
   mk_sym_s(rls, macro_name);
-  Expr x = read_exp(rls, in, line);
+  Expr x = read_expr(rls, in, line);
   stack_push(rls, x);
   List* qd = mk_list(rls, 2);
   rls->s_top = top;
@@ -237,7 +237,7 @@ Expr read_tuple(RlState* rls, Port* in, int* line) {
     if ( peof(in) )
       runtime_error(rls, "unterminated tuple.");
 
-    x = read_exp(rls, in, line);
+    x = read_expr(rls, in, line);
     stack_push(rls, x);
     n++;
     skip_space(in, line);
@@ -262,7 +262,7 @@ Expr read_list(RlState* rls, Port* in, int* line) {
     if ( peof(in) )
       runtime_error(rls, "unterminated list.");
 
-    x = read_exp(rls, in, line);
+    x = read_expr(rls, in, line);
     stack_push(rls, x);
     n++;
     skip_space(in, line);
@@ -347,7 +347,7 @@ Expr read_atom(RlState* rls, Port* in) {
 }
 
 // External -------------------------------------------------------------------
-Expr read_exp(RlState* rls, Port *in, int* line) {
+Expr read_expr(RlState* rls, Port *in, int* line) {
   reset_token(rls);
   skip_space(in, line);
   int line1 = line ? *line : -1;

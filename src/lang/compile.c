@@ -336,129 +336,129 @@ void compile_quote(RlState* rls, List* form, Chunk* chunk, int* flags, int* line
 }
 
 void compile_def(RlState* rls, List* form, Chunk* chunk, int* flags, int* line) {
-  int candef, arg; bool a; OpCode op; Sym* n; Ref* r; Expr x;
+  int can_define, arg_offset; bool added; OpCode opcode; Sym* name; Ref* ref; Expr value;
 
-  candef = *flags & CF_ALLOW_DEF;
-  syntax_require(rls, candef, form, "`def` not allowed in current context.");
+  can_define = *flags & CF_ALLOW_DEF;
+  syntax_require(rls, can_define, form, "`def` not allowed in current context.");
 
   if ( is_global_env(chunk->vars) ) {
     // validation and definition not done elsewhere
       syntax_require_argco(rls, form, 2);
-      n = get_assignment(rls, form);
-      r = env_define(rls, chunk->vars, n, false, false, &a);
-      syntax_require(rls, a, form,
-                     "redefining symbol %s.", sym_val(n));
+      name = get_assignment(rls, form);
+      ref = env_define(rls, chunk->vars, name, false, false, &added);
+      syntax_require(rls, added, form,
+                     "redefining symbol %s.", sym_val(name));
   } else {
-    n = as_sym(list_snd(form));
-    r = env_resolve(rls, chunk->vars, n, false);
-    syntax_require(rls, r != NULL, form, "unbound symbol %s.", sym_val(n));
+    name = as_sym(list_snd(form));
+    ref = env_resolve(rls, chunk->vars, name, false);
+    syntax_require(rls, ref != NULL, form, "unbound symbol %s.", sym_val(name));
   }
 
   *flags &= ~CF_ALLOW_DEF; // temporarily disable to avoid goofy shit
-  x = list_thd(form);      // binding
+  value = list_thd(form);      // binding
 
-  if ( is_list(x) && is_special_form(as_list(x), "fn") ) {
-    List* fn_form; Fun* def_fun;
-    r->final = true; // function bindings always immutable
-    fn_form = as_list(x);
-    def_fun = mk_fun_s(rls, n, false, false);
-    compile_closure(rls, fn_form, chunk, def_fun, flags, line);
+  if ( is_list(value) && is_special_form(as_list(value), "fn") ) {
+    List* fun_form; Fun* def_fun;
+    ref->final = true; // function bindings always immutable
+    fun_form = as_list(value);
+    def_fun = mk_fun_s(rls, name, false, false);
+    compile_closure(rls, fun_form, chunk, def_fun, flags, line);
     stack_pop(rls);
   } else {
-    compile_expr(rls, x, chunk, flags, line);
+    compile_expr(rls, value, chunk, flags, line);
   }
 
-  if ( r->ref_type == REF_GLOBAL ) {
-    compile_global_assignment(rls, r, chunk);
+  if ( ref->ref_type == REF_GLOBAL ) {
+    compile_global_assignment(rls, ref, chunk);
   } else {
-  get_set_instr(r, &op, &arg);
-  emit_instr(rls, chunk, op, arg); 
+  get_set_instr(ref, &opcode, &arg_offset);
+  emit_instr(rls, chunk, opcode, arg_offset);
   }
 
   *flags |= CF_ALLOW_DEF;
 }
 
 void compile_def_stx(RlState* rls, List* form, Chunk* chunk, int* flags, int* line) {
-  Env* vars; Sym* n; List* fn_form; Ref* r; Fun* macro_fun; bool a;
+  Env* vars; Sym* name; List* fun_form; Ref* ref; Fun* macro_fun; bool added;
 
   vars = chunk->vars;
   syntax_require(rls, is_global_env(vars), form, "local macros not supported.");
   syntax_require_argco(rls, form, 2);
-  n = get_assignment(rls, form);
-  fn_form = syntax_as_list_s(rls, form, list_thd(form));
-  syntax_require(rls, is_special_form(fn_form, "fn"),
+  name = get_assignment(rls, form);
+  fun_form = syntax_as_list_s(rls, form, list_thd(form));
+  syntax_require(rls, is_special_form(fun_form, "fn"),
                  form, "syntax transformer is not a `fn` form.");
   // Define the macro in the environment and mark it as a macro (ensure the binding doesn't already exist)
-  r = env_define(rls, vars, n, true, true, &a);
-  syntax_require(rls, a, form, "%s already bound.", sym_val(n));
+  ref = env_define(rls, vars, name, true, true, &added);
+  syntax_require(rls, added, form, "%s already bound.", sym_val(name));
   // create function to hold method and assign to ref immediately (not at run time)
-  macro_fun = mk_fun(rls, n, true, true);
-  r->val = tag_obj(macro_fun);
+  macro_fun = mk_fun(rls, name, true, true);
+  ref->val = tag_obj(macro_fun);
   // compile_closure handles adding the method based on what kind of fun it's passed
-  compile_closure(rls, fn_form, chunk, macro_fun, flags, line);
+  compile_closure(rls, fun_form, chunk, macro_fun, flags, line);
   *flags |= CF_NO_POP; // signal don't emit a pop instruction
 }
 
 void compile_def_multi(RlState* rls, List* form, Chunk* chunk, int* flags, int* line) {
-  Env* vars; Sym* n; List* fn_form; Ref* r; Fun* g_fun; bool a;
+  Env* vars; Sym* name; List* fun_form; Ref* ref; Fun* generic_fun; bool added;
 
   vars = chunk->vars;
   syntax_require_argco(rls, form, 2);
   syntax_require(rls, is_global_env(vars), form, "local generics not supported." );
-  n = get_assignment(rls, form);
-  fn_form = syntax_as_list_s(rls, form, list_thd(form));
-  syntax_require(rls, is_special_form(fn_form, "fn"), form, "method is not a `fn` form.");
+  name = get_assignment(rls, form);
+  fun_form = syntax_as_list_s(rls, form, list_thd(form));
+  syntax_require(rls, is_special_form(fun_form, "fn"), form, "method is not a `fn` form.");
   // Define the function in the environment and mark it as a generic (ensure the binding doesn't already exist)
-  r = env_define(rls, vars, n, false, true, &a);
-  syntax_require(rls, a, form, "%s already bound.", sym_val(n));
+  ref = env_define(rls, vars, name, false, true, &added);
+  syntax_require(rls, added, form, "%s already bound.", sym_val(name));
   // create function to hold method and assign to ref immediately (not at run time)
-  g_fun = mk_fun(rls, n, false, true);
-  r->val = tag_obj(g_fun);
+  generic_fun = mk_fun(rls, name, false, true);
+  ref->val = tag_obj(generic_fun);
 
   // compile_closure handles adding the method based on what kind of fun it's passed
-  compile_closure(rls, fn_form, chunk, g_fun, flags, line);
+  compile_closure(rls, fun_form, chunk, generic_fun, flags, line);
 }
 
 void compile_def_method(RlState* rls, List* form, Chunk* chunk, int* flags, int* line) {
-  Env* vars; Sym* n; List* fn_form; Ref* r; Fun* g_fun;
+  Env* vars; Sym* name; List* fun_form; Ref* ref; Fun* generic_fun;
 
   vars = chunk->vars;
   syntax_require_argco(rls, form, 2);
   syntax_require(rls, is_global_env(vars), form, "local generics not supported.");
-  n = get_assignment(rls, form);
-  fn_form = syntax_as_list_s(rls, form, list_thd(form));
-  syntax_require(rls, is_special_form(fn_form, "fn"),
+  name = get_assignment(rls, form);
+  fun_form = syntax_as_list_s(rls, form, list_thd(form));
+  syntax_require(rls, is_special_form(fun_form, "fn"),
                  form, "method is not a `fn` form.");
   // Resolve the function binding (ensure it exists)
-  r = env_resolve(rls, vars, n, false);
-  syntax_require(rls, r != NULL, form, "%s not bound to generic.", sym_val(n));
-  g_fun = syntax_as_fun_s(rls, form, r->val);
-  syntax_require(rls, g_fun->generic, form,
-                 "%s does not support overloads.", sym_val(n));
+  ref = env_resolve(rls, vars, name, false);
+  syntax_require(rls, ref != NULL, form, "%s not bound to generic.", sym_val(name));
+  generic_fun = syntax_as_fun_s(rls, form, ref->val);
+  syntax_require(rls, generic_fun->generic, form,
+                 "%s does not support overloads.", sym_val(name));
   // compile_closure handles adding the method based on what kind of fun it's passed
-  compile_closure(rls, fn_form, chunk, g_fun, flags, line);
+  compile_closure(rls, fun_form, chunk, generic_fun, flags, line);
 }
 
 void compile_put(RlState* rls, List* form, Chunk* chunk, int* flags, int* line) {
-  Sym* n; Ref* r; OpCode op; int arg; Env* vars;
+  Sym* name; Ref* ref; OpCode opcode; int arg_offset; Env* vars;
 
   syntax_require_argco(rls, form, 2);
   vars = chunk->vars;
-  n = get_assignment(rls, form);
-  r = env_resolve(rls, vars, n, false);
+  name = get_assignment(rls, form);
+  ref = env_resolve(rls, vars, name, false);
 
   // compile the expression
   compile_expr(rls, list_thd(form), chunk, flags, line);
 
-  if ( r == NULL ) { // lookup once at runtime and cache reference
-    compile_global_assignment(rls, n, chunk);
-  } else if ( r->ref_type == REF_GLOBAL ) { // validate and cache reference now
-    syntax_require(rls, !r->final, form,
-                   "illegal assignmen to final reference %s", sym_val(n));
-    compile_global_assignment(rls, r, chunk);
+  if ( ref == NULL ) { // lookup once at runtime and cache reference
+    compile_global_assignment(rls, name, chunk);
+  } else if ( ref->ref_type == REF_GLOBAL ) { // validate and cache reference now
+    syntax_require(rls, !ref->final, form,
+                   "illegal assignmen to final reference %s", sym_val(name));
+    compile_global_assignment(rls, ref, chunk);
   } else {
-    get_set_instr(r, &op, &arg);
-    emit_instr(rls, chunk, op, arg);
+    get_set_instr(ref, &opcode, &arg_offset);
+    emit_instr(rls, chunk, opcode, arg_offset);
   }
 }
 
@@ -608,13 +608,13 @@ void compile_raise(RlState* rls, List* form, Chunk* chunk, int* flags, int* line
 }
 
 void compile_fn(RlState* rls, List* form, Chunk* chunk, int* flags, int* line) {
-  Sym* n; Fun* cl_fun; StackRef top;
- 
+  Sym* name; Fun* closure_fun; StackRef top;
+
   syntax_require_vargco(rls, form, 2);
   top = rls->s_top;
-  n = mk_sym_s(rls, "fn");
-  cl_fun = mk_fun_s(rls, n, false, false);
-  compile_closure(rls, form, chunk, cl_fun, flags, line);
+  name = mk_sym_s(rls, "fn");
+  closure_fun = mk_fun_s(rls, name, false, false);
+  compile_closure(rls, form, chunk, closure_fun, flags, line);
   rls->s_top = top;
 }
 
@@ -674,7 +674,7 @@ void compile_closure(RlState* rls, List* form, Chunk* chunk, Fun* fun, int* flag
       }
 
       // write arguments to closure at once
-      code_buf_write(rls, &lchunk->code, buffer, upvc*2);
+      code_buf_write(rls, &chunk->code, buffer, upvc*2);
     }
 
     // this handles binding the method to its corresponding function object
@@ -910,7 +910,7 @@ Fun* compile_file(RlState* rls, char* fname) {
     chunk = mk_chunk_s(rls, NULL, name, file);
     fun = mk_fun_s(rls, name, false, false);
 
-    while ( (x=read_exp(rls, stream, &line)) != EOS ) {
+    while ( (x=read_expr(rls, stream, &line)) != EOS ) {
       // emit the pop instruction at the top of the loop since we can't tell
       // when the file has one more expression left
       if ( chunk_codec(chunk) > 0 ) {

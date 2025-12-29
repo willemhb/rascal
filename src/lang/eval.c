@@ -25,7 +25,7 @@ bool is_literal(Expr x) {
 }
 
 // External
-Expr eval_exp(RlState* rls, Expr x) {
+Expr eval_expr(RlState* rls, Expr x) {
   Expr v;
 
   if ( is_literal(x) )
@@ -78,7 +78,7 @@ void repl(RlState* rls) {
       clear_port(&Ins);
       port_newline(&Outs, 2);
     } else {
-      x = read_exp(rls, &Ins, NULL);
+      x = read_expr(rls, &Ins, NULL);
     }
 
     if ( (s=rl_setjmp(rls)) ) {
@@ -89,9 +89,9 @@ void repl(RlState* rls) {
       clear_port(&Ins);
       port_newline(&Outs, 2);
     } else {
-      v = eval_exp(rls, x);
+      v = eval_expr(rls, x);
       pprintf(&Outs, "\n>>> ");
-      print_exp(&Outs, v);
+      print_expr(&Outs, v);
       port_newline(&Outs, 2);
     }
   }

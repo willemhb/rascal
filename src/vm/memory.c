@@ -35,7 +35,7 @@ static void mark_vm(RlState* rls) {
   mark_obj(rls, rls->exec);
 
   for ( StackRef s=rls->stack; s < rls->s_top; s++ )
-    mark_exp(rls, *s);
+    mark_expr(rls, *s);
 }
 
 static void mark_globals(RlState* rls) {
@@ -257,7 +257,7 @@ void release(RlState* rls, void* spc, size_t n) {
 // misc GC helpers
 void trace_expr_array(RlState* rls, Expr* exprs, int n) {
   for ( int i=0; i<n; i++ )
-    mark_exp(rls, exprs[i]);
+    mark_expr(rls, exprs[i]);
 }
 
 void trace_obj_array(RlState* rls, Obj** objs, int n) {

@@ -5,7 +5,7 @@
 
 // globals --------------------------------------------------------------------
 // forward declarations -------------------------------------------------------
-Expr  eval_exp(RlState* rls, Expr x);
+Expr  eval_expr(RlState* rls, Expr x);
 void  repl(RlState* rls);
 void  toplevel_repl(RlState* rls);
 

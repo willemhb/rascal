@@ -174,12 +174,12 @@ void disassemble_chunk(Chunk* chunk) {
         printf("%.8d %.8d %-16s %.5d ----- ", line, offset, name, arg);
 
         if ( op == OP_GET_VALUE ) {
-          print_exp(&Outs, vals[arg]);
+          print_expr(&Outs, vals[arg]);
 
         } else if ( op == OP_GET_GLOBAL || op == OP_SET_GLOBAL ) {
-          print_exp(&Outs, vals[arg]);
+          print_expr(&Outs, vals[arg]);
         } else if ( op == OP_GET_LOCAL || op == OP_SET_LOCAL ) {
-          print_exp(&Outs, tag_obj(local_ref(vars, arg)));
+          print_expr(&Outs, tag_obj(local_ref(vars, arg)));
         } else if ( op == OP_GLYPH ) {
           char* name = char_name(arg);
 
@@ -312,7 +312,7 @@ Method* fun_get_method(Fun* fun, int argc) {
 
   Method* out = NULL;
 
-  if ( is_singleton_fn(fun) ) {
+  if ( is_singleton_fun(fun) ) {
     if ( argc_match(fun->method, argc) )
       out = fun->method;
   } else {
@@ -350,10 +350,10 @@ void print_fun(Port* ios, Expr x) {
   Fun* fun = as_fun(x);
 
   if ( fun->macro )
-    pprintf(ios, "<macro:%s/%d>", fn_name(fun), fun->mcount);
+    pprintf(ios, "<macro:%s/%d>", fun_name(fun), fun->mcount);
 
   else
-    pprintf(ios, "<fun:%s/%d>", fn_name(fun), fun->mcount);
+    pprintf(ios, "<fun:%s/%d>", fun_name(fun), fun->mcount);
 }
 
 void trace_fun(RlState* rls, void* ptr) {
