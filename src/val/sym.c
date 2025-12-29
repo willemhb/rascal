@@ -48,7 +48,7 @@ Sym* mk_gensym(RlState* rls, char* val) {
   StackRef top = rls->s_top;
   Sym* s = mk_obj_s(rls, &SymType, 0);
   s->val  = mk_str(rls, val);
-  s->idno = counter++;
+  s->idno = ++counter;
   // mix common symbol hash with idno hash
   s->hash = mix_hashes(hash_word(s->idno), hash_word(s->val->hash));
   rls->s_top = top;

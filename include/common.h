@@ -110,5 +110,6 @@ typedef bool (*HasFn)(Type* tx, Type* ty);
 #define clz         __builtin_clzl
 #define popc        __builtin_popcountl
 #define unreachable __builtin_unreachable
+#define c_generic   _Generic
 
 #endif

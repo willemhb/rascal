@@ -89,7 +89,7 @@ UpVal* get_upv(RlState* rls, Expr* loc);
 void close_upvs(RlState* rls, Expr* base);
 
 // frame helpers
-void install_method(RlState* rls, Method* method);
+void install_method(RlState* rls, Method* method, int argc);
 void save_call_frame(RlState* rls);
 void save_call_frame_s(RlState* rls);
 void restore_call_frame(RlState* rls);

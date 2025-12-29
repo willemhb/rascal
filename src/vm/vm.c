@@ -314,10 +314,10 @@ void close_upvs(RlState* rls, Expr* base) {
 }
 
 // frame manipulation
-void install_method(RlState* rls, Method* method) {
+void install_method(RlState* rls, Method* method, int argc) {
   rls->exec = method;
   rls->pc = method_code(method);
-  rls->base = rls->s_top - method_formalc(method);
+  rls->base = rls->s_top - argc;
 }
 
 void save_call_frame(RlState* rls) {

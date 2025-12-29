@@ -177,7 +177,7 @@ void disassemble_chunk(Chunk* chunk) {
           print_exp(&Outs, vals[arg]);
 
         } else if ( op == OP_GET_GLOBAL || op == OP_SET_GLOBAL ) {
-          print_exp(&Outs, tag_obj(Vm.globals->vals.data[arg]));
+          print_exp(&Outs, vals[arg]);
         } else if ( op == OP_GET_LOCAL || op == OP_SET_LOCAL ) {
           print_exp(&Outs, tag_obj(local_ref(vars, arg)));
         } else if ( op == OP_GLYPH ) {

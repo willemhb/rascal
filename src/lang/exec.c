@@ -12,12 +12,50 @@ enum {
 // Prototypes -----------------------------------------------------------------
 // Helpers
 bool is_falsey(Expr x);
+Expr get_global_ref(RlState* rls, int o);
+void set_global_ref(RlState* rls, int o, Expr v);
 Expr do_load(RlState* rls, char* fname);
 
 // Implementations ------------------------------------------------------------
 // Helpers
 bool is_falsey(Expr x) {
   return x == NONE || x == NUL || x == FALSE;
+}
+
+Expr get_global_ref(RlState* rls, int o) {
+  Expr x = chunk_vals(rls->exec->chunk)[o];
+  Ref* r;
+  Sym* n;
+
+  if ( is_sym(x) ) { // perform slow lookup and validation once, then cache in vals array
+    n = as_sym(x);
+    r = toplevel_env_find(rls, rls->vm->globals, n);
+    require(rls, r != NULL, "undefined variable %s.", sym_val(n));
+    require(rls, r->val != NONE, "%s referenced before initialization.", sym_val(n));
+    chunk_vals(rls->exec->chunk)[o] = tag_obj(r);
+  } else {
+    r = as_ref(x);
+  }
+
+  return r->val;
+}
+
+void set_global_ref(RlState* rls, int o, Expr v) {
+  Expr x = chunk_vals(rls->exec->chunk)[o];
+  Ref* r;
+  Sym* n;
+
+  if ( is_sym(x) ) { // perform slow lookup and validation once, then cache in vals array
+    n = as_sym(x);
+    r = toplevel_env_find(rls, rls->vm->globals, n);
+    require(rls, r != NULL, "undefined variable %s.", sym_val(n));
+    require(rls, r->val == NONE || !r->final,
+            "illegal assignment to initialized final variable %s.", sym_val(n));
+    chunk_vals(rls->exec->chunk)[o] = tag_obj(r);
+  } else {
+    r = as_ref(x);
+  }
+  r->val = v;
 }
 
 // External
@@ -30,6 +68,7 @@ Expr load_file(RlState* rls, char* fname) {
   v = exec_code(rls, 1, 0);
   return v;
 }
+
 
 Expr exec_code(RlState* rls, int nargs, int flags) {
   #define ARGS rls->base
@@ -168,7 +207,7 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
   Fun* fx;
   Method* method;
   MethodTable* mtx;
-  Sym* nx;
+  // Sym* nx;
   Str* sx;
   Ctl* cx;
   Tuple* tx;
@@ -234,7 +273,7 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
   x = tag_num(argx);
   stack_push(rls, x);
   goto fetch;
-  
+
   // value/variable instructions ----------------------------------------------
  op_get_value: // load a value from the constant store
   argx = next_op(rls);
@@ -244,15 +283,14 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
 
  op_get_global:
   argx = next_op(rls); // previously resolved index in global environment
-  x = toplevel_env_ref(rls, Vm.globals, argx);
-  require(rls, x != NONE, "undefined reference.");
+  x = get_global_ref(rls, argx);
   stack_push(rls, x);
   goto fetch;
 
  op_set_global:
   argx = next_op(rls);
   x = tos(rls);
-  toplevel_env_refset(rls, Vm.globals, argx, x);
+  set_global_ref(rls, argx, x);
   goto fetch;
 
  op_add_method: // used to add methods to generic functions and to initialize closures.
@@ -345,7 +383,7 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
   // call frame just like user methods. This helps to make error reporting more
   // consistent
   save_call_frame_s(rls);
-  install_method(rls, method);
+  install_method(rls, method, argc);
   op = method->label;
   goto *labels[op];
 
@@ -356,17 +394,13 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
     List* rest = mk_list(rls, extra);
     stack_popn(rls, extra);
     stack_push(rls, tag_obj(rest));
-    argc = method_argc(method) + 1;
+    argc = method_formalc(method);
   }
 
   save_call_frame_s(rls); // save caller state
-  install_method(rls, method);
+  install_method(rls, method, argc);
 
   goto fetch;
-
-  install_method(rls, method);
-  op = method->label;
-  goto *labels[op];
 
  op_closure:
   // Get the Fun from TOS, extract its Method, create a closure

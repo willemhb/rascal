@@ -19,9 +19,9 @@ struct Ref {
   Sym* name;
   RefCode ref_type;
   int offset;
-  bool macro; // true if this ref points to a macro
-  bool final; // true if this ref can't be reassigned (initial value is always NONE)
-  Expr val; // only used at Global scope
+  bool macro;   // true if this ref points to a macro
+  bool final;   // true if this ref can't be reassigned (initial value is always NONE)
+  Expr val;     // only used at Global scope
 };
 
 // special indirecting containers for closure variables

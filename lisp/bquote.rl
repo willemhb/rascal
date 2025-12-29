@@ -41,7 +41,7 @@
 (fun bq-transform-list (xs)
   (if (has-splice? xs)
     ;; Has splices: use concat
-    (cons 'concat (list (bq-build-segments xs)))
+    (list 'concat (cons 'list (bq-build-segments xs)))
     ;; No splices: use list
     (cons 'list (map bq-transform xs))))
 

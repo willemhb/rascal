@@ -95,8 +95,8 @@ struct Type {
 #define NONE    0x7ffc000000000000ul
 #define NUL     0x7ffd000000000000ul
 #define EOS     0xfffc0000fffffffful
-#define TRUE    0x7fff000000000001ul
-#define FALSE   0x7fff000000000000ul
+#define TRUE    0x7ffe000000000001ul
+#define FALSE   0x7ffe000000000000ul
 #define RL_ZERO 0x0000000000000000ul
 #define RL_ONE  0x3ff0000000000000ul
 

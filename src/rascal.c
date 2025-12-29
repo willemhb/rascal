@@ -71,6 +71,19 @@ void init_vm(void) {
 }
 
 void init_standard_library(void) {
+  // load the standard library file
+  save_error_state(&Main, 0);
+
+  if ( rl_setjmp(&Main) ) {
+    printf("failed to load lisp/boot.rl");
+    restore_error_state(&Main);
+  } else {
+    load_file(&Main, "lisp/boot.rl");
+    load_file(&Main, "lisp/bquote.rl");
+  }
+
+  discard_error_state(&Main);
+
 #ifdef RASCAL_DEBUG
   save_error_state(&Main, 0);
 
@@ -82,19 +95,7 @@ void init_standard_library(void) {
   }
 
   discard_error_state(&Main);
-#endif
-  
-  // load the standard library file
-  save_error_state(&Main, 0);
-
-  if ( rl_setjmp(&Main) ) {
-    printf("failed to load lisp/boot.rl");
-    restore_error_state(&Main);
-  } else {
-    load_file(&Main, "lisp/boot.rl");
-  }
-
-  discard_error_state(&Main);
+#endif 
 }
 
 void print_welcome(void) {
