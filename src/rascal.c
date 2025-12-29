@@ -80,6 +80,9 @@ void init_standard_library(void) {
   } else {
     load_file(&Main, "lisp/boot.rl");
     load_file(&Main, "lisp/bquote.rl");
+    load_file(&Main, "lisp/core.rl");
+    load_file(&Main, "lisp/oslib.rl");
+    load_file(&Main, "lisp/math.rl");
   }
 
   discard_error_state(&Main);

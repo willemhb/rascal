@@ -13,9 +13,8 @@
 enum {
   CF_NO_POP  = 0x01,
   CF_ALLOW_DEF = 0x02,
-  CF_DEF_FORM = 0x04,
-  CF_MACRO_BODY = 0x08,
-  CF_TAIL_POSITION = 0x10,
+  CF_TOPLEVEL_FORM = 0x04,
+  CF_TAIL_POSITION = 0x80,
 };
 
 // Prototypes -----------------------------------------------------------------
@@ -337,20 +336,24 @@ void compile_quote(RlState* rls, List* form, Chunk* chunk, int* flags, int* line
 }
 
 void compile_def(RlState* rls, List* form, Chunk* chunk, int* flags, int* line) {
-  int candef, arg; OpCode op; Sym* n; Ref* r; Expr x;
+  int candef, arg; bool a; OpCode op; Sym* n; Ref* r; Expr x;
 
-  // some of this validation is redundant with that performed in `compile_inner_defs`
-  // but doing it again is easier than creating a special case everywhere else `def`
-  // might be encountered
   candef = *flags & CF_ALLOW_DEF;
-  syntax_require(rls, candef,
-                 form, "`def` not allowed in current context.");
-  syntax_require_argco(rls, form, 2);
-  n = syntax_as_sym_s(rls, form, list_snd(form)); // name
-  x = list_thd(form);                             // binding
-  r = env_resolve(rls, chunk->vars, n, false);
-  syntax_require(rls, r != NULL, form,
-                 "unbound symbol %s", sym_val(n));
+  syntax_require(rls, candef, form, "`def` not allowed in current context.");
+
+  if ( is_global_env(chunk->vars) ) {
+    // validation and definition not done elsewhere
+      syntax_require_argco(rls, form, 2);
+      n = get_assignment(rls, form);
+      r = env_define(rls, chunk->vars, n, false, false, &a);
+      syntax_require(rls, a, form,
+                     "redefining symbol %s.", sym_val(n));
+  } else {
+    n = as_sym(list_snd(form));
+    r = env_resolve(rls, chunk->vars, n, false);
+    syntax_require(rls, r != NULL, form, "unbound symbol %s.", sym_val(n));
+  }
+
   *flags &= ~CF_ALLOW_DEF; // temporarily disable to avoid goofy shit
   x = list_thd(form);      // binding
 
@@ -365,8 +368,13 @@ void compile_def(RlState* rls, List* form, Chunk* chunk, int* flags, int* line) 
     compile_expr(rls, x, chunk, flags, line);
   }
 
+  if ( r->ref_type == REF_GLOBAL ) {
+    compile_global_assignment(rls, r, chunk);
+  } else {
   get_set_instr(r, &op, &arg);
-  emit_instr(rls, chunk, op, arg);
+  emit_instr(rls, chunk, op, arg); 
+  }
+
   *flags |= CF_ALLOW_DEF;
 }
 
@@ -851,7 +859,7 @@ void compile_expr(RlState* rls, Expr x, Chunk* chunk, int* flags, int* line) {
 Fun* toplevel_compile(RlState* rls, Expr x) {
   // invoked from the repl and by the compile builtin
   Sym* n; Fun* f; Chunk* c; Method* m; Str* s;
-  int fl = CF_ALLOW_DEF;
+  int fl = CF_ALLOW_DEF | CF_TOPLEVEL_FORM;
 
   save_error_state(rls, 0);
 
@@ -928,6 +936,11 @@ Fun* compile_file(RlState* rls, char* fname) {
     // reset stack
     rls->s_top = top;
   }
+
+#ifdef RASCAL_DEBUG
+  //  if ( fun )
+  //  disassemble_method(fun->method);
+#endif
 
   discard_error_state(rls);
   return fun;

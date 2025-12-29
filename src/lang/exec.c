@@ -907,7 +907,8 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
     // Call
     x = ffi_do_call(rls, ffx, ret_type, ffi_argc, arg_types, &ARGS[3]);
 
-    if (arg_types) release(rls, arg_types, ffi_argc * sizeof(FfiTypeCode));
+    if (arg_types)
+      release(rls, arg_types, ffi_argc * sizeof(FfiTypeCode));
 
     stack_push(rls, x);
     goto op_return;
