@@ -1,35 +1,118 @@
-# rascal
-A little lisp with big dreams.
+# Overview
+A Lisp dialect with a focus on extensibility through macros, generic functions, and algebraic effects. Currently in an intermediate state but you can start to get the picture. Check `TODO.md` to get an idea of the current state of the project.
 
-## done
-* <strike>Closures</strike>
-* <strike>`load` (disk IO)</strike>
-* <strike>Variadic functions</strike>
-* <strike>First class types</strike>
-* <strike>Arity overloading (baby step toward generic functions)</strike>
-* <strike>Macros</strike>
+# Features
+## Macros
+Pretty standard Lisp stuff. Common Lisp style macros with a long term ambition to support some of Clojure's innovations in this field (in particular embedding gensyms in syntax templates).
 
-## next up
-* Gensyms
-* Quasiquote
-* Tail calls
-* `c-call` (basic FFI)
+```lisp
+(stx when
+ (test & body)
+ `(if ~test (do ~@body)))
+ 
+(when (isa? 1 Num)
+ (println &outs "`when` works as expected."))
 
-## medium term
-* Algebraic effects (should be surprisingly easy)
-* Fancy immutable collection types (Vec, Map, Bin)
-* Better variable semantics
-* Metadata maybe??
-* Actual debugging info
-* User-defined types
-* Union types
-* Module system
-* Reader extensions
-* Standard library??
-* Self-hosted compiler
+(stx var
+ (name bind)
+ `(def ~name ~bind))
 
-## far future
-* Julia style generic functions
-* New syntax
-* Standard library
-* Actually fast GC
+(stx val
+ (name bind)
+ `(def ~(with-metadata name :final true) ~bind))
+
+```
+
+## Generic Functions
+All functions are generic, making the language extremely flexible and extinsible. `Julia` pretty much proved that this is the solution to the expression problem and I'm not sure why more languages aren't doing it.
+
+```lisp
+(fun conj 
+ (x xs: List)
+ (cons x xs))
+
+(fun conj
+ (g: Glyph cs: Str)
+ (str (cons x (chars cs))))
+
+ (fun fmap
+  (f: Fun xs: List)
+  (if (empty? xs)
+   ()
+   (cons (f (head xs))
+         (fmap f (tail xs)))))
+
+ (fun fmap
+  (n: Num xs: List)
+  (fmap (fun (x) (ref n x)) xs))
+```
+
+Macros are also generic, allowing constructs like the one below to be implemented easily.
+
+```lisp
+(stx fun
+ (name: Sym doc: Str formals: List & body)
+ `(fun ~(with-metadata name :doc doc) ~formals ~@body))
+```
+
+## Algebraic Effects
+Probably a slight misnomer, but basically an interface for delimited continuations that makes them actually usable.
+
+```lisp
+(fun get-input-if-nul 
+ (f x)
+ (def input
+  (if (nul? x) (raise :input (fun-name f)) x))
+  (f input))
+
+(handle
+ ((op arg k)
+  (cond 
+   ((=? op :error) (println arg) nul)
+   ((=? op :input) (k (getln "need an input for %s: " arg)))
+   (otherwise      (raise op arg k))) ;; try next handler
+ (get-input-if-nul println)))
+```
+
+Obviously that's a pain in the ass but in combination with macros it's an extremely powerful tool for language extension.
+
+```lisp
+;; basic exceptions
+(stx throw
+ (etype message & more)
+ `(raise ~etype (list ~message ~@more)))
+
+(stx catch
+ (handlers & body)
+ (let ((handler-args `(~@(head handlers) _)) ; `k` unused in exceptions.
+       (handler-clauses (tail hanlders)))
+  `(handle (~handler-args (case ~@handler-clauses)) ~@body)))
+  
+;; Python style generators.
+(fun yield
+ (x)
+ (raise :yield x))
+
+(fun make-coro
+ (fn)
+ (fun (& args)
+  (def resume nul)
+  (fun inner (x & args)
+   (if resume
+    (resume x)
+    (handle 
+     ((op arg k)
+      (case op
+      (:yield    (put resume k) arg)
+      (otherwise (raise op arg k))))
+     (apply fn x args))))
+  (apply inner args)))
+
+(stx coro
+ (args: List & body)
+ `(make-coro (fn ~args ~@body)))
+
+(stx coro
+ (name: Sym args: List & body)
+ `(def ~name (make-coro (fn ~args ~@body))))
+```

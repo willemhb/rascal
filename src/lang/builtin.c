@@ -50,6 +50,17 @@ void define_builtins(void) {
   def_builtin_fun(&Main, "tuple-ref", 2, false, OP_TUPLE_REF);
   def_builtin_fun(&Main, "tuple-len", 1, false, OP_TUPLE_LEN);
 
+  // map
+  def_builtin_fun(&Main, "make-map", 0, true, OP_MAP);
+  fun = def_builtin_fun(&Main, "get", 2, false, OP_MAP_GET);
+  add_builtin_method(&Main, fun, 3, false, OP_MAP_GET);  // with default
+  def_builtin_fun(&Main, "assoc", 1, true, OP_MAP_ASSOC);
+  def_builtin_fun(&Main, "dissoc", 1, true, OP_MAP_DISSOC);
+  def_builtin_fun(&Main, "keys", 1, false, OP_MAP_KEYS);
+  def_builtin_fun(&Main, "vals", 1, false, OP_MAP_VALS);
+  def_builtin_fun(&Main, "map-len", 1, false, OP_MAP_LEN);
+  def_builtin_fun(&Main, "contains?", 2, false, OP_MAP_HAS);
+
   // interpreter
   def_builtin_fun(&Main, "read", 1, false, OP_READ);
   def_builtin_fun(&Main, "eval", 1, false, OP_EVAL);

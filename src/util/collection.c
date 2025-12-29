@@ -454,6 +454,49 @@ void* bit_vec_get(BitVec* bv, int n) {
   return bv->data[i];
 }
 
+void* bit_vec_update(RlState* rls, BitVec* bv, int n, void* d) {
+  (void)rls;
+  assert(bit_vec_has(bv, n));
+
+  int i = bitmap_to_index(bv->bitmap, n);
+  void* old = bv->data[i];
+  bv->data[i] = d;
+  return old;
+}
+
+void bit_vec_clone(RlState* rls, BitVec* src, BitVec* dst) {
+  (void)rls;
+
+  dst->bitmap = src->bitmap;
+  dst->count = src->count;
+  dst->maxc = src->maxc;
+
+  if ( src->count > 0 ) {
+    dst->data = allocate(NULL, src->maxc * sizeof(void*));
+    memcpy(dst->data, src->data, src->count * sizeof(void*));
+  } else {
+    dst->data = NULL;
+  }
+}
+
+static void bitmap_clear(uintptr_t* map, int n) {
+  assert(n >= 0 && n < MAX_FARGC);
+  *map &= ~(1ul << n);
+}
+
+void bit_vec_remove(RlState* rls, BitVec* bv, int n) {
+  (void)rls;
+  assert(bit_vec_has(bv, n));
+
+  int i = bitmap_to_index(bv->bitmap, n);
+
+  if ( i < bv->count - 1 )
+    memmove(bv->data + i, bv->data + i + 1, (bv->count - i - 1) * sizeof(void*));
+
+  bitmap_clear(&bv->bitmap, n);
+  bv->count--;
+}
+
 // Strings table implementation -----------------------------------------------
 #define check_grow(t) ((t)->count >= ((t)->maxc * LOADF))
 

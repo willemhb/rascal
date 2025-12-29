@@ -55,6 +55,8 @@ typedef struct List List;
 typedef struct Tuple Tuple;
 typedef struct LibHandle LibHandle;
 typedef struct ForeignFn ForeignFn;
+typedef struct Map Map;
+typedef struct MapNode MapNode;
 
 typedef union {
   Expr  expr;
@@ -99,7 +101,7 @@ typedef bool (*HasFn)(Type* tx, Type* ty);
 #define VERSION "%.2d.%.2d.%.2d.%s"
 #define WELCOME "Welcome to rascal version "VERSION"!"
 #define MAJOR   0
-#define MINOR   13
+#define MINOR   14
 #define PATCH   1
 #define RELEASE "a"
 

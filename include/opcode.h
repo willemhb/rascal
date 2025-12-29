@@ -93,6 +93,16 @@ typedef enum {
   OP_TUPLE_REF,
   OP_TUPLE_LEN,
 
+  // map operations
+  OP_MAP,
+  OP_MAP_GET,
+  OP_MAP_ASSOC,
+  OP_MAP_DISSOC,
+  OP_MAP_KEYS,
+  OP_MAP_VALS,
+  OP_MAP_LEN,
+  OP_MAP_HAS,
+
   // interpreter builtins
   OP_READ,
   OP_EVAL,

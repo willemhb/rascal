@@ -86,6 +86,9 @@ void grow_bit_vec(RlState* rls, BitVec* bv);
 bool bit_vec_has(BitVec* bv, int n);
 void bit_vec_set(RlState* rls, BitVec* bv, int n, void* d);
 void* bit_vec_get(BitVec* bv, int n);
+void* bit_vec_update(RlState* rls, BitVec* bv, int n, void* d);
+void bit_vec_clone(RlState* rls, BitVec* src, BitVec* dst);
+void bit_vec_remove(RlState* rls, BitVec* bv, int n);
 
 // Table types ----------------------------------------------------------------
 // Strings - hash table mapping char* to Str*

@@ -48,7 +48,9 @@ enum {
   EXP_TUPLE,
   EXP_NUM,
   EXP_LIBHANDLE,
-  EXP_FOREIGNFN
+  EXP_FOREIGNFN,
+  EXP_MAP,
+  EXP_MAP_NODE
 };
 
 typedef enum {
@@ -138,7 +140,7 @@ void  free_obj(RlState* rls, void *ptr);
 extern Type TypeType, NoneType, NulType, BoolType, GlyphType,
   ChunkType, RefType, UpValType, EnvType, CtlType, PortType, FunType,
   MethodType, MethodTableType, SymType, StrType, ListType, TupleType,
-  NumType, LibHandleType, ForeignFnType;
+  NumType, LibHandleType, ForeignFnType, MapType, MapNodeType;
 
 // safe cast macro
 #define as_type_s(rls, x) ((Type*)as_obj_s(rls, &TypeType, x))

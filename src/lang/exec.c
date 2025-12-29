@@ -3,6 +3,7 @@
 #include "lang.h"
 #include "val.h"
 #include "val/ffi.h"
+#include "val/map.h"
 #include "vm.h"
 
 // Globals --------------------------------------------------------------------
@@ -161,6 +162,16 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
     [OP_TUPLE_REF]   = &&op_tuple_ref,
     [OP_TUPLE_LEN]   = &&op_tuple_len,
 
+    // map operations ---------------------------------------------------------
+    [OP_MAP]         = &&op_map,
+    [OP_MAP_GET]     = &&op_map_get,
+    [OP_MAP_ASSOC]   = &&op_map_assoc,
+    [OP_MAP_DISSOC]  = &&op_map_dissoc,
+    [OP_MAP_KEYS]    = &&op_map_keys,
+    [OP_MAP_VALS]    = &&op_map_vals,
+    [OP_MAP_LEN]     = &&op_map_len,
+    [OP_MAP_HAS]     = &&op_map_has,
+
     // interpreter builtins ---------------------------------------------------
     [OP_READ]        = &&op_read,
     [OP_EVAL]        = &&op_eval,
@@ -213,6 +224,7 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
   Tuple* tx;
   LibHandle* lhx;
   ForeignFn* ffx;
+  Map* mx;
 
   // initialize
   goto do_call;
@@ -688,6 +700,90 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
   tx = as_tuple_s(rls, ARGS[0]);
   stack_push(rls, tag_num(tx->count));
   goto op_return;
+
+ op_map: {
+  // OP_MAP takes an argument for the number of key-value pairs
+  // Stack contains: key1, val1, key2, val2, ... (2*argc values)
+  argx = next_op(rls);
+  mx = mk_map(rls);
+
+  for ( int i = 0; i < argx; i++ ) {
+    x = rls->s_top[-(2*argx) + (2*i)];     // key
+    y = rls->s_top[-(2*argx) + (2*i) + 1]; // val
+    mx = map_assoc(rls, mx, x, y);
+  }
+
+  stack_popn(rls, 2*argx);
+  stack_push(rls, tag_obj(mx));
+  goto fetch;
+  }
+
+ op_map_get: {
+  // (get map key) or (get map key default)
+  mx = as_map_s(rls, ARGS[0]);
+  x = ARGS[1];
+  Expr result;
+
+  if ( map_get(mx, x, &result) ) {
+    stack_push(rls, result);
+  } else if ( argc >= 3 ) {
+    stack_push(rls, ARGS[2]); // default value
+  } else {
+    stack_push(rls, NUL);
+  }
+  goto op_return;
+  }
+
+ op_map_assoc: {
+  // (assoc map key val key val ...)
+  mx = as_map_s(rls, ARGS[0]);
+
+  for ( int i = 1; i < argc; i += 2 ) {
+    require(rls, i + 1 < argc, "assoc requires an even number of key-value arguments");
+    mx = map_assoc(rls, mx, ARGS[i], ARGS[i+1]);
+  }
+
+  stack_push(rls, tag_obj(mx));
+  goto op_return;
+  }
+
+ op_map_dissoc: {
+  // (dissoc map key key ...)
+  mx = as_map_s(rls, ARGS[0]);
+
+  for ( int i = 1; i < argc; i++ ) {
+    mx = map_dissoc(rls, mx, ARGS[i]);
+  }
+
+  stack_push(rls, tag_obj(mx));
+  goto op_return;
+  }
+
+ op_map_keys: {
+  mx = as_map_s(rls, ARGS[0]);
+  lx = map_keys(rls, mx);
+  stack_push(rls, tag_obj(lx));
+  goto op_return;
+  }
+
+ op_map_vals: {
+  mx = as_map_s(rls, ARGS[0]);
+  lx = map_vals(rls, mx);
+  stack_push(rls, tag_obj(lx));
+  goto op_return;
+  }
+
+ op_map_len:
+  mx = as_map_s(rls, ARGS[0]);
+  stack_push(rls, tag_num(map_count(mx)));
+  goto op_return;
+
+ op_map_has: {
+  mx = as_map_s(rls, ARGS[0]);
+  x = ARGS[1];
+  stack_push(rls, map_contains(mx, x) ? TRUE : FALSE);
+  goto op_return;
+  }
 
  op_read:
   require_argtype(rls, &PortType, ARGS[0]);

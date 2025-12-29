@@ -19,6 +19,7 @@ Expr read_tick(RlState* rls, Port* in, int* line);
 Expr read_tilde(RlState* rls, Port* in, int* line);
 Expr read_list(RlState* rls, Port *in, int* line);
 Expr read_tuple(RlState* rls, Port* in, int* line);
+Expr read_map(RlState* rls, Port* in, int* line);
 Expr read_string(RlState* rls, Port* in);
 Expr read_atom(RlState* rls, Port* in);
 
@@ -250,6 +251,41 @@ Expr read_tuple(RlState* rls, Port* in, int* line) {
   return tag_obj(out);
 }
 
+Expr read_map(RlState* rls, Port* in, int* line) {
+  // Reads {:key1 val1 :key2 val2} and creates (make-map key1 val1 key2 val2)
+  List* out;
+  pgetc(in); // consume the '{'
+  skip_space(in, line);
+  Expr x;
+  int n = 0, c;
+  StackRef top = rls->s_top;
+
+  // push the 'make-map symbol first
+  mk_sym_s(rls, "make-map");
+  n++;
+
+  while ( (c=ppeekc(in)) != '}' ) {
+    if ( peof(in) )
+      runtime_error(rls, "unterminated map.");
+
+    x = read_expr(rls, in, line);
+    stack_push(rls, x);
+    n++;
+    skip_space(in, line);
+  }
+
+  pgetc(in); // consume '}'
+
+  // Validate even number of key-value pairs (n-1 for make-map symbol)
+  if ( (n - 1) % 2 != 0 )
+    read_error(rls, "map literal requires an even number of elements.");
+
+  out = mk_list(rls, n);
+  rls->s_top = top; // restore stack
+
+  return tag_obj(out);
+}
+
 Expr read_list(RlState* rls, Port* in, int* line) {
   List* out;
   pgetc(in); // consume the '('
@@ -370,9 +406,11 @@ Expr read_expr(RlState* rls, Port *in, int* line) {
     x = read_string(rls, in);
   else if ( c == '[' )
     x = read_tuple(rls, in, line);
+  else if ( c == '{' )
+    x = read_map(rls, in, line);
   else if ( is_sym_char(c) )
     x = read_atom(rls, in);
-  else if ( strchr(")]", c) ) {
+  else if ( strchr(")]}", c) ) {
     pgetc(in); // clear dangling delimiter
     read_error(rls, "dangling '%c'", c);
   }

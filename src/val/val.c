@@ -7,6 +7,7 @@
 #include "val/env.h"
 #include "val/port.h"
 #include "val/ffi.h"
+#include "val/map.h"
 #include "vm.h"
 #include "lang.h"
 
@@ -115,6 +116,8 @@ void register_builtin_types(RlState* rls) {
   init_builtin_type(rls, &NumType, "Num");
   init_builtin_type(rls, &LibHandleType, "LibHandle");
   init_builtin_type(rls, &ForeignFnType, "ForeignFn");
+  init_builtin_type(rls, &MapType, "Map");
+  init_builtin_type(rls, &MapNodeType, "MapNode");
 }
 
 // utility array APIs
