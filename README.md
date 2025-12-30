@@ -126,3 +126,14 @@ Obviously that's a pain in the ass but in combination with macros it's an extrem
  (name: Sym args: List & body)
  `(def ~name (make-coro (fn ~args ~@body))))
 ```
+
+## Other Stuff
+
+Persistent hash maps and tuples with full reader support.
+
+```lisp
+(val example {:x 1, :y 2, :z 3})
+
+(assc example :a 30) ;; {:x 1, :a 30, :y 2, :z 3}
+
+```

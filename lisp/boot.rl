@@ -77,12 +77,12 @@
 (fun snd (xs)
   (head (tail xs)))
 
-(fun map-f (f xs)
+(fun fmap (f xs)
   ;; you know this one.
   (if (=? xs ())
     ()
     (cons (f (head xs))
-          (map-f f (tail xs)))))
+          (fmap f (tail xs)))))
 
 (fun filter (p? xs)
   (if

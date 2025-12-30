@@ -25,8 +25,8 @@
   ;; and immediately invokes the thunk.
   ;; this really calls for actually implementing tail recursion.
   (name inits & body)
-  (def formals (map fst inits))
-  (def values  (map snd inits))
+  (def formals (fmap fst inits))
+  (def values  (fmap snd inits))
   (def defn-form
   `(def ~name (fn ~formals ~@body)))
   `((fn () ~defn-form (~name ~@inits))))
@@ -70,9 +70,9 @@
    (p? (head xs)) (every? p? (tail xs))
    otherwise      false))
 
-(fun map-f
+(fun fmap
  (f & xss)
  (if (some? empty? xss)
   ()
-  (cons (apply f (map head xss))
-        (map f (map tail xss)))))
+  (cons (apply f (fmap head xss))
+        (map f (fmap tail xss)))))
