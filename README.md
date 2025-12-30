@@ -62,7 +62,7 @@ Probably a slight misnomer, but basically an interface for delimited continuatio
 (fun get-input-if-nul 
  (f x)
  (def input
-  (if (nul? x) (raise :input (fun-name f)) x))
+  (if x x (raise :input (fun-name f))))
   (f input))
 
 (handle
@@ -87,8 +87,8 @@ Obviously that's a pain in the ass but in combination with macros it's an extrem
  (let ((handler-args `(~@(head handlers) _)) ; `k` unused in exceptions.
        (handler-clauses (tail hanlders)))
   `(handle (~handler-args (case ~@handler-clauses)) ~@body)))
-  
-;; Python style generators.
+
+;; Python style generators in < 20 lines of code.
 (fun yield
  (x)
  (raise :yield x))
@@ -103,8 +103,8 @@ Obviously that's a pain in the ass but in combination with macros it's an extrem
     (handle 
      ((op arg k)
       (case op
-      (:yield    (put resume k) arg)
-      (otherwise (raise op arg k))))
+       (:yield    (put resume k) arg)
+       (otherwise (raise op arg k))))
      (apply fn x args))))
   (apply inner args)))
 
