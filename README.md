@@ -39,7 +39,7 @@ All functions are generic, making the language extremely flexible and extinsible
 
 (fun conj
  (g: Glyph cs: Str)
- (str (cons x (chars cs))))
+ (str (cons g (chars cs))))
 
  (fun fmap
   (f: Fun xs: List)
@@ -49,11 +49,11 @@ All functions are generic, making the language extremely flexible and extinsible
          (fmap f (tail xs)))))
 
  (fun fmap
-  (n: Num xs: List)
-  (fmap (fun (x) (ref n x)) xs))
+  (n: Num xss: List)
+  (fmap (fun (xs) (ref n xs)) xss))
 ```
 
-Macros are also generic, allowing constructs like docstrings in function definitions to be implemented easily to be implemented easily.
+Macros are also generic, allowing constructs like docstrings in function definitions to be implemented easily.
 
 ```lisp
 (stx fun

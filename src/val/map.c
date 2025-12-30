@@ -1,6 +1,7 @@
 #include "val/map.h"
 #include "val/list.h"
 #include "val/port.h"
+#include "val/primitive.h"
 #include "util/util.h"
 #include "vm.h"
 #include "lang.h"
@@ -10,6 +11,7 @@
 #define HASH_MASK 0x3F
 #define MAX_DEPTH 8         // 48 bits / 6 bits per level
 
+/*
 // traverse helper
 typedef struct {
   MapNode* node;
@@ -23,6 +25,7 @@ typedef struct {
   Expr key, val;
   NodeIter stack[MAX_DEPTH], *top;
 } MapIter;
+*/
 
 // forward declarations
 void print_map(Port* ios, Expr x);
@@ -42,9 +45,9 @@ static void node_iter_init(NodeIter* iter, MapNode* map);
 static MapNode* node_iter_next_child(NodeIter* iter);
 */
 
-static MapNode* find_node(RlState* rls, Map* map, Expr key);
+static MapNode* find_node(Map* map, Expr key);
 static void map_insert(RlState* rls, Map* map, Expr key, Expr val);
-static MapNode* map_delete(RlState* rls, Map* map, Expr key, MapNode** buf);
+static void map_delete(RlState* rls, StackRef mbuf, Expr key);
 
 // Type objects
 Type MapNodeType = {
@@ -273,7 +276,11 @@ static void branch_node_set(RlState* rls, MapNode* branch, int index, MapNode* c
   bit_vec_set(rls, &branch->children, index, child);
 }
 
-static MapNode* map_find(Map* map, Expr key) {
+static void branch_node_remove(RlState* rls, MapNode* branch, int index) {
+  bit_vec_remove(rls, &branch->children, index);
+}
+
+static MapNode* find_node(Map* map, Expr key) {
   MapNode* node = map->root, *out = NULL;
 
   hash_t hash = hash_expr(key);
@@ -285,6 +292,8 @@ static MapNode* map_find(Map* map, Expr key) {
     if ( is_leaf(node) ) {
       if ( egal_exprs(key, leaf_key(node)) )
         out = node;
+
+      assert(out != NULL || node->hash != hash);
 
       break;
     }
@@ -303,7 +312,7 @@ static MapNode* map_find(Map* map, Expr key) {
 }
 
 Expr map_get(Map* map, Expr key) {
-  MapNode* node = map_find(map, key);
+  MapNode* node = find_node(map, key);
 
   if ( node == NULL )
     return NONE;
@@ -312,7 +321,7 @@ Expr map_get(Map* map, Expr key) {
 }
 
 bool map_contains(Map* map, Expr key) {
-  return map_find(map, key) != NULL;
+  return find_node(map, key) != NULL;
 }
 
 // recursive insert helper
@@ -382,17 +391,99 @@ static void map_insert(RlState* rls, Map* map, Expr key, Expr val) {
   rls->s_top = top;
 }
 
-static MapNode* map_delete(RlState* rls, Map* map, Expr key, MapNode** rmv) {
-  MapNode* node, *childnode, *newnode, *leafnode;
-  int shift, newshift, index, childindex;
+static void map_delete(RlState* rls, StackRef mbuf, Expr key) {
+  Map* map;
+  MapNode* node, *leafnode;
+  int shift, index;
   bool transient;
-  StackRef top;
-  hash_t hash, childhash;
+  StackRef top, last;
+  hash_t hash;
+  map = as_map(*mbuf);
   top = rls->s_top;
+  last = stack_push(rls, NUL);
   node = map->root;
   hash = hash_expr(key);
   transient = map->transient;
+  hash = hash_expr(key);
+  node = map->root;
+  leafnode = NULL;
 
+  while ( node != NULL && leafnode == NULL ) {
+    if ( is_leaf(node) ) {
+      if ( egal_exprs(key, leaf_key(node)) )
+        leafnode = node;
+
+      assert(leafnode != NULL || hash != node->hash);
+    } else {
+      shift = node->shift;
+      index = hash_index(hash, shift);
+
+      if ( !branch_node_has(node, index) )
+        node = NULL;
+
+      else {
+        stack_push(rls, tag_obj(node));
+        stack_push(rls, tag_fix(index));
+        node = branch_node_get(node, index);
+      }
+    }
+  }
+
+  if ( leafnode != NULL ) { // key was found and removed,
+    if ( transient ) {
+      map = clone_obj(rls, map);
+      *mbuf = tag_obj(map);
+    }
+
+    if ( map->count == 0 )
+      map->root = NULL;
+
+    else {
+      StackRef bottom = last + 1;
+
+      while ( rls->s_top > bottom ) {
+        index = as_fix(stack_pop(rls));
+        node = as_map_node(stack_pop(rls));
+
+        // the complex case. We need to remove singleton branches (if any exist)
+        // and, if the last non-singleton branch 
+        if ( *last == NUL ) {  
+          if ( branch_count(node) == 1 ) // remove singleton branches
+            continue;
+
+          // if the first non-singleton branch is two leaf nodes, delete the node
+          // and move the other leaf to the parent
+          if ( branch_count(node) == 2 ) {
+            int cindex = bitmap_to_index(node->children.bitmap, index);
+            int oindex = cindex == 1 ? 0 : 1;
+            MapNode* ochild = branch_children(node)[oindex];
+
+            if ( is_leaf(ochild) ) {
+              *last = tag_obj(ochild);
+              continue;
+            }
+          }
+
+          if ( transient )
+            node = clone_node(rls, node);
+
+          branch_node_remove(rls, node, index);
+          *last = tag_obj(node);
+        } else {
+          // all other cases are simple
+          if ( transient )
+            node = clone_node(rls, node);
+
+          branch_node_set(rls, node, index, as_map_node(*last));
+          *last = tag_obj(node);
+        }
+      }
+
+      map->root = as_map_node(*last);
+    }
+  }
+
+  rls->s_top = top;
 }
 
 
@@ -411,23 +502,13 @@ Map* map_assoc(RlState* rls, Map* map, Expr key, Expr val) {
 }
 
 // recursive dissoc helper
-Map* map_dissoc(RlState* rls, Map* map, Expr key, MapNode** rmv) {
-    StackRef top = rls->s_top;
+Map* map_dissoc(RlState* rls, Map* map, Expr key) {
+  if ( map->count > 0 ) {
+    Expr* mbuf = stack_push(rls, tag_obj(map));
+    map_delete(rls, mbuf, key);
+    map = as_map(stack_pop(rls));
+  }
 
-    if ( map->count == 0 )
-      return map;
-
-    MapNode* new_root = map_delete(rls, map, key, rmv);
-
-    if ( new_root != map->root ) { // map_delete handles cl
-      if ( !map->transient )
-        map = clone_obj_s(rls, map);
-
-      map->count--;
-      map->root = new_root;
-    }
-
-    rls->s_top = top;
     return map;
 }
 
@@ -460,21 +541,6 @@ static void collect_vals(RlState* rls, MapNode* node) {
   }
 }
 
-static void collect_entries(RlState* rls, MapNode* node) {
-  if ( node == NULL ) return;
-
-  switch ( node->kind ) {
-    case MAP_LEAF:
-      stack_push(rls, node->leaf.key);
-      stack_push(rls, node->leaf.val);
-      break;
-    case MAP_BRANCH:
-      for ( int i = 0; i < node->children.count; i++ )
-        collect_entries(rls, node->children.data[i]);
-      break;
-  }
-}
-
 List* map_keys(RlState* rls, Map* m) {
   StackRef top = rls->s_top;
   stack_push(rls, tag_obj(m));
@@ -501,7 +567,7 @@ static void print_map_nodes(Port* ios, MapNode* node, int* count, int max_count)
     print_expr(ios, leaf_key(node));
     pprintf(ios, " ");
     print_expr(ios, leaf_val(node));
-      
+
     if ( ++(*count) < max_count )
       pprintf(ios, " ");
 
@@ -509,7 +575,7 @@ static void print_map_nodes(Port* ios, MapNode* node, int* count, int max_count)
     for ( int i=0; i < branch_count(node); i++ ) {
       print_map_nodes(ios, branch_children(node)[i], count, max_count);
     }
-  }  
+  }
 }
 
 static void hash_map_nodes(MapNode* node, hash_t* seed) {
@@ -525,7 +591,7 @@ static void hash_map_nodes(MapNode* node, hash_t* seed) {
 static bool egal_map_nodes(MapNode* nx, Map* my) {
   bool out = true;
   if ( is_leaf(nx) ) {
-    MapNode* ny = map_find(my, leaf_key(nx));
+    MapNode* ny = find_node(my, leaf_key(nx));
 
     if ( ny == NULL )
       out = false;

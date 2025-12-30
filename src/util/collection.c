@@ -380,7 +380,7 @@ static bool bitmap_has(uintptr_t map, int n) {
   return (1ul << n) & map;
 }
 
-static int bitmap_to_index(uintptr_t map, int n) {
+int bitmap_to_index(uintptr_t map, int n) {
   if ( n == 0 )
     return 0;
 

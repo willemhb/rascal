@@ -80,6 +80,7 @@ struct BitVec {
   uintptr_t bitmap;
 };
 
+int bitmap_to_index(uintptr_t map, int n);
 void init_bit_vec(RlState* rls, BitVec* bv);
 void free_bit_vec(RlState* rls, BitVec* bv);
 void grow_bit_vec(RlState* rls, BitVec* bv);

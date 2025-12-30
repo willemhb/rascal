@@ -11,7 +11,7 @@ typedef enum {
 
 // A HAMT node - either leaf or a branch
 // this implementation doesn't handle collisions yet
-// since these are astronomically unlikely to happen with 48 bit hashing
+// since these are astronomically unlikely to happen with 48-bit hashing
 // I am choosing to assume this will never happen until an actual public
 // release is in the offing.
 struct MapNode {
@@ -44,7 +44,7 @@ Map* mk_map(RlState* rls, int n);
 Map* mk_map_s(RlState* rls, int n);
 Expr  map_get(Map* m, Expr key);
 Map* map_assoc(RlState* rls, Map* m, Expr key, Expr val);
-Map* map_dissoc(RlState* rls, Map* m, Expr key, MapNode** rmv);
+Map* map_dissoc(RlState* rls, Map* m, Expr key);
 bool map_contains(Map* m, Expr key);
 List* map_keys(RlState* rls, Map* m);
 List* map_vals(RlState* rls, Map* m);
