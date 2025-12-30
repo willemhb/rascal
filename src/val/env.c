@@ -66,7 +66,7 @@ void trace_ref(RlState* rls, void* ptr) {
 
   mark_obj(rls, r->captures);
   mark_obj(rls, r->name);
-  mark_exp(rls, r->val);
+  mark_expr(rls, r->val);
 }
 
 // upval API
@@ -88,7 +88,7 @@ void trace_upval(RlState* rls, void* ptr) {
   UpVal* upv = ptr;
 
   if ( upv->closed )
-    mark_exp(rls, upv->val);
+    mark_expr(rls, upv->val);
 }
 
 // environment API

@@ -44,7 +44,7 @@
     ;; Has splices: use concat
     (list 'concat (cons 'list (bq-build-segments xs)))
     ;; No splices: use list
-    (cons 'list (map bq-transform xs))))
+    (cons 'list (fmap bq-transform xs))))
 
 ;; Build segments for concat: each segment is either a single-element list
 ;; or a spliced list

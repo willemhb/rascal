@@ -310,7 +310,7 @@ Sym SystemError = {
 void init_vm_error(void) {
   // initialize EvalError
   EvalError.val  = mk_str(&Main, ":eval-error");
-  EvalError.hash = hash_word(EvalError.val->hash);
+  EvalError.hashcode = hash_word(EvalError.val->hash);
 
   // add to permanent heap and ErrorSyms array
   add_to_permanent(&Main, &EvalError);
@@ -319,7 +319,7 @@ void init_vm_error(void) {
 
   // initialize RuntimeError
   RuntimeError.val  = mk_str(&Main, ":runtime-error");
-  RuntimeError.hash = hash_word(RuntimeError.val->hash);
+  RuntimeError.hashcode = hash_word(RuntimeError.val->hash);
 
   // add to permanent heap and ErrorSyms array
   add_to_permanent(&Main, &RuntimeError);
@@ -327,7 +327,7 @@ void init_vm_error(void) {
 
   // initialize SystemError
   SystemError.val  = mk_str(&Main, ":system-error");
-  SystemError.hash = hash_word(SystemError.val->hash);
+  SystemError.hashcode = hash_word(SystemError.val->hash);
 
   // add to permanent heap and ErrorSyms array
   add_to_permanent(&Main, &SystemError);

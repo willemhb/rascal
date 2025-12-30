@@ -83,12 +83,13 @@ static MapNode* mk_leaf_node(RlState* rls, hash_t hash, Expr key, Expr val) {
   n->leaf.val = val;
   return n;
 }
-
+/*
 static MapNode* mk_leaf_node_s(RlState* rls, hash_t hash, Expr key, Expr val) {
   MapNode* out = mk_leaf_node(rls, hash, key, val);
   stack_push(rls, tag_obj(out));
   return out;
 }
+*/
 
 static MapNode* mk_branch_node(RlState* rls, int shift) {
   MapNode* n = mk_obj(rls, &MapNodeType, 0);

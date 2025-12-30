@@ -52,10 +52,10 @@ void define_builtins(void) {
 
   // map
   def_builtin_fun(&Main, "make-map", 0, true, OP_MAP);
-  fun = def_builtin_fun(&Main, "get", 2, false, OP_MAP_GET);
-  add_builtin_method(&Main, fun, 3, false, OP_MAP_GET);  // with default
-  def_builtin_fun(&Main, "assoc", 1, true, OP_MAP_ASSOC);
-  def_builtin_fun(&Main, "dissoc", 1, true, OP_MAP_DISSOC);
+  fun = def_builtin_fun(&Main, "get", 2, false, OP_MAP_GET_2);
+  add_builtin_method(&Main, fun, 3, false, OP_MAP_GET_3);
+  def_builtin_fun(&Main, "assoc", 3, false, OP_MAP_ASSOC);
+  def_builtin_fun(&Main, "dissoc", 2, false, OP_MAP_DISSOC);
   def_builtin_fun(&Main, "keys", 1, false, OP_MAP_KEYS);
   def_builtin_fun(&Main, "vals", 1, false, OP_MAP_VALS);
   def_builtin_fun(&Main, "map-len", 1, false, OP_MAP_LEN);

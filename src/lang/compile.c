@@ -437,6 +437,7 @@ void compile_def_method(RlState* rls, List* form, Chunk* chunk, int* flags, int*
                  "%s does not support overloads.", sym_val(name));
   // compile_closure handles adding the method based on what kind of fun it's passed
   compile_closure(rls, fun_form, chunk, generic_fun, flags, line);
+  *flags |= CF_NO_POP;
 }
 
 void compile_put(RlState* rls, List* form, Chunk* chunk, int* flags, int* line) {
@@ -646,15 +647,16 @@ void compile_closure(RlState* rls, List* form, Chunk* chunk, Fun* fun, int* flag
   stack_pop(rls);
   finalize_chunk(rls, lchunk, linec);
   m = mk_user_method_s(rls, fun, argc, va, lchunk);
+  upvc = method_upvc(m);
 
   // what to do with the compiled closure depends on the flags of fun
-  if ( fun->macro ) { // macros should be evaluated immediately
+  if ( fun->macro || fun->generic ) {
+    assert(is_global_env(chunk->vars));
     fun_add_method(rls, fun, m);
   }
 
   else { // closure must be handled at runtime, store method in constants
     compile_literal(rls, tag_obj(m), chunk);
-    upvc = method_upvc(m);
 
     if ( upvc > 0 ) {
       emit_instr(rls, chunk, OP_CLOSURE, upvc);
@@ -663,10 +665,10 @@ void compile_closure(RlState* rls, List* form, Chunk* chunk, Fun* fun, int* flag
 
       for ( int i=0, j=0; i < env_upval_maxc(lchunk->vars) && j < upvc; i++ ) {
         EMapKV* kv = &env_upval_refs(lchunk->vars)[i];
-       
+
         if ( kv->key == NULL )
           continue;
-       
+
         Ref* r = kv->val;
         buffer[j*2] = r->ref_type == REF_LOCAL_UPVAL;
         buffer[j*2+1] = r->captures->offset;

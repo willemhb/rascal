@@ -672,12 +672,12 @@ static bool cmp_symbols(Sym* sx, Sym* sy) {
 }
 
 static hash_t hash_symbol(Sym* sx) {
-  return sx->hash;
+  return sx->hashcode;
 }
 
 static hash_t rehash_symbol(EMapKV* kv) {
   Sym* s = kv->key;
-  return s->hash;
+  return s->hashcode;
 }
 
 static EMapKV* emap_find(EMap* t, Sym* k, hash_t h) {

@@ -398,7 +398,7 @@ void stack_report(RlState* rls, int n, char* fmt, ...) {
 
   for ( int i=n-1; i >= 0; i-- ) {
     printf("%4d ", i);
-    print_exp(&Outs, base[i]);
+    print_expr(&Outs, base[i]);
     printf("\n");
   }
 }

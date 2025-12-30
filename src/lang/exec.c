@@ -164,7 +164,8 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
 
     // map operations ---------------------------------------------------------
     [OP_MAP]         = &&op_map,
-    [OP_MAP_GET]     = &&op_map_get,
+    [OP_MAP_GET_2]   = &&op_map_get_2,
+    [OP_MAP_GET_3]   = &&op_map_get_3,
     [OP_MAP_ASSOC]   = &&op_map_assoc,
     [OP_MAP_DISSOC]  = &&op_map_dissoc,
     [OP_MAP_KEYS]    = &&op_map_keys,
@@ -701,69 +702,51 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
   stack_push(rls, tag_num(tx->count));
   goto op_return;
 
- op_map: {
-  // OP_MAP takes an argument for the number of key-value pairs
-  // Stack contains: key1, val1, key2, val2, ... (2*argc values)
-  argx = next_op(rls);
-  mx = mk_map(rls);
-
-  for ( int i = 0; i < argx; i++ ) {
-    x = rls->s_top[-(2*argx) + (2*i)];     // key
-    y = rls->s_top[-(2*argx) + (2*i) + 1]; // val
-    mx = map_assoc(rls, mx, x, y);
-  }
-
-  stack_popn(rls, 2*argx);
-  stack_push(rls, tag_obj(mx));
-  goto fetch;
-  }
-
- op_map_get: {
-  // (get map key) or (get map key default)
-  mx = as_map_s(rls, ARGS[0]);
-  x = ARGS[1];
-  Expr result;
-
-  if ( map_get(mx, x, &result) ) {
-    stack_push(rls, result);
-  } else if ( argc >= 3 ) {
-    stack_push(rls, ARGS[2]); // default value
-  } else {
-    stack_push(rls, NUL);
-  }
+ op_map:
+  require(rls, argc & 1, "unpaired key.");
+  mx = mk_map_s(rls, argc);
   goto op_return;
+
+ op_map_get_2: {
+    mx = as_map_s(rls, ARGS[0]);
+    x = ARGS[1];
+    y = map_get(mx, x);
+    require(rls, y != NONE, "key not found in map.");
+    stack_push(rls, y);
+    goto op_return;
+  }
+
+ op_map_get_3: {
+    mx = as_map_s(rls, ARGS[0]);
+    x = ARGS[1];
+    y = map_get(mx, x);
+    
+    if ( y == NONE )
+      y = ARGS[2];
+    
+    stack_push(rls, y);
+    goto op_return;
   }
 
  op_map_assoc: {
-  // (assoc map key val key val ...)
-  mx = as_map_s(rls, ARGS[0]);
-
-  for ( int i = 1; i < argc; i += 2 ) {
-    require(rls, i + 1 < argc, "assoc requires an even number of key-value arguments");
-    mx = map_assoc(rls, mx, ARGS[i], ARGS[i+1]);
-  }
-
-  stack_push(rls, tag_obj(mx));
-  goto op_return;
+    mx = as_map_s(rls, ARGS[0]);
+    mx = map_assoc(rls, mx, ARGS[1], ARGS[2]);
+    stack_push(rls, tag_obj(mx));
+    goto op_return;
   }
 
  op_map_dissoc: {
-  // (dissoc map key key ...)
-  mx = as_map_s(rls, ARGS[0]);
-
-  for ( int i = 1; i < argc; i++ ) {
-    mx = map_dissoc(rls, mx, ARGS[i]);
-  }
-
-  stack_push(rls, tag_obj(mx));
-  goto op_return;
+    mx = as_map_s(rls, ARGS[0]);
+    mx = map_dissoc(rls, mx, ARGS[1]);
+    stack_push(rls, tag_obj(mx));
+    goto op_return;
   }
 
  op_map_keys: {
-  mx = as_map_s(rls, ARGS[0]);
-  lx = map_keys(rls, mx);
-  stack_push(rls, tag_obj(lx));
-  goto op_return;
+    mx = as_map_s(rls, ARGS[0]);
+    lx = map_keys(rls, mx);
+    stack_push(rls, tag_obj(lx));
+    goto op_return;
   }
 
  op_map_vals: {
@@ -773,10 +756,11 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
   goto op_return;
   }
 
- op_map_len:
-  mx = as_map_s(rls, ARGS[0]);
-  stack_push(rls, tag_num(map_count(mx)));
-  goto op_return;
+ op_map_len: {
+    mx = as_map_s(rls, ARGS[0]);
+    stack_push(rls, tag_num(map_count(mx)));
+    goto op_return;
+  }
 
  op_map_has: {
   mx = as_map_s(rls, ARGS[0]);

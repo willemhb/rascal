@@ -25,7 +25,6 @@ int op_arity(OpCode op) {
     case OP_PJUMP_F:
     case OP_PJUMP_T:
     case OP_CALL:
-    case OP_MAP:
       n = 1;
       break;
 
@@ -100,7 +99,8 @@ char* op_name(OpCode op) {
     case OP_TUPLE_REF:    out = "TUPLE-REF";    break;
     case OP_TUPLE_LEN:    out = "TUPLE-LEN";    break;
     case OP_MAP:          out = "MAP";          break;
-    case OP_MAP_GET:      out = "MAP-GET";      break;
+    case OP_MAP_GET_2:    out = "MAP-GET-2";    break;
+    case OP_MAP_GET_3:    out = "MAP-GET-3";    break;
     case OP_MAP_ASSOC:    out = "MAP-ASSOC";    break;
     case OP_MAP_DISSOC:   out = "MAP-DISSOC";   break;
     case OP_MAP_KEYS:     out = "MAP-KEYS";     break;

@@ -92,6 +92,11 @@ void bit_vec_clone(RlState* rls, BitVec* src, BitVec* dst);
 void bit_vec_remove(RlState* rls, BitVec* bv, int n);
 
 // Table types ----------------------------------------------------------------
+typedef struct {
+  Expr key;
+  Expr val;
+} TableKV;
+
 // Strings - hash table mapping char* to Str*
 typedef struct StringsKV {
   char* key;

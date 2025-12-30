@@ -49,6 +49,7 @@ typedef struct Ctl Ctl;
 typedef struct Fun Fun;
 typedef struct Method Method;
 typedef struct MethodTable MethodTable;
+typedef struct Table Table;
 typedef struct Str Str;
 typedef struct Sym Sym;
 typedef struct List List;

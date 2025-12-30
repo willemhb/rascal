@@ -73,7 +73,7 @@ Expr tag_ptr(void* ptr) {
 }
 
 void print_num(Port* ios, Expr x) {
-  if ( exp_tag(x) == FIX_T )
+  if ( expr_tag(x) == FIX_T )
     pprintf(ios, "0x%.12x", as_fix(x));
 
   else

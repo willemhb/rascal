@@ -95,7 +95,8 @@ typedef enum {
 
   // map operations
   OP_MAP,
-  OP_MAP_GET,
+  OP_MAP_GET_2,
+  OP_MAP_GET_3,
   OP_MAP_ASSOC,
   OP_MAP_DISSOC,
   OP_MAP_KEYS,
