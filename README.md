@@ -76,7 +76,7 @@ Probably a slight misnomer, but basically an interface for delimited continuatio
 
 Obviously that's a pain in the ass but in combination with macros it's an extremely powerful tool for language extension.
 
-```clojure
+```lisp
 ;; basic exceptions
 (stx throw
  (etype message & more)
