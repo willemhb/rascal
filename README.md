@@ -24,7 +24,7 @@ Pretty standard Lisp stuff. Common Lisp style macros with a long term ambition t
 ```
 
 ## Generic Functions
-All functions are generic, making the language extremely flexible and extinsible. `Julia` pretty much proved that this is the solution to the expression problem and I'm not sure why more languages aren't doing it.
+All functions are generic, making the language extremely flexible and extinsible. `Julia` pretty much proved that this is the solution to the expression problem and I'm not sure why it isn't the default.
 
 ```lisp
 (fun conj 
