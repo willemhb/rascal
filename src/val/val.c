@@ -87,6 +87,10 @@ char* type_name(Type* t) {
 }
 
 // Initialize types - add static type objects to permanent heap
+void init_builtin_type_hash(Type* type) {
+  type->hashcode = hash_48(hash_word(hash_word(type->tag)));
+}
+
 void init_builtin_type(RlState* rls, Type* type, char* name) {
   type->name = mk_sym(rls, name);
   type->has_fn = type->tag == EXP_NONE ? bottom_has : datatype_has;
@@ -95,6 +99,37 @@ void init_builtin_type(RlState* rls, Type* type, char* name) {
 }
 
 void register_builtin_types(RlState* rls) {
+  /* most non-trivial hashes use the hash of the type as a seed value
+     so that hashes of different types with identical underlying values,
+     eg, (1 2 3) and [1 2 3] or 'symbol and "symbol", have distinct hashes.
+     this means that the type hashcodes need to be initialized before anything
+     else so that string and environments work correctly. */
+
+  init_builtin_type_hash(&TypeType);
+  init_builtin_type_hash(&NoneType);
+  init_builtin_type_hash(&NulType);
+  init_builtin_type_hash(&BoolType);
+  init_builtin_type_hash(&GlyphType);
+  init_builtin_type_hash(&ChunkType);
+  init_builtin_type_hash(&RefType);
+  init_builtin_type_hash(&UpValType);
+  init_builtin_type_hash(&EnvType);
+  init_builtin_type_hash(&CtlType);
+  init_builtin_type_hash(&PortType);
+  init_builtin_type_hash(&FunType);
+  init_builtin_type_hash(&MethodType);
+  init_builtin_type_hash(&MethodTableType);
+  init_builtin_type_hash(&SymType);
+  init_builtin_type_hash(&StrType);
+  init_builtin_type_hash(&ListType);
+  init_builtin_type_hash(&TupleType);
+  init_builtin_type_hash(&NumType);
+  init_builtin_type_hash(&LibHandleType);
+  init_builtin_type_hash(&ForeignFnType);
+  init_builtin_type_hash(&MapType);
+  init_builtin_type_hash(&MapNodeType);
+
+  // initialize 
   init_builtin_type(rls, &TypeType, "Type");
   init_builtin_type(rls, &NoneType, "None");
   init_builtin_type(rls, &NulType, "Nul");
@@ -134,13 +169,24 @@ void trace_objs(RlState* rls, Objs* os) {
 // expression APIs
 hash_t hash_expr(Expr x) {
   hash_t out;
-  Type* info = type_of(x);
 
-  if ( info->hash_fn )
-    out = info->hash_fn(x);
+  if ( !is_obj(x) )
+    out = hash_word_48(x);
 
-  else
-    out = hash_word(x);
+  else {
+    Type* info = type_of(x);
+    Obj* o = as_obj(x);
+
+    if ( o->hashcode == 0 ) {
+      if ( info->hash_fn )
+        o->hashcode = info->hash_fn(x);
+
+      else
+        o->hashcode = hash_pointer_48(o);
+
+      out = o->hashcode;
+    }
+  }
 
   return out;
 }
@@ -167,7 +213,7 @@ bool egal_exprs(Expr x, Expr y) {
 }
 
 void mark_expr(RlState* rls, Expr x) {
-  if ( exp_tag(x) == OBJ_T )
+  if ( expr_tag(x) == OBJ_T )
     mark_obj(rls, as_obj(x));
 }
 

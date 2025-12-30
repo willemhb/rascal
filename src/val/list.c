@@ -1,10 +1,12 @@
 #include "val/list.h"
 #include "val/port.h"
+#include "util/util.h"
 #include "vm.h"
 #include "lang.h"
 
 // forward declarations
 void print_list(Port* ios, Expr x);
+hash_t hash_list(Expr x);
 bool egal_lists(Expr x, Expr y);
 void trace_list(RlState* rls, void* ptr);
 
@@ -16,6 +18,7 @@ Type ListType = {
   .tag      = EXP_LIST,
   .obsize   = sizeof(List),
   .print_fn = print_list,
+  .hash_fn  = hash_list,
   .egal_fn  = egal_lists,
   .trace_fn = trace_list
 };
@@ -142,7 +145,7 @@ void print_list(Port* ios, Expr x) {
       List* xs = as_list(x);
 
       while ( xs->count > 0 ) {
-        print_exp(ios, xs->head);
+        print_expr(ios, xs->head);
 
         if ( xs->count > 1 )
           pprintf(ios, " ");
@@ -153,6 +156,19 @@ void print_list(Port* ios, Expr x) {
       pprintf(ios, ")");
 }
 
+hash_t hash_list(Expr x) {
+  List* lx = as_list(x);
+  hash_t hash = hash_word_48(lx->count+1); // seed value
+
+  while ( lx->count > 0 ) {
+    hash_t xh = hash_expr(lx->head);
+    hash = mix_hashes_48(hash, xh);
+    lx = lx->tail;
+  }
+
+  return mix_hashes_48(ListType.hashcode, hash);
+}
+
 bool egal_lists(Expr x, Expr y) {
   List* xs = as_list(x), * ys = as_list(y);
 
@@ -161,7 +177,7 @@ bool egal_lists(Expr x, Expr y) {
   while ( out && xs->count > 0 ) {
     x   = xs->head;
     y   = ys->head;
-    out = egal_exps(x, y);
+    out = egal_exprs(x, y);
 
     if ( out ) {
       xs = xs->tail;
@@ -176,7 +192,7 @@ void trace_list(RlState* rls, void* ptr) {
   List* xs = ptr;
 
   if ( xs->count ) {
-    mark_exp(rls, xs->head);
+    mark_expr(rls, xs->head);
     mark_obj(rls, xs->tail);
   }
 }

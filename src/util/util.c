@@ -25,6 +25,17 @@ bool endswith(const char* str, const char* substr) {
   return streq(found, substr);
 }
 
+bool startswith(const char* str, const char* substr) {
+  const char* found = strstr(str, substr);
+
+  if ( found == NULL )
+    return false;
+
+  assert(found > str);
+
+  return strlen(substr) == (size_t)(found - str);
+}
+
 // miscellaneous bit twiddling
 #define TOP_BIT 0x8000000000000000ul
 
@@ -48,11 +59,29 @@ bool is_int(Num n) {
 }
 
 // hashing constants
+#define HASH_WIDTH   48
+#define HASH_MASK    ((1ul << HASH_WIDTH) - 1)
 #define FNV64_PRIME  0x100000001b3ul
 #define FNV64_OFFSET 0xcbf29ce484222325ul
 
 // hashing functions
+hash_t hash_48(hash_t h) { // compress to 48 bits
+  return h & HASH_MASK;
+}
+
 hash_t hash_string(const char* chars) {
+  hash_t hash = FNV64_OFFSET;
+
+  while ( *chars != '\0' ) {
+    hash = hash ^ *chars;
+    hash = hash * FNV64_PRIME;
+    chars++;
+  }
+
+  return hash;
+}
+
+hash_t hash_string_48(const char* chars) {
   hash_t hash = FNV64_OFFSET;
 
   while ( *chars != '\0' ) {
@@ -77,10 +106,34 @@ hash_t hash_word(uintptr_t word) {
     return word;
 }
 
+
+hash_t hash_word_48(uintptr_t word) {
+  // copied directly from femtolisp repo, no idea how this works
+    word = (~word) + (word << 21);             // word = (word << 21) - word - 1;
+    word =   word  ^ (word >> 24);
+    word = (word + (word << 3)) + (word << 8); // word * 265
+    word =  word ^ (word >> 14);
+    word = (word + (word << 2)) + (word << 4); // word * 21
+    word =  word ^ (word >> 28);
+    word =  word + (word << 31);
+
+    return word & HASH_MASK;
+}
+
 hash_t hash_pointer(const void* ptr) {
   return hash_word((uintptr_t)ptr);
 }
 
+hash_t hash_pointer_48(const void* ptr) {
+  return hash_word((uintptr_t)ptr);
+}
+
 hash_t mix_hashes(hash_t hx, hash_t hy) {
-  return hash_word(hx ^ hy);
+  assert(hx != hy);
+  return hx ^ hy;
+}
+
+hash_t mix_hashes_48(hash_t hx, hash_t hy) {
+  assert(hx != hy);
+  return hx ^ hy;
 }

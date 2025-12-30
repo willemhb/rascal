@@ -53,10 +53,10 @@ typedef struct Str Str;
 typedef struct Sym Sym;
 typedef struct List List;
 typedef struct Tuple Tuple;
-typedef struct LibHandle LibHandle;
-typedef struct ForeignFn ForeignFn;
 typedef struct Map Map;
 typedef struct MapNode MapNode;
+typedef struct LibHandle LibHandle;
+typedef struct ForeignFn ForeignFn;
 
 typedef union {
   Expr  expr;

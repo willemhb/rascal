@@ -10,6 +10,7 @@
 #include "val/sym.h"
 #include "val/list.h"
 #include "val/tuple.h"
+#include "val/map.h"
 #include "val/port.h"
 #include "val/env.h"
 #include "val/fun.h"

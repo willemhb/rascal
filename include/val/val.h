@@ -86,6 +86,37 @@ struct Type {
 #define XTMSK  0xffff000000000000ul
 #define XVMSK  0x0000fffffffffffful
 
+/* speculative complete/optimized tag system
+
+   wide tag indicates extra information in next two bytes
+   (for 32-bit primitives).
+
+   fix is a 48 bit unsigned integer (just like now). Useful for
+   representing internal information (actual type is 'Num').
+
+   Sym, Fun, List, and Cntl are all object types but they get their
+   own tag because these tests are performed frequently in the vm. They
+   otherwise share all the characteristics of a normal object type.
+
+   Box and Obj are also object types. "Box" type is a transparent box
+   for types with a primitive (non-object) representation. Obj is anything
+   else.
+   
+ */
+/* #define WIDE_T  0x7ffc000000000000ul */
+/* #define NUL_T   0x7ffc000100000000ul */
+/* #define GLYPH_T 0x7ffc000200000000ul */
+/* #define BOOL_T  0x7ffc000300000000ul */
+/* #define SMALL_T 0x7ffc000400000000ul */
+/* #define FIX_T   0x7ffd000000000000ul */
+/* #define SYM_T   0x7ffe000000000000ul */
+/* #define FUN_T   0x7fff000000000000ul */
+/* #define LIST_T  0xfffc000000000000ul */
+/* #define CNTL_T  0xfffd000000000000ul */
+/* #define BOX_T   0xfffe000000000000ul */
+/* #define OBJ_T   0xffff000000000000ul */
+
+
 #define NONE_T  0x7ffc000000000000ul
 #define NUL_T   0x7ffd000000000000ul
 #define BOOL_T  0x7ffe000000000000ul
@@ -103,8 +134,8 @@ struct Type {
 #define RL_ONE  0x3ff0000000000000ul
 
 // convenience macros
-#define exp_tag(x)     ((x) & XTMSK)
-#define exp_val(x)     ((x) & XVMSK)
+#define expr_tag(x)    ((x) & XTMSK)
+#define expr_val(x)    ((x) & XVMSK)
 #define head(x)        ((Obj*)as_obj(x))
 #define as_type(x)     ((Type*)as_obj(x))
 
@@ -146,6 +177,7 @@ extern Type TypeType, NoneType, NulType, BoolType, GlyphType,
 #define as_type_s(rls, x) ((Type*)as_obj_s(rls, &TypeType, x))
 
 // type predicates
+#define is_obj(x)         (expr_tag(x) == OBJ_T)
 #define is_glyph(x)       has_type(x, &GlyphType)
 #define is_num(x)         has_type(x, &NumType)
 #define is_sym(x)         has_type(x, &SymType)

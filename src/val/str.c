@@ -57,7 +57,7 @@ Str* mk_str(RlState* rls, char* cs) {
     s = strings_intern(rls, &rls->vm->strings, cs, string_intern);
 
   else
-    s = new_str(rls, cs, hash_string(cs), false);
+    s = new_str(rls, cs, hash_string_48(cs), false);
 
   return s;
 }
@@ -78,9 +78,9 @@ hash_t hash_str(Expr x) {
   Str* s = as_str(x);
 
   if ( s->hash == 0 )
-    s->hash = hash_string(s->val);
+    s->hash = hash_string_48(s->val);
 
-  return s->hash;
+  return mix_hashes_48(StrType.hashcode, s->hash);
 }
 
 bool egal_strs(Expr x, Expr y) {

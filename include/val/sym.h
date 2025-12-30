@@ -7,7 +7,6 @@
 struct Sym {
   HEAD;
   Str*      val;
-  hash_t    hash;
   uintptr_t idno; // for gensyms; 0  for 'interned' syms
 };
 

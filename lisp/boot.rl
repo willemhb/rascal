@@ -62,9 +62,9 @@
     (raise [:eval-error "not a list."])))
 
 (fun append (xs ys)
-  (if (empty? xs)
-    ys
-    (cons (head xs) (append (tail xs) ys))))
+ (if (empty? xs)
+  ys
+  (cons (head xs) (append (tail xs) ys))))
 
 (fun concat (xss)
   (if (empty? xss)
@@ -77,12 +77,12 @@
 (fun snd (xs)
   (head (tail xs)))
 
-(fun map (f xs)
+(fun map-f (f xs)
   ;; you know this one.
   (if (=? xs ())
     ()
     (cons (f (head xs))
-          (map f (tail xs)))))
+          (map-f f (tail xs)))))
 
 (fun filter (p? xs)
   (if

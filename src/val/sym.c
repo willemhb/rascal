@@ -27,7 +27,7 @@ Sym* mk_sym(RlState* rls, char* val) {
   StackRef top = rls->s_top;
   Sym* s = mk_obj_s(rls, &SymType, 0);
   s->val  = mk_str(rls, val);
-  s->hash = hash_word(s->val->hash); // just munge the string hash
+  s->hashcode = mix_hashes_48(SymType.hashcode, s->val->hash);
   s->idno = 0;
   rls->s_top = top;
   return s;
@@ -50,9 +50,10 @@ Sym* mk_gensym(RlState* rls, char* val) {
   s->val  = mk_str(rls, val);
   s->idno = ++counter;
   // mix common symbol hash with idno hash
-  s->hash = mix_hashes(hash_word(s->idno), hash_word(s->val->hash));
+  hash_t h = mix_hashes_48(SymType.hashcode, s->val->hash);
+  s->hashcode = mix_hashes_48(hash_word_48(s->idno), h);
   rls->s_top = top;
-  return s;  
+  return s;
 }
 
 Sym* mk_gensym_s(RlState* rls, char* val) {
@@ -83,8 +84,13 @@ void print_sym(Port* ios, Expr x) {
 
 hash_t hash_sym(Expr x) {
   Sym* s = as_sym(x);
+  hash_t str_hash = hash_expr(tag_obj(s->val));
+  hash_t sym_hash = mix_hashes_48(SymType.hashcode, str_hash);
 
-  return s->hash;
+  if ( s->idno )
+    sym_hash = mix_hashes_48(hash_word_48(s->idno), sym_hash);
+
+  return sym_hash;
 }
 
 bool egal_syms(Expr x, Expr y) {

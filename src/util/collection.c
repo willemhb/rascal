@@ -647,7 +647,7 @@ Str* strings_intern(RlState* rls, Strings* t, char* k, StringsInternFn ifn) {
   if ( check_grow(t) )
     grow_strings(rls, t);
 
-  hash_t h = hash_string(k);
+  hash_t h = hash_string_48(k);
   StringsKV* kv = strings_find(t, k, h);
 
   if ( kv->key == NULL ) {

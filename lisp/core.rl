@@ -31,6 +31,29 @@
   `(def ~name (fn ~formals ~@body)))
   `((fn () ~defn-form (~name ~@inits))))
 
+; ;(fun macro-call?
+;  (form)
+;  (and (list? form)
+;       (sym? (head form))
+;       (macro-name? (head form))))
+
+; (fun macroexpand-1
+;  (form)
+;  (if (macro-call? form)
+;       (macro-apply (head form) form (*environ*) (tail form))
+;      otherwise form))
+
+(stx -> ;; just for fun
+ (init form & forms)
+ (fun expand-form
+  (init form)
+  (if (list? form)
+   `(~(head form) ~init ~@(tail form))
+   `(~form ~init)))
+ (if (empty? forms)
+  (expand-form init form)
+  `(-> ~(expand-form init form) ~@forms)))
+
 ;; other useful methods
 (fun some?
  (p? xs)
@@ -43,17 +66,13 @@
 
 (fun every?
  (p? xs)
- (if (empty? xs)
-   true
-   (p? (head xs))
-    (every? p? (tail xs))
-   otherwise
-    false))
+ (if (empty? xs)  true
+   (p? (head xs)) (every? p? (tail xs))
+   otherwise      false))
 
-(fun map
+(fun map-f
  (f & xss)
  (if (some? empty? xss)
   ()
   (cons (apply f (map head xss))
         (map f (map tail xss)))))
-

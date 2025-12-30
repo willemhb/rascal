@@ -197,7 +197,6 @@ Expr read_tick(RlState* rls, Port* in, int* line) {
   return tag_obj(qd);
 }
 
-
 Expr read_tilde(RlState* rls, Port* in, int* line) {
   pgetc(in); // consume opening ~
   int c;
@@ -252,17 +251,13 @@ Expr read_tuple(RlState* rls, Port* in, int* line) {
 }
 
 Expr read_map(RlState* rls, Port* in, int* line) {
-  // Reads {:key1 val1 :key2 val2} and creates (make-map key1 val1 key2 val2)
-  List* out;
+  // Reads {:key1 val1 :key2 val2}
+  Map* out;
   pgetc(in); // consume the '{'
   skip_space(in, line);
   Expr x;
   int n = 0, c;
   StackRef top = rls->s_top;
-
-  // push the 'make-map symbol first
-  mk_sym_s(rls, "make-map");
-  n++;
 
   while ( (c=ppeekc(in)) != '}' ) {
     if ( peof(in) )
@@ -280,7 +275,7 @@ Expr read_map(RlState* rls, Port* in, int* line) {
   if ( (n - 1) % 2 != 0 )
     read_error(rls, "map literal requires an even number of elements.");
 
-  out = mk_list(rls, n);
+  out = mk_map(rls, n);
   rls->s_top = top; // restore stack
 
   return tag_obj(out);
