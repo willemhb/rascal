@@ -17,9 +17,15 @@ Pretty standard Lisp stuff. Common Lisp style macros with a long term ambition t
  (name bind)
  `(def ~name ~bind))
 
+(var x 1)
+(put x false) ;; okay
+
 (stx val
  (name bind)
  `(def ~(with-metadata name :final true) ~bind))
+
+(val y 1)
+(put y true) ;; error
 
 ```
 
