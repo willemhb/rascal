@@ -3,7 +3,7 @@ A Lisp dialect with a focus on extensibility through macros, generic functions, 
 
 # Features
 ## Macros
-Pretty standard Lisp stuff. Common Lisp style macros with a long term ambition to support some of Clojure's innovations in this field (in particular embedding gensyms in syntax templates).
+Pretty standard Lisp stuff. Common Lisp style macros with a long term ambition to support some of `Clojure`'s innovations in this field (especially embedding gensyms in syntax templates).
 
 ```lisp
 (stx when
@@ -53,12 +53,16 @@ All functions are generic, making the language extremely flexible and extinsible
   (fmap (fun (x) (ref n x)) xs))
 ```
 
-Macros are also generic, allowing constructs like the one below to be implemented easily.
+Macros are also generic, allowing constructs like docstrings in function definitions to be implemented easily to be implemented easily.
 
 ```lisp
 (stx fun
  (name: Sym doc: Str formals: List & body)
  `(fun ~(with-metadata name :doc doc) ~formals ~@body))
+
+(fun fmap "This method has a docstring."
+ (k: Sym xss: List)
+ (fmap (fun (xs) (ref k xs)) xss))
 ```
 
 ## Algebraic Effects
