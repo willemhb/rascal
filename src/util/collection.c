@@ -497,6 +497,183 @@ void bit_vec_remove(RlState* rls, BitVec* bv, int n) {
   bv->count--;
 }
 
+// Generic table implementation -----------------------------------------------
+static void init_table_kvs(KV* kvs, void* sentinel, int maxc) {
+  for ( int i = 0; i < maxc*2; i++ ) {
+    kvs[i].key = sentinel;
+    kvs[i].val = sentinel;
+  }
+}
+
+static KV* table_find(Table* table, void* key, hash_t hash) {
+  assert(table->kvs != NULL);
+  KV* kvs = table->kvs;
+  KV* kv;
+  KV* ts = NULL;
+  void* sentinel = table->sentinel;
+  int msk = table->maxc - 1;
+  int idx = hash & msk;
+
+  for (;;) {
+    kv = &kvs[idx];
+    if ( kv->key == sentinel ) {
+      if ( kv->val != sentinel ) // tombstone
+        ts = ts ? ts : kv;
+      else
+        break;
+    } else if ( table->compare(kv->key, key) )
+      break;
+    idx = (idx + 1) & msk;
+  }
+
+  return ts ? ts : kv;
+}
+
+static int rehash_table(Table* table, KV* new, int nmc) {
+  int cnt = 0;
+  int maxc = table->maxc;
+  KV* old = table->kvs;
+  void* sentinel = table->sentinel;
+  TableRehashFn rehash = table->rehash;
+
+  for ( int i = 0; i < maxc; i++ ) {
+    KV* kv = &old[i];
+    if ( old->key == sentinel )
+      continue;
+
+    cnt++;
+
+    hash_t hash = rehash(kv);
+    int msk = nmc - 1;
+    int idx = hash & msk;
+    while ( new->key != sentinel )
+      idx = (idx + 1) & msk;
+
+    new[idx] = *kv;
+  }
+  return cnt;
+}
+
+static void grow_table(RlState* rls, Table* table) {
+  (void)rls;
+
+  int nmc = table->maxc < MIN_CAP ? MIN_CAP : table->maxc << 1;
+  KV* nkv = allocate(NULL, nmc * sizeof(KV));
+  init_table_kvs(nkv, table->sentinel, nmc);
+  if ( table->kvs != NULL ) {
+    table->count = rehash_table(table, nkv, nmc);
+    KV* okv = table->kvs;
+    release(NULL, okv, 0);
+  }
+
+  table->kvs = nkv;
+  table->maxc = nmc;
+}
+
+void init_table(RlState* rls, Table* table) {
+  (void)rls;
+  table->kvs   = NULL;
+  table->count = 0;
+  table->maxc  = 0;
+}
+
+void free_table(RlState* rls, Table* table) {
+  release(NULL, table->kvs, 0);
+  init_table(rls, table);
+}
+
+bool table_get(RlState* rls, Table* table, void* key, void* result) {
+  (void)rls;
+  bool out;
+
+  if ( table->kvs == NULL )
+    out = false;
+  else {
+    KV* kv = table_find(table, key, table->hash(key));
+    out = kv->key != NULL;
+
+    if ( out && result )
+      table->init(kv->val, result);
+  }
+
+  return out;
+}
+
+bool table_set(RlState* rls, Table* table, void* key, void* val, void* result) {
+  if ( check_grow(table) )
+    grow_table(rls, table);
+
+  KV* kv = table_find(table, key, table->hash(key));
+  bool out = kv->key == NULL;
+
+  if ( out )
+    kv->key = key;
+  if ( kv->val == NULL )
+    table->count++;
+
+  if ( result )
+    table->init(kv->val, result);
+
+  kv->val = val;
+  
+  return out;
+}
+
+bool table_del(RlState* rls, Table* table, void* key, void* result) {
+  (void)rls;
+  bool out;
+
+  if ( table->kvs == NULL )
+    out = false;
+  else {
+    KV* kv = table_find(table, key, table->hash(key));
+    out = kv->key != NULL;
+
+    if ( out ) {
+      kv->key = NULL;
+      if ( result )
+        table->init(kv->val, result);
+    }
+  }
+
+  return out;
+}
+
+bool table_intern(RlState* rls, Table* table, void* key, void* result) {
+  if ( check_grow(table) )
+    grow_table(rls, table);
+
+  bool out = false;
+
+  hash_t hash = table->hash(key);
+  KV* kv = table_find(table, key, hash);
+
+  if ( kv->key == table->sentinel ) {
+    if ( kv->val == table->sentinel )
+      table->count++;
+
+    table->intern(rls, table, kv, key, hash);
+    out = true;
+
+    if ( result )
+      table->init(kv->val, result);
+  }
+
+  return out;
+}
+
+// table runtime
+void trace_table(RlState* rls, void* ptr) {
+  Table* table = ptr;
+
+  if ( table->kvs && table->mark && !(table->weak_key && table->weak_val) )
+    for ( int i=0; i<table->maxc; i++ ) {
+      KV* kv = table->kvs+i;
+      table->mark(rls, table, kv);
+    }
+}
+
+
 // Strings table implementation -----------------------------------------------
 #define check_grow(t) ((t)->count >= ((t)->maxc * LOADF))
 

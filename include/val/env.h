@@ -84,7 +84,6 @@ Expr   toplevel_env_get(RlState* rls, Env* e, Sym* n);
 #define env_upval_maxc(e)  ((e)->upvs.maxc)
 #define env_upval_refs(e)  ((e)->upvs.kvs)
 
-
 static inline int env_size(Env* e) {
   if ( is_global_env(e) )
     return e->vars.count;

@@ -34,6 +34,13 @@ void objs_push(RlState* rls, Objs* a, void* x);
 void* objs_pop(RlState* rls, Objs* a);
 void objs_write(RlState* rls, Objs* a, void** xs, int n);
 
+// generic buffer type
+struct Buffer {
+  void* data;
+  int count, maxc, elsize;
+  bool encoded;
+};
+
 // CodeBuf - array of instr_t values
 struct CodeBuf {
   instr_t* data;
@@ -92,10 +99,46 @@ void bit_vec_clone(RlState* rls, BitVec* src, BitVec* dst);
 void bit_vec_remove(RlState* rls, BitVec* bv, int n);
 
 // Table types ----------------------------------------------------------------
+// generic table key/value pair
 typedef struct {
-  Expr key;
-  Expr val;
-} TableKV;
+  void* key;
+  void* val;
+} KV;
+
+// table operations
+typedef hash_t (*TableHashFn)(void* k);
+typedef hash_t (*TableRehashFn)(KV* kv);
+typedef bool   (*TableCmpFn)(void* x, void* y);
+typedef void   (*TableInternFn)(RlState* rls, Table* table, KV* kv, void* key, hash_t hash);
+typedef void   (*TableWriteFn)(void* val, void* spc);
+typedef void   (*TableMarkFn)(RlState* rls, Table* table, KV* kv);
+
+// fully generic table type
+struct Table {
+  KV* kvs;
+  int count, maxc;
+  bool weak_key, weak_val;
+
+  // the value to mark unused entries
+  void* sentinel;
+
+  TableHashFn hash;
+  TableRehashFn rehash;
+  TableCmpFn compare;
+  TableInternFn intern;
+  TableWriteFn init;
+  TableMarkFn mark;
+};
+
+// Prototypes -----------------------------------------------------------------
+// table type
+void   init_table(RlState* rls, Table* table);
+void   free_table(RlState* rls, Table* table);
+bool   table_get(RlState* rls, Table* table, void* key, void* result);
+bool   table_has(RlState* rls, Table* table, void* key);
+bool   table_set(RlState* rls, Table* table, void* key, void* val, void* result);
+bool   table_del(RlState* rls, Table* table, void* key, void* result);
+bool   table_intern(RlState* rls, Table* table, void* key, void* result);
 
 // Strings - hash table mapping char* to Str*
 typedef struct StringsKV {
