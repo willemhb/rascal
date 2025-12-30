@@ -9,6 +9,8 @@
 #define MIN_CAP 8
 #define LOADF   0.625
 
+#define check_grow(t) ((t)->count >= ((t)->maxc * LOADF))
+
 // Exprs implementation -------------------------------------------------------
 void init_exprs(RlState* rls, Exprs* a) {
   (void)rls;
@@ -673,10 +675,7 @@ void trace_table(RlState* rls, void* ptr) {
     }
 }
 
-
 // Strings table implementation -----------------------------------------------
-#define check_grow(t) ((t)->count >= ((t)->maxc * LOADF))
-
 static void init_strings_kvs(StringsKV* kvs, int maxc) {
   for ( int i = 0; i < maxc; i++ ) {
     kvs[i].key = NULL;

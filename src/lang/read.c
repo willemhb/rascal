@@ -272,7 +272,7 @@ Expr read_map(RlState* rls, Port* in, int* line) {
   pgetc(in); // consume '}'
 
   // Validate even number of key-value pairs (n-1 for make-map symbol)
-  if ( (n - 1) % 2 != 0 )
+  if ( (n & 1) == 1 )
     read_error(rls, "map literal requires an even number of elements.");
 
   out = mk_map(rls, n);

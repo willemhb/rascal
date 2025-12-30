@@ -34,12 +34,21 @@ void objs_push(RlState* rls, Objs* a, void* x);
 void* objs_pop(RlState* rls, Objs* a);
 void objs_write(RlState* rls, Objs* a, void** xs, int n);
 
-// generic buffer type
-struct Buffer {
-  void* data;
-  int count, maxc, elsize;
-  bool encoded;
-};
+// generic buffer type for binary or text data
+/* typedef struct Buffer { */
+/*   void* data; */
+/*   int count, maxc, elsize; */
+/*   bool encoded; */
+/* } Buffer; */
+
+/* void init_buffer(RlState* rls, Buffer* a); */
+/* void free_buffer(RlState* rls, Buffer* a); */
+/* void grow_buffer(RlState* rls, Buffer* a); */
+/* void shrink_buffer(RlState* rls, Buffer* a); */
+/* void resize_buffer(RlState* rls, Buffer* a, int n); */
+/* void buffer_push(RlState* rls, Buffer* a, int x); */
+/* int buffer_pop(RlState* rls, Buffer* a); */
+/* void buffer_write(RlState* rls, Buffer* a, void* xs, int n); */
 
 // CodeBuf - array of instr_t values
 struct CodeBuf {

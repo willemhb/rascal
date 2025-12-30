@@ -703,7 +703,7 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
   goto op_return;
 
  op_map:
-  require(rls, argc & 1, "unpaired key.");
+  require(rls, (argc & 1) == 0, "map requires an even number of arguments.");
   mx = mk_map_s(rls, argc);
   goto op_return;
 
