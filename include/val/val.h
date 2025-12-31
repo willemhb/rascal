@@ -29,7 +29,8 @@
 // Types
 // builtin type codes
 enum {
-  EXP_NONE=1,
+  EXP_NONE=1, // bottom type (has no values)
+  EXP_ANY,    // top type (union of all values)
   EXP_NUL,
   EXP_BOOL,
   EXP_GLYPH,
@@ -183,10 +184,10 @@ void  unmark_obj(void* ptr);
 void  free_obj(RlState* rls, void *ptr);
 
 // Type extern declarations
-extern Type TypeType, NoneType, NulType, BoolType, GlyphType,
+extern Type TypeType, NoneType, AnyType, NulType, BoolType, GlyphType,
   ChunkType, RefType, UpValType, EnvType, CtlType, PortType, FunType,
-  MethodType, MethodTableType, MTNodeType, SymType, StrType, ListType, TupleType,
-  NumType, LibHandleType, ForeignFnType, MapType, MapNodeType;
+  MethodType, MethodTableType, MTNodeType, SymType, StrType, ListType,
+  TupleType, NumType, LibHandleType, ForeignFnType, MapType, MapNodeType;
 
 // safe cast macro
 #define as_type_s(rls, x) ((Type*)as_obj_s(rls, &TypeType, x))

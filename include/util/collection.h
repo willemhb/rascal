@@ -119,7 +119,7 @@ typedef struct {
 typedef hash_t (*TableHashFn)(void* k);
 typedef hash_t (*TableRehashFn)(KV* kv);
 typedef bool   (*TableCmpFn)(void* x, void* y);
-typedef void   (*TableInternFn)(RlState* rls, Table* table, KV* kv, void* key, hash_t hash);
+typedef void   (*TableInternFn)(RlState* rls, Table* table, KV* kv, void* key, hash_t hash, void* state);
 typedef void   (*TableWriteFn)(void* val, void* spc);
 typedef void   (*TableMarkFn)(RlState* rls, Table* table, KV* kv);
 
@@ -148,7 +148,7 @@ bool   table_get(RlState* rls, Table* table, void* key, void* result);
 bool   table_has(RlState* rls, Table* table, void* key);
 bool   table_set(RlState* rls, Table* table, void* key, void* val, void* result);
 bool   table_del(RlState* rls, Table* table, void* key, void* result);
-bool   table_intern(RlState* rls, Table* table, void* key, void* result);
+bool   table_intern(RlState* rls, Table* table, void* key, void* state, void* result);
 void   trace_table(RlState* rls, Table* table);
 void   mark_table(RlState* rls, Table* table);
 

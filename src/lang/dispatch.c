@@ -6,12 +6,20 @@
 #include "val.h"
 
 // C types --------------------------------------------------------------------
+typedef enum {
+  NO_MATCH=-1,
+  EXACT_MATCH=0,
+  INEXACT_MATCH=1
+} DispatchResult;
+
 // Globals --------------------------------------------------------------------
 // Prototypes -----------------------------------------------------------------
 Method* get_cached_method(RlState* rls, MethodTable* mt, Tuple* sig);
 void cache_method(RlState* rls, MethodTable* mt, Tuple* sig, Method* method);
-int order_methods(Method* m, Method* my);
-void mtnode_lookup(RlState* rls, MTNode* node, Tuple* sig, int argc, Method** candidate, Method** collision);
+int order_methods(Method* mx, Method* my);
+void save_candidate(Method* method, Method** candidate, Method** collision);
+DispatchResult mtnode_lookup(RlState* rls, MTNode* node, Tuple* sig, int argc, DispatchResult result, Method** candidate, Method** collision);
+bool mtnode_add(RlState* rls, MTNode* node, Method* method);
 
 // Implementations ------------------------------------------------------------
 // Internal
@@ -68,7 +76,7 @@ Method* fun_get_method(RlState* rls, Fun* fun, int argc) {
   return out;
 }
 
-void add_builtin_method(RlState* rls, Fun* fun, int arity, bool va, OpCode op) {
+void add_builtin_method(RlState* rls, Fun* fun, OpCode op, bool va, int arity, ...) {
   // NB: fun should already be defined at toplevel
   StackRef top = rls->s_top;
   Method* m = mk_builtin_method_s(rls, fun, arity, va, op);
@@ -78,51 +86,165 @@ void add_builtin_method(RlState* rls, Fun* fun, int arity, bool va, OpCode op) {
 
 void mtable_add(RlState* rls, MethodTable* mt, Method* m) {
   char* fname = mtable_name(mt);
-  // check for duplicate signature
+  bool added = mtnode_add(rls, mt->root, m);
+
+  require(rls, added, "conflicting signatures for %s/%d.", fname, m->arity);
+
+  if ( m->nany == 0 && !m->va ) // safe to cache right away
+    cache_method(rls, mt, m->signature, m);
+
+  mt->mcount++;
+
+  // update shortcut data
+  if ( m->arity < mt->amin )
+    mt->amin = m->arity;
+
+  if ( m->arity > mt->amax )
+    mt->amax = m->arity;
+
+  if ( !mt->va && m->va )
+    mt->va = true;
 }
 
-void mtnode_lookup(RlState* rls, MTNode* node, Tuple* sig, int argc, Method** candidate, Method** collision) {
-  if ( node == NULL )
-    return;
+int order_methods(Method* mx, Method* my) {
+  // signatures that specify more arguments are more specific
+  int o = mx->arity - my->arity;
 
-  Type* arg = as_type(sig->data[node->offset]);
-  
+  // otherwise, a signature with more explicit types is more specific than one with none
+  if ( o != 0 )
+    o = mx->nexact - my->nexact;
+
+  return o;
+}
+
+void save_candidate(Method* method, Method** candidate, Method** collision) {
+  if ( *candidate == NULL ) {
+    *candidate = method;
+  } else {
+    int o = order_methods(method, *candidate);
+
+    if ( o > 0 ) { // method is a better match, save new candidate and resolve collision
+      *candidate = method;
+      *collision = NULL;
+    } else if ( o == 0 ) { // indicate collision occurred
+      *collision = method;
+    } // do nothing
+  }
+}
+
+bool mtnode_add(RlState* rls, MTNode* node, Method* method) {
+  bool out;
+
+  if ( method->arity == node->offset ) {
+    if ( method->va ) {
+      if ( node->vleaf == NULL ) {
+        node->vleaf = method;
+        out = true;
+      } else {
+        out = false;
+      }
+    } else {
+      if ( node->fleaf == NULL ) {
+        node->fleaf = method;
+        out = true;
+      } else {
+        out = false;
+      }
+    }
+  } else {
+    int offset = node->offset;
+    MTNode* child;
+    Tuple* sig = method->signature;
+    Type* stype = as_type(sig->data[offset]);
+
+    if ( stype->tag == EXP_ANY ) {
+      if ( node->fallback == NULL )
+        node->fallback = mk_mtnode(rls, offset+1);
+
+      child = node->fallback;
+    } else {
+      table_intern(rls, &node->children, stype, node, &child);
+    }
+
+    out = mtnode_add(rls, child, method);
+  }
+
+  return out;
+}
+
+
+DispatchResult mtnode_lookup(RlState* rls, MTNode* node, Tuple* sig, int argc, DispatchResult result, Method** candidate, Method** collision) {
+  DispatchResult out = NO_MATCH; // -1 == no match, 0 = exact match, 1 = inexact match
+
+  if ( node != NULL ) {
+    int offset = node->offset;
+    int siglen = sig->count;
+
+    // more levels to traverse, but we might need to backtrack here
+    if ( offset < siglen ) {
+      Type* arg = as_type(sig->data[offset]);
+      MTNode* child;
+
+      // try exact
+      if ( table_get(rls, &node->children, arg, &child) )
+        out = mtnode_lookup(rls, child, sig, argc, result, candidate, collision);
+
+      if ( out != EXACT_MATCH ) // could find a better candidate in the fallback table
+        out = mtnode_lookup(rls, node->fallback, sig, argc, INEXACT_MATCH, candidate, collision);
+
+      if ( out == NO_MATCH  && node->vleaf != NULL ) {
+        out = result;
+        save_candidate(node->vleaf, candidate, collision);
+      }
+    } else {
+      if ( siglen == argc ) {
+        if ( node->fleaf != NULL ) {
+          save_candidate(node->fleaf, candidate, collision);
+          out = result;
+        } else if ( node->vleaf != NULL ) {
+          save_candidate(node->vleaf, candidate, collision);
+          out = result;
+        } else {
+          out = NO_MATCH;
+        }
+      } else {
+        if ( node->vleaf != NULL ) {
+          save_candidate(node->vleaf, candidate, collision);
+          out = result;
+        } else {
+          out = NO_MATCH;
+        }
+      }
+    }
+  }
+
+  return out;
 }
 
 Method* mtable_dispatch(RlState* rls, MethodTable* mt, int argc) {
   Method* out = NULL;
+  Tuple* sig = NULL;
+  Method* clash = NULL;
+  int amin = mt->amin, amax = mt->amax;
+  bool cached = false, vamt = mt->va;
 
-  // simplest case of no arguments
-  if ( argc == 0 ) {
-    out = mt->fthunk ? : mt->vthunk;
-  } else {
-    Tuple* sig = NULL;
-    Method* clash = NULL;
-    int amin = mt->amin, amax = mt->amax;
-    bool cached = false, vamt = mt->va;
+  if ( argc >= amin && (argc <= amax || vamt) ) {
+    int smax = min(argc, amax);
+    sig = get_signature(rls, argc, smax);
+    out = get_cached_method(rls, mt, sig);
+    cached = out != NULL;
 
-    if ( argc >= amin && (argc <= amax || vamt) ) {
-      int smax = min(argc, amax);
-      sig = get_signature(rls, argc, smax);
-      out = get_cached_method(rls, mt, sig);
-      cached = out != NULL;
+    if ( !cached )
+      mtnode_lookup(rls, mt->root, sig, argc, EXACT_MATCH, &out, &clash);
 
-      if ( !cached )
-        mtnode_lookup(rls, mt->root, sig, argc, &out, &clash);
-
-      require(rls, clash == NULL, "ambiguous method call had multiple candidates.");
-
-      if ( out == NULL )
-        out = mt->vthunk; // final fallback
-      }
-
-    if ( !cached && out != NULL )
-      cache_method(rls, mt, sig, out);
+    require(rls, clash == NULL, "ambiguous method call had multiple candidates.");
   }
- 
+
+  if ( !cached && out != NULL )
+    cache_method(rls, mt, sig, out);
+
   return out;
 }
-
 
 // other dispatch APIs
 Tuple* get_signature(RlState* rls, int o, int n) {
@@ -166,6 +288,10 @@ bool mt_cache_compare(void* x, void* y) {
   return out;
 }
 
+void mt_cache_init(void* val, void* spc) {
+  *(Method**)spc = val;
+}
+
 void mt_cache_mark(RlState* rls, Table* table, KV* kv) {
   if ( !table->weak_key )
     mark_obj(rls, kv->key);
@@ -180,6 +306,7 @@ void init_mt_cache_table(RlState* rls, Table* table) {
   table->hash     = mt_cache_hash;
   table->rehash   = mt_cache_rehash;
   table->compare  = mt_cache_compare;
+  table->init     = mt_cache_init;
   table->mark     = mt_cache_mark;
 }
 
@@ -200,11 +327,26 @@ void mt_node_mark(RlState* rls, Table* table, KV* kv) {
     mark_obj(rls, kv->val);
 }
 
+void mt_node_init(void* val, void* spc) {
+  *(MTNode**)spc = val;
+}
+
+void mt_node_intern(RlState* rls, Table* table, KV* kv, void* key, hash_t hash, void* state) {
+  (void)table;
+  (void)hash;
+
+  MTNode* parent = state;
+  kv->key = key;
+  kv->val = mk_mtnode(rls, parent->offset+1);
+}
+
 void init_mt_node_table(RlState* rls, Table* table) {
   init_table(rls, table);
   table->sentinel = NULL;
   table->hash     = mt_node_hash;
   table->rehash   = mt_node_rehash;
   table->compare  = mt_node_compare;
+  table->init     = mt_node_init;
+  table->intern   = mt_node_intern;
   table->mark     = mt_node_mark;
 }

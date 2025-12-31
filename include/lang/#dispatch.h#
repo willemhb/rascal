@@ -14,7 +14,6 @@ void fun_add_method_s(RlState* rls, Fun* fun, Method* m);
 Method* fun_get_method(RlState* rls, Fun* fun, int argc);
 void add_builtin_method(RlState* rls, Fun* fun, OpCode op, bool va, int arity, ...);
 void mtable_add(RlState* rls, MethodTable* mt, Method* m);
-Method* mtable_lookup(RlState* rls, MethodTable* mt, Tuple* sig);
 Method* mtable_dispatch(RlState* rls, MethodTable* mt, int argc); // arguments are on the stack
 
 // other dispatch APIs

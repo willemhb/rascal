@@ -50,7 +50,7 @@ struct Method {
 
   union {
     OpCode label; // for builtins, set to OP_NOOP for user methods
-    
+
     struct {
       Chunk* chunk; // bytecode for closures
       UpVal** upvs;
@@ -62,7 +62,8 @@ struct MTNode {
   HEAD;
 
   int     offset;   // offset of the current argument
-  Method* fleaf;    // fixed arity meth9od 
+  Method* fleaf;    // fixed arity method
+  Method* vleaf;    // variadic arity method
   MTNode* fallback; // method with 'any' signature
   Table   children;
 };
@@ -77,9 +78,7 @@ struct MethodTable {
   int amin; // maximum registered arity
   int amax; // minimum registered arity
   int mcount; // total number of method signatures
-  MTNode* root;
-  Method* fthunk; // fixed arity thunk
-  Method* vthunk; // variable arity thunk
+  MTNode* root; // beginning of method table
   Table cache;  // cache of exact method signatures
 };
 
