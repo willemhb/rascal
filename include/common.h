@@ -38,6 +38,7 @@ typedef double Num;
 typedef bool Bool;
 typedef char32_t Glyph;
 typedef struct Obj Obj;
+typedef struct Box Box; // transparent storage for boxed primitives
 
 // Object types ---------------------------------------------------------------
 // user types

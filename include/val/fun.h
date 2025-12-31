@@ -5,6 +5,7 @@
 #include "val/env.h"
 #include "val/sym.h"
 #include "util/collection.h"
+#include "util/util.h"
 
 typedef enum {
   BUILTIN_METHOD = 1,
@@ -58,26 +59,19 @@ struct MTNode {
 
 // this is the new form of MethodTable but I'm giving it a different name
 // during development so I don't break everything
-struct MTRoot {
+struct MethodTable {
   HEAD;
 
   Fun* fun;
-  int mcount;
-  bool va;
-  int fmin, fmax; // upper and lower bounds for fixed arity signatures
-  int vmin, vmax; // lower and upper bounds for variadic arity signatures
+  bool va; // whether any variadic signatures are registered
+  int amin; // maximum registered arity
+  int amax; // minimum registered arity
+  int mcount; // total number of method signatures
   MTNode* froot;  // table of registered fixed arity signatures
   MTNode* vroot;  // table of registered variable arity signatures
   Method* fthunk; // fixed arity thunk
   Method* vthunk; // variable arity thunk
-  Table   cache;  // cache of exact method signatures
-};
-
-struct MethodTable {
-  HEAD;
-  Fun* fun; // the function object this is a method table for
-  Method* variadic; // only one variadic method is currently supported
-  BitVec methods; // bit vector of fixed arity methods
+  Table cache;  // cache of exact method signatures
 };
 
 // inline helpers
@@ -88,8 +82,8 @@ static inline bool argc_match(Method* m, int argc) {
   return argc == m->arity;
 }
 
-static inline int mtable_count(MethodTable* m) {
-  return m->methods.count + (m->variadic != NULL);    
+static inline int mtable_count(MethodTable* mt) {
+  return mt->mcount;
 }
 
 // chunk API
@@ -103,12 +97,6 @@ void disassemble_chunk(Chunk* chunk);
 // function API
 Fun* mk_fun(RlState* rls, Sym* name, bool macro, bool generic);
 Fun* mk_fun_s(RlState* rls, Sym* name, bool macro, bool generic);
-void fun_add_method(RlState* rls, Fun* fun, Method* m);
-void fun_add_method_s(RlState* rls, Fun* fun, Method* m);
-Method* fun_get_method(Fun* fun, int argc);
-Fun* def_builtin_fun(RlState* rls, char* name, int arity, bool va, OpCode op);
-void add_builtin_method(RlState* rls, Fun* fun, int arity, bool va, OpCode op);
-char* get_fn_name(void* ob, char* fallback);
 
 // method API
 Method* mk_method(RlState* rls, Fun* fun, int arity, bool va, OpCode op, Chunk* code);
@@ -125,17 +113,10 @@ void    upval_set(Method* m, int i, Expr x);
 // method table API
 MethodTable* mk_mtable(RlState* rls, Fun* fun);
 MethodTable* mk_mtable_s(RlState* rls, Fun* fun);
-void mtable_add(RlState* rls, MethodTable* mt, Method* m);
-Method* mtable_lookup(MethodTable* mt, int argc);
 
 // MTNode
 MTNode* mk_mtnode(RlState* rls, int offset);
 MTNode* mk_mtnode_s(RlState* rls, int offset);
-
-// other dispatch APIs
-Tuple* get_signature(RlState* rls, int n);
-void   init_mt_cache_table(RlState* rls, Table* table);
-void   init_mt_node_table(RlState* rls, Table* table);
 
 // convenience macros and accessors
 #define as_method(x)     ((Method*)as_obj(x))

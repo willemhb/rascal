@@ -13,7 +13,6 @@
 
 // forward declarations
 void print_nul(Port* ios, Expr x);
-void print_none(Port* ios, Expr x);
 void print_type(Port* ios, Expr x);
 void trace_type(RlState* rls, void* ptr);
 
@@ -37,7 +36,6 @@ Type NoneType = {
   .bfields  = FL_GRAY,
   .tag      = EXP_NONE,
   .obsize   = 0,
-  .print_fn = print_none
 };
 
 Type NulType = {
@@ -70,11 +68,11 @@ bool has_type(Expr x, Type* t) {
 Type* type_of(Expr x) {
   Type* t;
 
-  switch ( x & XTMSK ) {
-    case NONE_T  : t = &NoneType;     break;
+  switch ( tag_of(x) ) {
     case NUL_T   : t = &NulType;      break;
     case BOOL_T  : t = &BoolType;     break;
     case GLYPH_T : t = &GlyphType;    break;
+    case BOX_T   : t = head(x)->type; break;
     case OBJ_T   : t = head(x)->type; break;
     default      : t = &NumType;      break;
   }
@@ -119,6 +117,7 @@ void register_builtin_types(RlState* rls) {
   init_builtin_type_hash(&FunType);
   init_builtin_type_hash(&MethodType);
   init_builtin_type_hash(&MethodTableType);
+  init_builtin_type_hash(&MTNodeType);
   init_builtin_type_hash(&SymType);
   init_builtin_type_hash(&StrType);
   init_builtin_type_hash(&ListType);
@@ -144,6 +143,7 @@ void register_builtin_types(RlState* rls) {
   init_builtin_type(rls, &FunType, "Fun");
   init_builtin_type(rls, &MethodType, "Method");
   init_builtin_type(rls, &MethodTableType, "MethodTable");
+  init_builtin_type(rls, &MTNodeType, "MTNode");
   init_builtin_type(rls, &SymType, "Sym");
   init_builtin_type(rls, &StrType, "Str");
   init_builtin_type(rls, &ListType, "List");
@@ -236,6 +236,7 @@ Expr tag_obj(void* o) {
 void* mk_obj(RlState* rls, Type* type, flags_t flags) {
   Obj* out = allocate(rls, type->obsize);
   out->type = type;
+  out->meta = NULL;
   out->bfields = flags | FL_GRAY;
   add_to_managed(rls, out);
 
@@ -312,11 +313,6 @@ void free_obj(RlState* rls, void* ptr) {
 void print_nul(Port* ios, Expr x) {
   (void)x;
   pprintf(ios, "nul");
-}
-
-void print_none(Port* ios, Expr x) {
-  (void)x;
-  pprintf(ios, "none");
 }
 
 void print_type(Port* ios, Expr x) {

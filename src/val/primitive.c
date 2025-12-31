@@ -44,6 +44,9 @@ Num as_num_s(RlState* rls, Expr x) {
 }
 
 Num as_num(Expr x) {
+  if ( (x & XTMSK) == FIX_T )
+    return as_fix(x);
+
   union { Expr expr; Num num; } bits = { .expr = x };
 
   return bits.num;
@@ -95,7 +98,7 @@ void print_bool(Port* ios, Expr x) {
 
 // glyph APIs
 Glyph as_glyph(Expr x) {
-  return x & XVMSK;
+  return x & WVMSK;
 }
 
 Glyph as_glyph_s(RlState* rls, Expr x) {

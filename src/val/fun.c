@@ -1,5 +1,3 @@
-#include <string.h>
-
 #include "val/fun.h"
 #include "val/port.h"
 #include "val/primitive.h"
@@ -23,8 +21,6 @@ void trace_mtnode(RlState* rls, void* ptr);
 void free_chunk(RlState* rls, void* ptr);
 void free_mtable(RlState* rls, void* ptr);
 void free_mtnode(RlState* rls, void* ptr);
-
-
 
 // Type objects
 Type ChunkType = {
@@ -296,73 +292,6 @@ Fun* mk_fun_s(RlState* rls, Sym* name, bool macro, bool generic) {
   return out;
 }
 
-void fun_add_method(RlState* rls, Fun* fun, Method* m) {
-  assert(fun->generic || fun->method == NULL);
-
-  int count = fun->mcount;
-
-  if ( count == 0 )
-    fun->method = m;
-
-  else {
-    if ( count == 1 ) {
-      MethodTable* mt = mk_mtable_s(rls, fun);
-      mtable_add(rls, mt, fun->method);
-      fun->methods = mt;
-      stack_pop(rls);
-    }
-
-    mtable_add(rls, fun->methods, m);
-  }
-
-  fun->mcount++;
-}
-
-void fun_add_method_s(RlState* rls, Fun* fun, Method* m) {
-  stack_preserve(rls, 2, tag_obj(fun), tag_obj(m));
-  fun_add_method(rls, fun, m);
-  stack_popn(rls, 2);
-}
-
-Method* fun_get_method(Fun* fun, int argc) {
-  assert(fun->method != NULL);
-
-  Method* out = NULL;
-
-  if ( is_singleton_fun(fun) ) {
-    if ( argc_match(fun->method, argc) )
-      out = fun->method;
-  } else {
-    out = mtable_lookup(fun->methods, argc);
-  }
-
-  return out;
-}
-
-Fun* def_builtin_fun(RlState* rls, char* name, int arity, bool va, OpCode op) {
-  StackRef top = rls->s_top;
-  Sym* n = mk_sym_s(rls, name);
-#ifdef RASCAL_DEBUG
-  // pprintf(&Outs, "Defining builtin function %s.\n\n", sym_val(n));
-#endif
-  Fun* f = mk_fun_s(rls, n, false, true);
-  Method* m = mk_builtin_method_s(rls, f, arity, va, op);
-
-  fun_add_method(rls, f, m);
-  toplevel_env_def(rls, Vm.globals, n, tag_obj(f), false, true);
-  rls->s_top = top;
-
-  return f;
-}
-
-void add_builtin_method(RlState* rls, Fun* fun, int arity, bool va, OpCode op) {
-  // NB: fun should already be defined at toplevel
-  StackRef top = rls->s_top;
-  Method* m = mk_builtin_method_s(rls, fun, arity, va, op);
-  fun_add_method(rls, fun, m);
-  rls->s_top = top;
-}
-
 void print_fun(Port* ios, Expr x) {
   Fun* fun = as_fun(x);
 
@@ -390,9 +319,7 @@ Method* mk_method(RlState* rls, Fun* fun, int arity, bool va, OpCode op, Chunk* 
   m->chunk = code;
 
   assert(code != NULL || op != OP_NOOP);
-
-  
-  
+    
   return m;
 }
 
@@ -492,33 +419,6 @@ MethodTable* mk_mtable_s(RlState* rls, Fun* fun) {
   return out;
 }
 
-void mtable_add(RlState* rls, MethodTable* mt, Method* m) {
-  char* fname = mtable_name(mt);
-  // check for duplicate signature
-  if ( method_va(m) ) {
-    if ( mt->variadic != NULL )
-      eval_error(rls, "method %s/%d+ already exists", fname, mt->variadic->arity);
-
-    mt->variadic = m;
-  }
-
-  else if ( bit_vec_has(&mt->methods, m->arity) )
-    eval_error(rls, "method %s/%d already exists", fname, m->arity);
-
-  else {
-    bit_vec_set(rls, &mt->methods, m->arity, m); // add to bitmap
-  }
-}
-
-Method* mtable_lookup(MethodTable* mt, int argc) {
-  Method* out = bit_vec_get(&mt->methods, argc);
-
-  if ( out == NULL && mt->variadic && argc >= mt->variadic->arity )
-    out = mt->variadic;
-
-  return out;
-}
-
 void print_mtable(Port* ios, Expr x) {
   MethodTable* mt = as_mtable(x);
   pprintf(ios, "<method-table:%s/%d>", mtable_name(mt), mtable_count(mt));
@@ -568,83 +468,4 @@ MTNode* mk_mtnode_s(RlState* rls, int offset) {
   stack_push(rls, tag_obj(out));
 
   return out;
-}
-
-// other dispatch APIs
-Tuple* get_signature(RlState* rls, int n) {
-  // create a signature for a function call
-  // basically inlining the process of hashing
-  hash_t seed = hash_word_48(n+1);
-  StackRef top = rls->s_top, base = top-n;
-
-  for ( int i=0; i<n; i++ ) {
-    Expr id = FIX_T | type_of(base[i])->tag;
-    seed = mix_hashes_48(seed, hash_word_48(id));
-    stack_push(rls, id);
-  }
-
-  seed = mix_hashes_48(TupleType.hashcode, seed);
-  Tuple* out = mk_tuple(rls, n);
-  out->hashcode = seed;
-  rls->s_top = top;
-  return out;
-}
-
-hash_t mt_cache_hash(void* k) {
-  return ((Tuple*)k)->hashcode;
-}
-
-hash_t mt_cache_rehash(KV* kv) {
-  return ((Tuple*)kv->key)->hashcode;
-}
-
-bool mt_cache_compare(void* x, void* y) {
-  Tuple* tx = x, *ty = y;
-
-  return tx->count == ty->count &&
-    memcmp(tx->data, ty->data, tx->count*sizeof(Expr)) == 0;
-}
-
-void mt_cache_mark(RlState* rls, Table* table, KV* kv) {
-  if ( !table->weak_key )
-    mark_obj(rls, kv->key);
-
-  if ( !table->weak_val )
-    mark_obj(rls, kv->val);
-}
-
-
-void init_mt_cache_table(RlState* rls, Table* table) {
-  init_table(rls, table);
-  table->sentinel = NULL;
-  table->hash     = mt_cache_hash;
-  table->rehash   = mt_cache_rehash;
-  table->compare  = mt_cache_compare;
-  table->mark     = mt_cache_mark;
-}
-
-hash_t mt_node_hash(void* k) {
-  return hash_pointer_48(k);
-}
-
-hash_t mt_node_rehash(KV* kv) {
-  return hash_pointer_48(kv->key);
-}
-
-bool mt_node_compare(void* x, void* y) {
-  return x == y;
-}
-
-void mt_node_mark(RlState* rls, Table* table, KV* kv) {
-  if ( !table->weak_val )
-    mark_obj(rls, kv->val);
-}
-
-void init_mt_node_table(RlState* rls, Table* table) {
-  init_table(rls, table);
-  table->sentinel = NULL;
-  table->hash     = mt_node_hash;
-  table->rehash   = mt_node_rehash;
-  table->compare  = mt_node_compare;
-  table->mark     = mt_node_mark;
 }

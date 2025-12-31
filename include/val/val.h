@@ -11,6 +11,7 @@
 #define HEAD                                        \
   Obj* heap;                                        \
   Type* type;                                       \
+  Map* meta;                                        \
   union {                                           \
     struct {                                        \
       uintptr_t bfields  : 16;                      \
@@ -42,14 +43,14 @@ enum {
   EXP_FUN,
   EXP_METHOD,
   EXP_MTABLE,
-  EXP_MTNODE,
+  EXP_MT_NODE,
   EXP_SYM,
   EXP_STR,
   EXP_LIST,
   EXP_TUPLE,
   EXP_NUM,
   EXP_LIBHANDLE,
-  EXP_FOREIGNFN,
+  EXP_FOREIGN_FN,
   EXP_MAP,
   EXP_MAP_NODE
 };
@@ -85,7 +86,9 @@ struct Type {
 #define QNAN   0x7ffc000000000000ul
 
 #define XTMSK  0xffff000000000000ul
+#define WTMSK  0xffffffff00000000ul
 #define XVMSK  0x0000fffffffffffful
+#define WVMSK  0x00000000fffffffful
 
 /* speculative complete/optimized tag system
 
@@ -104,6 +107,7 @@ struct Type {
    else.
    
  */
+
 /* #define WIDE_T  0x7ffc000000000000ul */
 /* #define NUL_T   0x7ffc000100000000ul */
 /* #define GLYPH_T 0x7ffc000200000000ul */
@@ -117,24 +121,34 @@ struct Type {
 /* #define BOX_T   0xfffe000000000000ul */
 /* #define OBJ_T   0xffff000000000000ul */
 
-
-#define NONE_T  0x7ffc000000000000ul
-#define NUL_T   0x7ffd000000000000ul
-#define BOOL_T  0x7ffe000000000000ul
-#define GLYPH_T 0xfffc000000000000ul
-#define FIX_T   0xfffe000000000000ul
+#define WIDE_T  0x7ffc000000000000ul
+#define NUL_T   0x7ffc000100000000ul
+#define BOOL_T  0x7ffc000200000000ul
+#define GLYPH_T 0x7ffc000300000000ul
+#define FIX_T   0xfffd000000000000ul
+#define BOX_T   0xfffe000000000000ul
 #define OBJ_T   0xffff000000000000ul
 
 // special values
-#define NONE    0x7ffc000000000000ul
-#define NUL     0x7ffd000000000000ul
-#define EOS     0xfffc0000fffffffful
-#define TRUE    0x7ffe000000000001ul
-#define FALSE   0x7ffe000000000000ul
+#define NONE    0x7ffc0001fffffffful // used internally to signal eg not found, should never appear in user code
+#define NUL     0x7ffc000100000000ul
+#define EOS     0x7ffc0003fffffffful
+#define TRUE    0x7ffc000200000001ul
+#define FALSE   0x7ffc000200000000ul
 #define RL_ZERO 0x0000000000000000ul
 #define RL_ONE  0x3ff0000000000000ul
 
 // convenience macros
+static inline uptr_t tag_of(Expr x) {
+  uptr_t out = x & XTMSK;
+
+  return out != WIDE_T ? out : x & WTMSK;
+}
+
+static inline uptr_t bits_of(Expr x) {
+  return (x & XTMSK) == WIDE_T ? x & WVMSK : x & XVMSK;
+}
+
 #define expr_tag(x)    ((x) & XTMSK)
 #define expr_val(x)    ((x) & XVMSK)
 #define head(x)        ((Obj*)as_obj(x))

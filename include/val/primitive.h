@@ -12,11 +12,11 @@ typedef union {
   uptr_t fixnum;
 } CData;
 
-typedef struct {
+struct Box {
   HEAD;
 
   CData val;
-} Box;
+};
 
 // number API
 Num as_num_s(RlState* rls, Expr x);

@@ -1,4 +1,5 @@
 #include "lang/env.h"
+#include "lang/dispatch.h"
 #include "vm.h"
 
 // C types --------------------------------------------------------------------
@@ -104,20 +105,6 @@ void toplevel_env_set(RlState* rls, Env* e, Sym* n, Expr x) {
   r->val = x;
 }
 
-void toplevel_env_refset(RlState* rls, Env* e, int n, Expr x) {
-  (void)rls;
-
-  assert(is_global_env(e));
-  assert(n >= 0 && n < e->vals.count);
-  Ref* r = e->vals.data[n];
-
-  // don't overwrite final bindings
-  if ( r->final && r->val != NONE )
-    eval_error(rls, "cannot assign to initialized final ref %s", r->name->val->val);
-
-  r->val = x;
-}
-
 Ref* toplevel_env_find(RlState* rls, Env* e, Sym* n) {
   assert(is_global_env(e));
 
@@ -126,17 +113,6 @@ Ref* toplevel_env_find(RlState* rls, Env* e, Sym* n) {
   emap_get(rls, &e->vars, n, &ref);
 
   return ref;
-}
-
-Expr toplevel_env_ref(RlState* rls, Env* e, int n) {
-  (void)rls;
-
-  assert(is_global_env(e));
-  assert(n >= 0 && n < e->vals.count);
-
-  Ref* r = e->vals.data[n];
-
-  return r->val;
 }
 
 Expr toplevel_env_get(RlState* rls, Env* e, Sym* n) {
@@ -148,4 +124,18 @@ Expr toplevel_env_get(RlState* rls, Env* e, Sym* n) {
     x = ref->val;
 
   return x;
+}
+
+// helpers for defining builtins
+Fun* def_builtin_fun(RlState* rls, char* name, int arity, bool va, OpCode op) {
+  StackRef top = rls->s_top;
+  Sym* n = mk_sym_s(rls, name);
+  Fun* f = mk_fun_s(rls, n, false, true);
+  Method* m = mk_builtin_method_s(rls, f, arity, va, op);
+
+  fun_add_method(rls, f, m);
+  toplevel_env_def(rls, Vm.globals, n, tag_obj(f), false, true);
+  rls->s_top = top;
+
+  return f;
 }
