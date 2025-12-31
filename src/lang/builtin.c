@@ -51,7 +51,7 @@ void define_builtins(void) {
   def_builtin_fun(&Main, "tuple-len", 1, false, OP_TUPLE_LEN);
 
   // map
-  def_builtin_fun(&Main, "make-map", 0, true, OP_MAP);
+  def_builtin_fun(&Main, "map", 0, true, OP_MAP);
   fun = def_builtin_fun(&Main, "get", 2, false, OP_MAP_GET_2);
   add_builtin_method(&Main, fun, 3, false, OP_MAP_GET_3);
   def_builtin_fun(&Main, "assoc", 3, false, OP_MAP_ASSOC);

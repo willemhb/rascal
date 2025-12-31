@@ -183,10 +183,12 @@ hash_t hash_expr(Expr x) {
 
       else
         o->hashcode = hash_pointer_48(o);
-
-      out = o->hashcode;
     }
+
+    out = o->hashcode;
   }
+
+  assert(out != 0);
 
   return out;
 }

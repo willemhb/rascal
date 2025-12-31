@@ -15,6 +15,11 @@
 typedef struct RlVm {
   Env* globals; /* toplevel environment */
   Strings strings; /* interned strings */
+
+  /* miscellaneous */
+  bool debug;
+
+  /* heap state */
   size_t heap_cap, heap_used, gc_count;
   bool initialized, gc;
   Obj* managed_objects;

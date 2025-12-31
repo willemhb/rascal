@@ -43,6 +43,7 @@ RlVm Vm = {
     .count     = 0,
     .maxc = 0
   },
+  .debug       = false,
   .heap_cap    = INIT_HEAP,
   .heap_used   = 0,
   .gc_count    = 0,

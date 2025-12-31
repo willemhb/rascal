@@ -140,9 +140,9 @@ void rascal_error(RlState* rls, Status etype, bool fatal, Str* message) {
   if ( !is_user_ctl(ctl) ) {
     pprintf(&Errs, "%s\n\n", str_val(message));
     print_stack_trace(rls);
-#ifdef RASCAL_DEBUG
-    stack_report(rls, -1, "full stack at error");
-#endif
+    // #ifdef RASCAL_DEBUG
+    // stack_report(rls, -1, "full stack at error");
+    // #endif
 
   } else {
 #ifdef RASCAL_DEBUG
@@ -154,7 +154,7 @@ void rascal_error(RlState* rls, Status etype, bool fatal, Str* message) {
     stack_preserve(rls, 2, tag_obj(error_sym(etype)), tag_obj(message));
     mk_tuple_s(rls, 2);
     stack_rpopn(rls, 2);
-    stack_report(rls, -1, "full stack at user error");
+    // stack_report(rls, -1, "full stack at user error");
   }
 
   rl_longjmp(rls, etype);

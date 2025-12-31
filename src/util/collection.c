@@ -389,7 +389,6 @@ int bitmap_to_index(uintptr_t map, int n) {
   return popc(((1ul << n) -1) & map);
 }
 
-
 static void bitmap_set(uintptr_t* map, int n) {
   assert(n >= 0 && n < MAX_FARGC);
   *map |= 1ul << n;
@@ -433,7 +432,7 @@ bool bit_vec_has(BitVec* bv, int n) {
 }
 
 void bit_vec_set(RlState* rls, BitVec* bv, int n, void* d) {
-  assert(!bit_vec_has(bv, n));
+  // assert(!bit_vec_has(bv, n));
 
   if ( bv->count + 1 > bv->maxc )
     grow_bit_vec(rls, bv);
@@ -454,6 +453,15 @@ void* bit_vec_get(BitVec* bv, int n) {
 
   int i = bitmap_to_index(bv->bitmap, n);
   return bv->data[i];
+}
+
+void** bit_vec_at(BitVec* bv, int n) {
+  if ( bv->data == NULL )
+    return NULL;
+
+  int i = bitmap_to_index(bv->bitmap, n);
+  
+  return &bv->data[i];
 }
 
 void* bit_vec_update(RlState* rls, BitVec* bv, int n, void* d) {

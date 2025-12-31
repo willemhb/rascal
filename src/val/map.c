@@ -75,14 +75,17 @@ Type MapType = {
 
 // internal node constructors
 static MapNode* mk_leaf_node(RlState* rls, hash_t hash, Expr key, Expr val) {
-  MapNode* n = mk_obj(rls, &MapNodeType, 0);
-  n->kind = MAP_LEAF;
-  n->hash = hash;
-  n->shift = 0;
-  n->leaf.key = key;
-  n->leaf.val = val;
+  MapNode* n   = mk_obj(rls, &MapNodeType, 0);
+  n->kind      = MAP_LEAF;
+  n->hash      = hash;
+  n->shift     = 0;
+  n->leaf.key  = key;
+  n->leaf.val  = val;
+  n->leaf.next = NULL;
+
   return n;
 }
+
 /*
 static MapNode* mk_leaf_node_s(RlState* rls, hash_t hash, Expr key, Expr val) {
   MapNode* out = mk_leaf_node(rls, hash, key, val);
@@ -90,6 +93,7 @@ static MapNode* mk_leaf_node_s(RlState* rls, hash_t hash, Expr key, Expr val) {
   return out;
 }
 */
+
 
 static MapNode* mk_branch_node(RlState* rls, int shift) {
   MapNode* n = mk_obj(rls, &MapNodeType, 0);
@@ -240,14 +244,22 @@ Map* mk_map(RlState* rls, int n) {
   Map* map = new_map_s(rls);
 
   if ( n > 0 ) {
-    StackRef top = rls->s_top;
-    StackRef base = top-n;
- 
     map->root = mk_branch_node(rls, 0);
+    StackRef top = rls->s_top;
+    StackRef base = top-n-1;
 
     for ( int i=0; i<n; i+= 2 ) {
       Expr key = base[i];
       Expr val = base[i+1];
+
+#ifdef RASCAL_DEBUG
+      /* pprintf(&Outs, "map key %d: ", i / 2 + 1); */
+      /* print_expr(&Outs, key); */
+      /* pprintf(&Outs, "\nmap val %d: ", i / 2 + 1); */
+      /* print_expr(&Outs, val); */
+      /* pprintf(&Outs, "\n"); */
+#endif
+      
       map_insert(rls, map, key, val);
     }
   }
@@ -327,8 +339,8 @@ bool map_contains(Map* map, Expr key) {
 
 // recursive insert helper
 static void map_insert(RlState* rls, Map* map, Expr key, Expr val) {
-  MapNode* node, *childnode, *newnode, *leafnode;
-  int shift, newshift, index, childindex;
+  MapNode* node, *childnode, *newnode, *leafnode, *lastnode = NULL;
+  int shift, newshift, index, childindex, lastindex = -1;
   bool transient;
   StackRef top;
   hash_t hash, childhash;
@@ -338,12 +350,19 @@ static void map_insert(RlState* rls, Map* map, Expr key, Expr val) {
   transient = map->transient;
 
   for (;;) {
-    if ( transient )
+    if ( !transient ) {
       node = clone_node_s(rls, node);
 
+      if ( lastindex == -1 )
+        map->root = node;
+
+      else
+        branch_node_set(rls, lastnode, lastindex, node);
+    }
+    
     shift = node->shift;
     index = hash_index(hash, shift);
-
+    
     if ( !branch_node_has(node, index) ) { // simplest case
       newnode = mk_leaf_node(rls, hash, key, val);
       branch_node_set(rls, node, index, newnode);
@@ -352,12 +371,15 @@ static void map_insert(RlState* rls, Map* map, Expr key, Expr val) {
     } else {
       childnode = branch_node_get(node, index);
 
-      if ( is_branch(childnode) )
+      if ( is_branch(childnode) ) {
+        lastindex = index;
+        lastnode = node;
         node = childnode;
-
-      else if ( egal_exprs(key, leaf_key(childnode)) ) {
-        if ( transient )
-          childnode = clone_node_s(rls, node);
+      } else if ( egal_exprs(key, leaf_key(childnode)) ) {
+        if ( !transient ) {
+          childnode = clone_node(rls, childnode);
+          branch_node_set(rls, node, index, childnode);
+        }
 
         leaf_val(childnode) = val;
         break;
@@ -382,13 +404,11 @@ static void map_insert(RlState* rls, Map* map, Expr key, Expr val) {
         newnode = mk_leaf_node(rls, hash, key, val);
         branch_node_set(rls, node, index, newnode);
         branch_node_set(rls, node, childindex, childnode);
-
         map->count++;
         break;
       }
     }
   }
-
   rls->s_top = top;
 }
 
@@ -487,15 +507,11 @@ static void map_delete(RlState* rls, StackRef mbuf, Expr key) {
   rls->s_top = top;
 }
 
-
 Map* map_assoc(RlState* rls, Map* map, Expr key, Expr val) {
   StackRef top = rls->s_top;
 
   if ( !map->transient )
     map = clone_obj_s(rls, map);
-
-  if ( map->root == NULL )
-    map->root = mk_branch_node(rls, 0);
 
   map_insert(rls, map, key, val);
   rls->s_top = top;
@@ -610,9 +626,13 @@ static bool egal_map_nodes(MapNode* nx, Map* my) {
 void print_map(Port* ios, Expr x) {
   Map* map = as_map(x);
   int count = 0, max_count = map->count;
+  // #ifdef RASCAL_DEBUG
+  // pprintf(ios, "<map/%d>", max_count);
+  // #else
   pprintf(ios, "{");
   print_map_nodes(ios, map->root, &count, max_count);
   pprintf(ios, "}");
+  // #endif
 }
 
 void print_map_node(Port* ios, Expr x) {

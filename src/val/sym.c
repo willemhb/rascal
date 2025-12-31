@@ -90,6 +90,8 @@ hash_t hash_sym(Expr x) {
   if ( s->idno )
     sym_hash = mix_hashes_48(hash_word_48(s->idno), sym_hash);
 
+  assert(sym_hash != 0);
+
   return sym_hash;
 }
 
