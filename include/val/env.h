@@ -63,15 +63,6 @@ Expr*  deref(UpVal* upv);
 // environment API
 Env*   mk_env(RlState* rls, Env* parent);
 Env*   mk_env_s(RlState* rls, Env* parent);
-Ref*   env_capture(RlState* rls, Env* e, Ref* r);
-Ref*   env_resolve(RlState* rls, Env* e, Sym* n, bool capture);
-Ref*   env_define(RlState* rls, Env* e, Sym* n, bool m, bool f, bool *a);
-void   toplevel_env_def(RlState* rls, Env* e, Sym* n, Expr x, bool m, bool f);
-void   toplevel_env_set(RlState* rls, Env* e, Sym* n, Expr x);
-void   toplevel_env_refset(RlState* rls, Env* e, int n, Expr x);
-Ref*   toplevel_env_find(RlState* rls, Env* e, Sym* n);
-Expr   toplevel_env_ref(RlState* rls, Env* e, int n);
-Expr   toplevel_env_get(RlState* rls, Env* e, Sym* n);
 
 // convenience macros & accessors
 #define as_ref(x)        ((Ref*)as_obj(x))
