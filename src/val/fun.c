@@ -1,6 +1,9 @@
+#include <string.h>
+
 #include "val/fun.h"
 #include "val/port.h"
 #include "val/primitive.h"
+#include "val/tuple.h"
 #include "vm.h"
 #include "lang.h"
 #include "util/util.h"
@@ -15,9 +18,13 @@ void trace_chunk(RlState* rls, void* ptr);
 void trace_method(RlState* rls, void* ptr);
 void trace_fun(RlState* rls, void* ptr);
 void trace_mtable(RlState* rls, void* ptr);
+void trace_mtnode(RlState* rls, void* ptr);
 
 void free_chunk(RlState* rls, void* ptr);
 void free_mtable(RlState* rls, void* ptr);
+void free_mtnode(RlState* rls, void* ptr);
+
+
 
 // Type objects
 Type ChunkType = {
@@ -49,6 +56,16 @@ Type MethodTableType = {
   .trace_fn = trace_mtable,
   .print_fn = print_mtable,
   .free_fn  = free_mtable,
+};
+
+Type MTNodeType = {
+  .heap     = NULL,
+  .type     = &TypeType,
+  .bfields  = FL_GRAY,
+  .tag      = EXP_MTNODE,
+  .obsize   = sizeof(MTNode),
+  .trace_fn = trace_mtnode,
+  .free_fn  = free_mtnode,
 };
 
 Type FunType = {
@@ -519,3 +536,115 @@ void free_mtable(RlState* rls, void* ptr) {
   free_bit_vec(rls, &mt->methods);
 }
 
+// mtnode/mtroot
+void trace_mtnode(RlState* rls, void* ptr) {
+  MTNode* node = ptr;
+
+  mark_obj(rls, node->leaf);
+  mark_obj(rls, node->fallback);
+  mark_table(rls, &node->children);
+}
+
+void free_mtnode(RlState* rls, void* ptr) {
+  MTNode* node = ptr;
+
+  free_table(rls, &node->children);
+}
+
+MTNode* mk_mtnode(RlState* rls, int offset) {
+  MTNode* out   = mk_obj(rls, &MTNodeType, 0);
+  out->offset   = offset;
+  out->leaf     = NULL;
+  out->fallback = NULL;
+
+  init_mt_node_table(rls, &out->children);
+
+  return out;
+}
+
+MTNode* mk_mtnode_s(RlState* rls, int offset) {
+  MTNode* out = mk_mtnode(rls, offset);
+
+  stack_push(rls, tag_obj(out));
+
+  return out;
+}
+
+// other dispatch APIs
+Tuple* get_signature(RlState* rls, int n) {
+  // create a signature for a function call
+  // basically inlining the process of hashing
+  hash_t seed = hash_word_48(n+1);
+  StackRef top = rls->s_top, base = top-n;
+
+  for ( int i=0; i<n; i++ ) {
+    Expr id = FIX_T | type_of(base[i])->tag;
+    seed = mix_hashes_48(seed, hash_word_48(id));
+    stack_push(rls, id);
+  }
+
+  seed = mix_hashes_48(TupleType.hashcode, seed);
+  Tuple* out = mk_tuple(rls, n);
+  out->hashcode = seed;
+  rls->s_top = top;
+  return out;
+}
+
+hash_t mt_cache_hash(void* k) {
+  return ((Tuple*)k)->hashcode;
+}
+
+hash_t mt_cache_rehash(KV* kv) {
+  return ((Tuple*)kv->key)->hashcode;
+}
+
+bool mt_cache_compare(void* x, void* y) {
+  Tuple* tx = x, *ty = y;
+
+  return tx->count == ty->count &&
+    memcmp(tx->data, ty->data, tx->count*sizeof(Expr)) == 0;
+}
+
+void mt_cache_mark(RlState* rls, Table* table, KV* kv) {
+  if ( !table->weak_key )
+    mark_obj(rls, kv->key);
+
+  if ( !table->weak_val )
+    mark_obj(rls, kv->val);
+}
+
+
+void init_mt_cache_table(RlState* rls, Table* table) {
+  init_table(rls, table);
+  table->sentinel = NULL;
+  table->hash     = mt_cache_hash;
+  table->rehash   = mt_cache_rehash;
+  table->compare  = mt_cache_compare;
+  table->mark     = mt_cache_mark;
+}
+
+hash_t mt_node_hash(void* k) {
+  return hash_pointer_48(k);
+}
+
+hash_t mt_node_rehash(KV* kv) {
+  return hash_pointer_48(kv->key);
+}
+
+bool mt_node_compare(void* x, void* y) {
+  return x == y;
+}
+
+void mt_node_mark(RlState* rls, Table* table, KV* kv) {
+  if ( !table->weak_val )
+    mark_obj(rls, kv->val);
+}
+
+void init_mt_node_table(RlState* rls, Table* table) {
+  init_table(rls, table);
+  table->sentinel = NULL;
+  table->hash     = mt_node_hash;
+  table->rehash   = mt_node_rehash;
+  table->compare  = mt_node_compare;
+  table->mark     = mt_node_mark;
+}

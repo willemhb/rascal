@@ -6,6 +6,12 @@
 #include "val/sym.h"
 #include "util/collection.h"
 
+typedef enum {
+  BUILTIN_METHOD = 1,
+  NATIVE_METHOD  = 2,
+  USER_METHOD    = 3,
+} MethodKind;
+
 struct Chunk {
   HEAD;
   Exprs vals;
@@ -39,6 +45,32 @@ struct Method {
   OpCode label; // for builtins, set to OP_NOOP for user methods
   Chunk* chunk; // bytecode for closures
   UpVal** upvs;
+};
+
+struct MTNode {
+  HEAD;
+
+  int     offset;   // offset of the current argument
+  Method* leaf;     // method to return on success
+  MTNode* fallback; // method with 'any' signature
+  Table   children;
+};
+
+// this is the new form of MethodTable but I'm giving it a different name
+// during development so I don't break everything
+struct MTRoot {
+  HEAD;
+
+  Fun* fun;
+  int mcount;
+  bool va;
+  int fmin, fmax; // upper and lower bounds for fixed arity signatures
+  int vmin, vmax; // lower and upper bounds for variadic arity signatures
+  MTNode* froot;  // table of registered fixed arity signatures
+  MTNode* vroot;  // table of registered variable arity signatures
+  Method* fthunk; // fixed arity thunk
+  Method* vthunk; // variable arity thunk
+  Table   cache;  // cache of exact method signatures
 };
 
 struct MethodTable {
@@ -95,6 +127,15 @@ MethodTable* mk_mtable(RlState* rls, Fun* fun);
 MethodTable* mk_mtable_s(RlState* rls, Fun* fun);
 void mtable_add(RlState* rls, MethodTable* mt, Method* m);
 Method* mtable_lookup(MethodTable* mt, int argc);
+
+// MTNode
+MTNode* mk_mtnode(RlState* rls, int offset);
+MTNode* mk_mtnode_s(RlState* rls, int offset);
+
+// other dispatch APIs
+Tuple* get_signature(RlState* rls, int n);
+void   init_mt_cache_table(RlState* rls, Table* table);
+void   init_mt_node_table(RlState* rls, Table* table);
 
 // convenience macros and accessors
 #define as_method(x)     ((Method*)as_obj(x))

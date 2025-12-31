@@ -42,6 +42,7 @@ enum {
   EXP_FUN,
   EXP_METHOD,
   EXP_MTABLE,
+  EXP_MTNODE,
   EXP_SYM,
   EXP_STR,
   EXP_LIST,
@@ -170,7 +171,7 @@ void  free_obj(RlState* rls, void *ptr);
 // Type extern declarations
 extern Type TypeType, NoneType, NulType, BoolType, GlyphType,
   ChunkType, RefType, UpValType, EnvType, CtlType, PortType, FunType,
-  MethodType, MethodTableType, SymType, StrType, ListType, TupleType,
+  MethodType, MethodTableType, MTNodeType, SymType, StrType, ListType, TupleType,
   NumType, LibHandleType, ForeignFnType, MapType, MapNodeType;
 
 // safe cast macro

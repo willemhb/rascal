@@ -15,6 +15,7 @@ typedef unsigned short ushort_t;
 typedef unsigned char byte_t;
 typedef unsigned int flags_t;
 typedef unsigned short instr_t;
+typedef uintptr_t uptr_t;
 typedef uintptr_t hash_t;
 typedef void (*funcptr_t)(void);
 
@@ -31,7 +32,7 @@ typedef enum {
 #define NUM_ERRORS (SYSTEM_ERROR+1)
 
 // Expression types -----------------------------------------------------------
-typedef uintptr_t Expr;
+typedef uptr_t Expr;
 typedef nullptr_t Nul;
 typedef double Num;
 typedef bool Bool;
@@ -39,6 +40,7 @@ typedef char32_t Glyph;
 typedef struct Obj Obj;
 
 // Object types ---------------------------------------------------------------
+// user types
 typedef struct Type Type;
 typedef struct Chunk Chunk;
 typedef struct Ref Ref;
@@ -49,6 +51,7 @@ typedef struct Ctl Ctl;
 typedef struct Fun Fun;
 typedef struct Method Method;
 typedef struct MethodTable MethodTable;
+typedef struct MTNode MTNode;
 typedef struct Str Str;
 typedef struct Sym Sym;
 typedef struct List List;
@@ -57,15 +60,6 @@ typedef struct Map Map;
 typedef struct MapNode MapNode;
 typedef struct LibHandle LibHandle;
 typedef struct ForeignFn ForeignFn;
-
-typedef union {
-  Expr  expr;
-  Num   num;
-  Obj*  obj;
-  Bool  boolean;
-  Nul   nul;
-  Glyph glyph;
-} Val;
 
 // Internal types
 typedef struct Strings Strings;

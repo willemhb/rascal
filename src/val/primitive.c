@@ -44,15 +44,15 @@ Num as_num_s(RlState* rls, Expr x) {
 }
 
 Num as_num(Expr x) {
-  Val v = { .expr = x };
+  union { Expr expr; Num num; } bits = { .expr = x };
 
-  return v.num;
+  return bits.num;
 }
 
 Expr tag_num(Num n) {
-  Val v = { .num = n };
+  union { Expr expr; Num num; } bits = { .num = n };
 
-  return v.expr;
+  return bits.expr;
 }
 
 // shortcut for tagging pointers and small integers safely

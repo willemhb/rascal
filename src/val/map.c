@@ -513,6 +513,9 @@ Map* map_assoc(RlState* rls, Map* map, Expr key, Expr val) {
   if ( !map->transient )
     map = clone_obj_s(rls, map);
 
+  if ( map->count == 0 )
+    map->root = mk_branch_node(rls, 0);
+
   map_insert(rls, map, key, val);
   rls->s_top = top;
   return map;
@@ -580,6 +583,9 @@ List* map_vals(RlState* rls, Map* m) {
 
 // print functions
 static void print_map_nodes(Port* ios, MapNode* node, int* count, int max_count) {
+  if ( node == NULL )
+    return;
+
   if ( is_leaf(node) ) {
     print_expr(ios, leaf_key(node));
     pprintf(ios, " ");

@@ -673,9 +673,7 @@ bool table_intern(RlState* rls, Table* table, void* key, void* result) {
 }
 
 // table runtime
-void trace_table(RlState* rls, void* ptr) {
-  Table* table = ptr;
-
+void mark_table(RlState* rls, Table* table) {
   if ( table->kvs && table->mark && !(table->weak_key && table->weak_val) )
     for ( int i=0; i<table->maxc; i++ ) {
       KV* kv = table->kvs+i;

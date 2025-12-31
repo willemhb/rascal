@@ -3,6 +3,21 @@
 
 #include "val/val.h"
 
+typedef union {
+  Num    num;
+  Bool   boolean;
+  Glyph  glyph;
+  int    small;
+  void*  pointer;
+  uptr_t fixnum;
+} CData;
+
+typedef struct {
+  HEAD;
+
+  CData val;
+} Box;
+
 // number API
 Num as_num_s(RlState* rls, Expr x);
 Num as_num(Expr x);

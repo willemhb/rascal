@@ -149,6 +149,8 @@ bool   table_has(RlState* rls, Table* table, void* key);
 bool   table_set(RlState* rls, Table* table, void* key, void* val, void* result);
 bool   table_del(RlState* rls, Table* table, void* key, void* result);
 bool   table_intern(RlState* rls, Table* table, void* key, void* result);
+void   trace_table(RlState* rls, Table* table);
+void   mark_table(RlState* rls, Table* table);
 
 // Strings - hash table mapping char* to Str*
 typedef struct StringsKV {
