@@ -10,8 +10,8 @@
 // Prototypes -----------------------------------------------------------------
 Method* get_cached_method(RlState* rls, MethodTable* mt, Tuple* sig);
 void cache_method(RlState* rls, MethodTable* mt, Tuple* sig, Method* method);
-Method* mtnode_lookup(RlState* rls, MTNode* node, Tuple* sig, int argc, Objs* candidates);
-Method* best_candidate(Objs* candidates);
+int order_methods(Method* m, Method* my);
+void mtnode_lookup(RlState* rls, MTNode* node, Tuple* sig, int argc, Method** candidate, Method** collision);
 
 // Implementations ------------------------------------------------------------
 // Internal
@@ -81,6 +81,14 @@ void mtable_add(RlState* rls, MethodTable* mt, Method* m) {
   // check for duplicate signature
 }
 
+void mtnode_lookup(RlState* rls, MTNode* node, Tuple* sig, int argc, Method** candidate, Method** collision) {
+  if ( node == NULL )
+    return;
+
+  Type* arg = as_type(sig->data[node->offset]);
+  
+}
+
 Method* mtable_dispatch(RlState* rls, MethodTable* mt, int argc) {
   Method* out = NULL;
 
@@ -89,38 +97,29 @@ Method* mtable_dispatch(RlState* rls, MethodTable* mt, int argc) {
     out = mt->fthunk ? : mt->vthunk;
   } else {
     Tuple* sig = NULL;
+    Method* clash = NULL;
     int amin = mt->amin, amax = mt->amax;
     bool cached = false, vamt = mt->va;
 
     if ( argc >= amin && (argc <= amax || vamt) ) {
-      Objs candidates = {
-        .data = NULL,
-        .count = 0,
-        .maxc = 0
-      };
-
       int smax = min(argc, amax);
       sig = get_signature(rls, argc, smax);
       out = get_cached_method(rls, mt, sig);
       cached = out != NULL;
 
       if ( !cached )
-        out = mtnode_lookup(rls, mt->froot, sig, argc, &candidates);
+        mtnode_lookup(rls, mt->root, sig, argc, &out, &clash);
 
-      if ( out == NULL ) {
-        if ( candidates.count > 0 )
-          out = best_candidate(&candidates);
+      require(rls, clash == NULL, "ambiguous method call had multiple candidates.");
 
-        else
-          out = mt->vthunk; // final fallback
+      if ( out == NULL )
+        out = mt->vthunk; // final fallback
       }
-    }
 
-    // check variadic signatures
     if ( !cached && out != NULL )
       cache_method(rls, mt, sig, out);
   }
-  
+ 
   return out;
 }
 
@@ -133,9 +132,9 @@ Tuple* get_signature(RlState* rls, int o, int n) {
   StackRef top = rls->s_top, base = top-o;
 
   for ( int i=0; i<n; i++ ) {
-    Expr id = FIX_T | type_of(base[i])->tag;
-    seed = mix_hashes_48(seed, hash_word_48(id));
-    stack_push(rls, id);
+    Type* t = type_of(base[i]);
+    seed = mix_hashes_48(seed, t->hashcode);
+    stack_push(rls, tag_obj(t));
   }
 
   seed = mix_hashes_48(TupleType.hashcode, seed);
@@ -154,10 +153,17 @@ hash_t mt_cache_rehash(KV* kv) {
 }
 
 bool mt_cache_compare(void* x, void* y) {
+  // would prefer to turn this into a memcmp of an array of the
+  // type identifiers but this at least short circuits multiple
+  // levels of lookup, dispatch, and object access
   Tuple* tx = x, *ty = y;
 
-  return tx->count == ty->count &&
-    memcmp(tx->data, ty->data, tx->count*sizeof(Expr)) == 0;
+  bool out = tx->count == ty->count;
+
+  for ( int i=0; out && i < tx->count; i++ )
+    out = as_type(tx->data[i])->tag == as_type(ty->data[i])->tag;
+
+  return out;
 }
 
 void mt_cache_mark(RlState* rls, Table* table, KV* kv) {
@@ -167,7 +173,6 @@ void mt_cache_mark(RlState* rls, Table* table, KV* kv) {
   if ( !table->weak_val )
     mark_obj(rls, kv->val);
 }
-
 
 void init_mt_cache_table(RlState* rls, Table* table) {
   init_table(rls, table);
@@ -179,15 +184,15 @@ void init_mt_cache_table(RlState* rls, Table* table) {
 }
 
 hash_t mt_node_hash(void* k) {
-  return hash_pointer_48(k);
+  return ((Type*)k)->hashcode;
 }
 
 hash_t mt_node_rehash(KV* kv) {
-  return hash_pointer_48(kv->key);
+  return ((Type*)kv->key)->hashcode;
 }
 
 bool mt_node_compare(void* x, void* y) {
-  return x == y;
+  return ((Type*)x)->tag == ((Type*)y)->tag;
 }
 
 void mt_node_mark(RlState* rls, Table* table, KV* kv) {

@@ -43,16 +43,26 @@ struct Method {
   Fun* fun; // the function this method belongs to
   bool va; // whether extra arguments are accepted
   int arity; // number of arguments accepted (if va is true, this is the minimum number of arguments)
-  OpCode label; // for builtins, set to OP_NOOP for user methods
-  Chunk* chunk; // bytecode for closures
-  UpVal** upvs;
+  int nexact;
+  int nany;
+  MethodKind kind;
+  Tuple* signature;
+
+  union {
+    OpCode label; // for builtins, set to OP_NOOP for user methods
+    
+    struct {
+      Chunk* chunk; // bytecode for closures
+      UpVal** upvs;
+    };
+  };
 };
 
 struct MTNode {
   HEAD;
 
   int     offset;   // offset of the current argument
-  Method* leaf;     // method to return on success
+  Method* fleaf;    // fixed arity meth9od 
   MTNode* fallback; // method with 'any' signature
   Table   children;
 };
@@ -67,8 +77,7 @@ struct MethodTable {
   int amin; // maximum registered arity
   int amax; // minimum registered arity
   int mcount; // total number of method signatures
-  MTNode* froot;  // table of registered fixed arity signatures
-  MTNode* vroot;  // table of registered variable arity signatures
+  MTNode* root;
   Method* fthunk; // fixed arity thunk
   Method* vthunk; // variable arity thunk
   Table cache;  // cache of exact method signatures
