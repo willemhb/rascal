@@ -84,7 +84,10 @@ typedef bool (*EgalFn)(Expr x, Expr y);
 typedef void (*CloneFn)(RlState* rls, void* ob); // called to clone an object's owned pointers
 typedef void (*TraceFn)(RlState* rls, void* ob);
 typedef void (*FreeFn)(RlState* rls, void* ob);
-typedef bool (*HasFn)(Type* tx, Type* ty);
+typedef bool (*HasFn)(Type* tx, Expr x);
+typedef void (*BoxFn)(Box* box, Expr x);
+typedef Expr (*UnboxFn)(Box* box);
+typedef bool (*InitFn)(Box* src, void* spc);
 
 // limits ---------------------------------------------------------------------
 #define MAX_INTERN     512

@@ -72,15 +72,29 @@ struct Type {
   HEAD;
 
   int tag; // for easy type comparison and hashing
-  Sym* name;
+  union {
+    Sym* name;
+    char* _name; // for easy initialization of static type objects
+  };
   size_t obsize;
+
+  // miscellaneous dispatch
   HasFn has_fn;
-  PrintFn print_fn;
-  HashFn hash_fn;
+  PrintFn print_fn; // remove this and implement as multimethod once generics are working
+
+  // comparison API
   EgalFn egal_fn;
+  HashFn hash_fn;
+
+  // object API
   CloneFn clone_fn;
   TraceFn trace_fn;
   FreeFn free_fn;
+
+  // box API
+  BoxFn box_fn;
+  UnboxFn unbox_fn;
+  InitFn init_fn;
 };
 
 // Expression tags
@@ -150,9 +164,16 @@ static inline uptr_t bits_of(Expr x) {
   return (x & XTMSK) == WIDE_T ? x & WVMSK : x & XVMSK;
 }
 
+static inline bool is_alloc(Expr x) {
+  uptr_t tag = x & XVMSK;
+
+  return tag == OBJ_T || tag == BOX_T;
+}
+
 #define expr_tag(x)    ((x) & XTMSK)
 #define expr_val(x)    ((x) & XVMSK)
 #define head(x)        ((Obj*)as_obj(x))
+#define metadata(x)    (head(x)->meta)
 #define as_type(x)     ((Type*)as_obj(x))
 
 // Array and table types are now declared in collection.h
@@ -160,7 +181,7 @@ void trace_exprs(RlState* rls, Exprs* xs);
 void trace_objs(RlState* rls, Objs* os);
 
 // type API
-void init_builtin_type(RlState* rls, Type* type, char* name);
+void init_builtin_type(RlState* rls, Type* type);
 void register_builtin_types(RlState* rls);
 Type* type_of(Expr x);
 bool has_type(Expr x, Type* t);
@@ -174,6 +195,7 @@ void mark_expr(RlState* rls, Expr x);
 // object API
 void* as_obj(Expr x);
 void* as_obj_s(RlState* s, Type* t, Expr x);
+Expr  tag_box(Box* box);
 Expr  tag_obj(void* ptr);
 void* mk_obj(RlState* rls, Type* type, flags_t flags);
 void* mk_obj_s(RlState* rls, Type* type, flags_t flags);
@@ -182,6 +204,14 @@ void* clone_obj_s(RlState* rls, void* ptr);
 void  mark_obj(RlState* rls, void* ptr);
 void  unmark_obj(void* ptr);
 void  free_obj(RlState* rls, void *ptr);
+
+// metadata
+Expr get_meta(RlState* rls, Expr x, Expr k);
+Expr set_meta(RlState* rls, Expr x, Expr k, Expr v);
+Expr with_meta(RlState* rls, Expr x, Expr k, Expr v);
+Expr vm_get_meta(RlState* rls, Expr x, char* key);
+Expr vm_set_meta(RlState* rls, Expr x, char* key, Expr v);
+Expr vm_with_meta(RlState* rls, Expr x, char* key, Expr v);
 
 // Type extern declarations
 extern Type TypeType, NoneType, AnyType, NulType, BoolType, GlyphType,
@@ -194,6 +224,7 @@ extern Type TypeType, NoneType, AnyType, NulType, BoolType, GlyphType,
 
 // type predicates
 #define is_obj(x)         (expr_tag(x) == OBJ_T)
+#define is_box(x)         (expr_tag(x) == BOX_T)
 #define is_glyph(x)       has_type(x, &GlyphType)
 #define is_num(x)         has_type(x, &NumType)
 #define is_sym(x)         has_type(x, &SymType)

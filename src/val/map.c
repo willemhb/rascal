@@ -510,6 +510,9 @@ static void map_delete(RlState* rls, StackRef mbuf, Expr key) {
 Map* map_assoc(RlState* rls, Map* map, Expr key, Expr val) {
   StackRef top = rls->s_top;
 
+  if ( map == NULL )
+    map = new_map_s(rls);
+
   if ( !map->transient )
     map = clone_obj_s(rls, map);
 
@@ -517,12 +520,17 @@ Map* map_assoc(RlState* rls, Map* map, Expr key, Expr val) {
     map->root = mk_branch_node(rls, 0);
 
   map_insert(rls, map, key, val);
+  map->transient = false; // in case new map was created
   rls->s_top = top;
   return map;
 }
 
-// recursive dissoc helper
 Map* map_dissoc(RlState* rls, Map* map, Expr key) {
+  if ( map == NULL ) {
+    map = new_map(rls);
+    map->transient = false;
+  }
+
   if ( map->count > 0 ) {
     Expr* mbuf = stack_push(rls, tag_obj(map));
     map_delete(rls, mbuf, key);
