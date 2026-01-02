@@ -6,6 +6,7 @@
 ;;; elisp doc formatting is extraordinarily fucked up.
 
 ;;; Code:
+
 (define-generic-mode
   'rascal-mode
   '(";" ("#|" . "|#"))
@@ -15,7 +16,9 @@
     "control" "raise"
     ;; macros
     "fun" "stx" "fun*" "stx*" "let" "cond" "case"
-    "label" "loop" "label*" "handle" "require" "provide")
+    "label" "loop" "label*" "handle" "require" "provide"
+    ;; other syntax
+    "λ")
   '(("\\(?:[^-_a-zA-Z?*+0-9/:]:[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ("\\(?:[^~]@[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^@[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ;; special constants
@@ -43,9 +46,12 @@
     ("\\_<[A-Z][a-zA-Z0-9\\|]*\\_>" . font-lock-type-face)
     ;; syntax
     ("\\_<otherwise\\_>" . font-lock-function-name-face)
-    ("\\_<&\\_>" . font-lock-function-name-face))
+    ("\\_<else\\_>" . font-lock-function-name-face)
+    ("\\_<&\\_>" . font-lock-function-name-face)
+    ("\\_<&&\\_>" . font-lock-function-name-face))
   '("\\.rl$")
-  (list 'rainbow-delimiters-mode)
+  (list 'rainbow-delimiters-mode
+        (lambda () (set-input-method 'TeX)))
   "A major mode for rascal files.")
 
 (provide 'rascal-mode)

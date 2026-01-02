@@ -87,7 +87,7 @@ Probably a slight misnomer, but basically an interface for delimited continuatio
 Obviously that's a pain in the ass but in combination with macros it's an extremely powerful tool for language extension.
 
 ```lisp
-;; basic exceptions
+;; exceptions in < 10 lines.
 (stx throw
  (etype message & more)
  `(raise ~etype (list ~message ~@more)))
@@ -98,7 +98,7 @@ Obviously that's a pain in the ass but in combination with macros it's an extrem
        (handler-clauses (tail hanlders)))
   `(handle (~handler-args (case ~@handler-clauses)) ~@body)))
 
-;; Python style generators in < 20 lines of code.
+;; Python style generators in < 30 lines.
 (fun yield
  (x)
  (raise :yield x))
