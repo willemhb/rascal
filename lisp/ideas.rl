@@ -31,15 +31,15 @@
 
 (def {:one one, :two two} {:one 1, :two 2}) ; → one = 1, two = 2
 
-;; infix application syntax: 'a|x' reads as '(a x)' (useful for making common function calls more readable).
-(fun map (f xs)
+;; infix application syntax: 'a.x' reads as '(a x)' (useful for making common function calls more readable).
+(fun map (f: Fun xs: List)
  (if (=? xs ())
      ()
-     (cons f|head|x (map f tail|xs))))
+     (cons f.head.x (map f tail.xs))))
 
-;; infix composition syntax: '(a:b c)' → '(a (b c))', a:b → (fn (x) (a (b x)))
-(head:tail '(a b c)) ; => b
-(map head:tail '((a b) (c d) (e f) (g h) (i j) (k l))) ; => (b d f h j l)
+;; infix composition syntax: '(a|b c)' → '(a (b c))', a|b → (fn (x) (a (b x)))
+(head|tail '(a b c)) ; => b
+(map head|tail '((a b) (c d) (e f) (g h) (i j) (k l))) ; => (b d f h j l)
 
 ;; literal application as get: non-symbolic atoms as the first element of a lsit is treated as a reference
 ;; eg (0 [1 2 3 4]) becomes (ref 0 [1 2 3 4]), (:x {:x 1, :y 2, :z 3}) becomes (ref :x {:x 1, :y 2, :z 3})
@@ -50,7 +50,7 @@
 (def largest-digit (decimal-digits 9))
 
 ;; can be combined with infix application syntax
-(def middle-digits [decimal-digits|4 decimal-digits|5])
+(def middle-digits [decimal-digits.4, decimal-digits.5])
 
 ;; predicate let forms: if the first expression in a `let` form is the name of one
 ;; of the forms `if`, `and`, `or`, `cond`, or `case`, the let form has different semantics corresponding
@@ -63,41 +63,27 @@
 ;;  5. (let case test-expr ((case-var case-expr) & then) & binds)
 
 (let if
- (test (tail args))
+ (test tail.args)
  (print "test passed.")
  (print "test failed."))
 
 (let and
- ((hd   head|xs)
-  (ht   tail|hd)
+ ((hd   head.xs)
+  (ht   tail.hd)
   (else (print "bindings failed.")))
  (print "head = #{hd}\ntail = #{tl}.\n"))
 
 (let cond
- (((h & t) cons?|xs)  ...)
- (([x y z] tuple?|xs) ...)
- (({:drink drink, :fries? fries} map?|xs) ...))
+ (((h & t) cons?.xs)  ...)
+ (([x y z] tuple?.xs) ...)
+ (({:drink drink, :fries? fries} map?.xs) ...))
 
 ;; keyword and options arguments: 
 (fun open
- (name && opts)
- (let
-  ((text?   (:text opts true))
-   (binary? (:binary opts false))
-   (read?   (:read opts true))
-   (write?  (:write opts false))
-   (append? (:append opts false))
-   (create? (:create opts false))
-   (^:mutable mode nul))
-  (if (and text? read?)             (put mode "rt")
-      (and text? write? create?)    (put mode "wt+")
-      (and text? write?)            (put mode "wt")
-      (and text append? create?)    (put mode "at+")
-      (and text append?)            (put mode "at")
-      (and binary? read?)           (put mode "rb")
-      (and binary? write? create?)  (put mode "wb+")
-      (and binary? write?)          (put mode "wb")
-      (and binary? append? create?) (put mode "ab+")
-      (and binary? append?)         (put mode "ab")
-      otherwise                     (raise :exception/value "invalid combination of options #{opts}."))
-  (ffi-call c-open :file-pointer [:string :string] name mode)))
+ (name: Str && opts {
+   :text text?,
+   :binary binary?,
+   :read read?,
+   :write write?,
+   :append append? })
+ ...)
