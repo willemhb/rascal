@@ -20,6 +20,6 @@ Ref* toplevel_env_find(RlState* rls, Env* e, Sym* n);
 Expr toplevel_env_get(RlState* rls, Env* e, Sym* n);
 
 // helpers for defining builtins
-Fun* def_builtin_fun(RlState* rls, char* name, int arity, bool va, OpCode op);
+Fun* def_builtin_fun(RlState* rls, char* name, OpCode op, bool va, int arity, ...);
 
 #endif

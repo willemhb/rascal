@@ -76,14 +76,6 @@ Method* fun_get_method(RlState* rls, Fun* fun, int argc) {
   return out;
 }
 
-void add_builtin_method(RlState* rls, Fun* fun, OpCode op, bool va, int arity, ...) {
-  // NB: fun should already be defined at toplevel
-  StackRef top = rls->s_top;
-  Method* m = mk_builtin_method_s(rls, fun, arity, va, op);
-  fun_add_method(rls, fun, m);
-  rls->s_top = top;
-}
-
 void mtable_add(RlState* rls, MethodTable* mt, Method* m) {
   char* fname = mtable_name(mt);
   bool added = mtnode_add(rls, mt->root, m);

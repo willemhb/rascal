@@ -121,7 +121,7 @@ typedef enum {
   OP_DEFINED,
   OP_LOCAL_ENV,
   OP_GLOBAL_ENV,
-  
+
   // system instructions
   OP_HEAP_REPORT,
   OP_STACK_REPORT,

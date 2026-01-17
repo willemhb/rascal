@@ -1,5 +1,8 @@
+#include <stdarg.h>
+
 #include "lang/env.h"
 #include "lang/dispatch.h"
+#include "val.h"
 #include "vm.h"
 
 // C types --------------------------------------------------------------------
@@ -127,15 +130,52 @@ Expr toplevel_env_get(RlState* rls, Env* e, Sym* n) {
 }
 
 // helpers for defining builtins
-Fun* def_builtin_fun(RlState* rls, char* name, int arity, bool va, OpCode op) {
+void add_builtin_method(RlState* rls, Fun* fun, OpCode op, bool va, int arity, ...) {
   StackRef top = rls->s_top;
-  Sym* n = mk_sym_s(rls, name);
-  Fun* f = mk_fun_s(rls, n, false, true);
-  Method* m = mk_builtin_method_s(rls, f, arity, va, op);
+  va_list types;
+  va_start(types, arity);
 
-  fun_add_method(rls, f, m);
-  toplevel_env_def(rls, Vm.globals, n, tag_obj(f), false, true);
+  for ( int i=0; i < arity; i++ ) {
+    Type* t = va_arg(types, Type*);
+    stack_push(rls, tag_obj(t));
+  }
+
+  va_end(types);
+  Tuple* sig = mk_tuple_s(rls, arity);
+  Method* m = mk_builtin_method_s(rls, fun, va, arity, sig, op);
+  fun_add_method(rls, fun, m);
   rls->s_top = top;
+}
+
+Fun* def_builtin_fun(RlState* rls, char* name, OpCode op, bool va, int arity, ...) {
+  StackRef top = rls->s_top;
+  bool added = false;
+
+  Sym* n = mk_sym_s(rls, name);
+  Ref* r = env_define(rls, rls->vm->globals, n, false, true, &added);
+  Fun* f;
+
+  if ( added ) {
+    f = mk_fun_s(rls, n, false, true);
+    r->val = tag_obj(f);
+  } else {
+    f = as_fun(r->val);
+  }
+
+  // push signature types
+  va_list types;
+  va_start(types, arity);
+
+  for ( int i=0; i < arity; i++ ) {
+    Type* t = va_arg(types, Type*);
+    stack_push(rls, tag_obj(t));
+  }
+
+  va_end(types);
+  Tuple* s = mk_tuple_s(rls, arity); // build signature
+  Method* m = mk_builtin_method_s(rls, f, va, arity, s, op); // create method
+  fun_add_method(rls, f, m); // add method  
+  rls->s_top = top; // reset stack
 
   return f;
 }

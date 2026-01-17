@@ -64,8 +64,8 @@
 
 (let if
  (test tail.args)
- (print "test passed.")
- (print "test failed."))
+ (print "test #{test} passed.")
+ (print "test #{test} failed."))
 
 (let and
  ((hd   head.xs)
@@ -87,3 +87,15 @@
    :write write?,
    :append append? })
  ...)
+
+(fun print
+ (ios: Port xs: List)
+ (fun loop (ios xs)
+  (unless (empty? xs)
+   (print ios (head xs))
+   (unless (empty? (tail xs))
+    (prnc \space))
+   (loop ios (tail xs))))
+ (prnc \()
+ (loop ios xs)
+ (prnc \)))

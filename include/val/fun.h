@@ -13,6 +13,12 @@ typedef enum {
   USER_METHOD    = 3,
 } MethodKind;
 
+typedef union {
+  OpCode opcode;
+  Chunk* chunk;
+  NativeFn cfun;
+} MethodValue;
+
 struct Chunk {
   HEAD;
   Exprs vals;
@@ -107,13 +113,13 @@ Fun* mk_fun(RlState* rls, Sym* name, bool macro, bool generic);
 Fun* mk_fun_s(RlState* rls, Sym* name, bool macro, bool generic);
 
 // method API
-Method* mk_method(RlState* rls, Fun* fun, int arity, bool va, OpCode op, Chunk* code);
-Method* mk_method_s(RlState* rls, Fun* fun, int arity, bool va, OpCode op, Chunk* code);
+Method* mk_method(RlState* rls, Fun* fun, bool va, int arity, Tuple* sig, MethodKind kind, MethodValue val);
+Method* mk_method_s(RlState* rls, Fun* fun, bool va, int arity, Tuple* sig, MethodKind kind, MethodValue val);
 Method* mk_closure(RlState* rls, Method* proto);
-Method* mk_builtin_method(RlState* rls, Fun* fun, int arity, bool va, OpCode op);
-Method* mk_builtin_method_s(RlState* rls, Fun* fun, int arity, bool va, OpCode op);
-Method* mk_user_method(RlState* rls, Fun* fun, int arity, bool va, Chunk* code);
-Method* mk_user_method_s(RlState* rls, Fun* fun, int arity, bool va, Chunk* code);
+Method* mk_builtin_method(RlState* rls, Fun* fun, bool va, int arity, Tuple* sig, OpCode label);
+Method* mk_builtin_method_s(RlState* rls, Fun* fun, bool va, int arity, Tuple* sig, OpCode label);
+Method* mk_user_method(RlState* rls, Fun* fun, bool va, int arity, Tuple* sig, Chunk* code);
+Method* mk_user_method_s(RlState* rls, Fun* fun, bool va, int arity, Tuple* sig, Chunk* code);
 void    disassemble_method(Method* m);
 Expr    upval_ref(Method* m, int i);
 void    upval_set(Method* m, int i, Expr x);

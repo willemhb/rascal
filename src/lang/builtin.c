@@ -1,4 +1,7 @@
 #include "lang/builtin.h"
+#include "lang/dispatch.h"
+#include "lang/env.h"
+
 #include "opcode.h"
 #include "val.h"
 #include "vm.h"
@@ -7,69 +10,67 @@ Fun* ReplFun, *LoadFun;
 
 // Implementations ------------------------------------------------------------
 void define_builtins(void) {
-  Fun* fun;
-
   // initialize builtin functions
   // arithmetic
-  def_builtin_fun(&Main, "+", 2, false, OP_ADD);
-  def_builtin_fun(&Main, "-", 2, false, OP_SUB);
-  def_builtin_fun(&Main, "*", 2, false, OP_MUL);
-  def_builtin_fun(&Main, "/", 2, false, OP_DIV);
-  def_builtin_fun(&Main, "rem", 2, false, OP_REM);
-  def_builtin_fun(&Main, "=", 2, false, OP_NEQ);
-  def_builtin_fun(&Main, "<", 2, false, OP_NLT);
-  def_builtin_fun(&Main, ">", 2, false, OP_NGT);
+  def_builtin_fun(&Main, "+", OP_ADD, false, 2, &NumType, &NumType);
+  def_builtin_fun(&Main, "-", OP_SUB, false, 2, &NumType, &NumType);
+  def_builtin_fun(&Main, "*", OP_MUL, false, 2, &NumType, &NumType);
+  def_builtin_fun(&Main, "/", OP_DIV, false, 2, &NumType, &NumType);
+  def_builtin_fun(&Main, "rem", OP_REM, false, 2, &NumType, &NumType);
+  def_builtin_fun(&Main, "=", OP_NEQ, false, 2, &NumType, &NumType);
+  def_builtin_fun(&Main, "<", OP_NLT, false, 2, &NumType, &NumType);
+  def_builtin_fun(&Main, ">", OP_NGT, false, 2, &NumType, &NumType);
 
   // general
-  def_builtin_fun(&Main, "=?", 2, false, OP_EGAL);
-  def_builtin_fun(&Main, "hash", 1, false, OP_HASH);
-  def_builtin_fun(&Main, "isa?", 2, false, OP_ISA);
-  def_builtin_fun(&Main, "typeof", 1, false, OP_TYPE);
+  def_builtin_fun(&Main, "=?", OP_EGAL, false, 2, &AnyType, &AnyType);
+  def_builtin_fun(&Main, "hash", OP_HASH, false, 1, &AnyType);
+  def_builtin_fun(&Main, "isa?", OP_ISA, false, 2, &AnyType, &TypeType);
+  def_builtin_fun(&Main, "typeof", OP_TYPE, false, 1, &AnyType);
 
   // list
-  def_builtin_fun(&Main, "list", 0, true, OP_LIST);
-  fun = def_builtin_fun(&Main, "cons", 2, false, OP_CONS_2);
-  add_builtin_method(&Main, fun, 2, true, OP_CONS_N);
-  def_builtin_fun(&Main, "head", 1, false, OP_HEAD);
-  def_builtin_fun(&Main, "tail", 1, false, OP_TAIL);
-  def_builtin_fun(&Main, "list-ref", 2, false, OP_LIST_REF);
-  def_builtin_fun(&Main, "list-len", 1, false, OP_LIST_LEN);
+  def_builtin_fun(&Main, "list", OP_LIST, true, 0);
+  def_builtin_fun(&Main, "cons", OP_CONS_2, false, 2, &AnyType, &ListType);
+  def_builtin_fun(&Main, "cons", OP_CONS_N, true, 2, &AnyType, &AnyType); // NB: problematic
+  def_builtin_fun(&Main, "head", OP_HEAD, false, 1, &ListType);
+  def_builtin_fun(&Main, "tail", OP_TAIL, false, 1, &ListType);
+  def_builtin_fun(&Main, "nth", OP_LIST_REF, false, 2, &ListType, &NumType);
+  def_builtin_fun(&Main, "len", OP_LIST_LEN, false, 1, &ListType);
 
   // string
-  def_builtin_fun(&Main, "str", 0, true, OP_STR);
-  def_builtin_fun(&Main, "chars", 1, false, OP_CHARS);
-  def_builtin_fun(&Main, "str-ref", 2, false, OP_STR_REF);
-  def_builtin_fun(&Main, "str-len", 1, false, OP_STR_LEN);
+  def_builtin_fun(&Main, "str", OP_STR, true, 0);
+  def_builtin_fun(&Main, "chars", OP_CHARS, false, 1, &StrType);
+  def_builtin_fun(&Main, "nth", OP_STR_REF, false, 2, &StrType, &NumType);
+  def_builtin_fun(&Main, "len", OP_STR_LEN, false, 1, &StrType);
 
   // symbol
-  fun = def_builtin_fun(&Main, "gensym", 0, false, OP_GENSYM_0);
-  add_builtin_method(&Main, fun, 1, false, OP_GENSYM_1);
+  def_builtin_fun(&Main, "gensym", OP_GENSYM_0, false, 0);
+  def_builtin_fun(&Main, "gensym", OP_GENSYM_1, false, 1, &StrType);
 
   // tuple
-  def_builtin_fun(&Main, "tuple", 0, true, OP_TUPLE);
-  def_builtin_fun(&Main, "tuple-ref", 2, false, OP_TUPLE_REF);
-  def_builtin_fun(&Main, "tuple-len", 1, false, OP_TUPLE_LEN);
+  def_builtin_fun(&Main, "tuple", OP_TUPLE, true, 0);
+  def_builtin_fun(&Main, "nth", OP_TUPLE_REF, false, 2, &TupleType, &NumType);
+  def_builtin_fun(&Main, "len", OP_TUPLE_LEN, false, 1, &TupleType);
 
   // map
-  def_builtin_fun(&Main, "map", 0, true, OP_MAP);
-  fun = def_builtin_fun(&Main, "get", 2, false, OP_MAP_GET_2);
-  add_builtin_method(&Main, fun, 3, false, OP_MAP_GET_3);
-  def_builtin_fun(&Main, "assoc", 3, false, OP_MAP_ASSOC);
-  def_builtin_fun(&Main, "dissoc", 2, false, OP_MAP_DISSOC);
-  def_builtin_fun(&Main, "keys", 1, false, OP_MAP_KEYS);
-  def_builtin_fun(&Main, "vals", 1, false, OP_MAP_VALS);
-  def_builtin_fun(&Main, "map-len", 1, false, OP_MAP_LEN);
-  def_builtin_fun(&Main, "contains?", 2, false, OP_MAP_HAS);
+  def_builtin_fun(&Main, "map", OP_MAP, true, 0);
+  def_builtin_fun(&Main, "get", OP_MAP_GET_2, false, 2, &MapType, &AnyType);
+  def_builtin_fun(&Main, "get", OP_MAP_GET_3, false, 3, &MapType, &AnyType, &AnyType);
+  def_builtin_fun(&Main, "assoc", OP_MAP_ASSOC, false, 3, &MapType, &AnyType, &AnyType);
+  def_builtin_fun(&Main, "dissoc", OP_MAP_DISSOC, false, 2, &MapType, &AnyType);
+  def_builtin_fun(&Main, "keys", OP_MAP_KEYS, false, 1, &MapType);
+  def_builtin_fun(&Main, "vals", OP_MAP_VALS, false, 1, &MapType);
+  def_builtin_fun(&Main, "map-len", OP_MAP_LEN, false, 1, &MapType);
+  def_builtin_fun(&Main, "has?", OP_MAP_HAS, false, 2, &MapType, &AnyType);
 
   // interpreter
-  def_builtin_fun(&Main, "read", 1, false, OP_READ);
-  def_builtin_fun(&Main, "eval", 1, false, OP_EVAL);
-  def_builtin_fun(&Main, "print", 2, false, OP_PRINT);
-  ReplFun = def_builtin_fun(&Main, "repl", 0, false, OP_REPL);
-  def_builtin_fun(&Main, "apply", 2, true, OP_APPLY);
+  def_builtin_fun(&Main, "read", OP_READ, false, 1, &PortType);
+  def_builtin_fun(&Main, "eval", OP_EVAL, false, 1, &AnyType);
+  def_builtin_fun(&Main, "print", OP_PRINT, false, 2, &PortType, &AnyType);
+  ReplFun = def_builtin_fun(&Main, "repl", OP_REPL, false, 0);
+  def_builtin_fun(&Main, "apply", OP_APPLY, true, 1, &FunType);
   def_builtin_fun(&Main, "compile", 1, false, OP_COMPILE);
   def_builtin_fun(&Main, "exec", 1, false, OP_EXEC);
-  LoadFun = def_builtin_fun(&Main, "load", 1, false, OP_LOAD);
+  LoadFun = def_builtin_fun(&Main, "load", OP_LOAD, false, 1, &StrType);
 
   // IO
   def_builtin_fun(&Main, "newline", 1, false, OP_NEWLINE);

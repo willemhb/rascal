@@ -58,7 +58,7 @@ Type MTNodeType = {
   .heap     = NULL,
   .type     = &TypeType,
   .bfields  = FL_GRAY,
-  .tag      = EXP_MTNODE,
+  .tag      = EXP_MT_NODE,
   .obsize   = sizeof(MTNode),
   .trace_fn = trace_mtnode,
   .free_fn  = free_mtnode,
@@ -310,21 +310,40 @@ void trace_fun(RlState* rls, void* ptr) {
 }
 
 // method API
-Method* mk_method(RlState* rls, Fun* fun, int arity, bool va, OpCode op, Chunk* code) {
+static int count_any(Tuple* sig) {
+  int o = 0;
+
+  for ( int i=0; i < sig->count; i++ )
+    o += as_type(sig->data[i])->tag == EXP_ANY;
+
+  return o;
+}
+
+Method* mk_method(RlState* rls, Fun* fun, bool va, int arity, Tuple* sig, MethodKind kind, MethodValue val) {
   Method* m = mk_obj(rls, &MethodType, 0);
   m->fun = fun;
-  m->arity = arity;
   m->va = va;
-  m->label = op;
-  m->chunk = code;
+  m->arity = arity;
+  m->signature = sig;
+  m->nany = count_any(sig);
+  m->nexact = m->arity - m->nany;
+  m->kind = kind;
 
-  assert(code != NULL || op != OP_NOOP);
-    
+  if ( kind == BUILTIN_METHOD )
+    m->label = val.opcode;
+
+  else {
+    // native methods not yet implemented
+    assert(kind == USER_METHOD);
+    m->chunk = val.chunk;
+    m->upvs = NULL;
+  }
+  
   return m;
 }
 
-Method* mk_method_s(RlState* rls, Fun* fun, int arity, bool va, OpCode op, Chunk* code) {
-  Method* out = mk_method(rls, fun, arity, va, op, code);
+Method* mk_method_s(RlState* rls, Fun* fun, bool va, int arity, Tuple* sig, MethodKind kind, MethodValue val) {
+  Method* out = mk_method(rls, fun, va, arity, sig, kind, val);
   stack_push(rls, tag_obj(out));
   return out;
 }
@@ -343,26 +362,22 @@ Method* mk_closure(RlState* rls, Method* proto) {
   return cls;
 }
 
-Method* mk_builtin_method(RlState* rls, Fun* fun, int arity, bool va, OpCode op) {
-  return mk_method(rls, fun, arity, va, op, NULL);
+Method* mk_builtin_method(RlState* rls, Fun* fun, bool va, int arity, Tuple* sig, OpCode label) {
+  return mk_method(rls, fun, va, arity, sig, BUILTIN_METHOD, (MethodValue)label);
 }
 
-Method* mk_builtin_method_s(RlState* rls, Fun* fun, int arity, bool va, OpCode op) {
-  Method* out = mk_builtin_method(rls, fun, arity, va, op);
+Method* mk_builtin_method_s(RlState* rls, Fun* fun, bool va, int arity, Tuple* sig, OpCode label) {
+  Method* out = mk_builtin_method(rls, fun, va, arity, sig, label);
   stack_push(rls, tag_obj(out));
   return out;
 }
 
-Method* mk_user_method(RlState* rls, Fun* fun, int arity, bool va, Chunk* code) {
-  StackRef top = rls->s_top;
-  Method* m = mk_method(rls, fun, arity, va, OP_NOOP, code);
-  rls->s_top = top;
-
-  return m;
+Method* mk_user_method(RlState* rls, Fun* fun, bool va, int arity, Tuple* sig, Chunk* code) {
+  return mk_method(rls, fun, va, arity, sig, USER_METHOD, (MethodValue)code);
 }
 
-Method* mk_user_method_s(RlState* rls, Fun* fun, int arity, bool va, Chunk* code) {
-  Method* out = mk_user_method(rls, fun, arity, va, code);
+Method* mk_user_method_s(RlState* rls, Fun* fun, bool va, int arity, Tuple* sig, Chunk* code) {
+  Method* out = mk_user_method(rls, fun, va, arity, sig, code);
   stack_push(rls, tag_obj(out));
   return out;
 }
@@ -408,8 +423,12 @@ void trace_method(RlState* rls, void* ptr) {
 MethodTable* mk_mtable(RlState* rls, Fun* fun) {
   MethodTable* mt = mk_obj(rls, &MethodTableType, 0);
   mt->fun = fun;
-  mt->variadic = NULL;
-  init_bit_vec(rls, &mt->methods);
+  mt->va = false;
+  mt->amin = 0;
+  mt->amax = 0;
+  mt->root = NULL;
+  init_mt_cache_table(rls, &mt->cache);
+
   return mt;
 }
 
@@ -427,20 +446,21 @@ void print_mtable(Port* ios, Expr x) {
 void trace_mtable(RlState* rls, void* ptr) {
   MethodTable* mt = ptr;
   mark_obj(rls, mt->fun);
-  mark_obj(rls, mt->variadic);
-  trace_obj_array(rls, (Obj**)mt->methods.data, mt->methods.count);
+  mark_obj(rls, mt->root);
+  trace_table(rls, &mt->cache);
 }
 
 void free_mtable(RlState* rls, void* ptr) {
   MethodTable* mt = ptr;
-  free_bit_vec(rls, &mt->methods);
+  free_table(rls, &mt->cache);
 }
 
 // mtnode/mtroot
 void trace_mtnode(RlState* rls, void* ptr) {
   MTNode* node = ptr;
 
-  mark_obj(rls, node->leaf);
+  mark_obj(rls, node->vleaf);
+  mark_obj(rls, node->fleaf);
   mark_obj(rls, node->fallback);
   mark_table(rls, &node->children);
 }
@@ -454,7 +474,8 @@ void free_mtnode(RlState* rls, void* ptr) {
 MTNode* mk_mtnode(RlState* rls, int offset) {
   MTNode* out   = mk_obj(rls, &MTNodeType, 0);
   out->offset   = offset;
-  out->leaf     = NULL;
+  out->fleaf    = NULL;
+  out->vleaf    = NULL;
   out->fallback = NULL;
 
   init_mt_node_table(rls, &out->children);
