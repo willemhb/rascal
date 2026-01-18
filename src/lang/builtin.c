@@ -67,9 +67,9 @@ void define_builtins(void) {
   def_builtin_fun(&Main, "eval", OP_EVAL, false, 1, &AnyType);
   def_builtin_fun(&Main, "print", OP_PRINT, false, 2, &PortType, &AnyType);
   ReplFun = def_builtin_fun(&Main, "repl", OP_REPL, false, 0);
-  def_builtin_fun(&Main, "apply", OP_APPLY, true, 1, &FunType);
-  def_builtin_fun(&Main, "compile", 1, false, OP_COMPILE);
-  def_builtin_fun(&Main, "exec", 1, false, OP_EXEC);
+  def_builtin_fun(&Main, "apply", OP_APPLY, true, 2, &FunType, &AnyType);
+  def_builtin_fun(&Main, "compile", OP_COMPILE, false, 1, &AnyType);
+  def_builtin_fun(&Main, "exec", OP_EXEC, false, 1, &FunType);
   LoadFun = def_builtin_fun(&Main, "load", OP_LOAD, false, 1, &StrType);
 
   // IO
