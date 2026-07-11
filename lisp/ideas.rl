@@ -1,8 +1,8 @@
 ;; Code in this file is for playing around with ideas. It's not expected to run.
 ;; Loading pretty much guaranteed to crash the interpreter.
 
-;; function literal syntax: as in clojure but uses'λ' as the dispatch characgter instead of '#'.
-(map λ(^ 2 &) (range 0 9)) ; => (1 2 4 8 16 32 64 128 256 512)
+;; function literal syntax: as in clojure but uses 'λ' as the dispatch character instead of '#'.
+(mapf λ(^ 2 %) (range 0 9)) ; => (1 2 4 8 16 32 64 128 256 512)
 
 ;; splatting syntax: turns a regular function call '(f & args)' into '(apply f args)'.
 (+ & '(1 2 3)) ;; => 6
@@ -13,12 +13,12 @@
 (def decimals-list  '(0 1 2 3 4 5 6 7 8 9))
 (def decimals-names '(:zero :one :two :three :four :five :six :seven :eight :nine))
 (def decimals-tuple  [0 1 2 3 4 5 6 7 8 9])
-(def decimals-map    (map & (zip λ[&1 &2] decimal-digits-list decimal-digits-names)))
+(def decimals-map    (map & (zip λ[%1 %2] decimal-digits-list decimal-digits-names)))
 
 ;; binds 'zero' and 'one' to the first two elements of the value expression, and the rest of the sequence to 'big-digits'.
 (def (zero one & big-digits) decimal-digits-names)
 
-(def (w i l & ljukes) "will jukes") ; → w = \w, i = \i, l = \l, ljukes = "l jukes"
+(def (w i l & lem) "willem") ; → w = \w, i = \i, l = \l, lem = "lem"
 
 ;; Raises an exception if the value expression does not have at least two elements.
 (def [zero one &] decimal-gits-tuple) ; → zero = 0, one = 1 (other tuple elements ignored)
@@ -35,9 +35,9 @@
 (fun map (f: Fun xs: List)
  (if (=? xs ())
      ()
-     (cons f.head.x (map f tail.xs))))
+     (cons f.head.xs (map f tail.xs))))
 
-;; infix composition syntax: '(a|b c)' → '(a (b c))', a|b → (fn (x) (a (b x)))
+;; infix composition syntax: '(a:b c)' → '(a (b c))', a:b → (fn (x) (a (b x)))
 (head|tail '(a b c)) ; => b
 (map head|tail '((a b) (c d) (e f) (g h) (i j) (k l))) ; => (b d f h j l)
 
@@ -76,7 +76,7 @@
 (let cond
  (((h & t) cons?.xs)  ...)
  (([x y z] tuple?.xs) ...)
- (({:drink drink, :fries? fries} map?.xs) ...))
+ (({:drink drink, :fries? fries?} map?.xs) ...))
 
 ;; keyword and options arguments: 
 (fun open
@@ -94,7 +94,7 @@
   (unless (empty? xs)
    (print ios (head xs))
    (unless (empty? (tail xs))
-    (prnc \space))
+    (prnc ios \space))
    (loop ios (tail xs))))
  (prnc \()
  (loop ios xs)
