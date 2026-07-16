@@ -16,6 +16,7 @@
     "control" "raise"
     ;; macros
     "fun" "stx" "fun*" "stx*" "let" "cond" "case"
+    ;; fun mac struct union var val ref mod proc
     "label" "loop" "label*" "handle" "require" "provide"
     ;; other syntax
     "λ")

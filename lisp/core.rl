@@ -15,7 +15,7 @@
  ;; 
  (binds & body)
   (fun xform-bind (bind) `(def ~@bind))
-   (def def-forms (map xform-bind binds))
+   (def def-forms (fmap xform-bind binds))
    `((fn () ~@def-forms ~@body)))
 
  (stx label
@@ -58,17 +58,19 @@
 (fun some?
  (p? xs)
  (if (empty? xs)
-   false
-   (p? (head xs))
-    true
-   otherwise
-    (some? p? (tail xs))))
+      false
+     (p? (head xs))
+      true
+     otherwise
+      (some? p? (tail xs))))
 
 (fun every?
  (p? xs)
- (if (empty? xs)  true
-   (p? (head xs)) (every? p? (tail xs))
-   otherwise      false))
+ (if (empty? xs)
+      true
+     (p? (head xs))
+      (every? p? (tail xs))
+     otherwise false))
 
 (fun fmap
  (f & xss)
@@ -76,3 +78,18 @@
   ()
   (cons (apply f (fmap head xss))
         (map f (fmap tail xss)))))
+
+;; module system (such as it is).
+(stx update
+ (var key val)
+ `(put ~var (assoc ~var ~key ~val)))
+
+(def &loaded-files {})
+
+(stx require
+ (path: Str)
+ (let ((fullpath-sym (gensym)))
+  `(let ((~fullpath-sym (abspath ~path)))
+    (unless (has? &loaded-files ~fullpath-sym)
+     (load ~fullpath-sym)
+     (update &loaded-files ~fullpath-sym true)))))

@@ -6,6 +6,8 @@
 
 ;; splatting syntax: turns a regular function call '(f & args)' into '(apply f args)'.
 (+ & '(1 2 3)) ;; => 6
+(cons 0 & '(1 2 (3))) ;; => (0 1 2 3)
+(list 0 & '(1 2 (3))) ;; => (0 1 2 (3))
 
 ;; destructuring syntax: borrowed from clojure with alteration. in most binding forms that expect a
 ;; symbol, a data structure can be provided instead, with the corresponding semantics depending on the
@@ -13,15 +15,15 @@
 (def decimals-list  '(0 1 2 3 4 5 6 7 8 9))
 (def decimals-names '(:zero :one :two :three :four :five :six :seven :eight :nine))
 (def decimals-tuple  [0 1 2 3 4 5 6 7 8 9])
-(def decimals-map    (map & (zip λ[%1 %2] decimal-digits-list decimal-digits-names)))
+(def decimals-map    (mapf & (zip λ[%1 %2] decimals-list decimals-names)))
 
 ;; binds 'zero' and 'one' to the first two elements of the value expression, and the rest of the sequence to 'big-digits'.
-(def (zero one & big-digits) decimal-digits-names)
+(def (zero one & big-digits) decimals-names)
 
 (def (w i l & lem) "willem") ; → w = \w, i = \i, l = \l, lem = "lem"
 
 ;; Raises an exception if the value expression does not have at least two elements.
-(def [zero one &] decimal-gits-tuple) ; → zero = 0, one = 1 (other tuple elements ignored)
+(def [zero one &] decimals-tuple) ; → zero = 0, one = 1 (other tuple elements ignored)
 
 ;; Raises an exception if the value expression does not have exactly two elements.
 (def [zero one] [0 1]) ; → zero = 0, one = 1
@@ -31,17 +33,18 @@
 
 (def {:one one, :two two} {:one 1, :two 2}) ; → one = 1, two = 2
 
-;; infix application syntax: 'a.x' reads as '(a x)' (useful for making common function calls more readable).
+;; infix application syntax: 'x.a' reads as '(a x)'. By convention it's strongly preffered that this
+;; syntax be used only for accessors and type predicates.
 (fun map (f: Fun xs: List)
  (if (=? xs ())
-     ()
-     (cons f.head.xs (map f tail.xs))))
+  ()
+  (cons (f xs.head) (map f xs.tail))))
 
-;; infix composition syntax: '(a:b c)' → '(a (b c))', a:b → (fn (x) (a (b x)))
+;; infix composition syntax: '(a|b c)' → '(a (b c))', a|b → (fn (x) (a (b x)))
 (head|tail '(a b c)) ; => b
 (map head|tail '((a b) (c d) (e f) (g h) (i j) (k l))) ; => (b d f h j l)
 
-;; literal application as get: non-symbolic atoms as the first element of a lsit is treated as a reference
+;; literal application as get: non-symbolic atoms as the first element of a list is treated as a reference
 ;; eg (0 [1 2 3 4]) becomes (ref 0 [1 2 3 4]), (:x {:x 1, :y 2, :z 3}) becomes (ref :x {:x 1, :y 2, :z 3})
 (def decimal-digits [0 1 2 3 4 5 6 7 8 9])
 (def smallest-digit (0 decimal-digits))
@@ -60,23 +63,29 @@
 ;;  2. (let and  ((test-var test-expr) & binds) & body)
 ;;  3. (let or   ((test-var test-expr) & binds) & body)
 ;;  4. (let cond ((test-var test-expr) & then) & binds)
-;;  5. (let case test-expr ((case-var case-expr) & then) & binds)
+;;  5. (let case (test-var text-expr) ((& cases) & then) & more-cases)
+;;
+;; if destructuring fails in a predicate let form it should be treated as a failed predicate, not an error.
 
 (let if
- (test tail.args)
+ (test (tail args))
  (print "test #{test} passed.")
  (print "test #{test} failed."))
 
 (let and
- ((hd   head.xs)
-  (ht   tail.hd)
+ ((hd (head xs))
+  (ht (tail hd))
   (else (print "bindings failed.")))
  (print "head = #{hd}\ntail = #{tl}.\n"))
 
 (let cond
- (((h & t) cons?.xs)  ...)
- (([x y z] tuple?.xs) ...)
- (({:drink drink, :fries? fries?} map?.xs) ...))
+ (((h & t) (cons? xs))  ...)
+ (([x y z] (tuple? xs)) ...)
+ (({:drink drink, :fries? fries?} (map? xs)) ...))
+
+(let case (x (head xs))
+ ((1 3 5 7 9) (print "#{x} is an odd number."))
+ ((0 2 4 6 8) (print "#{x} is an even number.")))
 
 ;; keyword and options arguments: 
 (fun open
@@ -93,9 +102,12 @@
  (fun loop (ios xs)
   (unless (empty? xs)
    (print ios (head xs))
-   (unless (empty? (tail xs))
-    (prnc ios \space))
+   (unless (empty?|tail xs) (prnc ios \space))
    (loop ios (tail xs))))
  (prnc \()
  (loop ios xs)
  (prnc \)))
+
+;; module syntax
+
+(module )

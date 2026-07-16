@@ -59,7 +59,7 @@ void define_builtins(void) {
   def_builtin_fun(&Main, "dissoc", OP_MAP_DISSOC, false, 2, &MapType, &AnyType);
   def_builtin_fun(&Main, "keys", OP_MAP_KEYS, false, 1, &MapType);
   def_builtin_fun(&Main, "vals", OP_MAP_VALS, false, 1, &MapType);
-  def_builtin_fun(&Main, "map-len", OP_MAP_LEN, false, 1, &MapType);
+  def_builtin_fun(&Main, "len", OP_MAP_LEN, false, 1, &MapType);
   def_builtin_fun(&Main, "has?", OP_MAP_HAS, false, 2, &MapType, &AnyType);
 
   // interpreter
