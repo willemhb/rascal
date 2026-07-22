@@ -9,6 +9,7 @@ typedef enum {
   REF_UNDEF,
   REF_GLOBAL,
   REF_LOCAL,
+  REF_SLOT,
   REF_LOCAL_UPVAL,
   REF_CAPTURED_UPVAL
 } RefCode;
@@ -32,7 +33,7 @@ struct UpVal {
   bool   closed;
 
   union {
-    Expr  val;
+    Expr val;
     Expr* loc;
   };
 };
@@ -58,22 +59,23 @@ Ref* mk_ref(RlState* rls, Sym* n, int o);
 
 // upval APIs
 UpVal* mk_upval(RlState* rls, UpVal* next, Expr* loc);
-Expr*  deref(UpVal* upv);
+Expr* deref(UpVal* upv);
 
 // environment API
-Env*   mk_env(RlState* rls, Env* parent);
-Env*   mk_env_s(RlState* rls, Env* parent);
+Env* mk_env(RlState* rls, Env* parent);
+Env* mk_env_s(RlState* rls, Env* parent);
+Env* mk_slots(RlState* rls, Tuple* names);
 
 // convenience macros & accessors
-#define as_ref(x)        ((Ref*)as_obj(x))
-#define as_env(x)        ((Env*)as_obj(x))
+#define as_ref(x) ((Ref*)as_obj(x))
+#define as_env(x) ((Env*)as_obj(x))
 #define as_env_s(rls, x) ((Env*)as_obj_s(rls, &EnvType, x))
 
-#define is_local_env(e)    ((e)->parent != NULL)
-#define is_global_env(e)   ((e)->parent == NULL)
-#define env_type(e)        ((e)->etype)
-#define env_upval_maxc(e)  ((e)->upvs.maxc)
-#define env_upval_refs(e)  ((e)->upvs.kvs)
+#define is_local_env(e) ((e)->parent != NULL)
+#define is_global_env(e) ((e)->parent == NULL)
+#define env_type(e) ((e)->etype)
+#define env_upval_maxc(e) ((e)->upvs.maxc)
+#define env_upval_refs(e) ((e)->upvs.kvs)
 
 static inline int env_size(Env* e) {
   if ( is_global_env(e) )

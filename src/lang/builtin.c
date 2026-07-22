@@ -73,24 +73,24 @@ void define_builtins(void) {
   LoadFun = def_builtin_fun(&Main, "load", OP_LOAD, false, 1, &StrType);
 
   // IO
-  def_builtin_fun(&Main, "newline", 1, false, OP_NEWLINE);
+  def_builtin_fun(&Main, "newline", OP_NEWLINE, false, 1, &PortType);
 
   // environment
-  def_builtin_fun(&Main, "defined?", 2, false, OP_DEFINED);
-  def_builtin_fun(&Main, "local-env?", 1, false, OP_LOCAL_ENV);
-  def_builtin_fun(&Main, "global-env?", 1, false, OP_GLOBAL_ENV);
+  def_builtin_fun(&Main, "defined?", OP_DEFINED, false, 2, &SymType, &EnvType);
+  def_builtin_fun(&Main, "local-env?", OP_LOCAL_ENV, false, 1, &EnvType);
+  def_builtin_fun(&Main, "global-env?", OP_GLOBAL_ENV, false, 1, &EnvType);
 
   // system
-  def_builtin_fun(&Main, "*heap-report*", 0, false, OP_HEAP_REPORT);
-  def_builtin_fun(&Main, "*stack-report*", 0, false, OP_STACK_REPORT);
-  def_builtin_fun(&Main, "*env-report*", 0, false, OP_ENV_REPORT);
-  def_builtin_fun(&Main, "*stack-trace*", 0, false, OP_STACK_TRACE);
-  def_builtin_fun(&Main, "*methods*", 1, false, OP_METHODS);
-  def_builtin_fun(&Main, "*dis*", 2, false, OP_DIS);
+  def_builtin_fun(&Main, "*heap-report*", OP_HEAP_REPORT, false, 0);
+  def_builtin_fun(&Main, "*stack-report*", OP_STACK_REPORT, false, 0);
+  def_builtin_fun(&Main, "*env-report*", OP_ENV_REPORT, false, 0);
+  def_builtin_fun(&Main, "*stack-trace*", OP_STACK_TRACE, false, 0);
+  def_builtin_fun(&Main, "*methods*", OP_METHODS, false, 1, &FunType);
+  def_builtin_fun(&Main, "*dis*", 2, OP_DIS, false, 2, &FunType, &TupleType);
 
   // FFI
-  def_builtin_fun(&Main, "ffi-open", 1, false, OP_FFI_OPEN);
-  def_builtin_fun(&Main, "ffi-sym", 2, false, OP_FFI_SYM);
-  def_builtin_fun(&Main, "ffi-call", 3, true, OP_FFI_CALL);
-  def_builtin_fun(&Main, "ffi-close", 1, false, OP_FFI_CLOSE);
+  def_builtin_fun(&Main, "ffi-open",  OP_FFI_OPEN, false, 1, &StrType);
+  def_builtin_fun(&Main, "ffi-sym", OP_FFI_SYM, false, 2, &LibHandleType, &StrType);
+  def_builtin_fun(&Main, "ffi-call", OP_FFI_CALL, true, 3, &ForeignFnType, &SymType, &ListType);
+  def_builtin_fun(&Main, "ffi-close", OP_FFI_CLOSE, false, 1, &LibHandleType);
 }

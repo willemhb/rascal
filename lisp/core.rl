@@ -15,7 +15,7 @@
  ;; 
  (binds & body)
   (fun xform-bind (bind) `(def ~@bind))
-   (def def-forms (fmap xform-bind binds))
+  (def def-forms (mapf xform-bind binds))
    `((fn () ~@def-forms ~@body)))
 
  (stx label
@@ -25,11 +25,11 @@
   ;; and immediately invokes the thunk.
   ;; this really calls for actually implementing tail recursion.
   (name inits & body)
-  (def formals (fmap fst inits))
-  (def values  (fmap snd inits))
+  (def formals (mapf fst inits))
+  (def values  (mapf snd inits))
   (def defn-form
   `(def ~name (fn ~formals ~@body)))
-  `((fn () ~defn-form (~name ~@inits))))
+  `((fn () ~defn-form (~name ~@values))))
 
 ; ;(fun macro-call?
 ;  (form)
@@ -67,29 +67,15 @@
 (fun every?
  (p? xs)
  (if (empty? xs)
-      true
-     (p? (head xs))
-      (every? p? (tail xs))
-     otherwise false))
+   true
+  (p? (head xs))
+   (every? p? (tail xs))
+  otherwise
+   false))
 
-(fun fmap
+(fun mapf
  (f & xss)
  (if (some? empty? xss)
   ()
-  (cons (apply f (fmap head xss))
-        (map f (fmap tail xss)))))
-
-;; module system (such as it is).
-(stx update
- (var key val)
- `(put ~var (assoc ~var ~key ~val)))
-
-(def &loaded-files {})
-
-(stx require
- (path: Str)
- (let ((fullpath-sym (gensym)))
-  `(let ((~fullpath-sym (abspath ~path)))
-    (unless (has? &loaded-files ~fullpath-sym)
-     (load ~fullpath-sym)
-     (update &loaded-files ~fullpath-sym true)))))
+  (cons (apply f (mapf head xss))
+        (map f (mapf tail xss)))))

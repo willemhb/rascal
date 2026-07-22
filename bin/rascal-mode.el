@@ -15,11 +15,18 @@
     "put" "if" "and" "or" "do" "fn"
     "control" "raise"
     ;; macros
-    "fun" "stx" "fun*" "stx*" "let" "cond" "case"
-    ;; fun mac struct union var val ref mod proc
-    "label" "loop" "label*" "handle" "require" "provide"
-    ;; other syntax
-    "λ")
+    "fun" "stx" "let" "handle" "label" "loop"
+    "when" "unless"
+
+;;    "cond" "case"
+;;    "type" "struct" "union"
+;;    "var" "val"
+;;    "label" "loop" "handle"
+;;    "module" "require" "provide"
+;;    "agent" "send"
+;;    ;; other syntax
+;;    "λ"
+    )
   '(("\\(?:[^-_a-zA-Z?*+0-9/:]:[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^:[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ("\\(?:[^~]@[-_a-zA-Z?*+0-9/]+\\)\\|\\(?:^@[-_a-zA-Z?*+0-9/]+\\)" . font-lock-type-face)
     ;; special constants
@@ -43,6 +50,9 @@
     ("\\_<sym\\_>" . font-lock-builtin-face)
     ("\\_<tuple\\_>" . font-lock-builtin-face)
     ("\\_<str\\_>" . font-lock-builtin-face)
+    ("\\_<new\\_>" . font-lock-builtin-face)
+    ("\\_<super\\_>" . font-lock-builtin-face)
+    ("\\_<get\\_>" . font-lock-builtin-face)
     ;; types
     ("\\_<[A-Z][a-zA-Z0-9\\|]*\\_>" . font-lock-type-face)
     ;; syntax

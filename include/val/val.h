@@ -76,7 +76,9 @@ struct Type {
     Sym* name;
     char* _name; // for easy initialization of static type objects
   };
+
   size_t obsize;
+  Env* slots; // only used for user extension types
 
   // miscellaneous dispatch
   HasFn has_fn;
@@ -183,6 +185,7 @@ void trace_objs(RlState* rls, Objs* os);
 // type API
 void init_builtin_type(RlState* rls, Type* type);
 void register_builtin_types(RlState* rls);
+void ensure_struct_type(RlState* rls, Sym* name, Tuple* slots);
 Type* type_of(Expr x);
 bool has_type(Expr x, Type* t);
 char* type_name(Type* t);

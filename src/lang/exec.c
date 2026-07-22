@@ -15,6 +15,7 @@ enum {
 bool is_falsey(Expr x);
 Expr get_global_ref(RlState* rls, int o);
 void set_global_ref(RlState* rls, int o, Expr v);
+int  traverse_methods(RlState* rls, Fun* fn);
 Expr do_load(RlState* rls, char* fname);
 
 // Implementations ------------------------------------------------------------
@@ -218,7 +219,7 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
   List* lx, * ly;
   Fun* fx;
   Method* method;
-  MethodTable* mtx;
+  // MethodTable* mtx;
   // Sym* nx;
   Str* sx;
   Ctl* cx;
@@ -387,7 +388,7 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
 
   // Dispatch to appropriate method
   fx = as_fun_s(rls, x);
-  method = fun_get_method(fx, argc);
+  method = fun_get_method(rls, fx, argc);
   require(rls, method != NULL,
           "%s has no method for %d arguments", fun_name(fx), argc);
 
@@ -887,28 +888,8 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
  op_methods:
   // return a list of all of a function's methods
   fx = as_fun_s(rls, ARGS[0]);
-  argx = 0;
-
   assert(fx->mcount > 0);
-
-  if ( is_singleton_fun(fx) ) {
-    stack_push(rls, tag_obj(fx->method));
-    argx = 1;
-  } else {
-    mtx = fx->methods;
-
-    for ( int i=0; i<mtx->methods.count; i++ ) {
-      Method* mx = mtx->methods.data[i];
-      stack_push(rls, tag_obj(mx));
-      argx++;
-    }
-
-    if ( mtx->variadic ) {
-      stack_push(rls, tag_obj(mtx->variadic));
-      argx++;
-    }
-  }
-
+  argx = traverse_methods(rls, fx);
   mk_list_s(rls, argx);
 
   goto op_return;
@@ -917,7 +898,7 @@ Expr exec_code(RlState* rls, int nargs, int flags) {
   fx = as_fun_s(rls, ARGS[0]);
   ix = as_num_s(rls, ARGS[1]);
   // Disassemble the singleton method (or first method if multimethod)
-  method =  fun_get_method(fx, ix);
+  method =  fun_get_method(rls, fx, ix);
   require(rls, method != NULL, "no method for %s/%d", fun_name(fx), ix);
   require(rls, is_user_method(method),
           "can't disassemble builtin method for %s/%d", fun_name(fx), ix);
